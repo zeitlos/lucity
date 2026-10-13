@@ -54,16 +54,10 @@ const githubLink = computed(() =>
   >
     <template #title>
       <UContextMenu :items="logoMenu">
-        <div class="flex items-center gap-5 text-highlighted">
-          <img
-            src="/logo-mark.svg"
-            alt=""
-            width="59"
-            height="24"
-            class="h-6 w-auto shrink-0"
-          >
-          <span class="wordmark text-2xl leading-none">Lucity Docs</span>
-        </div>
+        <LucityLogo
+          :suffix="inDocs ? 'Docs' : undefined"
+          class="text-2xl text-highlighted"
+        />
       </UContextMenu>
     </template>
 
@@ -131,10 +125,3 @@ const githubLink = computed(() =>
 
   <LogoGeneratorPanel />
 </template>
-
-<style scoped>
-.wordmark {
-  font-family: 'Redaction 35', Georgia, serif;
-  font-weight: 400;
-}
-</style>

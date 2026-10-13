@@ -47,24 +47,27 @@ export const LOGO_SWATCHES = [
 ];
 
 export const LOGO_PARAMS: Record<string, any> = {
-  bendW: { label: 'Bend width', min: 20, max: 240, step: 1, value: 72 },
-  bendH: { label: 'Bend height', min: 20, max: 56, step: 1, value: 43 },
-  flat: { label: 'Flat length', min: 0, max: 320, step: 1, value: 121 },
-  tension: { label: 'Curve tension', min: 0.15, max: 0.99, step: 0.01, value: 0.65 },
-  topFlat: { label: 'Top vertical part', min: 0, max: 50, step: 1, value: 0 },
-  botFlat: { label: 'Bottom vertical part', min: 0, max: 50, step: 1, value: 40 },
-  depth: { label: 'Extrusion width', min: 10, max: 300, step: 1, value: 288 },
+  bendW: { label: 'Bend width', min: 20, max: 240, step: 1, value: 60 },
+  bendH: { label: 'Bend height', min: 10, max: 80, step: 1, value: 36 },
+  flat: { label: 'Flat length', min: 0, max: 320, step: 1, value: 10 },
+  tension: { label: 'First bend tension', min: 0.15, max: 0.99, step: 0.01, value: 0.74 },
+  tension2: { label: 'Second bend tension', min: 0.15, max: 0.99, step: 0.01, value: 0.74 },
+  topFlat: { label: 'Top vertical part', min: 0, max: 120, step: 1, value: 76 },
+  botFlat: { label: 'Bottom vertical part', min: 0, max: 120, step: 1, value: 33 },
+  depth: { label: 'Top extrusion width', min: 10, max: 400, step: 1, value: 120 },
+  depthB: { label: 'Bottom extrusion width', min: 10, max: 400, step: 1, value: 169 },
+  lift: { label: 'Vertical extrusion', min: -80, max: 80, step: 1, value: 0 },
   text: { label: 'Text', type: 'text', value: 'Lucity' },
-  font: { label: 'Font', type: 'select', value: 'Redaction', options: LOGO_FONTS.map(f => f.name) },
-  weight: { label: 'Weight', type: 'select', value: '500', options: ['300', '400', '500', '600', '700', '800', '900'] },
+  font: { label: 'Font', type: 'select', value: 'Redaction 35', options: LOGO_FONTS.map(f => f.name) },
+  weight: { label: 'Weight', type: 'select', value: '400', options: ['300', '400', '500', '600', '700', '800', '900'] },
   fstyle: { label: 'Style', type: 'select', value: 'Normal', options: ['Normal', 'Italic'] },
   lspace: { label: 'Letter spacing', min: -10, max: 40, step: 0.5, value: 0 },
-  inFsize: { label: 'Font size', type: 'select', value: 'text-3xl', options: Object.keys(LOGO_TEXT_SIZES) },
-  inGap: { label: 'Gap right of mark', min: 0, max: 200, step: 1, value: 60 },
+  inFsize: { label: 'Font size', type: 'select', value: 'text-4xl', options: Object.keys(LOGO_TEXT_SIZES) },
+  inGap: { label: 'Gap right of mark', min: 0, max: 200, step: 1, value: 150 },
   inDy: { label: 'Vertical offset', min: -20, max: 20, step: 1, value: 0 },
   bgOn: { label: 'Background', type: 'select', value: 'None', options: ['None', 'Color'] },
   bg: { label: 'Background color', type: 'swatch', value: '#f6ede0' },
-  fill: { label: 'Logo color', type: 'swatch', value: '#301c0e' },
+  fill: { label: 'Logo color', type: 'swatch', value: '#8843db' },
   textCol: { label: 'Text color', type: 'swatch', value: '#301c0e' },
   pixStyle: { label: 'Pixelate', type: 'select', value: 'Off', options: ['Off', 'Grid', 'Dither'] },
   pixSize: { label: 'Pixel size', min: 3, max: 40, step: 1, value: 10 },
@@ -76,60 +79,75 @@ export const LOGO_PARAMS: Record<string, any> = {
 };
 
 export const LOGO_GROUPS: [string, string[]][] = [
-  ['Profile', ['bendW', 'bendH', 'flat', 'tension', 'topFlat', 'botFlat']],
-  ['Extrusion', ['depth']],
+  ['Profile', ['bendW', 'bendH', 'flat', 'tension', 'tension2', 'topFlat', 'botFlat']],
+  ['Extrusion', ['depth', 'depthB', 'lift']],
   ['Wordmark', ['text', 'font', 'weight', 'fstyle', 'lspace', 'inFsize', 'inGap', 'inDy']],
   ['Colors', ['bgOn', 'bg', 'fill', 'textCol']],
   ['Style', ['pixStyle', 'pixSize', 'shade', 'shadeK', 'detail']],
   ['Display', ['zoom', 'previewZoom']],
 ];
 
-export const LOGO_STORE_KEY = 'lucity-logo-generator-v1';
+export const LOGO_STORE_KEY = 'lucity-logo-generator-v2';
+const LOGO_LEGACY_STORE_KEY = 'lucity-logo-generator-v1';
 
 type State = Record<string, any>;
 
 const n2 = (v: number) => Math.round(v * 100) / 100;
 
 const n = (v: number) => +(+v).toFixed(2);
-const pt = (p: number[], o: number[] = [0, 0]) => `${n(p[0]! + o[0]!)} ${n(p[1]! + o[1]!)}`;
+const pt = (p: number[]) => `${n(p[0]!)} ${n(p[1]!)}`;
 
-function pts(s: State) {
-  const t = +s.tension;
+const POINTS = ['A0', 'A', 'B', 'C', 'D', 'D1', 'b1c1', 'b1c2', 'b2c1', 'b2c2'] as const;
+type Edge = Record<(typeof POINTS)[number], number[]>;
+
+function profile(s: State, top: number, bot: number) {
+  const t1 = +s.tension, t2 = +s.tension2;
   const bendW = +s.bendW, bendH = +s.bendH, flat = +s.flat;
-  const top = +s.topFlat, bot = +s.botFlat;
   const W = 2 * bendW + flat;
   const m = (p: number[]) => [W - p[0]!, p[1]!];
-  const A0 = [0, 0];
-  const A = [0, top];
-  const B = [bendW, top + bendH];
   const C = [bendW + flat, top + bendH];
   const D = [2 * bendW + flat, top + 2 * bendH];
-  const D1 = [2 * bendW + flat, top + 2 * bendH + bot];
-  return {
-    A0: m(A0), A: m(A), B: m(B), C: m(C), D: m(D), D1: m(D1),
-    b1c1: m([0, top + bendH * t]),
-    b1c2: m([bendW * (1 - t), top + bendH]),
-    b2c1: m([C[0]! + bendW * t, top + bendH]),
-    b2c2: m([D[0]!, top + 2 * bendH - bendH * t]),
-    W,
-    H: top + 2 * bendH + bot,
+  const edge: Edge = {
+    A0: m([0, 0]), A: m([0, top]), B: m([bendW, top + bendH]), C: m(C), D: m(D),
+    D1: m([2 * bendW + flat, top + 2 * bendH + bot]),
+    b1c1: m([0, top + bendH * t1]),
+    b1c2: m([bendW * (1 - t1), top + bendH]),
+    b2c1: m([C[0]! + bendW * t2, top + bendH]),
+    b2c2: m([D[0]!, top + 2 * bendH - bendH * t2]),
   };
+  return { edge, H: top + 2 * bendH + bot };
 }
 
-function frontPath(s: State) {
-  const p = pts(s);
-  return `M ${pt(p.A0)} L ${pt(p.A)} C ${pt(p.b1c1)}, ${pt(p.b1c2)}, ${pt(p.B)} L ${pt(p.C)} C ${pt(p.b2c1)}, ${pt(p.b2c2)}, ${pt(p.D)} L ${pt(p.D1)}`;
+function geometry(s: State) {
+  const top = +s.topFlat, bot = +s.botFlat;
+  const lift = Math.min(bot, Math.max(-top, +s.lift));
+  const dT = +s.depth, dB = +s.depthB;
+  const left = profile(s, top, bot);
+  const right = profile(s, top + lift, bot - lift).edge;
+  const mid = (dT + dB) / 2;
+  const clamp = (v: number) => Math.min(1, Math.max(0, v));
+  const upper = (x: number) => dT + (mid - dT) * clamp((right.A[0]! - x) / ((right.A[0]! - right.B[0]!) || 1));
+  const lower = (x: number) => mid + (dB - mid) * clamp((right.C[0]! - x) / ((right.C[0]! - right.D[0]!) || 1));
+  const UPPER: readonly string[] = ['A0', 'A', 'b1c1', 'b1c2', 'B'];
+  const xs = [left.edge.A0[0]!, left.edge.D1[0]!, left.edge.A0[0]! + dT, left.edge.D1[0]! + dB];
+  const minX = Math.min(...xs);
+  const L = {} as Edge, R = {} as Edge;
+  for (const k of POINTS) {
+    L[k] = [left.edge[k][0]! - minX, left.edge[k][1]!];
+    R[k] = [right[k][0]! + (UPPER.includes(k) ? upper : lower)(right[k][0]!) - minX, right[k][1]!];
+  }
+  return { L, R, W: Math.max(...xs) - minX, H: left.H };
 }
 
-function sheetPath(s: State, o: number[]) {
-  const p = pts(s);
-  return frontPath(s)
-    + ` L ${pt(p.D1, o)}`
-    + ` L ${pt(p.D, o)}`
-    + ` C ${pt(p.b2c2, o)}, ${pt(p.b2c1, o)}, ${pt(p.C, o)}`
-    + ` L ${pt(p.B, o)}`
-    + ` C ${pt(p.b1c2, o)}, ${pt(p.b1c1, o)}, ${pt(p.A, o)}`
-    + ` L ${pt(p.A0, o)}`
+function sheetPath(s: State) {
+  const { L, R } = geometry(s);
+  return `M ${pt(L.A0)} L ${pt(L.A)} C ${pt(L.b1c1)}, ${pt(L.b1c2)}, ${pt(L.B)} L ${pt(L.C)} C ${pt(L.b2c1)}, ${pt(L.b2c2)}, ${pt(L.D)} L ${pt(L.D1)}`
+    + ` L ${pt(R.D1)}`
+    + ` L ${pt(R.D)}`
+    + ` C ${pt(R.b2c2)}, ${pt(R.b2c1)}, ${pt(R.C)}`
+    + ` L ${pt(R.B)}`
+    + ` C ${pt(R.b1c2)}, ${pt(R.b1c1)}, ${pt(R.A)}`
+    + ` L ${pt(R.A0)}`
     + ' Z';
 }
 
@@ -148,7 +166,7 @@ function pixelRects(s: State, markW: number, markH: number) {
   const ctx = cv.getContext('2d', { willReadFrequently: true })!;
   ctx.scale(SS / px, SS / px);
   ctx.fillStyle = '#000';
-  ctx.fill(new Path2D(sheetPath(s, [+s.depth, 0])));
+  ctx.fill(new Path2D(sheetPath(s)));
   const data = ctx.getImageData(0, 0, cv.width, cv.height).data;
   const dither = s.pixStyle === 'Dither';
   const on: boolean[][] = [];
@@ -243,7 +261,7 @@ function maskGrid(s: State, markW: number, markH: number, px: number) {
   const ctx = cv.getContext('2d', { willReadFrequently: true })!;
   ctx.scale(SS / px, SS / px);
   ctx.fillStyle = '#000';
-  ctx.fill(new Path2D(sheetPath(s, [+s.depth, 0])));
+  ctx.fill(new Path2D(sheetPath(s)));
   const data = ctx.getImageData(0, 0, cv.width, cv.height).data;
   const on: boolean[][] = [];
   for (let r = 0; r < rows; r++) {
@@ -270,22 +288,21 @@ function rnd(i: number) {
 function shadedMark(s: State, markW: number, markH: number, idSuffix: string) {
   const { dark, light } = shadeColors(s);
   const bAt = makeBAt(s);
-  const p = pts(s);
-  const o = [+s.depth, 0];
+  const { H } = geometry(s);
   const clipId = `lucity-clip-${idSuffix}`;
-  const clip = `<clipPath id="${clipId}"><path d="${sheetPath(s, o)}"/></clipPath>`;
+  const clip = `<clipPath id="${clipId}"><path d="${sheetPath(s)}"/></clipPath>`;
 
   if (s.shade === 'Gradient') {
     const gid = `lucity-grad-${idSuffix}`;
     const stops = shadeTable(s).map(([y, b]) =>
-      `<stop offset="${n(Math.min(1, y! / p.H))}" stop-color="${mixHex(dark, light, b!)}"/>`).join('');
+      `<stop offset="${n(Math.min(1, y! / H))}" stop-color="${mixHex(dark, light, b!)}"/>`).join('');
     const defs = `<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">${stops}</linearGradient></defs>`;
-    return `${defs}<path d="${sheetPath(s, o)}" fill="url(#${gid})"/>`;
+    return `${defs}<path d="${sheetPath(s)}" fill="url(#${gid})"/>`;
   }
 
   const K = +s.shadeK;
   const px = +s.detail;
-  const base = `<path d="${sheetPath(s, o)}" fill="${light}"/>`;
+  const base = `<path d="${sheetPath(s)}" fill="${light}"/>`;
   let tex = '';
   if (s.shade === 'Grain') {
     const g = maskGrid(s, markW, markH, px);
@@ -348,9 +365,7 @@ function esc(t: string) {
 const PAD = 6;
 
 function layoutOf(s: State) {
-  const p = pts(s);
-  const markW = p.W + (+s.depth);
-  const markH = p.H;
+  const { W: markW, H: markH } = geometry(s);
   const fsize = logoFontUnits(s.inFsize);
   const gap = +s.inGap;
   const tm = s.text
@@ -373,10 +388,7 @@ function layoutOf(s: State) {
 export function buildLogoMark(s: State, idSuffix = '') {
   if (!import.meta.client) return '';
 
-  const p = pts(s);
-  const o = [+s.depth, 0];
-  const markW = p.W + (+s.depth);
-  const markH = p.H;
+  const { W: markW, H: markH } = geometry(s);
   const l = layoutOf(s);
   const vb = l.vb.map(n).join(' ');
 
@@ -390,7 +402,7 @@ export function buildLogoMark(s: State, idSuffix = '') {
   } else if (s.shade !== 'Off') {
     mark = shadedMark(s, markW, markH, idSuffix);
   } else {
-    mark = `<path d="${sheetPath(s, o)}" fill="${s.fill}"/>`;
+    mark = `<path d="${sheetPath(s)}" fill="${s.fill}"/>`;
   }
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}">${bgEl}\n  ${mark}\n</svg>`;
@@ -451,6 +463,12 @@ export function useLogoGenerator() {
   function restore() {
     try {
       const raw = localStorage.getItem(LOGO_STORE_KEY);
+      const legacy = raw ? null : localStorage.getItem(LOGO_LEGACY_STORE_KEY);
+      if (legacy) {
+        const data = JSON.parse(legacy);
+        if (data.saved) saved.value = { ...saved.value, ...data.saved };
+        return;
+      }
       if (!raw) return;
       const data = JSON.parse(raw);
       if (data.saved) saved.value = { ...saved.value, ...data.saved };

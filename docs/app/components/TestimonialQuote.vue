@@ -7,7 +7,7 @@
       <div class="text-4xl tracking-[0.2em] text-amber-400" role="img" aria-label="Rated 5 out of 5 stars">
         ★★★★★
       </div>
-      <p class="mt-6 text-3xl italic text-neutral-800 dark:text-neutral-100">
+      <p class="mt-6 font-display text-3xl/snug italic text-balance text-neutral-800 dark:text-neutral-100">
         “Lucity slaps harder than Will Smith at the Oscars.”
       </p>
       <p class="mt-4 text-3xl font-medium text-neutral-800 dark:text-neutral-100">

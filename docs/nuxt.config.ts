@@ -1,5 +1,6 @@
 export default defineNuxtConfig({
   modules: ['@nuxtjs/sitemap'],
+  css: ['~/assets/css/fonts.css'],
   site: {
     url: 'https://lucity.cloud',
     name: 'Lucity'
@@ -90,7 +91,7 @@ export default defineNuxtConfig({
             '@id': 'https://lucity.cloud/#organization',
             name: 'Lucity',
             url: 'https://lucity.cloud',
-            logo: 'https://lucity.cloud/logo-light.png',
+            logo: 'https://lucity.cloud/logo-light.png?v=3',
             description: 'The European open source alternative to Vercel, Heroku, and Railway. Deploy anything, own your stack.',
             sameAs: [
               'https://github.com/zeitlos/lucity',
@@ -132,13 +133,14 @@ export default defineNuxtConfig({
           : [])
       ],
       link: [
-        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
-        { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/favicon-32x32.png' },
-        { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
+        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg?v=3' },
+        { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/favicon-32x32.png?v=3' },
+        { rel: 'icon', type: 'image/png', sizes: '96x96', href: '/favicon-96x96.png?v=3' },
+        { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png?v=3' },
         { rel: 'manifest', href: '/site.webmanifest' }
       ],
       meta: [
-        { property: 'og:image', content: 'https://lucity.cloud/img/og.jpg' },
+        { property: 'og:image', content: 'https://lucity.cloud/img/og.jpg?v=3' },
         { property: 'og:image:width', content: '1280' },
         { property: 'og:image:height', content: '640' },
         { property: 'og:image:type', content: 'image/jpeg' },
@@ -147,7 +149,7 @@ export default defineNuxtConfig({
         { property: 'og:site_name', content: 'Lucity' },
         { property: 'og:locale', content: 'en' },
         { name: 'twitter:card', content: 'summary_large_image' },
-        { name: 'twitter:image', content: 'https://lucity.cloud/img/og.jpg' },
+        { name: 'twitter:image', content: 'https://lucity.cloud/img/og.jpg?v=3' },
         { name: 'twitter:image:alt', content: 'Lucity: Deploy anything. Own your stack.' },
         { name: 'theme-color', content: '#301c0e' }
       ]

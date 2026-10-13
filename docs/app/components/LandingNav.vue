@@ -14,10 +14,8 @@ const signUpUrl = `${appUrl}/login`;
     </div>
 
     <div class="relative grid grid-cols-3 items-center xl:grid-cols-3">
-      <NuxtLink to="/" class="flex items-center gap-2">
-        <img src="/logo-light.svg" alt="Lucity" width="36" height="36" class="h-9 w-9 shrink-0 dark:hidden">
-        <img src="/logo-dark.svg" alt="Lucity" width="36" height="36" class="hidden h-9 w-9 shrink-0 dark:block">
-        <span class="wordmark text-3xl leading-none text-neutral-900 dark:text-neutral-100">Lucity</span>
+      <NuxtLink to="/" class="flex items-center">
+        <LucityLogo class="text-3xl text-neutral-900 dark:text-neutral-100" />
       </NuxtLink>
 
       <p class="hidden justify-center text-lg text-neutral-600 xl:flex dark:text-neutral-400">
@@ -44,10 +42,6 @@ const signUpUrl = `${appUrl}/login`;
 </template>
 
 <style scoped>
-.wordmark {
-  font-family: 'Redaction 35', Georgia, serif;
-}
-
 /* iOS-style progressive blur: stacked backdrop layers, each masked to a band,
    so the blur is strongest at the top and fades to nothing below the bar —
    no hard edge. Extends past the header bottom so the fade trails off. */

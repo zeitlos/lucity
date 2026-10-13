@@ -14,7 +14,7 @@ const topRow = [
 
 const bottomRow = [
   { icon: 'i-lucide-container', label: 'Registry' },
-  { img: '/logo-light.svg', imgDark: '/logo-dark.svg', label: 'Lucity' },
+  { mark: true, label: 'Lucity' },
 ];
 
 watch(visible, (v) => {
@@ -109,18 +109,10 @@ watch(visible, (v) => {
               'bento-node-current': step === i + 5,
             }"
           >
-            <template v-if="node.img">
-              <img
-                :src="node.img"
-                alt=""
-                class="size-4 object-contain sm:size-5 dark:hidden"
-              >
-              <img
-                :src="node.imgDark"
-                alt=""
-                class="hidden size-4 object-contain sm:size-5 dark:block"
-              >
-            </template>
+            <LucityMark
+              v-if="node.mark"
+              class="h-3.5 w-auto sm:h-4"
+            />
             <UIcon
               v-else
               :name="node.icon"

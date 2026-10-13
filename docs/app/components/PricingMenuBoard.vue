@@ -76,7 +76,7 @@ const tiers: Tier[] = [
         <hr class="board-separator">
 
         <div class="board-wordmark">
-          LUCITY
+          <LucityLogo />
         </div>
         <div class="board-tagline">
           May your deploys be boring.
@@ -258,15 +258,14 @@ const tiers: Tier[] = [
 /* ---- Wordmark ---- */
 
 .board-wordmark {
-  font-family: var(--font-sans);
-  font-weight: 900;
-  font-size: 4rem;
-  letter-spacing: 0.12em;
-  text-align: center;
+  display: flex;
+  justify-content: center;
+  font-size: 3.5rem;
   color: oklch(0.9 0.02 80);
-  text-shadow: 0 0 28px oklch(0.9 0.08 80 / 0.25);
-  margin-top: 12px;
-  line-height: 1.2;
+  --brand-mark: #a274ee;
+  filter: drop-shadow(0 0 22px oklch(0.9 0.08 80 / 0.3));
+  margin-top: 24px;
+  margin-bottom: 4px;
 }
 
 .board-tagline {

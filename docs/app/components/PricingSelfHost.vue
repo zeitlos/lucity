@@ -559,7 +559,7 @@ onUnmounted(() => { observer?.disconnect(); });
               <div class="compute-hex-mesh" />
               <div class="compute-handle">
                 <div class="compute-handle-inner">
-                  <span class="compute-brand-text">lucity</span>
+                  <span class="compute-brand-text">Lucity</span>
                 </div>
               </div>
             </div>
@@ -1353,10 +1353,9 @@ onUnmounted(() => { observer?.disconnect(); });
 }
 
 .compute-brand-text {
-  font-family: var(--font-sans);
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-family: 'Redaction 35', Georgia, serif;
+  font-size: 22px;
+  font-weight: 400;
   color: oklch(0.40 0.01 55);
   text-shadow: 0 1px 0 oklch(1 0 0 / 0.3);
 }
