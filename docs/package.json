@@ -23,6 +23,9 @@
     "opentype.js": "^2.0.0",
     "playwright": "^1.63.0"
   },
+  "overrides": {
+    "mdast-util-to-markdown": "2.1.2"
+  },
   "engines": {
     "node": ">=24"
   }
