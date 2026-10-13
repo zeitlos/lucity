@@ -27,6 +27,8 @@ import (
 // Name releases the same as the chart to produce minimal resource names.
 const releaseName = "lucity-app"
 
+const maxReleaseHistory = 10
+
 var errChangeInProgress = usererror.New("the environment is still applying another change, retry in a few seconds")
 
 func (c *Client) applyEnv(ctx context.Context, envID platform.EnvironmentID, mutate func(*values.Env) error) (deployer.RevisionID, error) {
@@ -138,6 +140,7 @@ func installOrUpgrade(ctx context.Context, config *action.Configuration, release
 
 	upgrade := action.NewUpgrade(config)
 	upgrade.Namespace = namespace
+	upgrade.MaxHistory = maxReleaseHistory
 	upgrade.ServerSideApply = "false"
 	upgrade.WaitStrategy = kube.HookOnlyStrategy
 	upgrade.PostRenderer = releaseGuard{namespace: namespace}
