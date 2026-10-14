@@ -102,6 +102,8 @@ func (c *Client) Start(ctx context.Context, opts buildjob.StartOptions) (*buildj
 		return nil, err
 	}
 
+	c.jobs.Await(ctx, job)
+
 	return new(toJob(*job)), nil
 }
 

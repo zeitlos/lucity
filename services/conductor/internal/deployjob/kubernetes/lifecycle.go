@@ -34,6 +34,8 @@ func (c *Client) Start(ctx context.Context, opts deployjob.StartOptions) (*deplo
 		return nil, err
 	}
 
+	c.jobs.Await(ctx, job)
+
 	return new(toJob(*job)), nil
 }
 

@@ -5,6 +5,7 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployjob"
+	"github.com/zeitlos/lucity/services/conductor/internal/jobs"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 
 	batch "k8s.io/api/batch/v1"
@@ -42,12 +43,14 @@ type BackupConfig struct {
 type Client struct {
 	config     Config
 	kubernetes kubernetes.Interface
+	jobs       *jobs.Cache
 }
 
-func New(kubernetes kubernetes.Interface, config Config) *Client {
+func New(kubernetes kubernetes.Interface, jobs *jobs.Cache, config Config) *Client {
 	return &Client{
 		config:     config,
 		kubernetes: kubernetes,
+		jobs:       jobs,
 	}
 }
 

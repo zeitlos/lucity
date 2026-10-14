@@ -35,12 +35,14 @@ type Config struct {
 type Client struct {
 	config     Config
 	kubernetes kubernetes.Interface
+	jobs       *jobs.Cache
 }
 
-func New(kubernetes kubernetes.Interface, config Config) *Client {
+func New(kubernetes kubernetes.Interface, jobs *jobs.Cache, config Config) *Client {
 	return &Client{
 		config:     config,
 		kubernetes: kubernetes,
+		jobs:       jobs,
 	}
 }
 
@@ -72,7 +74,7 @@ func (c *Client) toJob(ctx context.Context, job batch.Job) scanjob.Job {
 	}
 
 	if scan.Status == scanjob.StatusSucceeded || scan.Status == scanjob.StatusFailed {
-		if summary := c.summary(ctx, job.Name); summary != nil {
+		if summary := c.summary(ctx, &job); summary != nil {
 			scan.FindingsCount = &summary.Findings
 			scan.VerifiedCount = &summary.Verified
 		}
@@ -86,8 +88,8 @@ type scanSummary struct {
 	Verified int `json:"verified"`
 }
 
-func (c *Client) summary(ctx context.Context, jobName string) *scanSummary {
-	message, err := jobs.TerminationMessage(ctx, c.kubernetes, c.config.Namespace, jobName)
+func (c *Client) summary(ctx context.Context, job *batch.Job) *scanSummary {
+	message, err := c.jobs.TerminationMessage(ctx, job)
 
 	if err != nil || message == "" {
 		return nil

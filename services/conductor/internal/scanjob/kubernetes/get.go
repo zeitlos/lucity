@@ -35,18 +35,16 @@ func (c *Client) Get(ctx context.Context, id scanjob.ScanID) (*scanjob.Job, erro
 func (c *Client) List(ctx context.Context, service platform.ServiceID) ([]scanjob.Job, error) {
 	selector := k8slabels.SelectorFromSet(scanJobLabels(service, ""))
 
-	jobs, err := c.kubernetes.BatchV1().Jobs(c.config.Namespace).List(ctx, meta.ListOptions{
-		LabelSelector: selector.String(),
-	})
+	cached, err := c.jobs.Builds(ctx, selector)
 
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]scanjob.Job, 0, len(jobs.Items))
+	result := make([]scanjob.Job, 0, len(cached))
 
-	for i := range jobs.Items {
-		result = append(result, c.toJob(ctx, jobs.Items[i]))
+	for _, job := range cached {
+		result = append(result, c.toJob(ctx, *job))
 	}
 
 	sort.Slice(result, func(i, j int) bool {

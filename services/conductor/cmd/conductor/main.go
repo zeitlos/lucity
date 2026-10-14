@@ -22,6 +22,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/edge"
 	environmentK8s "github.com/zeitlos/lucity/services/conductor/internal/environment/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/hostname"
+	"github.com/zeitlos/lucity/services/conductor/internal/jobs"
 	"github.com/zeitlos/lucity/services/conductor/internal/metrics"
 	"github.com/zeitlos/lucity/services/conductor/internal/objectstorage"
 	objectstorageBunny "github.com/zeitlos/lucity/services/conductor/internal/objectstorage/bunny"
@@ -296,9 +297,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	jobsClient := buildjobK8s.New(k8sClient, config.BuildNamespace, config.RegistryPushURL, config.RegistryAuthSecret, config.BuildImage, config.BuildkitTLSSecret, config.BuildkitServerName)
+	jobsCache, err := jobs.NewCache(k8sClient, config.BuildNamespace, config.SystemNamespace)
 
-	deployJobsClient := deployjobK8s.New(k8sClient, deployjobK8s.Config{
+	if err != nil {
+		slog.Error("failed to create job cache", "error", err)
+		os.Exit(1)
+	}
+
+	jobsClient := buildjobK8s.New(k8sClient, jobsCache, config.BuildNamespace, config.RegistryPushURL, config.RegistryAuthSecret, config.BuildImage, config.BuildkitTLSSecret, config.BuildkitServerName)
+
+	deployJobsClient := deployjobK8s.New(k8sClient, jobsCache, deployjobK8s.Config{
 		Namespace:            config.SystemNamespace,
 		Image:                config.DeployImage,
 		ServiceAccount:       config.DeployServiceAccount,
@@ -316,9 +324,9 @@ func main() {
 		EdgeHeader: config.EdgeHeaderEnforced,
 	})
 
-	pipelineClient := pipeline.New(k8sClient, config.BuildNamespace, config.SystemNamespace, config.MaxConcurrentReleases, config.MaxConcurrentBuilds)
+	pipelineClient := pipeline.New(k8sClient, jobsCache, config.MaxConcurrentReleases, config.MaxConcurrentBuilds)
 
-	scanJobsClient := scanjobK8s.New(k8sClient, scanjobK8s.Config{
+	scanJobsClient := scanjobK8s.New(k8sClient, jobsCache, scanjobK8s.Config{
 		Namespace:             config.BuildNamespace,
 		Image:                 config.BuildImage,
 		Registry:              config.RegistryPushURL,
@@ -476,6 +484,7 @@ func main() {
 	conductor := conductor.New(cashierClient, githubApp, logtoClient, directoryClient, platformClient, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, vulnerabilitiesClient, pipelineClient, planner, source, hostnameClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, edgeClient, conductorConfig)
 
 	platformClient.Start(ctx)
+	jobsCache.Start(ctx)
 
 	var leaderDone <-chan struct{}
 

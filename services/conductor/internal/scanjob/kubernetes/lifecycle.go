@@ -34,6 +34,8 @@ func (c *Client) Start(ctx context.Context, opts scanjob.StartOptions) (*scanjob
 		return nil, err
 	}
 
+	c.jobs.Await(ctx, job)
+
 	return new(c.toJob(ctx, *job)), nil
 }
 

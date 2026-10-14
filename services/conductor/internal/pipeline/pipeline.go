@@ -2,17 +2,21 @@ package pipeline
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
+	"sync"
 	"time"
 
 	batch "k8s.io/api/batch/v1"
 	core "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8slabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/zeitlos/lucity/pkg/labels"
+	"github.com/zeitlos/lucity/services/conductor/internal/jobs"
 )
 
 type Interface interface {
@@ -22,21 +26,30 @@ type Interface interface {
 
 const labelComponent = labels.Prefix + "component"
 
+var (
+	buildSelector  = mustSelector(labelComponent + " in (build, scan)")
+	deploySelector = mustSelector(labelComponent + "=deploy")
+)
+
+var errJobsNotSynced = errors.New("job cache has not synced yet")
+
 type Client struct {
-	kubernetes      kubernetes.Interface
-	buildNamespace  string
-	deployNamespace string
-	maxConcurrent   int
-	maxBuilds       int
+	kubernetes    kubernetes.Interface
+	jobs          *jobs.Cache
+	maxConcurrent int
+	maxBuilds     int
+
+	mu      sync.Mutex
+	resumed map[string]string
 }
 
-func New(kubernetes kubernetes.Interface, buildNamespace, deployNamespace string, maxConcurrent, maxBuilds int) *Client {
+func New(kubernetes kubernetes.Interface, jobs *jobs.Cache, maxConcurrent, maxBuilds int) *Client {
 	return &Client{
-		kubernetes:      kubernetes,
-		buildNamespace:  buildNamespace,
-		deployNamespace: deployNamespace,
-		maxConcurrent:   maxConcurrent,
-		maxBuilds:       maxBuilds,
+		kubernetes:    kubernetes,
+		jobs:          jobs,
+		maxConcurrent: maxConcurrent,
+		maxBuilds:     maxBuilds,
+		resumed:       map[string]string{},
 	}
 }
 
@@ -51,11 +64,12 @@ const (
 )
 
 type job struct {
-	namespace string
-	name      string
-	build     bool
-	suspended bool
-	terminal  bool
+	namespace       string
+	name            string
+	resourceVersion string
+	build           bool
+	suspended       bool
+	terminal        bool
 }
 
 type run struct {
@@ -104,6 +118,10 @@ func (r run) building() bool {
 // have to build are additionally bounded by the build cap, which leaves
 // deploy-only runs free to pass waiting builds.
 func (c *Client) Reconcile(ctx context.Context) error {
+	if !c.jobs.HasSynced() {
+		return nil
+	}
+
 	runs, err := c.runs(ctx)
 
 	if err != nil {
@@ -175,6 +193,10 @@ func (c *Client) Reconcile(ctx context.Context) error {
 }
 
 func (c *Client) QueuedRuns(ctx context.Context, workspace string) (int, error) {
+	if !c.jobs.HasSynced() {
+		return 0, errJobsNotSynced
+	}
+
 	runs, err := c.runs(ctx)
 
 	if err != nil {
@@ -200,9 +222,12 @@ func (c *Client) resume(ctx context.Context, r run) error {
 			continue
 		}
 
+		c.expectResumed(j)
+
 		_, err := c.kubernetes.BatchV1().Jobs(j.namespace).Patch(ctx, j.name, types.StrategicMergePatchType, unsuspendPatch, meta.PatchOptions{})
 
 		if err != nil {
+			c.forgetResumed(j)
 			return fmt.Errorf("unsuspend job %s/%s: %w", j.namespace, j.name, err)
 		}
 	}
@@ -211,25 +236,25 @@ func (c *Client) resume(ctx context.Context, r run) error {
 }
 
 func (c *Client) runs(ctx context.Context) ([]run, error) {
-	builds, err := c.kubernetes.BatchV1().Jobs(c.buildNamespace).List(ctx, meta.ListOptions{
-		LabelSelector: labelComponent + " in (build, scan)",
-	})
+	builds, err := c.jobs.Builds(ctx, buildSelector)
 
 	if err != nil {
 		return nil, err
 	}
 
-	deploys, err := c.kubernetes.BatchV1().Jobs(c.deployNamespace).List(ctx, meta.ListOptions{
-		LabelSelector: labelComponent + "=deploy",
-	})
+	deploys, err := c.jobs.Deploys(ctx, deploySelector)
 
 	if err != nil {
 		return nil, err
 	}
 
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	pending := map[string]bool{}
 	groups := map[string]*run{}
 
-	add := func(k8sJob batch.Job) {
+	add := func(k8sJob *batch.Job) {
 		workspace := k8sJob.Labels[labels.Workspace]
 
 		if workspace == "" {
@@ -262,21 +287,36 @@ func (c *Client) runs(ctx context.Context) ([]run, error) {
 			group.createdAt = k8sJob.CreationTimestamp.Time
 		}
 
+		suspended := k8sJob.Spec.Suspend != nil && *k8sJob.Spec.Suspend
+		jobKey := k8sJob.Namespace + "/" + k8sJob.Name
+
+		if version, ok := c.resumed[jobKey]; ok && version == k8sJob.ResourceVersion {
+			suspended = false
+			pending[jobKey] = true
+		}
+
 		group.jobs = append(group.jobs, job{
-			namespace: k8sJob.Namespace,
-			name:      k8sJob.Name,
-			build:     k8sJob.Labels[labelComponent] == "build",
-			suspended: k8sJob.Spec.Suspend != nil && *k8sJob.Spec.Suspend,
-			terminal:  jobTerminal(k8sJob),
+			namespace:       k8sJob.Namespace,
+			name:            k8sJob.Name,
+			resourceVersion: k8sJob.ResourceVersion,
+			build:           k8sJob.Labels[labelComponent] == "build",
+			suspended:       suspended,
+			terminal:        jobTerminal(k8sJob),
 		})
 	}
 
-	for _, item := range builds.Items {
+	for _, item := range builds {
 		add(item)
 	}
 
-	for _, item := range deploys.Items {
+	for _, item := range deploys {
 		add(item)
+	}
+
+	for key := range c.resumed {
+		if !pending[key] {
+			delete(c.resumed, key)
+		}
 	}
 
 	runs := make([]run, 0, len(groups))
@@ -296,7 +336,31 @@ func (c *Client) runs(ctx context.Context) ([]run, error) {
 	return runs, nil
 }
 
-func jobTerminal(k8sJob batch.Job) bool {
+func (c *Client) expectResumed(j job) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.resumed[j.namespace+"/"+j.name] = j.resourceVersion
+}
+
+func (c *Client) forgetResumed(j job) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	delete(c.resumed, j.namespace+"/"+j.name)
+}
+
+func mustSelector(selector string) k8slabels.Selector {
+	parsed, err := k8slabels.Parse(selector)
+
+	if err != nil {
+		panic(err)
+	}
+
+	return parsed
+}
+
+func jobTerminal(k8sJob *batch.Job) bool {
 	for _, condition := range k8sJob.Status.Conditions {
 		if condition.Status != core.ConditionTrue {
 			continue

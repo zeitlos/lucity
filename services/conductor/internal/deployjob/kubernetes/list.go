@@ -5,30 +5,30 @@ import (
 	"sort"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/deployjob"
+	"github.com/zeitlos/lucity/services/conductor/internal/jobs"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 
-	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8slabels "k8s.io/apimachinery/pkg/labels"
 )
 
 func (c *Client) List(ctx context.Context, service platform.ServiceID) ([]deployjob.Job, error) {
 	selector := k8slabels.SelectorFromSet(deployJobLabels(service, ""))
 
-	jobs, err := c.kubernetes.BatchV1().Jobs(c.config.Namespace).List(ctx, meta.ListOptions{
-		LabelSelector: selector.String(),
-	})
+	cached, err := c.jobs.Deploys(ctx, selector)
 
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]deployjob.Job, 0, len(jobs.Items))
+	jobs.SortNewestFirst(cached)
 
-	for i := range jobs.Items {
-		result = append(result, toJob(jobs.Items[i]))
+	result := make([]deployjob.Job, 0, len(cached))
+
+	for _, job := range cached {
+		result = append(result, toJob(*job))
 	}
 
-	sort.Slice(result, func(i, j int) bool {
+	sort.SliceStable(result, func(i, j int) bool {
 		if result[i].StartedAt == nil {
 			return false
 		}

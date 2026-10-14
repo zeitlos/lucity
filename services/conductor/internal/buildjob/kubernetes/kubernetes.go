@@ -7,6 +7,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/github"
 	"github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
+	"github.com/zeitlos/lucity/services/conductor/internal/jobs"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 
 	"github.com/google/go-containerregistry/pkg/name"
@@ -40,10 +41,11 @@ type Client struct {
 	buildKitServerName string
 
 	kubernetes kubernetes.Interface
+	jobs       *jobs.Cache
 	github     *github.App
 }
 
-func New(kubernetes kubernetes.Interface, namespace, registry, registryAuthSecret, buildRunnerImage, buildKitTLSSecret, buildKitServerName string) *Client {
+func New(kubernetes kubernetes.Interface, jobs *jobs.Cache, namespace, registry, registryAuthSecret, buildRunnerImage, buildKitTLSSecret, buildKitServerName string) *Client {
 	return &Client{
 		namespace:          namespace,
 		registry:           registry,
@@ -53,6 +55,7 @@ func New(kubernetes kubernetes.Interface, namespace, registry, registryAuthSecre
 		buildKitTLSSecret:  buildKitTLSSecret,
 		buildKitServerName: buildKitServerName,
 		kubernetes:         kubernetes,
+		jobs:               jobs,
 	}
 }
 
