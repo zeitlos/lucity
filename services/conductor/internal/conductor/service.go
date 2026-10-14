@@ -497,6 +497,10 @@ func (c *Client) ReconcileServices(ctx context.Context) error {
 		}
 
 		for _, environment := range environments {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+
 			if err := c.environment.Ensure(ctx, environment.ID, environment.ResourceTier); err != nil {
 				slog.Warn("reconcile services: failed to ensure environment", "error", err, "environment", environment.ID)
 			}

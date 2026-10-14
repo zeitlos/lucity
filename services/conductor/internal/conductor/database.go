@@ -201,6 +201,10 @@ func (c *Client) ReconcileDatabaseBackups(ctx context.Context) error {
 		}
 
 		for _, environment := range environments {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+
 			databases, err := c.platform.Databases(ctx, environment.ID)
 
 			if err != nil {

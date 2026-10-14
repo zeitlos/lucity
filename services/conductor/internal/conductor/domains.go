@@ -95,6 +95,10 @@ func (c *Client) ReconcileDomains(ctx context.Context) error {
 			}
 
 			for _, env := range environments {
+				if err := ctx.Err(); err != nil {
+					return err
+				}
+
 				hosts, direct := c.reconcileEnvironmentDomains(ctx, env.ID, wildcard)
 				attached[workspace.ID] = append(attached[workspace.ID], hosts...)
 				detached[workspace.ID] = append(detached[workspace.ID], direct...)

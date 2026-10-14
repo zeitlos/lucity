@@ -24,7 +24,7 @@ func runAdmissionReconciler(ctx context.Context, p pipeline.Interface) {
 
 func runDomainReconciler(ctx context.Context, c *conductor.Client) {
 	reconcile(ctx, domainReconcileInterval, func() {
-		if err := c.ReconcileDomains(ctx); err != nil {
+		if err := c.ReconcileDomains(ctx); err != nil && ctx.Err() == nil {
 			slog.Error("domain reconcile failed", "error", err)
 		}
 	})
@@ -32,7 +32,7 @@ func runDomainReconciler(ctx context.Context, c *conductor.Client) {
 
 func runServiceReconciler(ctx context.Context, c *conductor.Client) {
 	reconcile(ctx, serviceReconcileInterval, func() {
-		if err := c.ReconcileServices(ctx); err != nil {
+		if err := c.ReconcileServices(ctx); err != nil && ctx.Err() == nil {
 			slog.Error("service reconcile failed", "error", err)
 		}
 	})
@@ -40,25 +40,20 @@ func runServiceReconciler(ctx context.Context, c *conductor.Client) {
 
 func runBackupReconciler(ctx context.Context, c *conductor.Client) {
 	reconcile(ctx, backupReconcileInterval, func() {
-		if err := c.ReconcileDatabaseBackups(ctx); err != nil {
+		if err := c.ReconcileDatabaseBackups(ctx); err != nil && ctx.Err() == nil {
 			slog.Error("backup reconcile failed", "error", err)
 		}
 	})
 }
 
 func reconcile(ctx context.Context, interval time.Duration, fun func()) {
-	fun()
-
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-
 	for {
+		fun()
+
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
-			fun()
+		case <-time.After(interval):
 		}
 	}
-
 }
