@@ -12,6 +12,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 	"helm.sh/helm/v4/pkg/action"
 	"helm.sh/helm/v4/pkg/storage/driver"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 type environmentClient struct {
@@ -80,6 +81,22 @@ func (e *environmentClient) Export(_ context.Context, id platform.EnvironmentID)
 func (e *environmentClient) Reconcile(ctx context.Context, id platform.EnvironmentID) (deployer.RevisionID, error) {
 	namespace := id.Namespace()
 
+	var newest types.UID
+
+	if releases := e.client.releases; releases != nil {
+		uid, revision, synced := releases.newest(namespace)
+
+		if synced && uid == "" {
+			return "", nil
+		}
+
+		if synced && releases.isVerified(namespace, uid) {
+			return deployer.RevisionID(strconv.Itoa(revision)), nil
+		}
+
+		newest = uid
+	}
+
 	config := action.NewConfiguration()
 
 	if err := config.Init(restGetterFor(namespace), namespace, "secret"); err != nil {
@@ -105,6 +122,10 @@ func (e *environmentClient) Reconcile(ctx context.Context, id platform.Environme
 	updateRequired := e.client.chartVersion.GT(installed)
 
 	if !updateRequired {
+		if newest != "" {
+			e.client.releases.markVerified(namespace, newest)
+		}
+
 		return deployer.RevisionID(strconv.Itoa(metadata.Revision)), nil
 	}
 

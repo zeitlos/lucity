@@ -18,6 +18,7 @@ type Client struct {
 	clusterIssuer        string
 	backups              BackupConfig
 	registry             string
+	releases             *ReleaseCache
 }
 
 type Option func(*Client)
@@ -31,6 +32,12 @@ func WithHTTPSListener(name string) Option {
 func WithHeaderMatches(matches ...values.HeaderMatch) Option {
 	return func(c *Client) {
 		c.headerMatches = matches
+	}
+}
+
+func WithReleaseCache(releases *ReleaseCache) Option {
+	return func(c *Client) {
+		c.releases = releases
 	}
 }
 

@@ -55,6 +55,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/metadata"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -245,7 +246,7 @@ func main() {
 		slog.Warn("internal JWT not configured — outgoing service-to-service calls are unauthenticated")
 	}
 
-	k8sClient, dynClient, err := buildKubeClients()
+	k8sClient, dynClient, metadataClient, err := buildKubeClients()
 	if err != nil {
 		slog.Error("failed to build kube clients", "error", err)
 		os.Exit(1)
@@ -370,11 +371,13 @@ func main() {
 
 	chartRef.Metadata.Version = version.String()
 
+	releaseCache := helmDeployer.NewReleaseCache(metadataClient)
+
 	deployerClient, err := helmDeployer.New(chartRef, config.GatewayName, config.GatewayNamespace, config.CustomDomainClusterIssuer, helmDeployer.BackupConfig{
 		Enabled:  config.DatabaseBackupEnabled,
 		Endpoint: config.DatabaseBackupEndpoint,
 		Bucket:   config.DatabaseBackupBucket,
-	}, config.RegistryPullURL, append(edgeHeaderOptions(config.EdgeHeaderEnforced), helmDeployer.WithHTTPSListener(config.GatewayHTTPSListener))...)
+	}, config.RegistryPullURL, append(edgeHeaderOptions(config.EdgeHeaderEnforced), helmDeployer.WithHTTPSListener(config.GatewayHTTPSListener), helmDeployer.WithReleaseCache(releaseCache))...)
 
 	if err != nil {
 		slog.Error("failed to create deployer client", "error", err)
@@ -489,6 +492,8 @@ func main() {
 	var leaderDone <-chan struct{}
 
 	if config.ReconcileEnabled {
+		releaseCache.Start(ctx)
+
 		loops := []func(context.Context){
 			func(ctx context.Context) { runAdmissionReconciler(ctx, pipelineClient) },
 			func(ctx context.Context) { runDomainReconciler(ctx, conductor) },
@@ -560,23 +565,27 @@ func main() {
 	}
 }
 
-func buildKubeClients() (kubernetes.Interface, dynamic.Interface, error) {
+func buildKubeClients() (kubernetes.Interface, dynamic.Interface, metadata.Interface, error) {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	cfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		loadingRules, &clientcmd.ConfigOverrides{},
 	).ClientConfig()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	cfg.QPS = 50
 	cfg.Burst = 100
 	k8s, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	dyn, err := dynamic.NewForConfig(cfg)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-	return k8s, dyn, nil
+	meta, err := metadata.NewForConfig(cfg)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return k8s, dyn, meta, nil
 }

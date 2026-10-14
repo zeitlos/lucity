@@ -78,7 +78,7 @@ func runDeploy() {
 	ctx, cancel := context.WithTimeout(context.Background(), buildWaitTimeout)
 	defer cancel()
 
-	k8sClient, _, err := buildKubeClients()
+	k8sClient, _, _, err := buildKubeClients()
 
 	if err != nil {
 		log.Error("failed to build kube clients", "error", err)
