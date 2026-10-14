@@ -13,6 +13,7 @@ spec:
   imageName: ghcr.io/cloudnative-pg/postgresql:{{ .Values.logto.postgres.version }}
   {{- end }}
   enableSuperuserAccess: true
+  primaryUpdateMethod: switchover
   {{- with .Values.logto.postgres.resources }}
   resources:
     {{- toYaml . | nindent 4 }}

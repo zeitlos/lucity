@@ -12,6 +12,7 @@ spec:
   {{- if .Values.rybbit.postgres.version }}
   imageName: ghcr.io/cloudnative-pg/postgresql:{{ .Values.rybbit.postgres.version }}
   {{- end }}
+  primaryUpdateMethod: switchover
   {{- with .Values.rybbit.postgres.resources }}
   resources:
     {{- toYaml . | nindent 4 }}
