@@ -12,6 +12,10 @@ spec:
   {{- if .Values.rybbit.postgres.version }}
   imageName: ghcr.io/cloudnative-pg/postgresql:{{ .Values.rybbit.postgres.version }}
   {{- end }}
+  {{- with .Values.rybbit.postgres.resources }}
+  resources:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   {{- if .Values.backups.enabled }}
   plugins:
     - name: barman-cloud.cloudnative-pg.io

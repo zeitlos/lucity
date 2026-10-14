@@ -13,6 +13,10 @@ spec:
   imageName: ghcr.io/cloudnative-pg/postgresql:{{ .Values.logto.postgres.version }}
   {{- end }}
   enableSuperuserAccess: true
+  {{- with .Values.logto.postgres.resources }}
+  resources:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   {{- if .Values.backups.enabled }}
   plugins:
     - name: barman-cloud.cloudnative-pg.io
