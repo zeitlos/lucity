@@ -96,6 +96,14 @@ watch(
   { immediate: true },
 );
 
+const backToProject = computed(() => {
+  const environmentId = activeEnvironment.value?.id;
+  if (environmentId && environments.value.some(e => e.id === environmentId)) {
+    return { name: 'environment', params: { projectId: projectId.value, environmentId } };
+  }
+  return { name: 'project', params: { projectId: projectId.value } };
+});
+
 const validSections = ['general', 'environments', 'variables'];
 const sections = [
   { id: 'general', label: 'General' },
@@ -258,7 +266,7 @@ async function handleDeleteEnvironment() {
             <div class="mb-4">
               <RouterLink
                 class="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-                :to="{ name: 'project', params: { projectId } }"
+                :to="backToProject"
               >
                 <ArrowLeft :size="12" />
                 Back to project
@@ -491,7 +499,8 @@ async function handleDeleteEnvironment() {
               <div>
                 <h2 class="text-lg font-semibold text-foreground">Variables</h2>
                 <p class="text-sm text-muted-foreground">
-                  Shared variables that services can reference in their configuration.
+                  Each environment has its own shared variables. Services can reference the ones
+                  from their environment.
                 </p>
               </div>
 

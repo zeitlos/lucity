@@ -123,9 +123,15 @@ async function handleSave() {
 <template>
   <div class="space-y-4">
     <div>
-      <h3 class="text-sm font-medium text-foreground">Shared Variables</h3>
+      <div class="flex items-center gap-2">
+        <h3 class="text-sm font-medium text-foreground">Shared Variables</h3>
+        <Badge v-if="activeEnvironment" variant="outline" class="font-mono text-xs">
+          {{ activeEnvironment.name }}
+        </Badge>
+      </div>
       <p class="text-xs text-muted-foreground">
-        Variables available for services to reference in {{ activeEnvironment?.name || 'this environment' }}.
+        Only services in {{ activeEnvironment?.name || 'this environment' }} can reference these.
+        Switch the environment in the header to edit another one.
       </p>
     </div>
 

@@ -52,7 +52,7 @@ import {
 const route = useRoute();
 const router = useRouter();
 const { activeWorkspace, setActiveWorkspace } = useAuth();
-const { activeEnvironment, environments } = useEnvironment();
+const { activeEnvironment, environments, setEnvironmentById } = useEnvironment();
 
 const { result: wsResult } = useQuery(WorkspacesDocument);
 const workspaces = computed(() => wsResult.value?.workspaces ?? []);
@@ -64,6 +64,12 @@ const projects = computed(() => projResult.value?.projects ?? []);
 const isEnvironmentRoute = computed(() => route.name === 'environment');
 const isProjectSettingsRoute = computed(() => route.name === 'project-settings');
 const isWorkspaceSettingsRoute = computed(() => route.name === 'workspace-settings');
+const isEnvironmentScopedSettings = computed(
+  () => isProjectSettingsRoute.value && route.params.section === 'variables',
+);
+const showEnvironmentSwitcher = computed(
+  () => isEnvironmentRoute.value || isEnvironmentScopedSettings.value,
+);
 
 // Resolve the current project ID from either route shape
 const activeProjectId = computed<string | undefined>(() => {
@@ -105,6 +111,10 @@ function handleProjectSwitch(id: string) {
 function handleEnvironmentSwitch(envId: string) {
   if (envId === activeEnvironment.value?.id) return;
   if (!activeProjectId.value) return;
+  if (isEnvironmentScopedSettings.value) {
+    setEnvironmentById(envId);
+    return;
+  }
   router.push({
     name: 'environment',
     params: { projectId: activeProjectId.value, environmentId: envId },
@@ -211,8 +221,8 @@ const projectEnvironments = computed(() => {
       </DropdownMenu>
     </template>
 
-    <!-- Environment Dropdown (only on environment route) -->
-    <template v-if="isEnvironmentRoute && activeEnvironment">
+    <!-- Environment Dropdown (environment route and environment-scoped settings) -->
+    <template v-if="showEnvironmentSwitcher && activeEnvironment">
       <span class="text-sm text-border">/</span>
       <DropdownMenu>
         <DropdownMenuTrigger
