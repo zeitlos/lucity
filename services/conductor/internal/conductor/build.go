@@ -140,6 +140,12 @@ func (c *Client) deploy(ctx context.Context, serviceID ServiceID, gitRef string,
 		}
 	}
 
+	buildVariables, err := c.platform.BuildVariables(ctx, service.ID)
+
+	if err != nil {
+		return nil, err
+	}
+
 	claims, _ := auth.FromContext(ctx)
 	release := deployer.NewRelease(trigger, actorFromClaims(claims))
 
@@ -153,7 +159,7 @@ func (c *Client) deploy(ctx context.Context, serviceID ServiceID, gitRef string,
 		ContextPath:      service.ContextPath,
 		TargetImageNames: []string{imageName},
 		Token:            token,
-		BuildVars:        service.Variables,
+		BuildVars:        buildVariables,
 		ReleaseID:        release.ID,
 	})
 

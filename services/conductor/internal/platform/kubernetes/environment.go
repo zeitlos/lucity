@@ -32,7 +32,6 @@ func (c *Client) Environments(ctx context.Context, projectID platform.ProjectID)
 
 	for _, namespace := range list.Items {
 		env := toEnvironment(namespace)
-		env.Variables, _ = c.sharedVariables(ctx, namespace.Name)
 		result = append(result, env)
 	}
 
@@ -59,7 +58,6 @@ func (c *Client) Environment(ctx context.Context, id platform.EnvironmentID) (*p
 	}
 
 	env := toEnvironment(list.Items[0])
-	env.Variables, _ = c.sharedVariables(ctx, list.Items[0].Name)
 
 	return &env, nil
 }
@@ -81,33 +79,10 @@ func (c *Client) EnvironmentsByWorkspace(ctx context.Context, workspaceID string
 
 	for _, namespace := range list.Items {
 		env := toEnvironment(namespace)
-		env.Variables, _ = c.sharedVariables(ctx, namespace.Name)
 		result = append(result, env)
 	}
 
 	return result, nil
-}
-
-func (c *Client) sharedVariables(ctx context.Context, namespace string) (map[string]string, error) {
-	list, err := c.kubernetes.CoreV1().Secrets(namespace).List(ctx, meta.ListOptions{
-		LabelSelector: sharedVariablesLabel + "=true",
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	if len(list.Items) == 0 {
-		return nil, nil
-	}
-
-	variables := make(map[string]string, len(list.Items[0].Data))
-
-	for name, value := range list.Items[0].Data {
-		variables[name] = string(value)
-	}
-
-	return variables, nil
 }
 
 func toEnvironments(namespaces []core.Namespace) []platform.Environment {

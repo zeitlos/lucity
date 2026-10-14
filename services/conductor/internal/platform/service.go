@@ -32,7 +32,6 @@ type Service struct {
 	Command         string
 	HealthCheck     *HealthCheck
 	SecurityContext SecurityContext
-	Variables       map[string]string
 
 	ActiveDeployment *Deployment
 	Deployments      []Deployment

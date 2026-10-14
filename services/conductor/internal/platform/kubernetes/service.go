@@ -50,14 +50,6 @@ func (c *Client) Services(ctx context.Context, environmentID platform.Environmen
 		return nil, err
 	}
 
-	secrets, err := c.kubernetes.CoreV1().Secrets(namespace).List(ctx, meta.ListOptions{
-		LabelSelector: selector.String(),
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
 	routes, err := c.dynamic.Resource(httpRouteGVR).Namespace(namespace).List(ctx, meta.ListOptions{
 		LabelSelector: selector.String(),
 	})
@@ -96,13 +88,6 @@ func (c *Client) Services(ctx context.Context, environmentID platform.Environmen
 		podsByService[name] = append(podsByService[name], pod)
 	}
 
-	secretsByService := make(map[string]core.Secret)
-
-	for _, secret := range secrets.Items {
-		name := secret.Labels[serviceLabel]
-		secretsByService[name] = secret
-	}
-
 	routesByService := make(map[string][]unstructured.Unstructured)
 
 	for _, route := range routes.Items {
@@ -126,7 +111,6 @@ func (c *Client) Services(ctx context.Context, environmentID platform.Environmen
 			podsByService[name],
 			routesByService[name],
 			hpasByService[name],
-			secretsByService[name],
 			environmentID,
 		)
 
@@ -195,12 +179,6 @@ func (c *Client) Service(ctx context.Context, id platform.ServiceID) (*platform.
 		return nil, err
 	}
 
-	secret, err := c.secretFor(ctx, id)
-
-	if err != nil {
-		return nil, err
-	}
-
 	selector := labels.SelectorFromSet(labels.Set{serviceLabel: id.Name}).String()
 
 	routes, err := c.dynamic.Resource(httpRouteGVR).Namespace(id.Namespace()).List(ctx, meta.ListOptions{
@@ -225,7 +203,23 @@ func (c *Client) Service(ctx context.Context, id platform.ServiceID) (*platform.
 		hpa = hpas.Items[0]
 	}
 
-	return new(toService(*deployment, replicaSets, pods, routes.Items, hpa, *secret, id.EnvironmentID())), nil
+	return new(toService(*deployment, replicaSets, pods, routes.Items, hpa, id.EnvironmentID())), nil
+}
+
+func (c *Client) BuildVariables(ctx context.Context, id platform.ServiceID) (map[string]string, error) {
+	secret, err := c.secretFor(ctx, id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	variables := make(map[string]string, len(secret.Data))
+
+	for key, value := range secret.Data {
+		variables[key] = string(value)
+	}
+
+	return variables, nil
 }
 
 func (c *Client) deploymentFor(ctx context.Context, serviceID platform.ServiceID) (*apps.Deployment, error) {
@@ -268,7 +262,7 @@ func (c *Client) secretFor(ctx context.Context, serviceID platform.ServiceID) (*
 	return &secrets.Items[0], nil
 }
 
-func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, pods []core.Pod, routes []unstructured.Unstructured, hpa autoscaling.HorizontalPodAutoscaler, secret core.Secret, environmentID platform.EnvironmentID) platform.Service {
+func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, pods []core.Pod, routes []unstructured.Unstructured, hpa autoscaling.HorizontalPodAutoscaler, environmentID platform.EnvironmentID) platform.Service {
 	annotations := deployment.Annotations
 	containers := deployment.Spec.Template.Spec.Containers
 
@@ -293,7 +287,7 @@ func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, pods [
 		rollout = activeDeployment.Rollout
 	}
 
-	service := platform.Service{
+	return platform.Service{
 		ID:   id,
 		Name: deployment.Labels[serviceLabel],
 
@@ -316,7 +310,6 @@ func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, pods [
 		Command:         containerCommand(containers),
 		HealthCheck:     containerHealthCheck(containers),
 		SecurityContext: podSecurityContext(deployment),
-		Variables:       make(map[string]string),
 
 		ActiveDeployment: activeDeployment,
 		Deployments:      deployments,
@@ -324,12 +317,6 @@ func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, pods [
 		LastDeployedAt: latestReplicaSetTime(replicaSets),
 		CreatedAt:      deployment.CreationTimestamp.Time,
 	}
-
-	for key, val := range secret.Data {
-		service.Variables[key] = string(val)
-	}
-
-	return service
 }
 
 func serviceID(deployment apps.Deployment, environmentID platform.EnvironmentID) platform.ServiceID {

@@ -213,7 +213,6 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 	service := &platform.Service{
 		ID:        id,
 		Name:      serviceName,
-		Variables: variables,
 		Resources: platform.Resources{CPU: resources.CPU, Memory: resources.Memory},
 	}
 
@@ -245,7 +244,7 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 			ContextPath:      contextPath,
 			TargetImageNames: []string{imageName},
 			Token:            token,
-			BuildVars:        service.Variables,
+			BuildVars:        variables,
 			ReleaseID:        release.ID,
 		})
 
