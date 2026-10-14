@@ -44,6 +44,13 @@ certificates: []
 # -- CloudNativePG Operator (PostgreSQL)
 cloudnative-pg:
   enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 384Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
   config:
     data:
       # -- Swap the instance manager inside running Postgres pods on operator
@@ -317,6 +324,13 @@ traefik:
   enabled: false
   deployment:
     replicas: 2
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
   providers:
     kubernetesCRD:
       enabled: true
@@ -422,6 +436,13 @@ rybbit:
     storageClass: ""
     version: "17"
     database: analytics
+    resources:
+      requests:
+        cpu: 50m
+        memory: 256Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
 
   # Session store and bot-detection cache, required since 2.7.0:
   # the client defaults to localhost:6379 and only error-loops when it can't connect,
@@ -1084,6 +1105,13 @@ logto:
     size: 1Gi
     storageClass: ""
     version: "17"
+    resources:
+      requests:
+        cpu: 100m
+        memory: 384Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
   service:
     type: ClusterIP
     port: 3001
