@@ -211,12 +211,17 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 	}
 
 	service := &platform.Service{
-		ID:        id,
-		Name:      serviceName,
-		Resources: platform.Resources{CPU: resources.CPU, Memory: resources.Memory},
+		ID:          id,
+		Name:        serviceName,
+		Status:      platform.ServiceDeploying,
+		SourceURL:   spec.SourceURL,
+		ContextPath: spec.ContextPath,
+		Resources:   platform.Resources{CPU: resources.CPU, Memory: resources.Memory},
 	}
 
 	if spec.SourceURL != "" {
+		service.Status = platform.ServiceBuilding
+
 		commit, err := c.source.Commit(ctx, spec.SourceURL, "")
 
 		if err != nil {
