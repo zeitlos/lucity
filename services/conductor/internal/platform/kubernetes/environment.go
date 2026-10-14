@@ -8,81 +8,64 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 
 	core "k8s.io/api/core/v1"
-	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
 
 const sharedVariablesLabel = "lucity.dev/shared-variables"
 
 func (c *Client) Environments(ctx context.Context, projectID platform.ProjectID) ([]platform.Environment, error) {
-	set := labels.Set{
+	selector := labels.SelectorFromSet(labels.Set{
 		workspaceLabel: projectID.Workspace,
 		projectLabel:   projectID.Name,
-	}
-
-	list, err := c.kubernetes.CoreV1().Namespaces().List(ctx, meta.ListOptions{
-		LabelSelector: labels.SelectorFromSet(set).String(),
 	})
+
+	namespaces, err := c.namespacesMatching(ctx, selector, projectIndex, projectKey(projectID.Workspace, projectID.Name))
 
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]platform.Environment, 0, len(list.Items))
-
-	for _, namespace := range list.Items {
-		env := toEnvironment(namespace)
-		result = append(result, env)
-	}
-
-	return result, nil
+	return toEnvironments(namespaces), nil
 }
 
 func (c *Client) Environment(ctx context.Context, id platform.EnvironmentID) (*platform.Environment, error) {
-	set := labels.Set{
+	selector := labels.SelectorFromSet(labels.Set{
 		workspaceLabel:   id.Workspace,
 		projectLabel:     id.Project,
 		environmentLabel: id.Name,
-	}
-
-	list, err := c.kubernetes.CoreV1().Namespaces().List(ctx, meta.ListOptions{
-		LabelSelector: labels.SelectorFromSet(set).String(),
 	})
 
-	if err != nil {
-		return nil, err
+	namespaces, ok := c.cachedNamespaces(selector, projectIndex, projectKey(id.Workspace, id.Project))
+
+	if !ok || len(namespaces) == 0 {
+		live, err := c.liveNamespaces(ctx, selector)
+
+		if err != nil {
+			return nil, err
+		}
+
+		namespaces = live
 	}
 
-	if len(list.Items) == 0 {
+	if len(namespaces) == 0 {
 		return nil, usererror.Errorf("environment %q not found", id)
 	}
 
-	env := toEnvironment(list.Items[0])
-
-	return &env, nil
+	return new(toEnvironment(namespaces[0])), nil
 }
 
 func (c *Client) EnvironmentsByWorkspace(ctx context.Context, workspaceID string) ([]platform.Environment, error) {
-	set := labels.Set{
+	selector := labels.SelectorFromSet(labels.Set{
 		workspaceLabel: workspaceID,
-	}
-
-	list, err := c.kubernetes.CoreV1().Namespaces().List(ctx, meta.ListOptions{
-		LabelSelector: labels.SelectorFromSet(set).String(),
 	})
+
+	namespaces, err := c.namespacesMatching(ctx, selector, workspaceIndex, workspaceID)
 
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]platform.Environment, 0, len(list.Items))
-
-	for _, namespace := range list.Items {
-		env := toEnvironment(namespace)
-		result = append(result, env)
-	}
-
-	return result, nil
+	return toEnvironments(namespaces), nil
 }
 
 func toEnvironments(namespaces []core.Namespace) []platform.Environment {

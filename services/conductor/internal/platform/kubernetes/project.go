@@ -2,12 +2,12 @@ package kubernetes
 
 import (
 	"context"
+	"sort"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 
 	core "k8s.io/api/core/v1"
-	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 )
@@ -25,9 +25,7 @@ func (c *Client) Projects(ctx context.Context, workspaceID string) ([]platform.P
 
 	selector := labels.SelectorFromSet(set).Add(*req)
 
-	list, err := c.kubernetes.CoreV1().Namespaces().List(ctx, meta.ListOptions{
-		LabelSelector: selector.String(),
-	})
+	namespaces, err := c.namespacesMatching(ctx, selector, workspaceIndex, workspaceID)
 
 	if err != nil {
 		return nil, err
@@ -35,7 +33,7 @@ func (c *Client) Projects(ctx context.Context, workspaceID string) ([]platform.P
 
 	byProject := make(map[string][]core.Namespace)
 
-	for _, namespace := range list.Items {
+	for _, namespace := range namespaces {
 		key := namespace.Labels[projectLabel]
 		byProject[key] = append(byProject[key], namespace)
 	}
@@ -46,28 +44,36 @@ func (c *Client) Projects(ctx context.Context, workspaceID string) ([]platform.P
 		projects = append(projects, toProject(namespaces[0], toEnvironments(namespaces)))
 	}
 
+	sort.Slice(projects, func(i, j int) bool {
+		return projects[i].Name < projects[j].Name
+	})
+
 	return projects, nil
 }
 
 func (c *Client) Project(ctx context.Context, id platform.ProjectID) (*platform.Project, error) {
-	set := labels.Set{
+	selector := labels.SelectorFromSet(labels.Set{
 		workspaceLabel: id.Workspace,
 		projectLabel:   id.Name,
-	}
-
-	list, err := c.kubernetes.CoreV1().Namespaces().List(ctx, meta.ListOptions{
-		LabelSelector: labels.SelectorFromSet(set).String(),
 	})
 
-	if err != nil {
-		return nil, err
+	namespaces, ok := c.cachedNamespaces(selector, projectIndex, projectKey(id.Workspace, id.Name))
+
+	if !ok || len(namespaces) == 0 {
+		live, err := c.liveNamespaces(ctx, selector)
+
+		if err != nil {
+			return nil, err
+		}
+
+		namespaces = live
 	}
 
-	if len(list.Items) < 1 {
+	if len(namespaces) < 1 {
 		return nil, usererror.Errorf("project with id %q not found", id)
 	}
 
-	return new(toProject(list.Items[0], toEnvironments(list.Items))), nil
+	return new(toProject(namespaces[0], toEnvironments(namespaces))), nil
 }
 
 func toProject(namespace core.Namespace, environments []platform.Environment) platform.Project {

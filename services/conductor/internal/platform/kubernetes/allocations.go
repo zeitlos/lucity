@@ -14,17 +14,15 @@ import (
 // the actual resource usage (summed pod requests + PVC sizes) plus the
 // declared tier label. Cashier consumes this for metering.
 func (c *Client) ResourceAllocations(ctx context.Context) ([]platform.ResourceAllocation, error) {
-	nsList, err := c.kubernetes.CoreV1().Namespaces().List(ctx, meta.ListOptions{
-		LabelSelector: resourceTierLabel,
-	})
+	namespaces, err := c.namespacesMatching(ctx, existsSelector(resourceTierLabel), "", "")
 
 	if err != nil {
 		return nil, err
 	}
 
-	out := make([]platform.ResourceAllocation, 0, len(nsList.Items))
+	out := make([]platform.ResourceAllocation, 0, len(namespaces))
 
-	for _, ns := range nsList.Items {
+	for _, ns := range namespaces {
 		id := environmentID(ns.Labels)
 
 		if id.Workspace == "" || id.Project == "" || id.Name == "" {

@@ -50,7 +50,15 @@ func (c *Client) SetEnvironmentResources(ctx context.Context, environmentID plat
 		return nil, err
 	}
 
-	return c.Environment(ctx, environmentID)
+	environment, err := c.Environment(ctx, environmentID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	environment.ResourceTier = tier
+
+	return environment, nil
 }
 
 func (c *Client) Subscription(ctx context.Context, ws string) (*BillingSubscription, error) {

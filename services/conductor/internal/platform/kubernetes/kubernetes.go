@@ -6,6 +6,7 @@ import (
 	apps "k8s.io/api/apps/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 )
 
 const (
@@ -47,6 +48,7 @@ const (
 type Client struct {
 	kubernetes      kubernetes.Interface
 	dynamic         dynamic.Interface
+	namespaces      cache.SharedIndexInformer
 	variableSources []variableSource
 }
 
@@ -54,6 +56,7 @@ func New(kubernetes kubernetes.Interface, dynamic dynamic.Interface) *Client {
 	client := &Client{
 		kubernetes: kubernetes,
 		dynamic:    dynamic,
+		namespaces: newNamespaceInformer(kubernetes),
 	}
 
 	client.variableSources = defaultVariableSources(kubernetes)

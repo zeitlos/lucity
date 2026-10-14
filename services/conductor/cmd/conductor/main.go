@@ -475,6 +475,8 @@ func main() {
 
 	conductor := conductor.New(cashierClient, githubApp, logtoClient, directoryClient, platformClient, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, vulnerabilitiesClient, pipelineClient, planner, source, hostnameClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, edgeClient, conductorConfig)
 
+	platformClient.Start(ctx)
+
 	var leaderDone <-chan struct{}
 
 	if config.ReconcileEnabled {

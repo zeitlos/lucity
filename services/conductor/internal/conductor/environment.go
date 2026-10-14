@@ -44,7 +44,15 @@ func (c *Client) CreateEnvironment(ctx context.Context, project ProjectID, name 
 		return nil, err
 	}
 
-	return c.Environment(ctx, envID)
+	environment, err := c.Environment(ctx, envID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	environment.ResourceTier = tier
+
+	return environment, nil
 }
 
 func (c *Client) DeleteEnvironment(ctx context.Context, environment platform.EnvironmentID) error {
