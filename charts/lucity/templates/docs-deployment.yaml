@@ -23,6 +23,18 @@ spec:
         {{- include "lucity.selectorLabels" (dict "name" "docs" "release" .Release.Name) | nindent 8 }}
     spec:
       terminationGracePeriodSeconds: {{ .Values.rollout.terminationGracePeriodSeconds }}
+      {{- with .Values.docs.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.docs.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.docs.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}

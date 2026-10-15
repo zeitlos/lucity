@@ -23,6 +23,18 @@ spec:
         {{- include "lucity.selectorLabels" (dict "name" "dashboard" "release" .Release.Name) | nindent 8 }}
     spec:
       terminationGracePeriodSeconds: {{ .Values.rollout.terminationGracePeriodSeconds }}
+      {{- with .Values.dashboard.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.dashboard.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.dashboard.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- if gt (int .Values.dashboard.replicaCount) 1 }}
       topologySpreadConstraints:
         - maxSkew: 1

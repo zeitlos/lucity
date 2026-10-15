@@ -107,6 +107,10 @@ conductor:
       limits:
         cpu: "4"
         memory: 4Gi
+    # -- Scheduling for BuildKit and the build and scan Jobs
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
   env: {}
   envSecret: {}
   resources:
@@ -116,6 +120,10 @@ conductor:
     limits:
       cpu: "1"
       memory: 2Gi
+  # -- Scheduling for the conductor and the deploy Jobs it starts
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
 
 # -- Cashier (Stripe billing)
 cashier:
@@ -138,6 +146,9 @@ cashier:
     limits:
       cpu: 500m
       memory: 256Mi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
 
 # -- Exporter (usage from external providers as Prometheus metrics, scraped by the otel agents)
 exporter:
@@ -155,6 +166,9 @@ exporter:
       memory: 32Mi
     limits:
       memory: 128Mi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
 
 # -- Dashboard (Vue SPA)
 dashboard:
@@ -171,6 +185,9 @@ dashboard:
     limits:
       cpu: 200m
       memory: 128Mi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
 
 # -- Network policy settings for build isolation
 networkPolicy:
@@ -196,3 +213,6 @@ docs:
     limits:
       cpu: 200m
       memory: 128Mi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}

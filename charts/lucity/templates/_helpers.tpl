@@ -47,6 +47,18 @@ app.kubernetes.io/instance: {{ .release }}
 {{- end }}
 
 {{/*
+JSON of a component's nodeSelector, tolerations and affinity, for the Jobs the
+conductor starts on its behalf. Empty when none is set.
+*/}}
+{{- define "lucity.jobPlacement" -}}
+{{- $placement := dict }}
+{{- with .nodeSelector }}{{ $_ := set $placement "nodeSelector" . }}{{ end }}
+{{- with .tolerations }}{{ $_ := set $placement "tolerations" . }}{{ end }}
+{{- with .affinity }}{{ $_ := set $placement "affinity" . }}{{ end }}
+{{- with $placement }}{{ toJson . }}{{ end }}
+{{- end }}
+
+{{/*
 Response header filter applied to every platform route rule.
 Takes routes.responseHeaders as the context.
 */}}
