@@ -13,6 +13,18 @@ spec:
   serviceAccount: {{ .Release.Name }}-otel-collector
   resources:
     {{- toYaml .Values.otelCollector.deployment.resources | nindent 4 }}
+  {{- with .Values.otelCollector.deployment.nodeSelector }}
+  nodeSelector:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.otelCollector.deployment.affinity }}
+  affinity:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.otelCollector.deployment.tolerations }}
+  tolerations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   topologySpreadConstraints:
     - maxSkew: 1
       topologyKey: kubernetes.io/hostname

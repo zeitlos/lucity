@@ -13,6 +13,17 @@ spec:
   imageName: ghcr.io/cloudnative-pg/postgresql:{{ .Values.rybbit.postgres.version }}
   {{- end }}
   primaryUpdateMethod: switchover
+  {{- if or .Values.rybbit.postgres.nodeSelector .Values.rybbit.postgres.tolerations }}
+  affinity:
+    {{- with .Values.rybbit.postgres.nodeSelector }}
+    nodeSelector:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .Values.rybbit.postgres.tolerations }}
+    tolerations:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}
   {{- with .Values.rybbit.postgres.resources }}
   resources:
     {{- toYaml . | nindent 4 }}

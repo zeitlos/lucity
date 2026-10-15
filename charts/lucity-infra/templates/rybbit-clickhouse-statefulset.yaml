@@ -23,6 +23,18 @@ spec:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/rybbit-clickhouse-configmap.yaml") . | sha256sum }}
     spec:
+      {{- with .Values.rybbit.clickhouse.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.rybbit.clickhouse.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.rybbit.clickhouse.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: clickhouse
           image: "{{ .Values.rybbit.clickhouse.image.repository }}:{{ .Values.rybbit.clickhouse.image.tag }}"

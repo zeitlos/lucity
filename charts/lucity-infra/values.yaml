@@ -394,6 +394,9 @@ rybbit:
       limits:
         cpu: 500m
         memory: 512Mi
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
 
   client:
     image:
@@ -408,6 +411,9 @@ rybbit:
       limits:
         cpu: 200m
         memory: 256Mi
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
 
   clickhouse:
     image:
@@ -429,6 +435,9 @@ rybbit:
       limits:
         cpu: "1"
         memory: 1Gi
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
 
   postgres:
     instances: 1
@@ -443,6 +452,8 @@ rybbit:
       limits:
         cpu: "1"
         memory: 1Gi
+    nodeSelector: {}
+    tolerations: []
 
   # Session store and bot-detection cache, required since 2.7.0:
   # the client defaults to localhost:6379 and only error-loops when it can't connect,
@@ -458,6 +469,9 @@ rybbit:
       limits:
         cpu: 200m
         memory: 256Mi
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
 
   secrets:
     clickhousePassword: ""
@@ -935,6 +949,9 @@ otelCollector:
         memory: 256Mi
       limits:
         memory: 1Gi
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
 
 # -- Hetzner Cloud exporter — load balancer saturation and server traffic from the Hetzner API
 hcloud-exporter:
@@ -1107,6 +1124,8 @@ logto:
       limits:
         cpu: "1"
         memory: 1Gi
+    nodeSelector: {}
+    tolerations: []
   service:
     type: ClusterIP
     port: 3001
@@ -1117,6 +1136,9 @@ logto:
     limits:
       cpu: 500m
       memory: 512Mi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
   secrets:
     secretVaultKek: ""    # base64-encoded 32-byte KEK for Secret Vault (token storage)
 

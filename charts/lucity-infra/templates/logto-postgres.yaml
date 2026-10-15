@@ -14,6 +14,17 @@ spec:
   {{- end }}
   enableSuperuserAccess: true
   primaryUpdateMethod: switchover
+  {{- if or .Values.logto.postgres.nodeSelector .Values.logto.postgres.tolerations }}
+  affinity:
+    {{- with .Values.logto.postgres.nodeSelector }}
+    nodeSelector:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .Values.logto.postgres.tolerations }}
+    tolerations:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}
   {{- with .Values.logto.postgres.resources }}
   resources:
     {{- toYaml . | nindent 4 }}
