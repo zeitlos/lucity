@@ -6,6 +6,11 @@ routes:
   enabled: true
   sectionName: platform-https
 
+banner:
+  message: "New sign-ups are temporarily paused. Existing accounts and running apps are not affected."
+  severity: info
+  dismissible: true
+
 conductor:
   registryHost: lucity-infra-zot.lucity-system.svc.cluster.local:5000
   registryUsername: builder
