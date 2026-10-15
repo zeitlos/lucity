@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"net/url"
 	"slices"
@@ -23,6 +24,7 @@ import (
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8slabels "k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/utils/ptr"
 )
@@ -122,14 +124,22 @@ func (c *Client) Cancel(ctx context.Context, id buildjob.BuildID) (*buildjob.Job
 		return new(toJob(*job)), nil
 	}
 
-	if job.Annotations == nil {
-		job.Annotations = map[string]string{}
+	patch, err := json.Marshal(map[string]any{
+		"metadata": map[string]any{
+			"annotations": map[string]string{
+				annotationCancelledAt: time.Now().UTC().Format(time.RFC3339),
+			},
+		},
+		"spec": map[string]any{
+			"activeDeadlineSeconds": 1,
+		},
+	})
+
+	if err != nil {
+		return nil, err
 	}
 
-	job.Annotations[annotationCancelledAt] = time.Now().UTC().Format(time.RFC3339)
-	job.Spec.ActiveDeadlineSeconds = new(int64(1))
-
-	job, err = c.kubernetes.BatchV1().Jobs(c.namespace).Update(ctx, job, meta.UpdateOptions{})
+	job, err = c.kubernetes.BatchV1().Jobs(c.namespace).Patch(ctx, job.Name, types.StrategicMergePatchType, patch, meta.PatchOptions{})
 
 	if err != nil {
 		return nil, err
