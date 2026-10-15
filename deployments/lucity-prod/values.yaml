@@ -22,6 +22,13 @@ conductor:
         memory: 6Gi
       limits:
         memory: 8Gi
+    nodeSelector:
+      lucity.dev/node-pool: builds
+    tolerations:
+      - key: lucity.dev/node-pool
+        operator: Equal
+        value: builds
+        effect: NoSchedule
   env:
     OIDC_ISSUER_URL: https://id.lucity.cloud/oidc
     OIDC_CLIENT_ID: 30ztkgeb1c7hwmnx6bf4s
