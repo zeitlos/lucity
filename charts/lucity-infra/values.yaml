@@ -765,22 +765,17 @@ victoria-metrics-alert:
                   redacted: "A tenant database volume is more than 95% full, the primary will go read-only"
           - name: edge-gateway
             rules:
-              # Only 5xx the gateway itself generated: downstream 5xx minus the
-              # 5xx an upstream actually returned. Catches broken HTTPRoutes,
-              # TLS misconfig, no healthy upstream, and Cilium L7 issues
-              # (e.g. the IPv6 incident on 2026-05-01) without counting 5xx
-              # that tenant applications produced. Baseline is p99 = 0.003/s.
-              # The two counters can skew by a request at scrape boundaries, so
-              # this dips slightly negative next to a burst; harmless at > 0.1.
+              # 503s the gateway synthesized because a route points at an
+              # upstream it does not know (routes ahead of clusters during a
+              # config rollout, or a wedged xDS push). No-healthy-upstream and
+              # connect failures are charged to the tenant cluster, so tenant
+              # outages stay out of this page.
               - alert: GatewayOriginated5xxRate
-                expr: |-
-                  sum(rate_prometheus(envoy_http_downstream_rq_xx_total{envoy_response_code_class="5",envoy_http_conn_manager_prefix=~"listener-(secure|insecure)"}[5m]))
-                  - sum(rate_prometheus(envoy_cluster_upstream_rq_xx_total{envoy_response_code_class="5",envoy_cluster_name=~"lucity-system/cilium-gateway-.*"}[5m]))
-                  > 0.1
+                expr: sum(rate_prometheus(envoy_http_no_cluster_total{envoy_http_conn_manager_prefix=~"listener-(secure|insecure)"}[5m])) > 0.1
                 for: 5m
                 labels: { severity: critical }
                 annotations:
-                  summary: "Gateway itself is generating 5xx ({{ $value | humanize }} req/s) — routing, TLS, or no healthy upstream"
+                  summary: "Gateway is answering 503 for routes without an upstream ({{ $value | humanize }} req/s): xDS out of sync"
               # 5xx from the platform's OWN services behind the gateway
               # (conductor, dashboard, docs, cashier, logto, rybbit). Tenant
               # workloads are deliberately out of scope: a customer shipping a
