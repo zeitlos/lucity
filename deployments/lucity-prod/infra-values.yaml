@@ -182,6 +182,7 @@ traefik:
       load-balancer.hetzner.cloud/uses-proxyprotocol: "true"
       load-balancer.hetzner.cloud/use-private-ip: "true"
       load-balancer.hetzner.cloud/ipv6-disabled: "true"
+      load-balancer.hetzner.cloud/node-selector: lucity.dev/node-pool=platform
       external-dns.kubernetes.io/hostname: "*.db.lucity.app"
 
 clusterIssuers:
