@@ -77,7 +77,9 @@ zot:
   resources:
     requests:
       cpu: 100m
-      memory: 10Gi
+      memory: 4Gi
+    limits:
+      memory: 8Gi
   nodeSelector: &platform-nodes
     lucity.dev/node-pool: platform
   tolerations: &platform-taint
