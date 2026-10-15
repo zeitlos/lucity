@@ -39,13 +39,14 @@ type Client struct {
 	buildRunnerImage   string
 	buildKitTLSSecret  string
 	buildKitServerName string
+	placement          jobs.Placement
 
 	kubernetes kubernetes.Interface
 	jobs       *jobs.Cache
 	github     *github.App
 }
 
-func New(kubernetes kubernetes.Interface, jobs *jobs.Cache, namespace, registry, registryAuthSecret, buildRunnerImage, buildKitTLSSecret, buildKitServerName string) *Client {
+func New(kubernetes kubernetes.Interface, jobs *jobs.Cache, namespace, registry, registryAuthSecret, buildRunnerImage, buildKitTLSSecret, buildKitServerName string, placement jobs.Placement) *Client {
 	return &Client{
 		namespace:          namespace,
 		registry:           registry,
@@ -54,6 +55,7 @@ func New(kubernetes kubernetes.Interface, jobs *jobs.Cache, namespace, registry,
 		buildRunnerImage:   buildRunnerImage,
 		buildKitTLSSecret:  buildKitTLSSecret,
 		buildKitServerName: buildKitServerName,
+		placement:          placement,
 		kubernetes:         kubernetes,
 		jobs:               jobs,
 	}

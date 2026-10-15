@@ -102,19 +102,21 @@ type Config struct {
 	ServiceCIDR string `envconfig:"SERVICE_CIDR" default:"10.96.0.0/12"`
 
 	// Builder
-	RegistryURL        string `envconfig:"REGISTRY_URL" default:"localhost:5000"`
-	RegistryPullURL    string `envconfig:"REGISTRY_PULL_URL" required:"true"`
-	RegistryPushURL    string `envconfig:"REGISTRY_PUSH_URL" required:"true"`
-	RegistryAuthSecret string `envconfig:"REGISTRY_AUTH_SECRET" required:"true"`
-	BuildImage         string `envconfig:"BUILD_IMAGE"`
-	BuildkitAddr       string `envconfig:"BUILDKIT_ADDR"`
-	BuildNamespace     string `envconfig:"BUILD_NAMESPACE" default:"lucity-builds"`
-	BuildkitTLSSecret  string `envconfig:"BUILDKIT_TLS_SECRET"`
-	BuildkitServerName string `envconfig:"BUILDKIT_SERVER_NAME"`
+	RegistryURL        string         `envconfig:"REGISTRY_URL" default:"localhost:5000"`
+	RegistryPullURL    string         `envconfig:"REGISTRY_PULL_URL" required:"true"`
+	RegistryPushURL    string         `envconfig:"REGISTRY_PUSH_URL" required:"true"`
+	RegistryAuthSecret string         `envconfig:"REGISTRY_AUTH_SECRET" required:"true"`
+	BuildImage         string         `envconfig:"BUILD_IMAGE"`
+	BuildkitAddr       string         `envconfig:"BUILDKIT_ADDR"`
+	BuildNamespace     string         `envconfig:"BUILD_NAMESPACE" default:"lucity-builds"`
+	BuildJobPlacement  jobs.Placement `envconfig:"BUILD_JOB_PLACEMENT"`
+	BuildkitTLSSecret  string         `envconfig:"BUILDKIT_TLS_SECRET"`
+	BuildkitServerName string         `envconfig:"BUILDKIT_SERVER_NAME"`
 
 	// Deploy jobs
-	DeployImage          string `envconfig:"DEPLOY_IMAGE" required:"true"`
-	DeployServiceAccount string `envconfig:"DEPLOY_SERVICE_ACCOUNT"`
+	DeployImage          string         `envconfig:"DEPLOY_IMAGE" required:"true"`
+	DeployServiceAccount string         `envconfig:"DEPLOY_SERVICE_ACCOUNT"`
+	DeployJobPlacement   jobs.Placement `envconfig:"DEPLOY_JOB_PLACEMENT"`
 
 	// Secret scan tuning
 	ScanTimeout               time.Duration `envconfig:"SCAN_TIMEOUT" default:"60m"`
@@ -305,7 +307,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	jobsClient := buildjobK8s.New(k8sClient, jobsCache, config.BuildNamespace, config.RegistryPushURL, config.RegistryAuthSecret, config.BuildImage, config.BuildkitTLSSecret, config.BuildkitServerName)
+	jobsClient := buildjobK8s.New(k8sClient, jobsCache, config.BuildNamespace, config.RegistryPushURL, config.RegistryAuthSecret, config.BuildImage, config.BuildkitTLSSecret, config.BuildkitServerName, config.BuildJobPlacement)
 
 	deployJobsClient := deployjobK8s.New(k8sClient, jobsCache, deployjobK8s.Config{
 		Namespace:            config.SystemNamespace,
@@ -323,6 +325,7 @@ func main() {
 			Bucket:   config.DatabaseBackupBucket,
 		},
 		EdgeHeader: config.EdgeHeaderEnforced,
+		Placement:  config.DeployJobPlacement,
 	})
 
 	pipelineClient := pipeline.New(k8sClient, jobsCache, config.MaxConcurrentReleases, config.MaxConcurrentBuilds)
@@ -335,6 +338,7 @@ func main() {
 		Timeout:               config.ScanTimeout,
 		GitleaksWorkers:       config.ScanGitleaksWorkers,
 		TrufflehogConcurrency: config.ScanTrufflehogConcurrency,
+		Placement:             config.BuildJobPlacement,
 	})
 
 	secret, err := k8sClient.CoreV1().Secrets(config.SystemNamespace).Get(ctx, config.RegistryPullSecret, metav1.GetOptions{})

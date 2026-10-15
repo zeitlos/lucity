@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -11,6 +12,23 @@ import (
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
+
+// Placement holds the scheduling constraints copied into a Job's pod.
+type Placement struct {
+	NodeSelector map[string]string `json:"nodeSelector"`
+	Tolerations  []core.Toleration `json:"tolerations"`
+	Affinity     *core.Affinity    `json:"affinity"`
+}
+
+// Decode parses a placement from its JSON form, so envconfig can read it
+// from a single variable.
+func (p *Placement) Decode(value string) error {
+	if value == "" {
+		return nil
+	}
+
+	return json.Unmarshal([]byte(value), p)
+}
 
 // StreamLogs waits for a Job's pod to start and streams its container logs.
 func StreamLogs(ctx context.Context, client kubernetes.Interface, namespace, jobName string) (io.ReadCloser, error) {

@@ -32,6 +32,7 @@ type Config struct {
 	ClusterIssuer        string
 	Backups              BackupConfig
 	EdgeHeader           bool
+	Placement            jobs.Placement
 }
 
 type BackupConfig struct {

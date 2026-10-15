@@ -78,6 +78,9 @@ func (c *Client) newScanJob(name string, opts scanjob.StartOptions) *batch.Job {
 					HostUsers:                    ptr.To(false),
 					RestartPolicy:                core.RestartPolicyNever,
 					AutomountServiceAccountToken: ptr.To(false),
+					NodeSelector:                 c.config.Placement.NodeSelector,
+					Tolerations:                  c.config.Placement.Tolerations,
+					Affinity:                     c.config.Placement.Affinity,
 					SecurityContext: &core.PodSecurityContext{
 						SeccompProfile: &core.SeccompProfile{Type: core.SeccompProfileTypeRuntimeDefault},
 					},

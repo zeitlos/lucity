@@ -15,6 +15,7 @@ import (
 	buildjobK8s "github.com/zeitlos/lucity/services/conductor/internal/buildjob/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	helmDeployer "github.com/zeitlos/lucity/services/conductor/internal/deployer/helm"
+	"github.com/zeitlos/lucity/services/conductor/internal/jobs"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
@@ -85,7 +86,7 @@ func runDeploy() {
 		os.Exit(1)
 	}
 
-	builds := buildjobK8s.New(k8sClient, nil, config.BuildNamespace, "", "", "", "", "")
+	builds := buildjobK8s.New(k8sClient, nil, config.BuildNamespace, "", "", "", "", "", jobs.Placement{})
 	buildID := buildjob.BuildID{Workspace: config.Workspace, Name: config.BuildName}
 
 	log.Info("deploy: waiting for build")

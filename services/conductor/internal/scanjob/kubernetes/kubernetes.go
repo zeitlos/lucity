@@ -30,6 +30,7 @@ type Config struct {
 	Timeout               time.Duration
 	GitleaksWorkers       int
 	TrufflehogConcurrency int
+	Placement             jobs.Placement
 }
 
 type Client struct {

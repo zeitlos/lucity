@@ -253,6 +253,9 @@ func (c *Client) newBuildJob(id string, opts buildjob.StartOptions, repoURL url.
 					HostUsers:                    ptr.To(false),
 					RestartPolicy:                core.RestartPolicyNever,
 					AutomountServiceAccountToken: ptr.To(false),
+					NodeSelector:                 c.placement.NodeSelector,
+					Tolerations:                  c.placement.Tolerations,
+					Affinity:                     c.placement.Affinity,
 					SecurityContext: &core.PodSecurityContext{
 						SeccompProfile: &core.SeccompProfile{Type: core.SeccompProfileTypeRuntimeDefault},
 					},

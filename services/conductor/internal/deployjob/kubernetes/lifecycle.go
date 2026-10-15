@@ -83,6 +83,9 @@ func (c *Client) newDeployJob(name string, opts deployjob.StartOptions) *batch.J
 				Spec: core.PodSpec{
 					RestartPolicy:      core.RestartPolicyNever,
 					ServiceAccountName: c.config.ServiceAccount,
+					NodeSelector:       c.config.Placement.NodeSelector,
+					Tolerations:        c.config.Placement.Tolerations,
+					Affinity:           c.config.Placement.Affinity,
 					SecurityContext: &core.PodSecurityContext{
 						RunAsNonRoot:   ptr.To(true),
 						RunAsUser:      ptr.To(int64(65534)),
