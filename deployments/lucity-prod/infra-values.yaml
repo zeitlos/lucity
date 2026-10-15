@@ -77,7 +77,14 @@ zot:
   resources:
     requests:
       cpu: 100m
-      memory: 4Gi
+      memory: 10Gi
+  nodeSelector: &platform-nodes
+    lucity.dev/node-pool: platform
+  tolerations: &platform-taint
+    - key: lucity.dev/node-pool
+      operator: Equal
+      value: platform
+      effect: NoSchedule
 
 gateway:
   className: cilium
@@ -157,6 +164,8 @@ gateway:
 
 traefik:
   enabled: true
+  nodeSelector: *platform-nodes
+  tolerations: *platform-taint
   ports:
     postgres:
       proxyProtocol:
@@ -180,7 +189,26 @@ clusterIssuers:
       email: certificates@zeitlos.software
       solvers:
         - http01:
-            gatewayHTTPRoute: {}
+            gatewayHTTPRoute:
+              podTemplate:
+                spec:
+                  affinity:
+                    nodeAffinity:
+                      requiredDuringSchedulingIgnoredDuringExecution:
+                        nodeSelectorTerms:
+                          - matchExpressions:
+                              - key: lucity.dev/node-pool
+                                operator: In
+                                values: [free, paid]
+                  tolerations:
+                    - key: lucity.dev/node-pool
+                      operator: Equal
+                      value: free
+                      effect: NoSchedule
+                    - key: lucity.dev/node-pool
+                      operator: Equal
+                      value: paid
+                      effect: NoSchedule
 
 certificates:
   - name: lucity-cloud-tls
@@ -229,6 +257,11 @@ rybbit:
     sectionName: analytics-https
   backend:
     baseUrl: "https://p.lucity.cloud"
+    nodeSelector: *platform-nodes
+    tolerations: *platform-taint
+  client:
+    nodeSelector: *platform-nodes
+    tolerations: *platform-taint
   clickhouse:
     persistence:
       storageClass: hcloud-volumes
@@ -238,11 +271,17 @@ rybbit:
         memory: 1Gi
       limits:
         memory: 2Gi
+    nodeSelector: *platform-nodes
+    tolerations: *platform-taint
   postgres:
     storageClass: hcloud-volumes
+    nodeSelector: *platform-nodes
+    tolerations: *platform-taint
   redis:
     storageClass: hcloud-volumes
     size: 10Gi              # Hetzner Cloud Volumes have a 10Gi minimum
+    nodeSelector: *platform-nodes
+    tolerations: *platform-taint
   secrets:
     clickhousePassword: ""   # --set rybbit.secrets.clickhousePassword
     betterAuthSecret: ""     # --set rybbit.secrets.betterAuthSecret
@@ -256,9 +295,13 @@ logto:
     annotations:
       external-dns.kubernetes.io/hostname: id.lucity.cloud
     sectionName: id-https
+  nodeSelector: *platform-nodes
+  tolerations: *platform-taint
   postgres:
     instances: 2
     storageClass: hcloud-volumes
+    nodeSelector: *platform-nodes
+    tolerations: *platform-taint
 
 # Observability stack
 victoria-metrics-single:
@@ -270,9 +313,11 @@ victoria-metrics-single:
     resources:
       requests:
         cpu: 200m
-        memory: 2Gi
+        memory: 3Gi
       limits:
         memory: 4Gi
+    nodeSelector: *platform-nodes
+    tolerations: *platform-taint
 
 victoria-logs-single:
   enabled: true
@@ -286,11 +331,18 @@ victoria-logs-single:
         memory: 512Mi
       limits:
         memory: 1Gi
+    nodeSelector: *platform-nodes
+    tolerations: *platform-taint
 
 victoria-metrics-alert:
   enabled: true
+  server:
+    nodeSelector: *platform-nodes
+    tolerations: *platform-taint
   alertmanager:
     enabled: true
+    nodeSelector: *platform-nodes
+    tolerations: *platform-taint
     persistentVolume:
       enabled: true
       size: 10Gi          # Hetzner Cloud Volumes have a 10Gi minimum
@@ -303,13 +355,38 @@ otelCollector:
     enabled: true
   deployment:
     enabled: true
+    nodeSelector: *platform-nodes
+    tolerations: *platform-taint
 
 # Hetzner Cloud exporter (LB connection ceiling + node egress); token lives in infra-secrets.yaml
 hcloud-exporter:
   enabled: true
+  nodeSelector: *platform-nodes
+  tolerations: *platform-taint
+
+cloudnative-pg:
+  nodeSelector: *platform-nodes
+  tolerations: *platform-taint
+
+plugin-barman-cloud:
+  nodeSelector: *platform-nodes
+  tolerations: *platform-taint
+
+vertical-pod-autoscaler:
+  admissionController:
+    nodeSelector: *platform-nodes
+    tolerations: *platform-taint
+  recommender:
+    nodeSelector: *platform-nodes
+    tolerations: *platform-taint
+  updater:
+    nodeSelector: *platform-nodes
+    tolerations: *platform-taint
 
 grafana:
   enabled: true
+  nodeSelector: *platform-nodes
+  tolerations: *platform-taint
   deploymentStrategy:
     type: Recreate
   persistence:

@@ -14,6 +14,13 @@ banner:
 conductor:
   registryHost: lucity-infra-zot.lucity-system.svc.cluster.local:5000
   registryUsername: builder
+  nodeSelector: &platform-nodes
+    lucity.dev/node-pool: platform
+  tolerations: &platform-taint
+    - key: lucity.dev/node-pool
+      operator: Equal
+      value: platform
+      effect: NoSchedule
   buildkit:
     enabled: true
     storageSize: 100Gi
@@ -90,6 +97,8 @@ conductor:
 
 cashier:
   enabled: true
+  nodeSelector: *platform-nodes
+  tolerations: *platform-taint
   env:
     INTERNAL_JWT_PUBLIC_KEY_PATH: /secrets/internal-jwt/public.pem
     INTERNAL_JWT_PRIVATE_KEY_PATH: /secrets/internal-jwt/private.pem
@@ -120,6 +129,8 @@ cashier:
 
 exporter:
   enabled: true
+  nodeSelector: *platform-nodes
+  tolerations: *platform-taint
   env:
     OVH_ENDPOINT: ovh-eu
     OVH_PROJECT_ID: "df349a670c8a4d3fbe69a87d4c2f25a9"
@@ -128,3 +139,11 @@ exporter:
     OVH_APPLICATION_KEY: EXPORTER_OVH_APPLICATION_KEY
     OVH_APPLICATION_SECRET: EXPORTER_OVH_APPLICATION_SECRET
     OVH_CONSUMER_KEY: EXPORTER_OVH_CONSUMER_KEY
+
+dashboard:
+  nodeSelector: *platform-nodes
+  tolerations: *platform-taint
+
+docs:
+  nodeSelector: *platform-nodes
+  tolerations: *platform-taint
