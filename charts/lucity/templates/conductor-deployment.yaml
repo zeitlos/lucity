@@ -92,7 +92,7 @@ spec:
               value: {{ .Values.conductor.buildNamespace | quote }}
             - name: BUILD_IMAGE
               value: "{{ .Values.conductor.builderImage.repository }}:{{ .Values.conductor.builderImage.tag | default .Chart.AppVersion }}"
-            {{- with include "lucity.jobPlacement" .Values.conductor.buildkit }}
+            {{- with include "lucity.placementJSON" .Values.conductor.buildkit }}
             - name: BUILD_JOB_PLACEMENT
               value: {{ . | quote }}
             {{- end }}
@@ -102,8 +102,12 @@ spec:
               value: "{{ .Values.conductor.image.repository }}:{{ .Values.conductor.image.tag | default .Chart.AppVersion }}"
             - name: DEPLOY_SERVICE_ACCOUNT
               value: {{ include "lucity.fullname" . }}-conductor
-            {{- with include "lucity.jobPlacement" .Values.conductor }}
+            {{- with include "lucity.placementJSON" .Values.conductor }}
             - name: DEPLOY_JOB_PLACEMENT
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with include "lucity.placementJSON" .Values.workloadPlacement.default }}
+            - name: WORKLOAD_DEFAULT_PLACEMENT
               value: {{ . | quote }}
             {{- end }}
             {{- if and .Values.conductor.buildkit.enabled .Values.conductor.buildkit.tls.enabled }}

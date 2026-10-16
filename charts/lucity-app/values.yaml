@@ -98,6 +98,12 @@ fullnameOverride: ""
 # Scale every workload to zero, hibernate databases, and drop routes.
 suspended: false
 
+# Scheduling constraints for every workload pod: services, key-value stores and
+# database instances.
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
 verticalPodAutoscaler:
   enabled: false
   updatePolicy:

@@ -11,12 +11,12 @@ import (
 
 	"github.com/blang/semver/v4"
 	"github.com/zeitlos/lucity/charts"
+	helmDeployer "github.com/zeitlos/lucity/pkg/deployer/helm"
+	"github.com/zeitlos/lucity/pkg/deployer/values"
 	webhookhttp "github.com/zeitlos/lucity/services/conductor/internal/api/webhook/http"
 	"github.com/zeitlos/lucity/services/conductor/internal/backuparchive"
 	buildjobK8s "github.com/zeitlos/lucity/services/conductor/internal/buildjob/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
-	helmDeployer "github.com/zeitlos/lucity/services/conductor/internal/deployer/helm"
-	"github.com/zeitlos/lucity/services/conductor/internal/deployer/values"
 	deployjobK8s "github.com/zeitlos/lucity/services/conductor/internal/deployjob/kubernetes"
 	directoryLogto "github.com/zeitlos/lucity/services/conductor/internal/directory/logto"
 	"github.com/zeitlos/lucity/services/conductor/internal/edge"
@@ -117,6 +117,10 @@ type Config struct {
 	DeployImage          string         `envconfig:"DEPLOY_IMAGE" required:"true"`
 	DeployServiceAccount string         `envconfig:"DEPLOY_SERVICE_ACCOUNT"`
 	DeployJobPlacement   jobs.Placement `envconfig:"DEPLOY_JOB_PLACEMENT"`
+
+	// Tenant workload placement for releases installed by the conductor or its
+	// deploy Jobs. Stagehand moves releases to their plan's placement afterwards.
+	WorkloadDefaultPlacement string `envconfig:"WORKLOAD_DEFAULT_PLACEMENT"`
 
 	// Secret scan tuning
 	ScanTimeout               time.Duration `envconfig:"SCAN_TIMEOUT" default:"60m"`
@@ -324,8 +328,9 @@ func main() {
 			Endpoint: config.DatabaseBackupEndpoint,
 			Bucket:   config.DatabaseBackupBucket,
 		},
-		EdgeHeader: config.EdgeHeaderEnforced,
-		Placement:  config.DeployJobPlacement,
+		EdgeHeader:        config.EdgeHeaderEnforced,
+		Placement:         config.DeployJobPlacement,
+		WorkloadPlacement: config.WorkloadDefaultPlacement,
 	})
 
 	pipelineClient := pipeline.New(k8sClient, jobsCache, config.MaxConcurrentReleases, config.MaxConcurrentBuilds)
@@ -377,11 +382,18 @@ func main() {
 
 	releaseCache := helmDeployer.NewReleaseCache(metadataClient)
 
+	var workloadDefaultPlacement values.Placement
+
+	if err := workloadDefaultPlacement.Decode(config.WorkloadDefaultPlacement); err != nil {
+		slog.Error("failed to parse WORKLOAD_DEFAULT_PLACEMENT", "error", err)
+		os.Exit(1)
+	}
+
 	deployerClient, err := helmDeployer.New(chartRef, config.GatewayName, config.GatewayNamespace, config.CustomDomainClusterIssuer, helmDeployer.BackupConfig{
 		Enabled:  config.DatabaseBackupEnabled,
 		Endpoint: config.DatabaseBackupEndpoint,
 		Bucket:   config.DatabaseBackupBucket,
-	}, config.RegistryPullURL, append(edgeHeaderOptions(config.EdgeHeaderEnforced), helmDeployer.WithHTTPSListener(config.GatewayHTTPSListener), helmDeployer.WithReleaseCache(releaseCache))...)
+	}, config.RegistryPullURL, workloadDefaultPlacement, helmDeployer.WithEdgeHeader(config.EdgeHeaderEnforced), helmDeployer.WithHTTPSListener(config.GatewayHTTPSListener), helmDeployer.WithReleaseCache(releaseCache))
 
 	if err != nil {
 		slog.Error("failed to create deployer client", "error", err)

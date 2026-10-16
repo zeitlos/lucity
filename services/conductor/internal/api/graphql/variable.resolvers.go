@@ -8,9 +8,9 @@ package graphql
 import (
 	"context"
 
+	"github.com/zeitlos/lucity/pkg/platform"
+	"github.com/zeitlos/lucity/pkg/usererror"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
-	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 // SetSharedVariables is the resolver for the setSharedVariables field.

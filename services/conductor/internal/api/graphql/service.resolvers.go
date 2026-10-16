@@ -9,10 +9,10 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/to"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 // AddService is the resolver for the addService field.

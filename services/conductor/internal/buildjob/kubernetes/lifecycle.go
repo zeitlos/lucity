@@ -14,8 +14,8 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/zeitlos/lucity/pkg/labels"
+	"github.com/zeitlos/lucity/pkg/usererror"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
-	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 
 	batch "k8s.io/api/batch/v1"
 	core "k8s.io/api/core/v1"

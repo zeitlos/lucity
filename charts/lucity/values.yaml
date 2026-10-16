@@ -170,6 +170,38 @@ exporter:
   tolerations: []
   affinity: {}
 
+# -- Tenant workload placement, each a standard nodeSelector / tolerations /
+#    affinity block. `default` applies to new releases and to workspaces
+#    without a paid plan; `paid` to workspaces with a Hobby or Pro plan.
+#    Stagehand moves existing releases between them.
+workloadPlacement:
+  default: {}
+  paid: {}
+
+# -- Stagehand (workload changes nobody asked for in the moment: plan-based placement)
+stagehand:
+  enabled: false
+  image:
+    repository: ghcr.io/zeitlos/lucity/stagehand
+    tag: ""
+    pullPolicy: IfNotPresent
+  interval: 2m
+  # Environments with running pods moved per pass
+  maxMoves: 3
+  # Only log what would move
+  dryRun: false
+  env: {}
+  envSecret: {}
+  resources:
+    requests:
+      cpu: 20m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
 # -- Dashboard (Vue SPA)
 dashboard:
   replicaCount: 2

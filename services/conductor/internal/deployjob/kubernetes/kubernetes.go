@@ -4,9 +4,9 @@ import (
 	"time"
 
 	"github.com/zeitlos/lucity/pkg/labels"
+	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/jobs"
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 
 	batch "k8s.io/api/batch/v1"
 	core "k8s.io/api/core/v1"
@@ -33,6 +33,7 @@ type Config struct {
 	Backups              BackupConfig
 	EdgeHeader           bool
 	Placement            jobs.Placement
+	WorkloadPlacement    string
 }
 
 type BackupConfig struct {

@@ -10,9 +10,9 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/google/go-containerregistry/pkg/name"
 
-	"github.com/zeitlos/lucity/services/conductor/internal/image"
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
-	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
+	"github.com/zeitlos/lucity/pkg/image"
+	"github.com/zeitlos/lucity/pkg/platform"
+	"github.com/zeitlos/lucity/pkg/usererror"
 )
 
 type Interface interface {

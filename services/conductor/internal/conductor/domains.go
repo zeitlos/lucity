@@ -4,9 +4,9 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/edge"
 	"github.com/zeitlos/lucity/services/conductor/internal/hostname"
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 type Endpoint struct {

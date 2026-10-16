@@ -6,8 +6,8 @@ Open-source PaaS on Kubernetes with full ejectability. Monorepo with a single Go
 
 - **Go workspace**: `go.work` with multi-module layout (Go 1.27)
 - **Module path**: `github.com/zeitlos/lucity`
-- **Monorepo**: `services/conductor` (control plane), `services/cashier` (billing), `services/exporter` (external usage metrics), `services/dashboard` (Vue), `services/switchboard` (agent chat bridge, experimental), `pkg/` (shared Go), `charts/` (Helm)
-- **Platform images**: `ghcr.io/zeitlos/lucity/{conductor,cashier,exporter,dashboard,docs,switchboard}`
+- **Monorepo**: `services/conductor` (control plane), `services/stagehand` (workload changes nobody asked for: plan-based placement), `services/cashier` (billing), `services/exporter` (external usage metrics), `services/dashboard` (Vue), `services/switchboard` (agent chat bridge, experimental), `pkg/` (shared Go), `charts/` (Helm)
+- **Platform images**: `ghcr.io/zeitlos/lucity/{conductor,stagehand,cashier,exporter,dashboard,docs,switchboard}`
 - **User workload images**: Zot (self-hosted OCI registry, `localhost:5000` in dev)
 - **Coding rules**: see `.claude/rules/` for architecture, Go, frontend, GraphQL, marketing, and working conventions
 
@@ -15,6 +15,7 @@ Open-source PaaS on Kubernetes with full ejectability. Monorepo with a single Go
 
 - **Conductor**: `go run ./cmd/conductor/...` from `services/conductor/`, or `make dev-conductor`
 - **Cashier**: `go run ./cmd/cashier/...` from `services/cashier/`, or `make dev-cashier`
+- **Stagehand**: `go run ./cmd/stagehand/...` from `services/stagehand/`
 - **Exporter**: `go run ./cmd/exporter/...` from `services/exporter/` (needs the `OVH_*` env vars)
 - **Dashboard**: `npm run dev` from `services/dashboard/`
 - **Build all**: `make build`
@@ -47,6 +48,7 @@ Each Lucity instance supports multiple workspaces. A workspace is the tenant bou
 | Service | Port | Protocol | Purpose |
 |---------|------|----------|---------|
 | Conductor | 8080 (HTTP), 9090 (gRPC), 9004 (webhook HTTP) | HTTP+gRPC | Unified control plane: GraphQL, Helm release management, build orchestration, custom-domain reconciliation, GitHub webhook receiver |
+| Stagehand | none | Kubernetes + Stripe (read) | Moves each environment to the node placement of its workspace's plan; paced, dry-run capable |
 | Cashier | 9005 (gRPC), 9006 (HTTP) | gRPC + HTTP | Stripe billing, metering, suspension callbacks |
 | Exporter | 9007 (HTTP) | Prometheus `/metrics` | Usage from external providers (object storage sizes) as metrics, scraped by the node-local otel agent |
 | Dashboard | 5173 | HTTP | Vue 3 SPA |
@@ -62,15 +64,11 @@ services/conductor/
 │   │   ├── graphql/                # gqlgen schema, resolvers, directives, models
 │   │   └── webhook/                # GitHub webhook receiver (github/, http/)
 │   ├── conductor/                  # Client facade tying the domain packages together
-│   ├── deployer/                   # workload deployment
-│   │   ├── helm/                   # imperative Helm release apply (services, dbs, volumes, envs)
-│   │   └── values/                 # lucity-app values generation + validation
 │   ├── buildjob/                   # build Job orchestration (kubernetes/)
 │   ├── planner/                    # source detection + build planning (railpack/)
 │   ├── source/                     # user source repo access (github/)
 │   ├── environment/                # namespace lifecycle (kubernetes/)
-│   ├── platform/                   # vendor-neutral value types + IDs (kubernetes/)
-│   ├── resources/                  # resource allocation listing (for cashier)
+│   ├── platform/kubernetes/        # platform discovery from Kubernetes (types + IDs live in pkg/platform)
 │   ├── hostname/                   # custom-domain DNS verification
 │   ├── directory/                  # user/workspace directory (logto/)
 │   ├── dbquery/                    # database explorer query execution
@@ -86,7 +84,7 @@ services/conductor/
 
 ### Shared Packages (`pkg/`)
 
-graceful (server lifecycle), logger (slog + tint), auth (OIDC/JWT), labels (K8s label constants), tenant (workspace context), github (App + OAuth), logto (Logto Management API), to (pointer/conversion helpers), conductor + cashier (proto definitions for cross-service gRPC).
+graceful (server lifecycle), logger (slog + tint), deployer (Helm release apply + lucity-app values, shared by conductor and stagehand), platform (IDs + value types), resources, image, usererror, billing (Stripe plan lookup), auth (OIDC/JWT), labels (K8s label constants), tenant (workspace context), github (App + OAuth), logto (Logto Management API), to (pointer/conversion helpers), conductor + cashier (proto definitions for cross-service gRPC).
 
 ## Feature Development Workflow
 

@@ -17,11 +17,11 @@ import (
 	"github.com/99designs/gqlgen/graphql/introspection"
 	gqlparser "github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
+	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployjob"
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/scanjob"
 )
 
@@ -5382,7 +5382,7 @@ func (ec *executionContext) field_Mutation_addCustomDomain_args(ctx context.Cont
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
 		func(ctx context.Context, v any) (platform.ServiceID, error) {
-			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐServiceID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -5491,7 +5491,7 @@ func (ec *executionContext) field_Mutation_addDatabaseAllowRule_args(ctx context
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "database",
 		func(ctx context.Context, v any) (platform.DatabaseID, error) {
-			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, v)
+			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐDatabaseID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -5513,7 +5513,7 @@ func (ec *executionContext) field_Mutation_addService_args(ctx context.Context, 
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "environment",
 		func(ctx context.Context, v any) (platform.EnvironmentID, error) {
-			return ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx, v)
+			return ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐEnvironmentID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -5535,7 +5535,7 @@ func (ec *executionContext) field_Mutation_bucketObjectUploadUrl_args(ctx contex
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "bucket",
 		func(ctx context.Context, v any) (platform.BucketID, error) {
-			return ec.unmarshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐBucketID(ctx, v)
+			return ec.unmarshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐBucketID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -5665,7 +5665,7 @@ func (ec *executionContext) field_Mutation_createDatabaseBackup_args(ctx context
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "database",
 		func(ctx context.Context, v any) (platform.DatabaseID, error) {
-			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, v)
+			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐDatabaseID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -5749,7 +5749,7 @@ func (ec *executionContext) field_Mutation_createVolume_args(ctx context.Context
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "environment",
 		func(ctx context.Context, v any) (platform.EnvironmentID, error) {
-			return ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx, v)
+			return ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐEnvironmentID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -5831,7 +5831,7 @@ func (ec *executionContext) field_Mutation_deleteBucketObject_args(ctx context.C
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "bucket",
 		func(ctx context.Context, v any) (platform.BucketID, error) {
-			return ec.unmarshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐBucketID(ctx, v)
+			return ec.unmarshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐBucketID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -5891,7 +5891,7 @@ func (ec *executionContext) field_Mutation_deleteBucket_args(ctx context.Context
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "bucket",
 		func(ctx context.Context, v any) (platform.BucketID, error) {
-			return ec.unmarshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐBucketID(ctx, v)
+			return ec.unmarshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐBucketID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -5905,7 +5905,7 @@ func (ec *executionContext) field_Mutation_deleteDatabase_args(ctx context.Conte
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "database",
 		func(ctx context.Context, v any) (platform.DatabaseID, error) {
-			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, v)
+			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐDatabaseID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -5919,7 +5919,7 @@ func (ec *executionContext) field_Mutation_deleteEnvironment_args(ctx context.Co
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "environment",
 		func(ctx context.Context, v any) (platform.EnvironmentID, error) {
-			return ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx, v)
+			return ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐEnvironmentID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -5933,7 +5933,7 @@ func (ec *executionContext) field_Mutation_deleteKeyValueStore_args(ctx context.
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "keyValueStore",
 		func(ctx context.Context, v any) (platform.KeyValueStoreID, error) {
-			return ec.unmarshalNKeyValueStoreID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐKeyValueStoreID(ctx, v)
+			return ec.unmarshalNKeyValueStoreID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐKeyValueStoreID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -5947,7 +5947,7 @@ func (ec *executionContext) field_Mutation_deleteProject_args(ctx context.Contex
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
 		func(ctx context.Context, v any) (platform.ProjectID, error) {
-			return ec.unmarshalNProjectID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐProjectID(ctx, v)
+			return ec.unmarshalNProjectID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐProjectID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -5961,7 +5961,7 @@ func (ec *executionContext) field_Mutation_deleteVolume_args(ctx context.Context
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "volume",
 		func(ctx context.Context, v any) (platform.VolumeID, error) {
-			return ec.unmarshalNVolumeID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐVolumeID(ctx, v)
+			return ec.unmarshalNVolumeID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐVolumeID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -5975,7 +5975,7 @@ func (ec *executionContext) field_Mutation_deploy_args(ctx context.Context, rawA
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
 		func(ctx context.Context, v any) (platform.ServiceID, error) {
-			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐServiceID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -5997,7 +5997,7 @@ func (ec *executionContext) field_Mutation_executeQuery_args(ctx context.Context
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "database",
 		func(ctx context.Context, v any) (platform.DatabaseID, error) {
-			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, v)
+			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐDatabaseID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6019,7 +6019,7 @@ func (ec *executionContext) field_Mutation_expandVolume_args(ctx context.Context
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "volume",
 		func(ctx context.Context, v any) (platform.VolumeID, error) {
-			return ec.unmarshalNVolumeID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐVolumeID(ctx, v)
+			return ec.unmarshalNVolumeID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐVolumeID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6041,7 +6041,7 @@ func (ec *executionContext) field_Mutation_exposeDatabase_args(ctx context.Conte
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "database",
 		func(ctx context.Context, v any) (platform.DatabaseID, error) {
-			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, v)
+			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐDatabaseID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6055,7 +6055,7 @@ func (ec *executionContext) field_Mutation_generateDomain_args(ctx context.Conte
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
 		func(ctx context.Context, v any) (platform.ServiceID, error) {
-			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐServiceID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6083,7 +6083,7 @@ func (ec *executionContext) field_Mutation_mountVolume_args(ctx context.Context,
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "volume",
 		func(ctx context.Context, v any) (platform.VolumeID, error) {
-			return ec.unmarshalNVolumeID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐVolumeID(ctx, v)
+			return ec.unmarshalNVolumeID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐVolumeID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6091,7 +6091,7 @@ func (ec *executionContext) field_Mutation_mountVolume_args(ctx context.Context,
 	args["volume"] = arg0
 	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "service",
 		func(ctx context.Context, v any) (platform.ServiceID, error) {
-			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐServiceID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6113,7 +6113,7 @@ func (ec *executionContext) field_Mutation_removeDatabaseAllowRule_args(ctx cont
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "database",
 		func(ctx context.Context, v any) (platform.DatabaseID, error) {
-			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, v)
+			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐDatabaseID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6173,7 +6173,7 @@ func (ec *executionContext) field_Mutation_removeDomain_args(ctx context.Context
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
 		func(ctx context.Context, v any) (platform.ServiceID, error) {
-			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐServiceID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6209,7 +6209,7 @@ func (ec *executionContext) field_Mutation_removeService_args(ctx context.Contex
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
 		func(ctx context.Context, v any) (platform.ServiceID, error) {
-			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐServiceID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6251,7 +6251,7 @@ func (ec *executionContext) field_Mutation_rollback_args(ctx context.Context, ra
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "deployment",
 		func(ctx context.Context, v any) (platform.DeploymentID, error) {
-			return ec.unmarshalNDeploymentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDeploymentID(ctx, v)
+			return ec.unmarshalNDeploymentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐDeploymentID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6265,7 +6265,7 @@ func (ec *executionContext) field_Mutation_setAutoDeploy_args(ctx context.Contex
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
 		func(ctx context.Context, v any) (platform.ServiceID, error) {
-			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐServiceID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6287,7 +6287,7 @@ func (ec *executionContext) field_Mutation_setBucketPublic_args(ctx context.Cont
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "bucket",
 		func(ctx context.Context, v any) (platform.BucketID, error) {
-			return ec.unmarshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐBucketID(ctx, v)
+			return ec.unmarshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐBucketID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6309,7 +6309,7 @@ func (ec *executionContext) field_Mutation_setCIDeploy_args(ctx context.Context,
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
 		func(ctx context.Context, v any) (platform.ServiceID, error) {
-			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐServiceID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6331,7 +6331,7 @@ func (ec *executionContext) field_Mutation_setCustomStartCommand_args(ctx contex
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
 		func(ctx context.Context, v any) (platform.ServiceID, error) {
-			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐServiceID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6353,7 +6353,7 @@ func (ec *executionContext) field_Mutation_setDatabaseResources_args(ctx context
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "database",
 		func(ctx context.Context, v any) (platform.DatabaseID, error) {
-			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, v)
+			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐDatabaseID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6375,7 +6375,7 @@ func (ec *executionContext) field_Mutation_setDatabaseStorage_args(ctx context.C
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "database",
 		func(ctx context.Context, v any) (platform.DatabaseID, error) {
-			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, v)
+			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐDatabaseID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6411,7 +6411,7 @@ func (ec *executionContext) field_Mutation_setServiceBranch_args(ctx context.Con
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
 		func(ctx context.Context, v any) (platform.ServiceID, error) {
-			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐServiceID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6474,7 +6474,7 @@ func (ec *executionContext) field_Mutation_setServiceHealthCheck_args(ctx contex
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
 		func(ctx context.Context, v any) (platform.ServiceID, error) {
-			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐServiceID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6496,7 +6496,7 @@ func (ec *executionContext) field_Mutation_setServicePort_args(ctx context.Conte
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
 		func(ctx context.Context, v any) (platform.ServiceID, error) {
-			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐServiceID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6559,7 +6559,7 @@ func (ec *executionContext) field_Mutation_setServiceResources_args(ctx context.
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
 		func(ctx context.Context, v any) (platform.ServiceID, error) {
-			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐServiceID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6595,7 +6595,7 @@ func (ec *executionContext) field_Mutation_setServiceUser_args(ctx context.Conte
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
 		func(ctx context.Context, v any) (platform.ServiceID, error) {
-			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐServiceID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6658,7 +6658,7 @@ func (ec *executionContext) field_Mutation_setServiceVariables_args(ctx context.
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
 		func(ctx context.Context, v any) (platform.ServiceID, error) {
-			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐServiceID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6680,7 +6680,7 @@ func (ec *executionContext) field_Mutation_setSharedVariables_args(ctx context.C
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "environment",
 		func(ctx context.Context, v any) (platform.EnvironmentID, error) {
-			return ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx, v)
+			return ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐEnvironmentID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6702,7 +6702,7 @@ func (ec *executionContext) field_Mutation_unexposeDatabase_args(ctx context.Con
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "database",
 		func(ctx context.Context, v any) (platform.DatabaseID, error) {
-			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, v)
+			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐDatabaseID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6716,7 +6716,7 @@ func (ec *executionContext) field_Mutation_unmountVolume_args(ctx context.Contex
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "volume",
 		func(ctx context.Context, v any) (platform.VolumeID, error) {
-			return ec.unmarshalNVolumeID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐVolumeID(ctx, v)
+			return ec.unmarshalNVolumeID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐVolumeID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6772,7 +6772,7 @@ func (ec *executionContext) field_Query_availableVariables_args(ctx context.Cont
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "environment",
 		func(ctx context.Context, v any) (platform.EnvironmentID, error) {
-			return ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx, v)
+			return ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐEnvironmentID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6786,7 +6786,7 @@ func (ec *executionContext) field_Query_bucketCredentials_args(ctx context.Conte
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "bucket",
 		func(ctx context.Context, v any) (platform.BucketID, error) {
-			return ec.unmarshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐBucketID(ctx, v)
+			return ec.unmarshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐBucketID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6800,7 +6800,7 @@ func (ec *executionContext) field_Query_bucketObjectDownloadUrl_args(ctx context
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "bucket",
 		func(ctx context.Context, v any) (platform.BucketID, error) {
-			return ec.unmarshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐBucketID(ctx, v)
+			return ec.unmarshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐBucketID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6860,7 +6860,7 @@ func (ec *executionContext) field_Query_bucketObjects_args(ctx context.Context, 
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "bucket",
 		func(ctx context.Context, v any) (platform.BucketID, error) {
-			return ec.unmarshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐBucketID(ctx, v)
+			return ec.unmarshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐBucketID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6923,7 +6923,7 @@ func (ec *executionContext) field_Query_bucket_args(ctx context.Context, rawArgs
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
 		func(ctx context.Context, v any) (platform.BucketID, error) {
-			return ec.unmarshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐBucketID(ctx, v)
+			return ec.unmarshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐBucketID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6951,7 +6951,7 @@ func (ec *executionContext) field_Query_databaseCredentials_args(ctx context.Con
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "database",
 		func(ctx context.Context, v any) (platform.DatabaseID, error) {
-			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, v)
+			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐDatabaseID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6965,7 +6965,7 @@ func (ec *executionContext) field_Query_databaseTableData_args(ctx context.Conte
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "database",
 		func(ctx context.Context, v any) (platform.DatabaseID, error) {
-			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, v)
+			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐDatabaseID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -7011,7 +7011,7 @@ func (ec *executionContext) field_Query_databaseTables_args(ctx context.Context,
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "database",
 		func(ctx context.Context, v any) (platform.DatabaseID, error) {
-			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, v)
+			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐDatabaseID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -7025,7 +7025,7 @@ func (ec *executionContext) field_Query_database_args(ctx context.Context, rawAr
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
 		func(ctx context.Context, v any) (platform.DatabaseID, error) {
-			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, v)
+			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐDatabaseID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -7039,7 +7039,7 @@ func (ec *executionContext) field_Query_deployment_args(ctx context.Context, raw
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
 		func(ctx context.Context, v any) (platform.DeploymentID, error) {
-			return ec.unmarshalNDeploymentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDeploymentID(ctx, v)
+			return ec.unmarshalNDeploymentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐDeploymentID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -7105,7 +7105,7 @@ func (ec *executionContext) field_Query_ejectProject_args(ctx context.Context, r
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
 		func(ctx context.Context, v any) (platform.ProjectID, error) {
-			return ec.unmarshalNProjectID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐProjectID(ctx, v)
+			return ec.unmarshalNProjectID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐProjectID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -7119,7 +7119,7 @@ func (ec *executionContext) field_Query_environment_args(ctx context.Context, ra
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "environment",
 		func(ctx context.Context, v any) (platform.EnvironmentID, error) {
-			return ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx, v)
+			return ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐEnvironmentID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -7133,7 +7133,7 @@ func (ec *executionContext) field_Query_environments_args(ctx context.Context, r
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "project",
 		func(ctx context.Context, v any) (platform.ProjectID, error) {
-			return ec.unmarshalNProjectID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐProjectID(ctx, v)
+			return ec.unmarshalNProjectID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐProjectID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -7161,7 +7161,7 @@ func (ec *executionContext) field_Query_keyValueStoreCredentials_args(ctx contex
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "keyValueStore",
 		func(ctx context.Context, v any) (platform.KeyValueStoreID, error) {
-			return ec.unmarshalNKeyValueStoreID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐKeyValueStoreID(ctx, v)
+			return ec.unmarshalNKeyValueStoreID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐKeyValueStoreID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -7175,7 +7175,7 @@ func (ec *executionContext) field_Query_keyValueStore_args(ctx context.Context, 
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
 		func(ctx context.Context, v any) (platform.KeyValueStoreID, error) {
-			return ec.unmarshalNKeyValueStoreID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐKeyValueStoreID(ctx, v)
+			return ec.unmarshalNKeyValueStoreID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐKeyValueStoreID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -7189,7 +7189,7 @@ func (ec *executionContext) field_Query_project_args(ctx context.Context, rawArg
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
 		func(ctx context.Context, v any) (platform.ProjectID, error) {
-			return ec.unmarshalNProjectID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐProjectID(ctx, v)
+			return ec.unmarshalNProjectID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐProjectID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -7269,7 +7269,7 @@ func (ec *executionContext) field_Query_serviceVariables_args(ctx context.Contex
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
 		func(ctx context.Context, v any) (platform.ServiceID, error) {
-			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐServiceID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -7283,7 +7283,7 @@ func (ec *executionContext) field_Query_service_args(ctx context.Context, rawArg
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
 		func(ctx context.Context, v any) (platform.ServiceID, error) {
-			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐServiceID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -7297,7 +7297,7 @@ func (ec *executionContext) field_Query_sharedVariables_args(ctx context.Context
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "environment",
 		func(ctx context.Context, v any) (platform.EnvironmentID, error) {
-			return ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx, v)
+			return ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐEnvironmentID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -7311,7 +7311,7 @@ func (ec *executionContext) field_Query_volume_args(ctx context.Context, rawArgs
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
 		func(ctx context.Context, v any) (platform.VolumeID, error) {
-			return ec.unmarshalNVolumeID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐVolumeID(ctx, v)
+			return ec.unmarshalNVolumeID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐVolumeID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -7397,7 +7397,7 @@ func (ec *executionContext) field_Subscription_serviceLogs_args(ctx context.Cont
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
 		func(ctx context.Context, v any) (platform.ServiceID, error) {
-			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐServiceID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -7831,7 +7831,7 @@ func (ec *executionContext) _Bucket_id(ctx context.Context, field graphql.Collec
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v platform.BucketID) graphql.Marshaler {
-			return ec.marshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐBucketID(ctx, selections, v)
+			return ec.marshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐBucketID(ctx, selections, v)
 		},
 		true,
 		true,
@@ -8355,7 +8355,7 @@ func (ec *executionContext) _BucketSource_id(ctx context.Context, field graphql.
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v platform.BucketID) graphql.Marshaler {
-			return ec.marshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐBucketID(ctx, selections, v)
+			return ec.marshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐBucketID(ctx, selections, v)
 		},
 		true,
 		true,
@@ -8640,7 +8640,7 @@ func (ec *executionContext) _Database_id(ctx context.Context, field graphql.Coll
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v platform.DatabaseID) graphql.Marshaler {
-			return ec.marshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, selections, v)
+			return ec.marshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐDatabaseID(ctx, selections, v)
 		},
 		true,
 		true,
@@ -10012,7 +10012,7 @@ func (ec *executionContext) _DatabaseSource_id(ctx context.Context, field graphq
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v platform.DatabaseID) graphql.Marshaler {
-			return ec.marshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, selections, v)
+			return ec.marshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐDatabaseID(ctx, selections, v)
 		},
 		true,
 		true,
@@ -10320,7 +10320,7 @@ func (ec *executionContext) _Deployment_id(ctx context.Context, field graphql.Co
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v platform.DeploymentID) graphql.Marshaler {
-			return ec.marshalNDeploymentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDeploymentID(ctx, selections, v)
+			return ec.marshalNDeploymentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐDeploymentID(ctx, selections, v)
 		},
 		true,
 		true,
@@ -11193,7 +11193,7 @@ func (ec *executionContext) _Environment_id(ctx context.Context, field graphql.C
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v platform.EnvironmentID) graphql.Marshaler {
-			return ec.marshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx, selections, v)
+			return ec.marshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐEnvironmentID(ctx, selections, v)
 		},
 		true,
 		true,
@@ -12052,7 +12052,7 @@ func (ec *executionContext) _KeyValueStore_id(ctx context.Context, field graphql
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v platform.KeyValueStoreID) graphql.Marshaler {
-			return ec.marshalNKeyValueStoreID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐKeyValueStoreID(ctx, selections, v)
+			return ec.marshalNKeyValueStoreID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐKeyValueStoreID(ctx, selections, v)
 		},
 		true,
 		true,
@@ -12305,7 +12305,7 @@ func (ec *executionContext) _KeyValueStoreSource_id(ctx context.Context, field g
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v platform.KeyValueStoreID) graphql.Marshaler {
-			return ec.marshalNKeyValueStoreID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐKeyValueStoreID(ctx, selections, v)
+			return ec.marshalNKeyValueStoreID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐKeyValueStoreID(ctx, selections, v)
 		},
 		true,
 		true,
@@ -12498,7 +12498,7 @@ func (ec *executionContext) _Mount_service(ctx context.Context, field graphql.Co
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v platform.ServiceID) graphql.Marshaler {
-			return ec.marshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, selections, v)
+			return ec.marshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐServiceID(ctx, selections, v)
 		},
 		true,
 		true,
@@ -16211,7 +16211,7 @@ func (ec *executionContext) _Project_id(ctx context.Context, field graphql.Colle
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v platform.ProjectID) graphql.Marshaler {
-			return ec.marshalNProjectID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐProjectID(ctx, selections, v)
+			return ec.marshalNProjectID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐProjectID(ctx, selections, v)
 		},
 		true,
 		true,
@@ -19435,7 +19435,7 @@ func (ec *executionContext) _Service_id(ctx context.Context, field graphql.Colle
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v platform.ServiceID) graphql.Marshaler {
-			return ec.marshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, selections, v)
+			return ec.marshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐServiceID(ctx, selections, v)
 		},
 		true,
 		true,
@@ -20245,7 +20245,7 @@ func (ec *executionContext) _ServiceVariable_ref(ctx context.Context, field grap
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *platform.VariableID) graphql.Marshaler {
-			return ec.marshalOVariableID2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐVariableID(ctx, selections, v)
+			return ec.marshalOVariableID2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐVariableID(ctx, selections, v)
 		},
 		true,
 		false,
@@ -20755,7 +20755,7 @@ func (ec *executionContext) _Variable_id(ctx context.Context, field graphql.Coll
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v platform.VariableID) graphql.Marshaler {
-			return ec.marshalNVariableID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐVariableID(ctx, selections, v)
+			return ec.marshalNVariableID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐVariableID(ctx, selections, v)
 		},
 		true,
 		true,
@@ -20824,7 +20824,7 @@ func (ec *executionContext) _Volume_id(ctx context.Context, field graphql.Collec
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v platform.VolumeID) graphql.Marshaler {
-			return ec.marshalNVolumeID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐVolumeID(ctx, selections, v)
+			return ec.marshalNVolumeID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐVolumeID(ctx, selections, v)
 		},
 		true,
 		true,
@@ -23134,7 +23134,7 @@ func (ec *executionContext) unmarshalInputCreateBucketInput(ctx context.Context,
 		switch k {
 		case "environment":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
-			data, err := ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx, v)
+			data, err := ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐEnvironmentID(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -23191,7 +23191,7 @@ func (ec *executionContext) unmarshalInputCreateDatabaseInput(ctx context.Contex
 		switch k {
 		case "environment":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
-			data, err := ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx, v)
+			data, err := ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐEnvironmentID(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -23262,7 +23262,7 @@ func (ec *executionContext) unmarshalInputCreateEnvironmentInput(ctx context.Con
 		switch k {
 		case "project":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("project"))
-			data, err := ec.unmarshalNProjectID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐProjectID(ctx, v)
+			data, err := ec.unmarshalNProjectID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐProjectID(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -23296,7 +23296,7 @@ func (ec *executionContext) unmarshalInputCreateEnvironmentInput(ctx context.Con
 			}
 		case "fromEnvironment":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("fromEnvironment"))
-			data, err := ec.unmarshalOEnvironmentID2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx, v)
+			data, err := ec.unmarshalOEnvironmentID2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐEnvironmentID(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -23333,7 +23333,7 @@ func (ec *executionContext) unmarshalInputCreateKeyValueStoreInput(ctx context.C
 		switch k {
 		case "environment":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
-			data, err := ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx, v)
+			data, err := ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐEnvironmentID(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -23965,7 +23965,7 @@ func (ec *executionContext) unmarshalInputRestoreDatabaseInput(ctx context.Conte
 		switch k {
 		case "database":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("database"))
-			data, err := ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, v)
+			data, err := ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐDatabaseID(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -24063,7 +24063,7 @@ func (ec *executionContext) unmarshalInputServiceVariableInput(ctx context.Conte
 			it.Value = data
 		case "ref":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("ref"))
-			data, err := ec.unmarshalOVariableID2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐVariableID(ctx, v)
+			data, err := ec.unmarshalOVariableID2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐVariableID(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -24093,7 +24093,7 @@ func (ec *executionContext) unmarshalInputSetEnvironmentResourcesInput(ctx conte
 		switch k {
 		case "environment":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
-			data, err := ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx, v)
+			data, err := ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐEnvironmentID(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -24130,7 +24130,7 @@ func (ec *executionContext) unmarshalInputSetServiceScalingInput(ctx context.Con
 		switch k {
 		case "service":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("service"))
-			data, err := ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
+			data, err := ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐServiceID(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -30868,13 +30868,13 @@ func (ec *executionContext) marshalNBucketFolder2ᚕgithubᚗcomᚋzeitlosᚋluc
 	return ret
 }
 
-func (ec *executionContext) unmarshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐBucketID(ctx context.Context, v any) (platform.BucketID, error) {
+func (ec *executionContext) unmarshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐBucketID(ctx context.Context, v any) (platform.BucketID, error) {
 	var res platform.BucketID
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐBucketID(ctx context.Context, sel ast.SelectionSet, v platform.BucketID) graphql.Marshaler {
+func (ec *executionContext) marshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐBucketID(ctx context.Context, sel ast.SelectionSet, v platform.BucketID) graphql.Marshaler {
 	return v
 }
 
@@ -31168,13 +31168,13 @@ func (ec *executionContext) marshalNDatabaseCredentials2ᚕgithubᚗcomᚋzeitlo
 	return ret
 }
 
-func (ec *executionContext) unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx context.Context, v any) (platform.DatabaseID, error) {
+func (ec *executionContext) unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐDatabaseID(ctx context.Context, v any) (platform.DatabaseID, error) {
 	var res platform.DatabaseID
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx context.Context, sel ast.SelectionSet, v platform.DatabaseID) graphql.Marshaler {
+func (ec *executionContext) marshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐDatabaseID(ctx context.Context, sel ast.SelectionSet, v platform.DatabaseID) graphql.Marshaler {
 	return v
 }
 
@@ -31358,13 +31358,13 @@ func (ec *executionContext) marshalNDeployment2ᚖgithubᚗcomᚋzeitlosᚋlucit
 	return ec._Deployment(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNDeploymentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDeploymentID(ctx context.Context, v any) (platform.DeploymentID, error) {
+func (ec *executionContext) unmarshalNDeploymentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐDeploymentID(ctx context.Context, v any) (platform.DeploymentID, error) {
 	var res platform.DeploymentID
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNDeploymentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDeploymentID(ctx context.Context, sel ast.SelectionSet, v platform.DeploymentID) graphql.Marshaler {
+func (ec *executionContext) marshalNDeploymentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐDeploymentID(ctx context.Context, sel ast.SelectionSet, v platform.DeploymentID) graphql.Marshaler {
 	return v
 }
 
@@ -31518,13 +31518,13 @@ func (ec *executionContext) marshalNEnvironment2ᚖgithubᚗcomᚋzeitlosᚋluci
 	return ec._Environment(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx context.Context, v any) (platform.EnvironmentID, error) {
+func (ec *executionContext) unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐEnvironmentID(ctx context.Context, v any) (platform.EnvironmentID, error) {
 	var res platform.EnvironmentID
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx context.Context, sel ast.SelectionSet, v platform.EnvironmentID) graphql.Marshaler {
+func (ec *executionContext) marshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐEnvironmentID(ctx context.Context, sel ast.SelectionSet, v platform.EnvironmentID) graphql.Marshaler {
 	return v
 }
 
@@ -31701,13 +31701,13 @@ func (ec *executionContext) marshalNKeyValueStoreCredentials2ᚕgithubᚗcomᚋz
 	return ret
 }
 
-func (ec *executionContext) unmarshalNKeyValueStoreID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐKeyValueStoreID(ctx context.Context, v any) (platform.KeyValueStoreID, error) {
+func (ec *executionContext) unmarshalNKeyValueStoreID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐKeyValueStoreID(ctx context.Context, v any) (platform.KeyValueStoreID, error) {
 	var res platform.KeyValueStoreID
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNKeyValueStoreID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐKeyValueStoreID(ctx context.Context, sel ast.SelectionSet, v platform.KeyValueStoreID) graphql.Marshaler {
+func (ec *executionContext) marshalNKeyValueStoreID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐKeyValueStoreID(ctx context.Context, sel ast.SelectionSet, v platform.KeyValueStoreID) graphql.Marshaler {
 	return v
 }
 
@@ -31826,13 +31826,13 @@ func (ec *executionContext) marshalNProject2ᚖgithubᚗcomᚋzeitlosᚋlucity�
 	return ec._Project(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNProjectID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐProjectID(ctx context.Context, v any) (platform.ProjectID, error) {
+func (ec *executionContext) unmarshalNProjectID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐProjectID(ctx context.Context, v any) (platform.ProjectID, error) {
 	var res platform.ProjectID
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNProjectID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐProjectID(ctx context.Context, sel ast.SelectionSet, v platform.ProjectID) graphql.Marshaler {
+func (ec *executionContext) marshalNProjectID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐProjectID(ctx context.Context, sel ast.SelectionSet, v platform.ProjectID) graphql.Marshaler {
 	return v
 }
 
@@ -32106,13 +32106,13 @@ func (ec *executionContext) marshalNService2ᚖgithubᚗcomᚋzeitlosᚋlucity�
 	return ec._Service(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx context.Context, v any) (platform.ServiceID, error) {
+func (ec *executionContext) unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐServiceID(ctx context.Context, v any) (platform.ServiceID, error) {
 	var res platform.ServiceID
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx context.Context, sel ast.SelectionSet, v platform.ServiceID) graphql.Marshaler {
+func (ec *executionContext) marshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐServiceID(ctx context.Context, sel ast.SelectionSet, v platform.ServiceID) graphql.Marshaler {
 	return v
 }
 
@@ -32359,13 +32359,13 @@ func (ec *executionContext) marshalNVariable2ᚕgithubᚗcomᚋzeitlosᚋlucity�
 	return ret
 }
 
-func (ec *executionContext) unmarshalNVariableID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐVariableID(ctx context.Context, v any) (platform.VariableID, error) {
+func (ec *executionContext) unmarshalNVariableID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐVariableID(ctx context.Context, v any) (platform.VariableID, error) {
 	var res platform.VariableID
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNVariableID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐVariableID(ctx context.Context, sel ast.SelectionSet, v platform.VariableID) graphql.Marshaler {
+func (ec *executionContext) marshalNVariableID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐVariableID(ctx context.Context, sel ast.SelectionSet, v platform.VariableID) graphql.Marshaler {
 	return v
 }
 
@@ -32428,13 +32428,13 @@ func (ec *executionContext) marshalNVolume2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋ
 	return ec._Volume(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNVolumeID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐVolumeID(ctx context.Context, v any) (platform.VolumeID, error) {
+func (ec *executionContext) unmarshalNVolumeID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐVolumeID(ctx context.Context, v any) (platform.VolumeID, error) {
 	var res platform.VolumeID
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNVolumeID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐVolumeID(ctx context.Context, sel ast.SelectionSet, v platform.VolumeID) graphql.Marshaler {
+func (ec *executionContext) marshalNVolumeID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐVolumeID(ctx context.Context, sel ast.SelectionSet, v platform.VolumeID) graphql.Marshaler {
 	return v
 }
 
@@ -32827,7 +32827,7 @@ func (ec *executionContext) marshalODeployment2ᚖgithubᚗcomᚋzeitlosᚋlucit
 	return ec._Deployment(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalOEnvironmentID2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx context.Context, v any) (*platform.EnvironmentID, error) {
+func (ec *executionContext) unmarshalOEnvironmentID2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐEnvironmentID(ctx context.Context, v any) (*platform.EnvironmentID, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -32836,7 +32836,7 @@ func (ec *executionContext) unmarshalOEnvironmentID2ᚖgithubᚗcomᚋzeitlosᚋ
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalOEnvironmentID2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx context.Context, sel ast.SelectionSet, v *platform.EnvironmentID) graphql.Marshaler {
+func (ec *executionContext) marshalOEnvironmentID2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐEnvironmentID(ctx context.Context, sel ast.SelectionSet, v *platform.EnvironmentID) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
@@ -33091,7 +33091,7 @@ func (ec *executionContext) marshalOUsageSummary2ᚖgithubᚗcomᚋzeitlosᚋluc
 	return ec._UsageSummary(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalOVariableID2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐVariableID(ctx context.Context, v any) (*platform.VariableID, error) {
+func (ec *executionContext) unmarshalOVariableID2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐVariableID(ctx context.Context, v any) (*platform.VariableID, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -33100,7 +33100,7 @@ func (ec *executionContext) unmarshalOVariableID2ᚖgithubᚗcomᚋzeitlosᚋluc
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalOVariableID2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐVariableID(ctx context.Context, sel ast.SelectionSet, v *platform.VariableID) graphql.Marshaler {
+func (ec *executionContext) marshalOVariableID2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐVariableID(ctx context.Context, sel ast.SelectionSet, v *platform.VariableID) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}

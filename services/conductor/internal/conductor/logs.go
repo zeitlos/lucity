@@ -3,7 +3,7 @@ package conductor
 import (
 	"context"
 
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/pkg/platform"
 )
 
 // ServiceLogEntry is re-exported from the platform package so resolvers

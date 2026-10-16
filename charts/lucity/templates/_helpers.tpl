@@ -47,10 +47,11 @@ app.kubernetes.io/instance: {{ .release }}
 {{- end }}
 
 {{/*
-JSON of a component's nodeSelector, tolerations and affinity, for the Jobs the
-conductor starts on its behalf. Empty when none is set.
+JSON of a nodeSelector, tolerations and affinity block, for placement passed to
+a service through an environment variable: the Jobs the conductor starts and
+tenant workloads. Empty when none is set.
 */}}
-{{- define "lucity.jobPlacement" -}}
+{{- define "lucity.placementJSON" -}}
 {{- $placement := dict }}
 {{- with .nodeSelector }}{{ $_ := set $placement "nodeSelector" . }}{{ end }}
 {{- with .tolerations }}{{ $_ := set $placement "tolerations" . }}{{ end }}

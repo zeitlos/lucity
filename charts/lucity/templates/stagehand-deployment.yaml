@@ -1,0 +1,107 @@
+{{- if .Values.stagehand.enabled }}
+{{- $shared := list "REGISTRY_PULL_URL" "GATEWAY_NAME" "GATEWAY_NAMESPACE" "GATEWAY_HTTPS_LISTENER" "CUSTOM_DOMAIN_CLUSTER_ISSUER" "DATABASE_BACKUP_ENABLED" "DATABASE_BACKUP_S3_ENDPOINT" "DATABASE_BACKUP_S3_BUCKET" "EDGE_HEADER_ENFORCED" "LOGTO_ENDPOINT" }}
+{{- $sharedSecrets := list "LOGTO_M2M_APP_ID" "LOGTO_M2M_APP_SECRET" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lucity.fullname" . }}-stagehand
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+    app.kubernetes.io/component: stagehand
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "lucity.selectorLabels" (dict "name" "stagehand" "release" .Release.Name) | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/secrets: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
+      labels:
+        {{- include "lucity.labels" . | nindent 8 }}
+        {{- include "lucity.selectorLabels" (dict "name" "stagehand" "release" .Release.Name) | nindent 8 }}
+    spec:
+      {{- with .Values.stagehand.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.stagehand.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.stagehand.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "lucity.fullname" . }}-conductor
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+      containers:
+        - name: stagehand
+          image: "{{ .Values.stagehand.image.repository }}:{{ .Values.stagehand.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.stagehand.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            readOnlyRootFilesystem: true
+          env:
+            - name: HOME
+              value: /tmp
+            - name: INTERVAL
+              value: {{ .Values.stagehand.interval | quote }}
+            - name: MAX_MOVES
+              value: {{ .Values.stagehand.maxMoves | quote }}
+            - name: DRY_RUN
+              value: {{ .Values.stagehand.dryRun | quote }}
+            {{- with include "lucity.placementJSON" .Values.workloadPlacement.default }}
+            - name: WORKLOAD_DEFAULT_PLACEMENT
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with include "lucity.placementJSON" .Values.workloadPlacement.paid }}
+            - name: WORKLOAD_PAID_PLACEMENT
+              value: {{ . | quote }}
+            {{- end }}
+            {{- range $key := $shared }}
+            {{- with index $.Values.conductor.env $key }}
+            - name: {{ $key }}
+              value: {{ . | quote }}
+            {{- end }}
+            {{- end }}
+            {{- range $key := $sharedSecrets }}
+            {{- with index $.Values.conductor.envSecret $key }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "lucity.fullname" $ }}
+                  key: {{ . }}
+            {{- end }}
+            {{- end }}
+            {{- range $key, $value := .Values.stagehand.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- range $key, $value := .Values.stagehand.envSecret }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "lucity.fullname" $ }}
+                  key: {{ $value }}
+            {{- end }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            {{- toYaml .Values.stagehand.resources | nindent 12 }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+{{- end }}

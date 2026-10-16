@@ -104,8 +104,8 @@ cashier:
     INTERNAL_JWT_PRIVATE_KEY_PATH: /secrets/internal-jwt/private.pem
     CONDUCTOR_ADDR: lucity-conductor:9090
     LOGTO_ENDPOINT: http://lucity-infra-logto.lucity-system.svc.cluster.local:3001
-    STRIPE_HOBBY_PRICE_ID: price_1TASy6AoheV3Drw6W13KVFYm
-    STRIPE_PRO_PRICE_ID: price_1TASy7AoheV3Drw6t22UVU8C
+    STRIPE_HOBBY_PRICE_ID: &hobby-price price_1TASy6AoheV3Drw6W13KVFYm
+    STRIPE_PRO_PRICE_ID: &pro-price price_1TASy7AoheV3Drw6t22UVU8C
     STRIPE_ECO_CPU_PRICE_ID: price_1TASyOAoheV3Drw6CUwBuS1L
     STRIPE_ECO_MEM_PRICE_ID: price_1TASyPAoheV3Drw6MLH0Qh0C
     STRIPE_ECO_DISK_PRICE_ID: price_1TFERsAoheV3Drw6VJeNcGdv
@@ -139,6 +139,35 @@ exporter:
     OVH_APPLICATION_KEY: EXPORTER_OVH_APPLICATION_KEY
     OVH_APPLICATION_SECRET: EXPORTER_OVH_APPLICATION_SECRET
     OVH_CONSUMER_KEY: EXPORTER_OVH_CONSUMER_KEY
+
+workloadPlacement:
+  default:
+    nodeSelector:
+      lucity.dev/node-pool: free
+    tolerations:
+      - key: lucity.dev/node-pool
+        operator: Equal
+        value: free
+        effect: NoSchedule
+  paid:
+    nodeSelector:
+      lucity.dev/node-pool: paid
+    tolerations:
+      - key: lucity.dev/node-pool
+        operator: Equal
+        value: paid
+        effect: NoSchedule
+
+stagehand:
+  enabled: true
+  dryRun: true
+  nodeSelector: *platform-nodes
+  tolerations: *platform-taint
+  env:
+    STRIPE_HOBBY_PRICE_ID: *hobby-price
+    STRIPE_PRO_PRICE_ID: *pro-price
+  envSecret:
+    STRIPE_SECRET_KEY: STRIPE_SECRET_KEY
 
 dashboard:
   nodeSelector: *platform-nodes

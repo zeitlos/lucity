@@ -5,9 +5,9 @@ import (
 	"maps"
 
 	pkglabels "github.com/zeitlos/lucity/pkg/labels"
+	"github.com/zeitlos/lucity/pkg/platform"
+	"github.com/zeitlos/lucity/pkg/resources"
 	"github.com/zeitlos/lucity/pkg/to"
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
-	"github.com/zeitlos/lucity/services/conductor/internal/resources"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
