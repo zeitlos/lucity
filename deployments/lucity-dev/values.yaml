@@ -78,6 +78,9 @@ conductor:
 cashier:
   enabled: false
 
+stagehand:
+  enabled: true
+
 exporter:
   enabled: true
   env:
