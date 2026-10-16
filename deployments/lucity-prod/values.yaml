@@ -160,7 +160,7 @@ workloadPlacement:
 
 stagehand:
   enabled: true
-  dryRun: true
+  dryRun: false
   nodeSelector: *platform-nodes
   tolerations: *platform-taint
   env:
