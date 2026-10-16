@@ -133,27 +133,25 @@ func (c *Client) Rows(ctx context.Context, schema, table string, limit, offset i
 
 const tablesQuery = `
 	SELECT
-		t.table_schema,
-		t.table_name,
+		n.nspname,
+		c.relname,
 		COALESCE(s.n_live_tup, 0) AS estimated_rows,
-		c.column_name,
-		c.data_type,
-		c.is_nullable = 'YES' AS nullable,
-		CASE WHEN kcu.column_name IS NOT NULL THEN true ELSE false END AS is_primary_key
-	FROM information_schema.tables t
-	JOIN information_schema.columns c
-		ON c.table_schema = t.table_schema AND c.table_name = t.table_name
+		a.attname,
+		format_type(a.atttypid, a.atttypmod),
+		NOT a.attnotnull AS nullable,
+		COALESCE(a.attnum = ANY(pk.conkey), false) AS is_primary_key
+	FROM pg_class c
+	JOIN pg_namespace n
+		ON n.oid = c.relnamespace
+	JOIN pg_attribute a
+		ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
 	LEFT JOIN pg_stat_user_tables s
-		ON s.schemaname = t.table_schema AND s.relname = t.table_name
-	LEFT JOIN information_schema.table_constraints tc
-		ON tc.table_schema = t.table_schema
-		AND tc.table_name = t.table_name
-		AND tc.constraint_type = 'PRIMARY KEY'
-	LEFT JOIN information_schema.key_column_usage kcu
-		ON kcu.constraint_name = tc.constraint_name
-		AND kcu.table_schema = tc.table_schema
-		AND kcu.column_name = c.column_name
-	WHERE t.table_schema NOT IN ('pg_catalog', 'information_schema')
-		AND t.table_type = 'BASE TABLE'
-	ORDER BY t.table_schema, t.table_name, c.ordinal_position
+		ON s.relid = c.oid
+	LEFT JOIN pg_constraint pk
+		ON pk.conrelid = c.oid AND pk.contype = 'p'
+	WHERE c.relkind IN ('r', 'p')
+		AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+		AND n.nspname NOT LIKE 'pg\_%'
+		AND has_table_privilege(c.oid, 'SELECT')
+	ORDER BY n.nspname, c.relname, a.attnum
 `
