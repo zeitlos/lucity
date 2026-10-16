@@ -7,8 +7,8 @@ import (
 	"time"
 
 	pkglabels "github.com/zeitlos/lucity/pkg/labels"
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
-	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
+	"github.com/zeitlos/lucity/pkg/platform"
+	"github.com/zeitlos/lucity/pkg/usererror"
 
 	cnpgv1 "github.com/cloudnative-pg/cloudnative-pg/api/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"

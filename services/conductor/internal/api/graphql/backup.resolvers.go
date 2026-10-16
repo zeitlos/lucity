@@ -8,8 +8,8 @@ package graphql
 import (
 	"context"
 
+	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 // Backups is the resolver for the backups field.

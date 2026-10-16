@@ -10,13 +10,14 @@ import (
 	"github.com/kelseyhightower/envconfig"
 
 	"github.com/zeitlos/lucity/charts"
+	"github.com/zeitlos/lucity/pkg/deployer"
+	helmDeployer "github.com/zeitlos/lucity/pkg/deployer/helm"
+	"github.com/zeitlos/lucity/pkg/deployer/values"
 	"github.com/zeitlos/lucity/pkg/logger"
+	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 	buildjobK8s "github.com/zeitlos/lucity/services/conductor/internal/buildjob/kubernetes"
-	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
-	helmDeployer "github.com/zeitlos/lucity/services/conductor/internal/deployer/helm"
 	"github.com/zeitlos/lucity/services/conductor/internal/jobs"
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 type DeployConfig struct {
@@ -48,6 +49,8 @@ type DeployConfig struct {
 	DatabaseBackupBucket   string `envconfig:"DATABASE_BACKUP_S3_BUCKET"`
 
 	EdgeHeaderEnforced bool `envconfig:"EDGE_HEADER_ENFORCED" default:"false"`
+
+	WorkloadDefaultPlacement values.Placement `envconfig:"WORKLOAD_DEFAULT_PLACEMENT"`
 }
 
 const buildWaitTimeout = 30 * time.Minute
@@ -134,7 +137,7 @@ func runDeploy() {
 		Enabled:  config.DatabaseBackupEnabled,
 		Endpoint: config.DatabaseBackupEndpoint,
 		Bucket:   config.DatabaseBackupBucket,
-	}, config.RegistryPullURL, append(edgeHeaderOptions(config.EdgeHeaderEnforced), helmDeployer.WithHTTPSListener(config.GatewayHTTPSListener))...)
+	}, config.RegistryPullURL, config.WorkloadDefaultPlacement, helmDeployer.WithEdgeHeader(config.EdgeHeaderEnforced), helmDeployer.WithHTTPSListener(config.GatewayHTTPSListener))
 
 	if err != nil {
 		log.Error("deploy: failed to create deployer client", "error", err)

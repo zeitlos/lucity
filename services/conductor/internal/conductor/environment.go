@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
-	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
+	"github.com/zeitlos/lucity/pkg/platform"
+	"github.com/zeitlos/lucity/pkg/usererror"
 )
 
 type Environment = platform.Environment

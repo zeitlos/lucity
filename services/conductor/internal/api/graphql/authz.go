@@ -6,10 +6,10 @@ import (
 	"strings"
 
 	"github.com/zeitlos/lucity/pkg/auth"
+	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/tenant"
+	"github.com/zeitlos/lucity/pkg/usererror"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
-	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 func (r *Resolver) requireServiceDeployBinding(ctx context.Context, serviceID platform.ServiceID) error {

@@ -1,0 +1,141 @@
+package platform
+
+import (
+	"io"
+	"slices"
+	"strings"
+	"time"
+
+	"github.com/99designs/gqlgen/graphql"
+	"k8s.io/apimachinery/pkg/api/resource"
+
+	"github.com/zeitlos/lucity/pkg/usererror"
+)
+
+// TODO: Rename to Postgres, PostgresDatabase or PostgresCluster
+type Database struct {
+	ID           DatabaseID
+	Name         string
+	Version      string
+	Instances    int
+	Status       DatabaseStatus
+	StatusReason string
+	Size         resource.Quantity
+	Resources    Resources
+	CreatedAt    time.Time
+	PublicHost   string
+	Primary      string
+}
+
+type DatabaseBackups struct {
+	Enabled              bool
+	ArchivingHealthy     bool
+	RetentionDays        int
+	Schedule             string
+	ServerName           string
+	EarliestRestorePoint *time.Time
+	LatestRestorePoint   *time.Time
+	LastBackupAt         *time.Time
+	Backups              []DatabaseBackup
+}
+
+type DatabaseBackup struct {
+	Name       string
+	CreatedAt  time.Time
+	Status     BackupStatus
+	Trigger    BackupTrigger
+	StartedAt  *time.Time
+	FinishedAt *time.Time
+	Error      string
+}
+
+type BackupStatus string
+
+const (
+	BackupPending   BackupStatus = "pending"
+	BackupRunning   BackupStatus = "running"
+	BackupCompleted BackupStatus = "completed"
+	BackupFailed    BackupStatus = "failed"
+)
+
+type BackupTrigger string
+
+const (
+	BackupScheduled BackupTrigger = "scheduled"
+	BackupManual    BackupTrigger = "manual"
+)
+
+type DatabaseStatus string
+
+const (
+	DatabaseHealthy  DatabaseStatus = "healthy"
+	DatabaseDegraded DatabaseStatus = "degraded"
+	DatabaseUpdating DatabaseStatus = "updating"
+	DatabaseFailed   DatabaseStatus = "failed"
+	DatabasePending  DatabaseStatus = "pending"
+	DatabaseStopped  DatabaseStatus = "stopped"
+)
+
+type DatabaseID struct {
+	Workspace   string
+	Project     string
+	Environment string
+	Name        string
+}
+
+func ParseDatabaseID(s string) (DatabaseID, error) {
+	parts := strings.SplitN(s, "/", 4)
+
+	if len(parts) != 4 || slices.Contains(parts, "") {
+		return DatabaseID{}, usererror.Errorf("invalid database id %q", s)
+	}
+
+	return DatabaseID{
+		Workspace: parts[0], Project: parts[1],
+		Environment: parts[2], Name: parts[3],
+	}, nil
+}
+
+func (d DatabaseID) String() string {
+	return d.Workspace + "/" + d.Project + "/" + d.Environment + "/" + d.Name
+}
+
+func (d DatabaseID) EnvironmentID() EnvironmentID {
+	return EnvironmentID{Workspace: d.Workspace, Project: d.Project, Name: d.Environment}
+}
+
+func (d DatabaseID) Namespace() string {
+	return d.EnvironmentID().Namespace()
+}
+
+func (d DatabaseID) WorkspaceID() string {
+	return d.Workspace
+}
+
+func (d *DatabaseID) UnmarshalGQL(val interface{}) error {
+	str, ok := val.(string)
+
+	if !ok {
+		return usererror.New("DatabaseID must be a string")
+	}
+
+	parsed, err := ParseDatabaseID(str)
+
+	if err != nil {
+		return err
+	}
+
+	*d = parsed
+
+	return nil
+}
+
+func (d DatabaseID) MarshalGQL(w io.Writer) {
+	graphql.MarshalString(d.String()).MarshalGQL(w)
+}
+
+var (
+	_ WorkspaceScoped     = (*DatabaseID)(nil)
+	_ graphql.Marshaler   = DatabaseID{}
+	_ graphql.Unmarshaler = (*DatabaseID)(nil)
+)

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
-	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
+	"github.com/zeitlos/lucity/pkg/platform"
+	"github.com/zeitlos/lucity/pkg/usererror"
 
 	core "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"

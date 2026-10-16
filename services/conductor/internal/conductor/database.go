@@ -13,12 +13,12 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"k8s.io/apimachinery/pkg/api/resource"
 
+	"github.com/zeitlos/lucity/pkg/deployer"
+	"github.com/zeitlos/lucity/pkg/platform"
+	"github.com/zeitlos/lucity/pkg/resources"
+	"github.com/zeitlos/lucity/pkg/usererror"
 	"github.com/zeitlos/lucity/services/conductor/internal/dbquery"
-	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/metrics"
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
-	"github.com/zeitlos/lucity/services/conductor/internal/resources"
-	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 var (

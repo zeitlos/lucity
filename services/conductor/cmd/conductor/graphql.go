@@ -15,13 +15,13 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/logto"
 	"github.com/zeitlos/lucity/pkg/oidc"
+	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/session"
+	"github.com/zeitlos/lucity/pkg/usererror"
 	gatewaygraphql "github.com/zeitlos/lucity/services/conductor/internal/api/graphql"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/directive"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
-	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/tenant"

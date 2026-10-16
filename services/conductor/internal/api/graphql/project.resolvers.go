@@ -8,9 +8,9 @@ package graphql
 import (
 	"context"
 
+	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 // CreateProject is the resolver for the createProject field.

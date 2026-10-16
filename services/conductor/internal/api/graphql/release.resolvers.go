@@ -8,11 +8,11 @@ package graphql
 import (
 	"context"
 
+	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/to"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployjob"
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 // Deploy is the resolver for the deploy field.

@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/pkg/deployer"
+	"github.com/zeitlos/lucity/pkg/platform"
 )
 
 type HealthCheckConfig struct {

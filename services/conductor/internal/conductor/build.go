@@ -10,13 +10,13 @@ import (
 	"time"
 
 	"github.com/zeitlos/lucity/pkg/auth"
+	"github.com/zeitlos/lucity/pkg/deployer"
+	"github.com/zeitlos/lucity/pkg/platform"
+	"github.com/zeitlos/lucity/pkg/usererror"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
-	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployjob"
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/scanjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/scanreport"
-	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 	"github.com/zeitlos/lucity/services/conductor/internal/vulnerabilities"
 )
 

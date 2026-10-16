@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
-	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
+	"github.com/zeitlos/lucity/pkg/platform"
+	"github.com/zeitlos/lucity/pkg/usererror"
 
 	cnpgv1 "github.com/cloudnative-pg/cloudnative-pg/api/v1"
 	core "k8s.io/api/core/v1"

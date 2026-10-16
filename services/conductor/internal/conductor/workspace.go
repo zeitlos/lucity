@@ -9,8 +9,8 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/cashier"
+	"github.com/zeitlos/lucity/pkg/usererror"
 	"github.com/zeitlos/lucity/services/conductor/internal/directory"
-	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 type Workspace = directory.Workspace

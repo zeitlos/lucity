@@ -11,11 +11,11 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 
 	"github.com/zeitlos/lucity/pkg/auth"
+	"github.com/zeitlos/lucity/pkg/deployer"
+	"github.com/zeitlos/lucity/pkg/platform"
+	"github.com/zeitlos/lucity/pkg/usererror"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
-	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployjob"
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
-	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 type ReleaseStatus string

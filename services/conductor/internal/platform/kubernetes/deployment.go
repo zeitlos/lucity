@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/zeitlos/lucity/pkg/image"
+	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/to"
-	"github.com/zeitlos/lucity/services/conductor/internal/image"
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
-	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
+	"github.com/zeitlos/lucity/pkg/usererror"
 
 	apps "k8s.io/api/apps/v1"
 	core "k8s.io/api/core/v1"

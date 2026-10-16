@@ -9,9 +9,9 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	ghpkg "github.com/zeitlos/lucity/pkg/github"
+	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/webhook/github"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 // Handler holds the dependencies for webhook event processing.

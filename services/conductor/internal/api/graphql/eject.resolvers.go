@@ -10,8 +10,8 @@ import (
 	"encoding/base64"
 	"log/slog"
 
+	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 // EjectProject is the resolver for the ejectProject field.

@@ -1,7 +1,7 @@
 package kubernetes
 
 import (
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/pkg/platform"
 
 	apps "k8s.io/api/apps/v1"
 	"k8s.io/client-go/dynamic"

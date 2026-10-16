@@ -9,9 +9,9 @@ import (
 	k8slabels "k8s.io/apimachinery/pkg/labels"
 
 	"github.com/zeitlos/lucity/pkg/labels"
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/pkg/platform"
+	"github.com/zeitlos/lucity/pkg/usererror"
 	"github.com/zeitlos/lucity/services/conductor/internal/scanjob"
-	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 func (c *Client) Get(ctx context.Context, id scanjob.ScanID) (*scanjob.Job, error) {

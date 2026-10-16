@@ -3,8 +3,9 @@ package kubernetes
 import (
 	"context"
 
+	"github.com/zeitlos/lucity/pkg/deployer"
+	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/environment"
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -15,11 +16,11 @@ var _ environment.Interface = (*Client)(nil)
 const (
 	resourceQuotaName        = "lucity-resources"
 	limitRangeName           = "lucity-defaults"
-	PullSecretName           = "lucity-registry"
-	BackupSecretName         = "lucity-backups"
-	BackupAccessKeyIDKey     = "accessKeyId"
-	BackupSecretAccessKeyKey = "secretAccessKey"
-	BackupRegionKey          = "region"
+	PullSecretName           = deployer.PullSecretName
+	BackupSecretName         = deployer.BackupSecretName
+	BackupAccessKeyIDKey     = deployer.BackupAccessKeyIDKey
+	BackupSecretAccessKeyKey = deployer.BackupSecretAccessKeyKey
+	BackupRegionKey          = deployer.BackupRegionKey
 )
 
 type Client struct {

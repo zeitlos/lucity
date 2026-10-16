@@ -13,8 +13,8 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/conductor"
-	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/pkg/deployer"
+	"github.com/zeitlos/lucity/pkg/platform"
 )
 
 // Service implements the ConductorService gRPC server — the inbound surface

@@ -4,7 +4,7 @@ import (
 	"context"
 
 	pkglabels "github.com/zeitlos/lucity/pkg/labels"
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/pkg/platform"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

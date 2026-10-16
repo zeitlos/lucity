@@ -6,12 +6,13 @@ import (
 	"time"
 
 	"github.com/zeitlos/lucity/pkg/bunny"
+	"github.com/zeitlos/lucity/pkg/deployer"
 )
 
 const (
-	HeaderName       = "X-Lucity-Edge"
-	HeaderSecretName = "lucity-edge"
-	HeaderSecretKey  = "value"
+	HeaderName       = deployer.EdgeHeaderName
+	HeaderSecretName = deployer.EdgeHeaderSecretName
+	HeaderSecretKey  = deployer.EdgeHeaderSecretKey
 )
 
 type Config struct {

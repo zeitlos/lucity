@@ -8,5 +8,6 @@ use (
 	./services/cashier
 	./services/conductor
 	./services/exporter
+	./services/stagehand
 	./services/switchboard
 )

@@ -9,10 +9,10 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployjob"
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/scanjob"
 )
 

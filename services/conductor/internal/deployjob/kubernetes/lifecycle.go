@@ -62,6 +62,10 @@ func (c *Client) newDeployJob(name string, opts deployjob.StartOptions) *batch.J
 		{Name: "EDGE_HEADER_ENFORCED", Value: strconv.FormatBool(c.config.EdgeHeader)},
 	}
 
+	if c.config.WorkloadPlacement != "" {
+		env = append(env, core.EnvVar{Name: "WORKLOAD_DEFAULT_PLACEMENT", Value: c.config.WorkloadPlacement})
+	}
+
 	labelSet := deployJobLabels(opts.Service, opts.ReleaseID)
 
 	return &batch.Job{
