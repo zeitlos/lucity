@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"path"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -161,7 +160,7 @@ func (m *Manager) ensureCORS(ctx context.Context, creds *Credentials) {
 
 func s3client(creds *Credentials) *s3.Client {
 	return s3.New(s3.Options{
-		Region:       strings.ToLower(creds.Region),
+		Region:       creds.Region,
 		BaseEndpoint: aws.String(creds.Endpoint),
 		Credentials:  credentials.NewStaticCredentialsProvider(creds.AccessKeyID, creds.SecretAccessKey, ""),
 		UsePathStyle: true,

@@ -372,7 +372,7 @@ func (m *Manager) SetPublic(ctx context.Context, id platform.BucketID, public bo
 		Public:     public,
 		Slug:       state.PhysicalName,
 		OriginURL:  originURL(state.Endpoint, state.PhysicalName),
-		Region:     strings.ToLower(state.Region),
+		Region:     state.Region,
 		Workspace:  id.Workspace,
 		PublicSet:  publicSet,
 		PullZoneID: state.PullZoneID,
