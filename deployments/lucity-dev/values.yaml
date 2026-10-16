@@ -21,7 +21,7 @@ conductor:
   registryUsername: builder
   buildkit:
     enabled: true
-    storageSize: 20Gi
+    storageSize: 50Gi
   env:
     OIDC_ISSUER_URL: https://id.lucity.dev/oidc
     OIDC_CLIENT_ID: tra6m86tjgolnq6ubifd0
