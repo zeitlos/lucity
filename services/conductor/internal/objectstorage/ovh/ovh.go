@@ -39,7 +39,7 @@ func New(endpoint, applicationKey, applicationSecret, consumerKey, projectID, re
 	return &Backend{
 		client:    client,
 		projectID: projectID,
-		region:    region,
+		region:    strings.ToLower(region),
 	}, nil
 }
 
@@ -437,7 +437,7 @@ func (b *Backend) apiRegion() string {
 }
 
 func (b *Backend) endpoint() string {
-	return "https://s3." + strings.ToLower(b.region) + ".io.cloud.ovh.net"
+	return "https://s3." + b.region + ".io.cloud.ovh.net"
 }
 
 func userDescription(workspace string) string {
