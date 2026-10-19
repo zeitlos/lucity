@@ -49,7 +49,6 @@ cloudnative-pg:
       cpu: 50m
       memory: 384Mi
     limits:
-      cpu: "1"
       memory: 1Gi
   config:
     data:
@@ -329,7 +328,6 @@ traefik:
       cpu: 50m
       memory: 128Mi
     limits:
-      cpu: "1"
       memory: 512Mi
   providers:
     kubernetesCRD:
@@ -392,7 +390,6 @@ rybbit:
         cpu: 100m
         memory: 256Mi
       limits:
-        cpu: 500m
         memory: 512Mi
     nodeSelector: {}
     tolerations: []
@@ -409,7 +406,6 @@ rybbit:
         cpu: 50m
         memory: 128Mi
       limits:
-        cpu: 200m
         memory: 256Mi
     nodeSelector: {}
     tolerations: []
@@ -433,7 +429,6 @@ rybbit:
         cpu: 200m
         memory: 512Mi
       limits:
-        cpu: "1"
         memory: 1Gi
     nodeSelector: {}
     tolerations: []
@@ -467,7 +462,6 @@ rybbit:
         cpu: 25m
         memory: 64Mi
       limits:
-        cpu: 200m
         memory: 256Mi
     nodeSelector: {}
     tolerations: []
@@ -1131,10 +1125,9 @@ logto:
     port: 3001
   resources:
     requests:
-      cpu: 100m
+      cpu: 250m
       memory: 256Mi
     limits:
-      cpu: 500m
       memory: 512Mi
   nodeSelector: {}
   tolerations: []

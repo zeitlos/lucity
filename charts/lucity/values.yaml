@@ -118,7 +118,6 @@ conductor:
       cpu: 250m
       memory: 512Mi
     limits:
-      cpu: "1"
       memory: 2Gi
   # -- Scheduling for the conductor and the deploy Jobs it starts
   nodeSelector: {}
@@ -144,7 +143,6 @@ cashier:
       cpu: 100m
       memory: 128Mi
     limits:
-      cpu: 500m
       memory: 256Mi
   nodeSelector: {}
   tolerations: []
@@ -215,7 +213,6 @@ dashboard:
       cpu: 50m
       memory: 64Mi
     limits:
-      cpu: 200m
       memory: 128Mi
   nodeSelector: {}
   tolerations: []
@@ -243,7 +240,6 @@ docs:
       cpu: 50m
       memory: 64Mi
     limits:
-      cpu: 200m
       memory: 128Mi
   nodeSelector: {}
   tolerations: []
