@@ -16,7 +16,7 @@ The PaaS market has great options. Here's an honest look at how Lucity compares.
 | **Ejectability** | Full | No | No | No | No | No | No |
 | **Kubernetes native** | Yes | Hidden | Hidden | No | No | No (Firecracker) | No (Docker) |
 | **EU hosting** | Yes (Swiss coming soon) | No | No | EU (Salesforce) | No | Yes (Amsterdam, Frankfurt) | BYOS |
-| **GitOps (ArgoCD)** | Yes | Proprietary | Proprietary | Proprietary | Proprietary | No | No |
+| **Standard Helm releases** | Yes | Proprietary | Proprietary | Proprietary | Proprietary | No | No |
 | **PR previews** | Yes | Yes | Yes | Add-on | Yes | Manual | Yes |
 | **PostgreSQL** | CNPG | Yes | Yes | Yes | Neon (partner) | Managed ($38+/mo) | Yes |
 | **Redis** | Yes | Yes | Yes | Yes | Upstash (partner) | Yes | Yes |
@@ -31,7 +31,7 @@ Every platform has strengths. Railway's polish is genuinely impressive. Render's
 Choose based on what matters to you:
 
 - If **ejectability** matters (you want to own your infrastructure config and leave without a rewrite), that's where Lucity stands alone.
-- If **open source** matters (you want to self-host, audit the code, or contribute), Lucity and Coolify are the only options in this list. Lucity runs on Kubernetes with GitOps; Coolify runs on Docker Compose.
+- If **open source** matters (you want to self-host, audit the code, or contribute), Lucity and Coolify are the only options in this list. Lucity runs on Kubernetes with standard Helm releases; Coolify runs on Docker Compose.
 - If **data residency** matters (you need EU hosting for compliance, with Swiss data residency coming soon), Lucity Cloud runs on European infrastructure.
 - If **maximum polish** matters and lock-in isn't a concern, Railway and Vercel are excellent choices.
 
