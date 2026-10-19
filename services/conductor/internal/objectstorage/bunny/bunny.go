@@ -11,6 +11,15 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/objectstorage"
 )
 
+var corsExtensions = []string{
+	"json", "geojson", "txt", "csv", "xml", "html", "htm", "md", "pdf",
+	"js", "mjs", "css", "map", "wasm",
+	"eot", "ttf", "otf", "woff", "woff2",
+	"jpg", "jpeg", "png", "webp", "avif", "gif", "svg", "ico",
+	"mp3", "mp4", "m4a", "mpeg", "ogg", "wav", "webm", "mov", "m3u8", "vtt",
+	"glb", "gltf", "bin", "pbf", "gz", "zip",
+}
+
 type Backend struct {
 	inner  objectstorage.Backend
 	api    *bunny.Client
@@ -77,6 +86,13 @@ func (b *Backend) SetPublic(ctx context.Context, req objectstorage.SetPublicRequ
 	pullZoneID, err := b.ensurePullZone(ctx, req, origin)
 
 	if err != nil {
+		return objectstorage.SetPublicResult{}, err
+	}
+
+	if err := b.api.UpdateCORS(ctx, pullZoneID, bunny.CORSSettings{
+		EnableAccessControlOriginHeader:     true,
+		AccessControlOriginHeaderExtensions: corsExtensions,
+	}); err != nil {
 		return objectstorage.SetPublicResult{}, err
 	}
 

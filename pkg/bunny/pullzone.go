@@ -69,6 +69,13 @@ type PullZoneSpec struct {
 	EnableAccessControlOriginHeader *bool  `json:"EnableAccessControlOriginHeader,omitempty"`
 	EnableTLS1                      *bool  `json:"EnableTLS1,omitempty"`
 	EnableTLS1_1                    *bool  `json:"EnableTLS1_1,omitempty"`
+
+	AccessControlOriginHeaderExtensions []string `json:"AccessControlOriginHeaderExtensions,omitempty"`
+}
+
+type CORSSettings struct {
+	EnableAccessControlOriginHeader     bool     `json:"EnableAccessControlOriginHeader"`
+	AccessControlOriginHeaderExtensions []string `json:"AccessControlOriginHeaderExtensions"`
 }
 
 func (c *Client) PullZones(ctx context.Context) ([]PullZone, error) {
@@ -118,6 +125,22 @@ func (c *Client) CreatePullZone(ctx context.Context, spec PullZoneSpec) (*PullZo
 	}
 
 	return &zone, nil
+}
+
+func (c *Client) UpdateCORS(ctx context.Context, pullZoneID int64, settings CORSSettings) error {
+	if err := c.do(ctx, http.MethodPost, fmt.Sprintf("/pullzone/%d", pullZoneID), settings, nil); err != nil {
+		return fmt.Errorf("update pull zone cors: %w", err)
+	}
+
+	return nil
+}
+
+func (c *Client) PurgePullZone(ctx context.Context, pullZoneID int64) error {
+	if err := c.do(ctx, http.MethodPost, fmt.Sprintf("/pullzone/%d/purgeCache", pullZoneID), nil, nil); err != nil {
+		return fmt.Errorf("purge pull zone: %w", err)
+	}
+
+	return nil
 }
 
 func (c *Client) DeletePullZone(ctx context.Context, pullZoneID int64) error {
