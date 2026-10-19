@@ -136,6 +136,9 @@ func (b *Backend) CreateBucket(ctx context.Context, req objectstorage.BucketRequ
 
 func (b *Backend) Credentials(ctx context.Context, req objectstorage.CredentialsRequest) (objectstorage.BucketConnection, error) {
 	if req.Permission == objectstorage.ReadOnly {
+		ctx, cancel := context.WithTimeout(ctx, propagationBudget)
+		defer cancel()
+
 		userID, err := b.ensureReadUser(ctx, req.Workspace)
 
 		if err != nil {
@@ -406,7 +409,9 @@ func (b *Backend) syncReadPolicy(ctx context.Context, userID int64, physicalName
 		return err
 	}
 
-	return b.client.PostWithContext(ctx, fmt.Sprintf("/cloud/project/%s/user/%d/policy", b.projectID, userID), map[string]string{"policy": string(document)}, nil)
+	return retryNotFound(ctx, func() error {
+		return b.client.PostWithContext(ctx, fmt.Sprintf("/cloud/project/%s/user/%d/policy", b.projectID, userID), map[string]string{"policy": string(document)}, nil)
+	})
 }
 
 func (b *Backend) empty(ctx context.Context, base string) error {
