@@ -463,9 +463,6 @@ func (s *Server) AddPlan(ctx context.Context, req *cashier.AddPlanRequest) (*cas
 		return nil, fmt.Errorf("failed to add plan: %w", err)
 	}
 
-	// Resume workspace in case it was suspended at trial end.
-	s.suspendWorkspace(req.Workspace, false)
-
 	slog.Info("plan added to subscription", "workspace", req.Workspace, "plan", planPriceID)
 	resp := s.subscriptionToResponse(sub, s.stripe.Prices)
 	return &cashier.AddPlanResponse{
