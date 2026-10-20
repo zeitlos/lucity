@@ -107,6 +107,8 @@ cashier:
     STRIPE_PROD_CPU_PRICE_ID: price_1TF9qaAoheV3Drw6En35zCEK
     STRIPE_PROD_MEM_PRICE_ID: price_1TF9qmAoheV3Drw6zasPNVfM
     STRIPE_PROD_DISK_PRICE_ID: price_1TFERtAoheV3Drw6953EpJgr
+    STRIPE_STORAGE_PRICE_ID: price_1USesrAoheV3Drw6lnfGRnIl
+    STRIPE_EGRESS_PRICE_ID: price_1USestAoheV3Drw6qvofsUSz
     STRIPE_ECO_CPU_METER_EVENT: eco_cpu_usage
     STRIPE_ECO_MEM_METER_EVENT: eco_memory_usage
     STRIPE_ECO_DISK_METER_EVENT: eco_disk_usage
