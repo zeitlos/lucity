@@ -504,11 +504,17 @@ func (c *Client) ActiveSubscriptionForCustomer(ctx context.Context, customerID, 
 	return "", nil
 }
 
-// HasPaymentMethod checks if a Stripe customer has a default payment method set.
-// This checks the customer's invoice settings, which is where the billing portal sets
-// the default card — not on the subscription itself.
-func (c *Client) HasPaymentMethod(ctx context.Context, customerID string) (bool, error) {
-	cust, err := customer.Get(customerID, nil)
+// HasPaymentMethod reports whether the subscription's invoices have a card to charge:
+// the subscription's own default payment method (set by Checkout) or the customer's
+// invoice default (set by the billing portal and AddPlan).
+func (c *Client) HasPaymentMethod(ctx context.Context, sub *gostripe.Subscription) (bool, error) {
+	if sub.DefaultPaymentMethod != nil {
+		return true, nil
+	}
+	if sub.Customer == nil {
+		return false, nil
+	}
+	cust, err := customer.Get(sub.Customer.ID, nil)
 	if err != nil {
 		return false, fmt.Errorf("failed to get customer: %w", err)
 	}

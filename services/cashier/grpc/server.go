@@ -101,7 +101,7 @@ func (s *Server) ChangePlan(ctx context.Context, req *cashier.ChangePlanRequest)
 		return nil, fmt.Errorf("failed to change plan: %w", err)
 	}
 
-	hasPM, _ := s.stripe.HasPaymentMethod(ctx, req.CustomerId)
+	hasPM, _ := s.stripe.HasPaymentMethod(ctx, sub)
 
 	slog.Info("plan changed", "workspace", req.Workspace, "plan", planToString(req.Plan))
 	resp := s.subscriptionToResponse(sub, s.stripe.Prices)
@@ -119,7 +119,7 @@ func (s *Server) Subscription(ctx context.Context, req *cashier.SubscriptionRequ
 		return nil, err
 	}
 
-	hasPM, _ := s.stripe.HasPaymentMethod(ctx, req.CustomerId)
+	hasPM, _ := s.stripe.HasPaymentMethod(ctx, sub)
 
 	resp := s.subscriptionToResponse(sub, s.stripe.Prices)
 
@@ -265,15 +265,12 @@ func (s *Server) handlePaymentSucceeded(event gostripe.Event) error {
 	}
 
 	workspace := ""
-	var subscriptionID, customerID string
+	var subscriptionID string
 	if inv.Parent != nil && inv.Parent.SubscriptionDetails != nil {
 		workspace = inv.Parent.SubscriptionDetails.Metadata["workspace"]
 		if inv.Parent.SubscriptionDetails.Subscription != nil {
 			subscriptionID = inv.Parent.SubscriptionDetails.Subscription.ID
 		}
-	}
-	if inv.Customer != nil {
-		customerID = inv.Customer.ID
 	}
 	if workspace == "" {
 		// Payment succeeded but no workspace — not actionable, don't retry.
@@ -290,7 +287,7 @@ func (s *Server) handlePaymentSucceeded(event gostripe.Event) error {
 			// Fall through to resume (safe default for paying customers)
 		} else if !s.subscriptionHasPlan(sub) {
 			// Trial subscription: check for payment method
-			hasPM, _ := s.stripe.HasPaymentMethod(ctx, customerID)
+			hasPM, _ := s.stripe.HasPaymentMethod(ctx, sub)
 			if !hasPM {
 				slog.Info("trial ended, no plan or payment method, suspending workspace",
 					"workspace", workspace, "invoice", inv.ID)
