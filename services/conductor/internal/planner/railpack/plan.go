@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path"
@@ -14,8 +15,11 @@ import (
 	"github.com/railwayapp/railpack/core/logger"
 
 	"github.com/zeitlos/lucity/pkg/sourcetree"
+	"github.com/zeitlos/lucity/pkg/usererror"
 	"github.com/zeitlos/lucity/services/conductor/internal/planner"
 )
+
+var errUndetectable = usererror.New("couldn't detect how to build this repository: no supported language or framework found at its root")
 
 func (c *Client) Plan(ctx context.Context, repoURL, ref, token string) ([]planner.Plan, error) {
 	tmpDir, err := os.MkdirTemp("", "plan-*")
@@ -44,7 +48,8 @@ func (c *Client) Plan(ctx context.Context, repoURL, ref, token string) ([]planne
 	generated, err := core.GenerateBuildPlan(a, env, &core.GenerateBuildPlanOptions{})
 
 	if err != nil {
-		return nil, fmt.Errorf("service detection failed: %w", err)
+		slog.WarnContext(ctx, "service detection failed", "repository", repoURL, "error", err)
+		return nil, errUndetectable
 	}
 
 	if !generated.Success || generated.Plan == nil {
@@ -61,7 +66,8 @@ func (c *Client) Plan(ctx context.Context, repoURL, ref, token string) ([]planne
 			errMsg = strings.Join(errs, "; ")
 		}
 
-		return nil, fmt.Errorf("service detection failed: %s", errMsg)
+		slog.WarnContext(ctx, "service detection failed", "repository", repoURL, "error", errMsg)
+		return nil, errUndetectable
 	}
 
 	service := planner.Plan{
