@@ -31,6 +31,8 @@ type PriceConfig struct {
 	ProdCPUPriceID  string
 	ProdMemPriceID  string
 	ProdDiskPriceID string
+	StoragePriceID  string
+	EgressPriceID   string
 }
 
 // MeterConfig holds Billing Meter event names for usage-based billing.
@@ -94,6 +96,8 @@ func (c *Client) CreateSubscription(ctx context.Context, customerID, workspace s
 			{Price: gostripe.String(c.Prices.ProdCPUPriceID)},
 			{Price: gostripe.String(c.Prices.ProdMemPriceID)},
 			{Price: gostripe.String(c.Prices.ProdDiskPriceID)},
+			{Price: gostripe.String(c.Prices.StoragePriceID)},
+			{Price: gostripe.String(c.Prices.EgressPriceID)},
 		},
 	}
 	params.AddMetadata("workspace", workspace)
@@ -532,7 +536,7 @@ func PlanCreditCents(planPriceID string, prices PriceConfig) int64 {
 }
 
 // CreateCheckoutSession creates a Stripe Checkout Session in subscription mode
-// with the plan price + 6 metered resource prices.
+// with the plan price + 8 metered resource prices.
 func (c *Client) CreateCheckoutSession(ctx context.Context, workspace, name, planPriceID, email, successURL, cancelURL, userID string) (string, string, error) {
 	params := &gostripe.CheckoutSessionParams{
 		Mode:                    gostripe.String(string(gostripe.CheckoutSessionModeSubscription)),
@@ -548,6 +552,8 @@ func (c *Client) CreateCheckoutSession(ctx context.Context, workspace, name, pla
 			{Price: gostripe.String(c.Prices.ProdCPUPriceID)},
 			{Price: gostripe.String(c.Prices.ProdMemPriceID)},
 			{Price: gostripe.String(c.Prices.ProdDiskPriceID)},
+			{Price: gostripe.String(c.Prices.StoragePriceID)},
+			{Price: gostripe.String(c.Prices.EgressPriceID)},
 		},
 		SubscriptionData: &gostripe.CheckoutSessionSubscriptionDataParams{
 			BillingMode: &gostripe.CheckoutSessionSubscriptionDataBillingModeParams{

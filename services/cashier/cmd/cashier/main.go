@@ -45,6 +45,8 @@ type Config struct {
 	ProdCPUPriceID  string `envconfig:"STRIPE_PROD_CPU_PRICE_ID" required:"true"`
 	ProdMemPriceID  string `envconfig:"STRIPE_PROD_MEM_PRICE_ID" required:"true"`
 	ProdDiskPriceID string `envconfig:"STRIPE_PROD_DISK_PRICE_ID" required:"true"`
+	StoragePriceID  string `envconfig:"STRIPE_STORAGE_PRICE_ID" required:"true"`
+	EgressPriceID   string `envconfig:"STRIPE_EGRESS_PRICE_ID" required:"true"`
 
 	EcoCPUMeterEvent   string `envconfig:"STRIPE_ECO_CPU_METER_EVENT"`
 	EcoMemMeterEvent   string `envconfig:"STRIPE_ECO_MEM_METER_EVENT"`
@@ -106,6 +108,8 @@ func main() {
 		ProdCPUPriceID:  config.ProdCPUPriceID,
 		ProdMemPriceID:  config.ProdMemPriceID,
 		ProdDiskPriceID: config.ProdDiskPriceID,
+		StoragePriceID:  config.StoragePriceID,
+		EgressPriceID:   config.EgressPriceID,
 	}
 	meters := stripelib.MeterConfig{
 		EcoCPUEventName:   config.EcoCPUMeterEvent,
