@@ -20,6 +20,7 @@ const tiers: Tier[] = [
       { label: 'Memory', value: 'CHF 10', unit: '/ GB / mo' },
       { label: 'Disk', value: 'CHF 0.10', unit: '/ GB / mo' },
       { label: 'Egress', value: 'CHF 0.02', unit: '/ GB' },
+      { label: 'Object Storage', value: 'CHF 0.03', unit: '/ GB / mo' },
     ],
   },
   {
@@ -30,6 +31,7 @@ const tiers: Tier[] = [
       { label: 'Memory', value: 'CHF 8', unit: '/ GB / mo' },
       { label: 'Disk', value: 'CHF 0.10', unit: '/ GB / mo' },
       { label: 'Egress', value: 'CHF 0.02', unit: '/ GB' },
+      { label: 'Object Storage', value: 'CHF 0.03', unit: '/ GB / mo' },
     ],
   },
 ];
