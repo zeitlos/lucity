@@ -176,9 +176,9 @@ func (c *Client) AddPlanToSubscription(ctx context.Context, subscriptionID, plan
 		Items: []*gostripe.SubscriptionItemsParams{
 			{Price: gostripe.String(planPriceID)},
 		},
-		BillingCycleAnchorNow: gostripe.Bool(true),
-		ProrationBehavior:     gostripe.String("create_prorations"),
+		ProrationBehavior: gostripe.String("create_prorations"),
 	}
+	params.AddExtra("billing_cycle_anchor[type]", "now")
 	// Empty string tells Stripe to null these nested objects.
 	params.AddExtra("billing_thresholds", "")
 	params.AddExtra("pending_invoice_item_interval", "")
