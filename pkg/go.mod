@@ -1,6 +1,6 @@
 module github.com/zeitlos/lucity/pkg
 
-go 1.27.0
+go 1.27.3
 
 require (
 	github.com/99designs/gqlgen v0.17.95

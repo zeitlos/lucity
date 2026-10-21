@@ -1,6 +1,6 @@
 module github.com/zeitlos/lucity/services/conductor
 
-go 1.27.0
+go 1.27.3
 
 replace (
 	github.com/zeitlos/lucity/charts => ../../charts
