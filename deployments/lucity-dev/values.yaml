@@ -84,8 +84,8 @@ cashier:
     INTERNAL_JWT_PRIVATE_KEY_PATH: /secrets/internal-jwt/private.pem
     CONDUCTOR_ADDR: lucity-conductor:9090
     LOGTO_ENDPOINT: http://lucity-infra-logto.lucity-system.svc.cluster.local:3001
-    STRIPE_HOBBY_PRICE_ID: price_1USdK4Aczm59y8RPx4EL5iAb
-    STRIPE_PRO_PRICE_ID: price_1USdK3Aczm59y8RPoIYz1agP
+    STRIPE_HOBBY_PRICE_ID: &hobby-price price_1USdK4Aczm59y8RPx4EL5iAb
+    STRIPE_PRO_PRICE_ID: &pro-price price_1USdK3Aczm59y8RPoIYz1agP
     STRIPE_ECO_CPU_PRICE_ID: price_1USdNKAczm59y8RPBPjvI7pN
     STRIPE_ECO_MEM_PRICE_ID: price_1USdNLAczm59y8RPG4kbNhu5
     STRIPE_ECO_DISK_PRICE_ID: price_1USdNLAczm59y8RPgnBW0BEG
@@ -112,6 +112,11 @@ cashier:
 
 stagehand:
   enabled: true
+  env:
+    STRIPE_HOBBY_PRICE_ID: *hobby-price
+    STRIPE_PRO_PRICE_ID: *pro-price
+  envSecret:
+    STRIPE_SECRET_KEY: STRIPE_SECRET_KEY
 
 exporter:
   enabled: true
