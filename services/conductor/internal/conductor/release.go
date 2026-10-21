@@ -3,6 +3,7 @@ package conductor
 import (
 	"context"
 	"io"
+	"log/slog"
 	"net/url"
 	"sort"
 	"strings"
@@ -377,6 +378,10 @@ func ParseReleaseID(s string) (ReleaseID, error) {
 	}
 
 	return ReleaseID{Workspace: workspace, Name: name}, nil
+}
+
+func (r ReleaseID) LogValue() slog.Value {
+	return slog.StringValue(r.String())
 }
 
 func (r ReleaseID) String() string {

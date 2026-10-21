@@ -2,6 +2,7 @@ package platform
 
 import (
 	"io"
+	"log/slog"
 	"slices"
 	"strings"
 	"time"
@@ -127,6 +128,10 @@ func ParseServiceID(s string) (ServiceID, error) {
 		Workspace: parts[0], Project: parts[1],
 		Environment: parts[2], Name: parts[3],
 	}, nil
+}
+
+func (s ServiceID) LogValue() slog.Value {
+	return slog.StringValue(s.String())
 }
 
 func (s ServiceID) String() string {

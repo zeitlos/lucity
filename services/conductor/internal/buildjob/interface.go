@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -95,6 +96,10 @@ func ParseBuildID(s string) (BuildID, error) {
 	}
 
 	return BuildID{Workspace: workspace, Name: name}, nil
+}
+
+func (b BuildID) LogValue() slog.Value {
+	return slog.StringValue(b.String())
 }
 
 func (b BuildID) String() string {

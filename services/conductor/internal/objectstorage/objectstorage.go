@@ -333,7 +333,7 @@ func (m *Manager) Delete(ctx context.Context, id platform.BucketID) error {
 			PublicSet:  remaining,
 			PullZoneID: state.PullZoneID,
 		}); err != nil {
-			slog.WarnContext(ctx, "unpublish bucket during delete failed", "bucket", id.String(), "error", err)
+			slog.WarnContext(ctx, "unpublish bucket during delete failed", "bucket", id, "error", err)
 		}
 	}
 

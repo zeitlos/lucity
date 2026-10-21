@@ -3,6 +3,7 @@ package deployjob
 import (
 	"context"
 	"io"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -60,6 +61,10 @@ func ParseDeployID(s string) (DeployID, error) {
 	}
 
 	return DeployID{Workspace: workspace, Name: name}, nil
+}
+
+func (d DeployID) LogValue() slog.Value {
+	return slog.StringValue(d.String())
 }
 
 func (d DeployID) String() string {

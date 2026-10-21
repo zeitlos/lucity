@@ -2,6 +2,7 @@ package platform
 
 import (
 	"io"
+	"log/slog"
 	"slices"
 	"strings"
 
@@ -45,6 +46,10 @@ func ParseVariableID(s string) (VariableID, error) {
 		Secret:      parts[3],
 		Name:        parts[4],
 	}, nil
+}
+
+func (v VariableID) LogValue() slog.Value {
+	return slog.StringValue(v.String())
 }
 
 func (v VariableID) String() string {

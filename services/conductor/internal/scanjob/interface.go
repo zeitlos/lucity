@@ -3,6 +3,7 @@ package scanjob
 import (
 	"context"
 	"io"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -63,6 +64,10 @@ func ParseScanID(s string) (ScanID, error) {
 	}
 
 	return ScanID{Workspace: workspace, Name: name}, nil
+}
+
+func (s ScanID) LogValue() slog.Value {
+	return slog.StringValue(s.String())
 }
 
 func (s ScanID) String() string {

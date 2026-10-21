@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -46,6 +47,10 @@ func ParseEnvironmentID(s string) (EnvironmentID, error) {
 	}
 
 	return EnvironmentID{Workspace: ws, Project: proj, Name: name}, nil
+}
+
+func (e EnvironmentID) LogValue() slog.Value {
+	return slog.StringValue(e.String())
 }
 
 func (e EnvironmentID) String() string {

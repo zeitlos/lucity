@@ -2,6 +2,7 @@ package platform
 
 import (
 	"io"
+	"log/slog"
 	"slices"
 	"strings"
 	"time"
@@ -94,6 +95,10 @@ func ParseDatabaseID(s string) (DatabaseID, error) {
 		Workspace: parts[0], Project: parts[1],
 		Environment: parts[2], Name: parts[3],
 	}, nil
+}
+
+func (d DatabaseID) LogValue() slog.Value {
+	return slog.StringValue(d.String())
 }
 
 func (d DatabaseID) String() string {

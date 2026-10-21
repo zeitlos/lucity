@@ -2,6 +2,7 @@ package platform
 
 import (
 	"io"
+	"log/slog"
 	"strings"
 
 	"github.com/99designs/gqlgen/graphql"
@@ -28,6 +29,10 @@ func ParseProjectID(s string) (ProjectID, error) {
 	}
 
 	return ProjectID{Workspace: ws, Name: name}, nil
+}
+
+func (p ProjectID) LogValue() slog.Value {
+	return slog.StringValue(p.String())
 }
 
 func (p ProjectID) String() string {

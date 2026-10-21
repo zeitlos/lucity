@@ -2,6 +2,7 @@ package platform
 
 import (
 	"io"
+	"log/slog"
 	"slices"
 	"strings"
 
@@ -28,6 +29,10 @@ func ParseBucketID(s string) (BucketID, error) {
 		Workspace: parts[0], Project: parts[1],
 		Environment: parts[2], Name: parts[3],
 	}, nil
+}
+
+func (b BucketID) LogValue() slog.Value {
+	return slog.StringValue(b.String())
 }
 
 func (b BucketID) String() string {

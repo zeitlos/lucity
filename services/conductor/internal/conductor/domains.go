@@ -44,13 +44,13 @@ func (c *Client) ResolveEndpoints(ctx context.Context, serviceID ServiceID, endp
 		resolved.DNSStatus, err = c.hostname.DNSStatus(ctx, serviceID.Workspace, endpoint.Host, endpoint.RedirectTo != "")
 
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to lookup dns status", "error", err, "service", serviceID.String(), "host", endpoint.Host)
+			slog.ErrorContext(ctx, "failed to lookup dns status", "error", err, "service", serviceID, "host", endpoint.Host)
 		}
 
 		resolved.TLSStatus, err = c.hostname.TLSStatus(ctx, serviceID.Namespace(), endpoint.Host)
 
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to lookup tls status", "error", err, "service", serviceID.String(), "host", endpoint.Host)
+			slog.ErrorContext(ctx, "failed to lookup tls status", "error", err, "service", serviceID, "host", endpoint.Host)
 		}
 
 		if c.hostname.IsInternal(endpoint.Host) {

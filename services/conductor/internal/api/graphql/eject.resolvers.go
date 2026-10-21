@@ -22,7 +22,7 @@ func (r *queryResolver) EjectProject(ctx context.Context, id platform.ProjectID)
 		return nil, err
 	}
 
-	slog.InfoContext(ctx, "project ejected", "project", id.String())
+	slog.InfoContext(ctx, "project ejected", "project", id)
 
 	return &model.EjectArtifact{
 		Filename:    id.Name + "-ejected.zip",
