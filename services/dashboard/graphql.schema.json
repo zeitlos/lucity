@@ -6550,7 +6550,7 @@
           },
           {
             "name": "expandVolume",
-            "description": "Grows a volume, up to 1Ti, without a restart. Volumes can't shrink.",
+            "description": "Grows a volume, up to 1Ti, without a restart. A volume can grow once a running service uses it, and it can't shrink.",
             "args": [
               {
                 "name": "size",

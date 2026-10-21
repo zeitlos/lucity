@@ -57,6 +57,16 @@ func (c *Client) ExpandVolume(ctx context.Context, volume platform.VolumeID, siz
 		return nil, usererror.Errorf("invalid storage size %q", size)
 	}
 
+	current, err := c.platform.Volume(ctx, volume)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if current.Status != platform.VolumeReady {
+		return nil, usererror.Errorf("volume %q can't grow until a running service uses it, because its disk is only created then. To change the size now, delete the volume and create it again", volume.Name)
+	}
+
 	if _, err := c.deployer.Volumes().Expand(ctx, volume, parsedSize); err != nil {
 		return nil, fmt.Errorf("expand volume: %w", err)
 	}

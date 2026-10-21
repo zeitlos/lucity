@@ -241,7 +241,7 @@ async function handleDelete() {
           </div>
           <div class="flex items-center justify-between gap-3 px-4 py-3">
             <p class="text-xs text-muted-foreground">
-              You can add more space anytime, but storage can't be made smaller later.
+              You can add more space once a running service uses this volume, but storage can't be made smaller later.
             </p>
             <Button
               size="sm"
