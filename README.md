@@ -27,6 +27,43 @@
   </a>
 </p>
 
+<p align="center">
+  <img src="docs/public/img/docs/projects/canvas.png" alt="A project on the Lucity canvas: a GitHub service, a PostgreSQL database and an object storage bucket" width="100%">
+</p>
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/public/img/docs/quickstart/first-build.png" alt="Live build logs of a Next.js app">
+      <p align="center"><b>Push to deploy.</b> Builds straight from your repo, no Dockerfile needed. <a href="https://lucity.cloud/docs/quickstart">Quickstart</a></p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/public/img/docs/quickstart/variable-reference.png" alt="Referencing database and bucket credentials from a service variable">
+      <p align="center"><b>Wire services together.</b> Reference database and bucket credentials instead of copying them. <a href="https://lucity.cloud/docs/variables">Variables</a></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/public/img/docs/postgres/explorer-query.png" alt="Running a SQL query against a managed PostgreSQL database">
+      <p align="center"><b>Managed PostgreSQL.</b> Browse tables and run queries right in the dashboard. <a href="https://lucity.cloud/docs/postgres">PostgreSQL</a></p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/public/img/docs/postgres/backups.png" alt="Point-in-time restore for a PostgreSQL database">
+      <p align="center"><b>Point-in-time restore.</b> Every write is archived, so you can rewind to any moment in the last 30 days.</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/public/img/docs/metrics/database-metrics.png" alt="CPU, memory, storage and connection metrics for a database">
+      <p align="center"><b>Metrics and logs built in.</b> CPU, memory, storage and connections at a glance. <a href="https://lucity.cloud/docs/metrics">Metrics</a></p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/public/img/docs/eject/eject-dialog.png" alt="The eject dialog exporting a project as a Helm chart">
+      <p align="center"><b>Eject anytime.</b> Download your project as a plain Helm chart and run it without Lucity. <a href="https://lucity.cloud/docs/eject">Eject</a></p>
+    </td>
+  </tr>
+</table>
+
 ## Documentation
 
 Full documentation at **[lucity.cloud](https://lucity.cloud)**.
