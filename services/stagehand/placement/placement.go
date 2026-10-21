@@ -84,7 +84,7 @@ func (w *Worker) reconcile(ctx context.Context) error {
 		return err
 	}
 
-	moved, deferred := 0, 0
+	moved, deferred, planned := 0, 0, 0
 
 	for _, env := range environments {
 		if err := ctx.Err(); err != nil {
@@ -124,6 +124,7 @@ func (w *Worker) reconcile(ctx context.Context) error {
 
 		if w.dryRun {
 			log.Info("placement: would move environment")
+			planned++
 			continue
 		}
 
@@ -141,8 +142,8 @@ func (w *Worker) reconcile(ctx context.Context) error {
 		}
 	}
 
-	if moved > 0 || deferred > 0 {
-		slog.Info("placement pass done", "moved", moved, "deferred", deferred)
+	if moved > 0 || deferred > 0 || planned > 0 {
+		slog.Info("placement pass done", "moved", moved, "deferred", deferred, "planned", planned)
 	}
 
 	return nil
