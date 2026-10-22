@@ -388,7 +388,9 @@ const repos = computed(() => {
 });
 
 // Create project
-const { mutate: createProject, loading: creating } = useMutation(CreateProjectDocument);
+const { mutate: createProject, loading: creating } = useMutation(CreateProjectDocument, {
+  refetchQueries: ['ProjectsForNav'],
+});
 
 const detectingServices = ref(false);
 
