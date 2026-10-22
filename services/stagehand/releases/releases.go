@@ -8,26 +8,19 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"sort"
 	"time"
-
-	core "k8s.io/api/core/v1"
-	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 
 	"github.com/zeitlos/lucity/pkg/billing"
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/deployer/values"
 	"github.com/zeitlos/lucity/pkg/environment"
 	"github.com/zeitlos/lucity/pkg/logto"
-	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/services/stagehand/workspaces"
 )
 
 const customerKey = "stripeCustomerId"
 
 type Worker struct {
-	k8s          kubernetes.Interface
 	environment  environment.Interface
 	environments deployer.EnvironmentClient
 	directory    *workspaces.Directory
@@ -35,15 +28,13 @@ type Worker struct {
 	defaults     values.Placement
 	paid         values.Placement
 	interval     time.Duration
-	maxMoves     int
 	dryRun       bool
 }
 
 // New returns a worker that converges environments every interval. With a
 // nil billing client every environment gets the default placement.
-func New(k8s kubernetes.Interface, environment environment.Interface, environments deployer.EnvironmentClient, directory *workspaces.Directory, billing *billing.Client, defaults, paid values.Placement, interval time.Duration, maxMoves int, dryRun bool) *Worker {
+func New(environment environment.Interface, environments deployer.EnvironmentClient, directory *workspaces.Directory, billing *billing.Client, defaults, paid values.Placement, interval time.Duration, dryRun bool) *Worker {
 	return &Worker{
-		k8s:          k8s,
 		environment:  environment,
 		environments: environments,
 		directory:    directory,
@@ -51,7 +42,6 @@ func New(k8s kubernetes.Interface, environment environment.Interface, environmen
 		defaults:     defaults,
 		paid:         paid,
 		interval:     interval,
-		maxMoves:     maxMoves,
 		dryRun:       dryRun,
 	}
 }
@@ -70,11 +60,6 @@ func (w *Worker) Run(ctx context.Context) {
 	}
 }
 
-type tenant struct {
-	environment platform.Environment
-	paid        bool
-}
-
 func (w *Worker) reconcile(ctx context.Context) error {
 	organizations, err := w.directory.Organizations(ctx)
 
@@ -89,22 +74,23 @@ func (w *Worker) reconcile(ctx context.Context) error {
 		slog.Error("placement frozen for this pass", "error", err)
 	}
 
-	tenants, err := w.tenants(ctx, paid)
+	environments, err := w.directory.Environments(ctx)
 
 	if err != nil {
 		return err
 	}
 
-	applied, deferred, planned := 0, 0, 0
+	applied, planned := 0, 0
 
-	for _, tenant := range tenants {
+	for _, environment := range environments {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
 
-		id := tenant.environment.ID
+		id := environment.ID
+		workspacePaid := paid[id.Workspace]
 
-		if err := w.environment.Ensure(ctx, id, tenant.environment.ResourceTier); err != nil {
+		if err := w.environment.Ensure(ctx, id, environment.ResourceTier); err != nil {
 			slog.Warn("release: failed to ensure scaffolding", "environment", id, "error", err)
 		}
 
@@ -121,7 +107,7 @@ func (w *Worker) reconcile(ctx context.Context) error {
 
 		desired := w.defaults
 
-		if tenant.paid {
+		if workspacePaid {
 			desired = w.paid
 		}
 
@@ -142,19 +128,7 @@ func (w *Worker) reconcile(ctx context.Context) error {
 			continue
 		}
 
-		running, err := w.hasRunningPods(ctx, id.Namespace())
-
-		if err != nil {
-			slog.Warn("release: failed to list pods", "environment", id, "error", err)
-			continue
-		}
-
-		if running && applied >= w.maxMoves {
-			deferred++
-			continue
-		}
-
-		log := slog.With("environment", id, "paid", tenant.paid, "running", running, "outdated", outdated, "move", move)
+		log := slog.With("environment", id, "paid", workspacePaid, "outdated", outdated, "move", move)
 
 		if w.dryRun {
 			log.Info("release: would apply")
@@ -170,14 +144,11 @@ func (w *Worker) reconcile(ctx context.Context) error {
 		}
 
 		log.Info("release: applied", "revision", revision)
-
-		if running {
-			applied++
-		}
+		applied++
 	}
 
-	if applied > 0 || deferred > 0 || planned > 0 {
-		slog.Info("release pass done", "applied", applied, "deferred", deferred, "planned", planned)
+	if applied > 0 || planned > 0 {
+		slog.Info("release pass done", "applied", applied, "planned", planned)
 	}
 
 	return nil
@@ -209,39 +180,4 @@ func (w *Worker) paidWorkspaces(ctx context.Context, organizations []logto.Organ
 	}
 
 	return paid, nil
-}
-
-// tenants returns every environment, those of paid workspaces first, so they
-// move before the free pool's backlog.
-func (w *Worker) tenants(ctx context.Context, paid map[string]bool) ([]tenant, error) {
-	environments, err := w.directory.Environments(ctx)
-
-	if err != nil {
-		return nil, err
-	}
-
-	tenants := make([]tenant, 0, len(environments))
-
-	for _, environment := range environments {
-		tenants = append(tenants, tenant{environment: environment, paid: paid[environment.ID.Workspace]})
-	}
-
-	sort.SliceStable(tenants, func(i, j int) bool {
-		return tenants[i].paid && !tenants[j].paid
-	})
-
-	return tenants, nil
-}
-
-func (w *Worker) hasRunningPods(ctx context.Context, namespace string) (bool, error) {
-	pods, err := w.k8s.CoreV1().Pods(namespace).List(ctx, meta.ListOptions{
-		FieldSelector: "status.phase=" + string(core.PodRunning),
-		Limit:         1,
-	})
-
-	if err != nil {
-		return false, err
-	}
-
-	return len(pods.Items) > 0, nil
 }

@@ -51,7 +51,6 @@ const (
 type Config struct {
 	LogLevel string        `envconfig:"LOG_LEVEL" default:"info"`
 	Interval time.Duration `envconfig:"INTERVAL" default:"2m"`
-	MaxMoves int           `envconfig:"MAX_MOVES" default:"3"`
 	DryRun   bool          `envconfig:"DRY_RUN" default:"false"`
 
 	SystemNamespace string `envconfig:"SYSTEM_NAMESPACE" default:"lucity-system"`
@@ -206,10 +205,10 @@ func main() {
 
 	directory := workspaces.New(logto.New(config.LogtoEndpoint, config.LogtoM2MAppID, config.LogtoM2MAppSecret), platformClient, workspaceMaxAge)
 
-	releaseWorker := releases.New(k8sClient, environmentClient, deployerClient.Environments(), directory, billingClient, config.WorkloadDefaultPlacement, config.WorkloadPaidPlacement, config.Interval, config.MaxMoves, config.DryRun)
+	releaseWorker := releases.New(environmentClient, deployerClient.Environments(), directory, billingClient, config.WorkloadDefaultPlacement, config.WorkloadPaidPlacement, config.Interval, config.DryRun)
 	domainWorker := customdomains.New(domainsClient, directory, pendingDomainInterval, domainSyncInterval)
 
-	slog.Info("stagehand started", "version", Version, "interval", config.Interval, "max_moves", config.MaxMoves, "dry_run", config.DryRun, "max_concurrent_releases", config.MaxConcurrentReleases, "max_concurrent_builds", config.MaxConcurrentBuilds)
+	slog.Info("stagehand started", "version", Version, "interval", config.Interval, "dry_run", config.DryRun, "max_concurrent_releases", config.MaxConcurrentReleases, "max_concurrent_builds", config.MaxConcurrentBuilds)
 
 	var workers sync.WaitGroup
 

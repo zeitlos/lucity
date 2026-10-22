@@ -12,8 +12,6 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/zeitlos/lucity/charts v0.0.0-20260706084318-3ef7184f18d8
 	github.com/zeitlos/lucity/pkg v0.0.0-20260706084318-3ef7184f18d8
-	k8s.io/api v0.37.1
-	k8s.io/apimachinery v0.37.1
 	k8s.io/client-go v0.37.1
 )
 
@@ -150,7 +148,9 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	helm.sh/helm/v4 v4.3.0 // indirect
+	k8s.io/api v0.37.1 // indirect
 	k8s.io/apiextensions-apiserver v0.37.1 // indirect
+	k8s.io/apimachinery v0.37.1 // indirect
 	k8s.io/apiserver v0.37.1 // indirect
 	k8s.io/cli-runtime v0.37.1 // indirect
 	k8s.io/component-base v0.37.1 // indirect

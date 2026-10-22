@@ -62,8 +62,6 @@ spec:
               value: {{ .Values.conductor.buildNamespace | quote }}
             - name: INTERVAL
               value: {{ .Values.stagehand.interval | quote }}
-            - name: MAX_MOVES
-              value: {{ .Values.stagehand.maxMoves | quote }}
             - name: DRY_RUN
               value: {{ .Values.stagehand.dryRun | quote }}
             {{- with include "lucity.placementJSON" .Values.workloadPlacement.default }}

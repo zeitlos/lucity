@@ -48,7 +48,7 @@ Each Lucity instance supports multiple workspaces. A workspace is the tenant bou
 | Service | Port | Protocol | Purpose |
 |---------|------|----------|---------|
 | Conductor | 8080 (HTTP), 9090 (gRPC), 9004 (webhook HTTP) | HTTP+gRPC | Unified control plane: GraphQL, Helm release management for user changes, build orchestration, GitHub webhook receiver. Runs no background loops |
-| Stagehand | none | Kubernetes + Stripe (read) | Every background loop: build/deploy admission (event-driven), namespace scaffolding, chart upgrades, plan-based placement (paced, dry-run capable), custom-domain verification + edge sync, backup recovery floors |
+| Stagehand | none | Kubernetes + Stripe (read) | Every background loop: build/deploy admission (event-driven), namespace scaffolding, chart upgrades, plan-based placement (dry-run capable), custom-domain verification + edge sync, backup recovery floors |
 | Cashier | 9005 (gRPC), 9006 (HTTP) | gRPC + HTTP | Stripe billing, metering, suspension callbacks |
 | Exporter | 9007 (HTTP) | Prometheus `/metrics` | Usage from external providers (object storage sizes) as metrics, scraped by the node-local otel agent |
 | Dashboard | 5173 | HTTP | Vue 3 SPA |

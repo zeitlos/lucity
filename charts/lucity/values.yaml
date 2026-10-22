@@ -185,8 +185,6 @@ stagehand:
     tag: ""
     pullPolicy: IfNotPresent
   interval: 2m
-  # Environments with running pods moved per pass
-  maxMoves: 3
   # Only log what would move
   dryRun: false
   env: {}
