@@ -19,7 +19,7 @@ Run these before anything else. Stop and instruct the user if a check fails.
 
 - **CLI present**: if the `lucity` MCP tools are not available (the server failed to connect), the CLI is not installed or not on `PATH`. Tell the user to `brew install zeitlos/tap/lucity`, then `lucity login`, then **restart the Claude Code session** so the plugin can start `lucity mcp`. Do not try to install it yourself — it cannot take effect in this session.
 - **Auth**: call `get_account`. If it errors on auth, tell the user to run `lucity login` in a terminal, then retry.
-- **Workspace**: `get_account` returns the active workspace. If none is active, tell the user to select one (`lucity workspace`). Every resource is workspace-scoped.
+- **Workspace**: `get_account` returns the platform URL, the active workspace, and every workspace the user belongs to. If none is active, tell the user to select one (`lucity workspace`). If they belong to **more than one**, ask which workspace the project belongs in before creating anything, even when one is active: where a project lives is a business decision. Name the platform URL in the same question so a stale login to an old platform is caught. Tool IDs must start with the active workspace, so switching means the user runs `lucity workspace <id>` and restarts the Claude Code session (the MCP server reads the workspace once at startup).
 - **GitHub auth (separate token!)**: `get_account` passing does NOT mean GitHub access works — source-build calls (`list_github_repos`, `detect_services`, `add_service`) use a distinct GitHub/Logto token that can be expired even when `get_account` is green. So run `list_github_repos` as its own preflight check. If it fails with an expired-session/auth error, the user must run `lucity login` (a re-login refreshes that token); stop and tell them rather than retrying.
 - **Code on GitHub**: Lucity builds from GitHub, not from local disk. Match the local repo's `origin` remote against `list_github_repos`. If it is not listed, the workspace's GitHub app cannot see it — the user either installs/authorizes the app for that repo or pushes the repo to GitHub. The platform never commits, pushes, or writes hooks; the user does that themselves.
 
@@ -45,6 +45,11 @@ command) for the repo/subdir. Then **independently verify** against the repo:
 - Version files: `.python-version`, `.nvmrc`, `.node-version`, `engines` in `package.json`, `go.mod`, `.tool-versions`, `runtime.txt`, `.ruby-version` / Gemfile `ruby`, `rust-toolchain.toml`, `.elixir-version`, `global.json`, `*.csproj` `TargetFramework`, `deno.json`.
 - Lockfiles (which package manager), `Procfile` (start command + process types), framework configs.
 
+**Railpack only sees the service's build directory.** When a service builds from a subfolder (a
+monorepo's `backend/`), version files at the repo root (`.python-version`, `.nvmrc`, `.tool-versions`)
+are invisible to it and the build silently falls back to the provider default. If the version file is
+not inside the build directory, pin `RAILPACK_<PROVIDER>_VERSION` in `add_service`'s initial variables.
+
 On disagreement, or when detection is missing something, configure via the **three generic knobs**:
 
 1. **Version pins** — `RAILPACK_<PROVIDER>_VERSION` style variables (exact spellings in `references/<provider>.md`).
@@ -61,7 +66,7 @@ reference file, use the generic mechanisms above and https://railpack.com/langua
 
 Every service must satisfy these (details in `references/lucity-platform.md`):
 
-- **Port**: the platform injects a `PORT` env var. The app MUST bind `0.0.0.0:$PORT`, not a hardcoded port or `localhost`. Most Railpack providers wire this automatically; verify the app respects `$PORT`.
+- **Port**: the platform injects a `PORT` env var, **`8080` for repository services** unless you change the service port with `configure_service`. The framework's usual port (`8000`, `3000`) is only the fallback in a start command like `${PORT:-8000}` and never applies. The app MUST bind `0.0.0.0:$PORT`, not a hardcoded port or `localhost`. Most Railpack providers wire this automatically; verify the app respects `$PORT`. **Settle each service's port before writing its internal URL into another service**: changing it later silently breaks every consumer that still points at the old port.
 - **Config via env only**: no config files baked with secrets; read everything from env vars.
 - **Ephemeral filesystem**: containers lose local writes on restart. Persistent data → a volume (`create_volume`, **10Gi minimum**, one service per volume, single replica) or a bucket (`create_bucket`, for anything that scales). Never assume local disk survives.
 - **Service-to-service links use the internal endpoint**: read the `type: INTERNAL` host from `get_project` (or the `add_service` result) plus the service `port`, and set it as a literal variable on the consumer (e.g. `API_URL=http://lucity-app-api.<namespace>.svc.cluster.local:3000`). Never build the hostname by hand (the namespace carries a hash) and never expect cross-environment reach: internal DNS only works within one environment.
@@ -119,6 +124,14 @@ instead of looping forever.
 2. Poll `get_deploy_status` every ~10s with the `release_id` that `add_service` returned. Config changes
    made meanwhile create newer releases that would otherwise hide the build, and one issued while the
    rollout runs can fail with "another operation ... is in progress", so retry it after a few seconds.
+   - **Always pass `release_id`.** Without it you get the newest release, and after a config change that
+     is a settings-only release which can show as `SUPERSEDED` with no build info even though the
+     service is healthy. That is not a failure.
+   - **Waiting between polls**: Claude Code blocks a foreground `sleep` and no MCP tool waits, so run a
+     short `sleep` in the background (or use a monitor) and poll when it fires.
+   - **Releases run one at a time per environment** (and builds share a small cluster-wide cap). Adding
+     several services back to back does not build them in parallel: the later builds sit queued until
+     the earlier release finishes. A queued build is waiting its turn, not stuck.
 3. On failure, classify by the **signal**, not the technology:
 
 > **`deploy` rebuilds from source (minutes). Config changes do not need it.** `set_variables`, `configure_service` (resources, port, start command), and volume mounts each roll the service out automatically with its **current image** in seconds. So every fix below that is config-only (a version pin for the *next* build aside) is applied and then you just poll `get_deploy_status` — **only call `deploy` again when you changed the source or a build-time `RAILPACK_*` variable.**
@@ -146,7 +159,9 @@ the platform; code lives in the repo.
 
 ## 7. Verify & report
 
-- `add_domain` to get a generated domain for the web service.
+- `add_domain` to get a generated domain for the web service. Until the service's first rollout has
+  succeeded, its reply lists only the internal endpoint; that is not a failure. The public domain
+  appears in `get_deploy_status`'s endpoints once the service is up, so read the URL from there.
 - `curl` the endpoint until it returns 200 (TLS provisioning can take ~1 minute; retry).
 - Report back:
   - Live URL(s).
@@ -181,5 +196,5 @@ There are no delete tools — the user removes projects, services, and resources
 ## References
 
 - `references/railpack-config.md` — global Railpack config (build/install/start/packages, `railpack.json`, Procfile priority).
-- `references/lucity-platform.md` — PORT injection, resource-quantity format, ID formats, variable refs, public DB access, rollout failure reasons, internal DNS shape, volume rules (10Gi floor), custom domains (apex redirect vs ALIAS).
+- `references/lucity-platform.md` — PORT injection (8080 default), resource-quantity format, ID formats, variable refs, public DB access, rollout failure reasons, release queue, generated domains, internal DNS shape, volume rules (10Gi floor), custom domains (apex redirect vs ALIAS).
 - `references/<provider>.md` — per-language detection, version resolution, start command, config variables, and common failure fixes. One file per Railpack provider.

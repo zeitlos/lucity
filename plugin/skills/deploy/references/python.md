@@ -20,6 +20,10 @@ Any of:
 
 Only non-EOL Python versions (3.10+) are officially supported.
 
+Version files are only read from the service's build directory. A backend built from `backend/` with
+`.python-version` at the repo root silently gets the default 3.13; pin `RAILPACK_PYTHON_VERSION` in
+`add_service`'s initial variables instead.
+
 ## Precompiled vs. compiled
 
 Python installs from precompiled Mise binaries by default. If a precompiled binary is unavailable for
@@ -40,7 +44,8 @@ ship prebuilt wheels). To opt into source compilation set the deploy variable `M
 1. Framework-specific command (below)
 2. First main file found, checked in order: `main.py`, `app.py`, `start.py`, `bot.py`, `hello.py`, `server.py`
 
-Framework start commands (all bind `0.0.0.0` and `$PORT`, default 8000):
+Framework start commands (all bind `0.0.0.0` and `$PORT`; the `8000` is only a fallback, Lucity always
+sets `PORT`, `8080` by default):
 - **Flask** (with `gunicorn`): `gunicorn --bind 0.0.0.0:${PORT:-8000} main:app`
 - **FastAPI** / **FastHTML** (with `uvicorn`): `uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}`
 - **Django** (`manage.py` or `django` dep): `python manage.py migrate && gunicorn {appName}:application`, where `appName` comes from `RAILPACK_DJANGO_APP_NAME`, else the `WSGI_APPLICATION` setting.
@@ -66,6 +71,7 @@ runtime), MySQL (`default-libmysqlclient-dev` / `default-mysql-client`).
 
 ## Common failure modes
 
+- **Wrong Python version in a subfolder service** (root `.python-version` ignored) → pin `RAILPACK_PYTHON_VERSION`.
 - **Build fails: no precompiled binary for the Python version** → pin `RAILPACK_PYTHON_VERSION` to a version with a prebuilt binary, or opt into `MISE_PYTHON_COMPILE=1`.
 - **Wrong start command (app object not `app`)** → set the start command via `configure_service` or a `Procfile`.
 - **Django app name misdetected** → set `RAILPACK_DJANGO_APP_NAME`.

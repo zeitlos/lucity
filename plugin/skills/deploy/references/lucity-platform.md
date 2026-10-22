@@ -6,7 +6,11 @@ to plain infrastructure-as-code, so anything you deploy stays ejectable.
 
 ## PORT injection
 
-The platform injects a `PORT` environment variable into every service. The app **must** bind
+The platform injects a `PORT` environment variable into every service: `8080` for repository services
+unless the service port is changed with `configure_service`. Framework defaults (`8000`, `3000`) only
+appear as fallbacks like `${PORT:-8000}` and never take effect. The service port is also the port in its
+internal endpoint, so settle it before wiring other services to it; changing it later silently breaks
+any consumer still pointing at the old one. The app **must** bind
 `0.0.0.0:$PORT`. Binding a hardcoded port, or binding `localhost` / `127.0.0.1`, makes the service
 unreachable and the rollout fails readiness. Most Railpack providers already read `$PORT` (Node, Python
 frameworks, .NET via `ASPNETCORE_URLS`, etc.); a few need the start command adjusted. If the app truly
@@ -97,6 +101,20 @@ Use it for one-off imports, then rely on in-cluster refs for the running app.
 | `DEADLINE_EXCEEDED` | Rollout did not complete within the deadline. | Same as `NOT_READY`; inspect runtime logs for a hanging start. |
 
 Bound remediation to 3 iterations, then report honestly rather than looping.
+
+## Release queue
+
+Each environment runs one release (build, scan, deploy) at a time, and builds share a small
+cluster-wide cap. Several services added back to back therefore build one after another; a later build
+showing as queued is waiting its turn. `get_deploy_status` without `release_id` returns the newest
+release, which after a config change is a settings-only release that can read `SUPERSEDED` with no
+build info while the service is healthy. Pass the `release_id` you are tracking.
+
+## Generated domains
+
+`add_domain` without a hostname generates a platform subdomain right away, but until the service's
+first rollout succeeds its reply shows only the internal endpoint. The public domain appears in
+`get_deploy_status`'s endpoints once the service is up.
 
 ## Internal networking (service to service)
 
