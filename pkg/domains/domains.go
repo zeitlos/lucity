@@ -123,6 +123,51 @@ func (c *Client) reconcileEnvironment(ctx context.Context, envID platform.Enviro
 	return attached, detached
 }
 
+// AttachPending attaches every not yet attached custom domain of the given
+// workspaces whose DNS now verifies, and registers it with the edge.
+func (c *Client) AttachPending(ctx context.Context, workspaces map[string]bool) error {
+	pending, err := c.platform.PendingDomains(ctx)
+
+	if err != nil {
+		return err
+	}
+
+	for _, domain := range pending {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
+		if !workspaces[domain.Service.Workspace] || !c.hostname.IsCustom(domain.Host) {
+			continue
+		}
+
+		redirect := domain.RedirectTo != ""
+		verified, err := c.Verified(ctx, domain.Service.Workspace, domain.Host, redirect)
+
+		if err != nil {
+			slog.DebugContext(ctx, "attach domains: dns lookup failed", "host", domain.Host, "error", err)
+			continue
+		}
+
+		if !verified {
+			continue
+		}
+
+		if _, err := c.deployer.Services().AttachDomain(ctx, domain.Service, domain.Host, true); err != nil {
+			slog.WarnContext(ctx, "attach domains: attach failed", "service", domain.Service, "host", domain.Host, "error", err)
+			continue
+		}
+
+		slog.InfoContext(ctx, "attach domains: domain verified and attached", "service", domain.Service, "host", domain.Host)
+
+		if c.UsesEdge(ctx, domain.Host, redirect) {
+			c.Register(ctx, domain.Service, domain.Host)
+		}
+	}
+
+	return nil
+}
+
 // Verified reports whether the DNS records of a custom domain point at the
 // platform.
 func (c *Client) Verified(ctx context.Context, workspaceID, host string, redirect bool) (bool, error) {

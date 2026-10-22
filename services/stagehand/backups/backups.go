@@ -11,17 +11,48 @@ import (
 	"time"
 
 	"github.com/zeitlos/lucity/pkg/platform"
+	"github.com/zeitlos/lucity/services/stagehand/workspaces"
 )
 
 const retryInterval = time.Hour
 
-func Reconcile(ctx context.Context, client platform.Interface, environments []platform.EnvironmentID) error {
-	for _, environment := range environments {
+type Worker struct {
+	platform  platform.Interface
+	directory *workspaces.Directory
+	interval  time.Duration
+}
+
+func New(platform platform.Interface, directory *workspaces.Directory, interval time.Duration) *Worker {
+	return &Worker{platform: platform, directory: directory, interval: interval}
+}
+
+func (w *Worker) Run(ctx context.Context) {
+	for {
+		if err := w.reconcile(ctx); err != nil && ctx.Err() == nil {
+			slog.Error("backup pass failed", "error", err)
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(w.interval):
+		}
+	}
+}
+
+func (w *Worker) reconcile(ctx context.Context) error {
+	environments, err := w.directory.Environments(ctx)
+
+	if err != nil {
+		return err
+	}
+
+	for _, environment := range workspaces.IDs(environments) {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
 
-		databases, err := client.Databases(ctx, environment)
+		databases, err := w.platform.Databases(ctx, environment)
 
 		if err != nil {
 			slog.Warn("reconcile backups: failed to list databases", "error", err, "environment", environment)
@@ -33,7 +64,7 @@ func Reconcile(ctx context.Context, client platform.Interface, environments []pl
 				continue
 			}
 
-			if err := ensureRecoveryFloor(ctx, client, database.ID); err != nil {
+			if err := ensureRecoveryFloor(ctx, w.platform, database.ID); err != nil {
 				slog.Warn("reconcile backups: failed to ensure recovery floor", "error", err, "database", database.ID)
 			}
 		}

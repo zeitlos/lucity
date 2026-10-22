@@ -80,6 +80,14 @@ type Endpoint struct {
 	RedirectTo string
 }
 
+// PendingDomain is a domain of a service whose route isn't attached to the
+// gateway yet.
+type PendingDomain struct {
+	Service    ServiceID
+	Host       string
+	RedirectTo string
+}
+
 type Protocol string
 
 const (

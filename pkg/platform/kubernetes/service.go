@@ -120,6 +120,45 @@ func (c *Client) Services(ctx context.Context, environmentID platform.Environmen
 	return services, nil
 }
 
+func (c *Client) PendingDomains(ctx context.Context) ([]platform.PendingDomain, error) {
+	routes, err := c.dynamic.Resource(httpRouteGVR).List(ctx, meta.ListOptions{
+		LabelSelector: workspaceLabel + "," + projectLabel + "," + environmentLabel + "," + serviceLabel + ",!" + httpsRedirectLabel,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	var pending []platform.PendingDomain
+
+	for _, route := range routes.Items {
+		if parentRefs, _, _ := unstructured.NestedSlice(route.Object, "spec", "parentRefs"); len(parentRefs) > 0 {
+			continue
+		}
+
+		labels := route.GetLabels()
+		service := platform.ServiceID{
+			Workspace:   labels[workspaceLabel],
+			Project:     labels[projectLabel],
+			Environment: labels[environmentLabel],
+			Name:        labels[serviceLabel],
+		}
+
+		if service.Namespace() != route.GetNamespace() {
+			continue
+		}
+
+		hosts, _, _ := unstructured.NestedStringSlice(route.Object, "spec", "hostnames")
+		redirectTo := redirectTarget(route)
+
+		for _, host := range hosts {
+			pending = append(pending, platform.PendingDomain{Service: service, Host: host, RedirectTo: redirectTo})
+		}
+	}
+
+	return pending, nil
+}
+
 func (c *Client) ServicesByRepo(ctx context.Context, repoURL string) ([]platform.RepoService, error) {
 	req, err := labels.NewRequirement(serviceLabel, selection.Exists, nil)
 

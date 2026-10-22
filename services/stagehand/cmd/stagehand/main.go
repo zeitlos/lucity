@@ -30,7 +30,10 @@ import (
 	"github.com/zeitlos/lucity/pkg/pipeline"
 	platformK8s "github.com/zeitlos/lucity/pkg/platform/kubernetes"
 	"github.com/zeitlos/lucity/services/stagehand/admission"
-	"github.com/zeitlos/lucity/services/stagehand/environments"
+	"github.com/zeitlos/lucity/services/stagehand/backups"
+	"github.com/zeitlos/lucity/services/stagehand/customdomains"
+	"github.com/zeitlos/lucity/services/stagehand/releases"
+	"github.com/zeitlos/lucity/services/stagehand/workspaces"
 )
 
 // Version is set at build time via ldflags. It must equal the conductor's
@@ -38,7 +41,12 @@ import (
 // applies.
 var Version = "0.0.0-dev"
 
-const backupInterval = 10 * time.Minute
+const (
+	workspaceMaxAge       = time.Minute
+	pendingDomainInterval = 15 * time.Second
+	domainSyncInterval    = 2 * time.Minute
+	backupInterval        = 10 * time.Minute
+)
 
 type Config struct {
 	LogLevel string        `envconfig:"LOG_LEVEL" default:"info"`
@@ -196,22 +204,23 @@ func main() {
 
 	jobsCache.Start(ctx)
 
-	var backups time.Duration
+	directory := workspaces.New(logto.New(config.LogtoEndpoint, config.LogtoM2MAppID, config.LogtoM2MAppSecret), platformClient, workspaceMaxAge)
 
-	if config.DatabaseBackupEnabled {
-		backups = backupInterval
-	}
-
-	directory := logto.New(config.LogtoEndpoint, config.LogtoM2MAppID, config.LogtoM2MAppSecret)
-
-	environmentWorker := environments.New(k8sClient, platformClient, environmentClient, deployerClient.Environments(), domainsClient, directory, billingClient, config.WorkloadDefaultPlacement, config.WorkloadPaidPlacement, config.Interval, backups, config.MaxMoves, config.DryRun)
+	releaseWorker := releases.New(k8sClient, environmentClient, deployerClient.Environments(), directory, billingClient, config.WorkloadDefaultPlacement, config.WorkloadPaidPlacement, config.Interval, config.MaxMoves, config.DryRun)
+	domainWorker := customdomains.New(domainsClient, directory, pendingDomainInterval, domainSyncInterval)
 
 	slog.Info("stagehand started", "version", Version, "interval", config.Interval, "max_moves", config.MaxMoves, "dry_run", config.DryRun, "max_concurrent_releases", config.MaxConcurrentReleases, "max_concurrent_builds", config.MaxConcurrentBuilds)
 
 	var workers sync.WaitGroup
 
 	workers.Go(func() { admissionWorker.Run(ctx) })
-	workers.Go(func() { environmentWorker.Run(ctx) })
+	workers.Go(func() { releaseWorker.Run(ctx) })
+	workers.Go(func() { domainWorker.Run(ctx) })
+
+	if config.DatabaseBackupEnabled {
+		backupWorker := backups.New(platformClient, directory, backupInterval)
+		workers.Go(func() { backupWorker.Run(ctx) })
+	}
 
 	workers.Wait()
 }
