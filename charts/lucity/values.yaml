@@ -176,7 +176,8 @@ workloadPlacement:
   default: {}
   paid: {}
 
-# -- Stagehand (workload changes nobody asked for in the moment: plan-based placement)
+# -- Stagehand (workload changes nobody asked for in the moment: placement, namespace
+#    scaffolding, chart upgrades, custom domains, backup floors and build admission)
 stagehand:
   enabled: false
   image:
@@ -193,9 +194,9 @@ stagehand:
   resources:
     requests:
       cpu: 20m
-      memory: 128Mi
+      memory: 256Mi
     limits:
-      memory: 512Mi
+      memory: 1Gi
   nodeSelector: {}
   tolerations: []
   affinity: {}

@@ -87,6 +87,24 @@ func (c *Cache) Start(ctx context.Context) {
 	}
 }
 
+// OnChange calls notify after every add, update or delete either informer
+// sees.
+func (c *Cache) OnChange(notify func()) error {
+	handler := cache.ResourceEventHandlerFuncs{
+		AddFunc:    func(any) { notify() },
+		UpdateFunc: func(any, any) { notify() },
+		DeleteFunc: func(any) { notify() },
+	}
+
+	for _, informer := range []cache.SharedIndexInformer{c.builds, c.deploys} {
+		if _, err := informer.AddEventHandler(handler); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (c *Cache) HasSynced() bool {
 	return c.builds.HasSynced() && c.deploys.HasSynced()
 }

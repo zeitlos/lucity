@@ -13,7 +13,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.20.6
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.0
 	github.com/blang/semver/v4 v4.0.0
-	github.com/cloudnative-pg/cloudnative-pg v1.30.1
 	github.com/coder/websocket v1.8.15
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/go-playground/validator/v10 v10.30.5
@@ -29,7 +28,6 @@ require (
 	github.com/vektah/gqlparser/v2 v2.5.59
 	github.com/zeitlos/lucity/charts v0.0.0-20260706084318-3ef7184f18d8
 	github.com/zeitlos/lucity/pkg v0.0.0-20260706084318-3ef7184f18d8
-	golang.org/x/net v0.59.0
 	golang.org/x/oauth2 v0.37.0
 	google.golang.org/grpc v1.84.0
 	k8s.io/api v0.37.1
@@ -79,6 +77,7 @@ require (
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/cloudflare/circl v1.6.5 // indirect
 	github.com/cloudnative-pg/barman-cloud v0.6.0 // indirect
+	github.com/cloudnative-pg/cloudnative-pg v1.30.1 // indirect
 	github.com/cloudnative-pg/cnpg-i v0.6.0 // indirect
 	github.com/cloudnative-pg/machinery v0.6.0 // indirect
 	github.com/cyphar/filepath-securejoin v0.7.0 // indirect
@@ -88,7 +87,6 @@ require (
 	github.com/docker/docker-credential-helpers v0.9.9 // indirect
 	github.com/dylibso/observe-sdk/go v0.0.0-20240819160327-2d926c5d788a // indirect
 	github.com/emicklei/go-restful/v3 v3.13.0 // indirect
-	github.com/evanphx/json-patch v5.9.11+incompatible // indirect
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
 	github.com/exponent-io/jsonpath v0.0.0-20210407135951-1de76d718b3f // indirect
 	github.com/extism/go-sdk v1.7.1 // indirect
@@ -202,6 +200,7 @@ require (
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/crypto v0.57.0 // indirect
 	golang.org/x/exp v0.0.0-20260908205506-85c1c2202aba // indirect
+	golang.org/x/net v0.59.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/term v0.46.0 // indirect

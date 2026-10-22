@@ -9,9 +9,9 @@ import (
 	core "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/zeitlos/lucity/pkg/jobs"
 	"github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/pkg/platform"
-	"github.com/zeitlos/lucity/services/conductor/internal/jobs"
 	"github.com/zeitlos/lucity/services/conductor/internal/scanjob"
 )
 

@@ -6,10 +6,10 @@ import (
 
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/zeitlos/lucity/pkg/jobs"
 	"github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/pkg/usererror"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployjob"
-	"github.com/zeitlos/lucity/services/conductor/internal/jobs"
 )
 
 func (c *Client) Logs(ctx context.Context, id deployjob.DeployID) (io.ReadCloser, error) {

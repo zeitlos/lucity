@@ -15,8 +15,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/zeitlos/lucity/pkg/jobs"
 	"github.com/zeitlos/lucity/pkg/labels"
-	"github.com/zeitlos/lucity/services/conductor/internal/jobs"
 )
 
 type Interface interface {

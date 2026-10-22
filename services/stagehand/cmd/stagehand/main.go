@@ -3,22 +3,34 @@ package main
 import (
 	"log/slog"
 	"os"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/blang/semver/v4"
 	"github.com/kelseyhightower/envconfig"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/metadata"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/zeitlos/lucity/charts"
 	"github.com/zeitlos/lucity/pkg/billing"
+	"github.com/zeitlos/lucity/pkg/bunny"
 	helmDeployer "github.com/zeitlos/lucity/pkg/deployer/helm"
 	"github.com/zeitlos/lucity/pkg/deployer/values"
+	"github.com/zeitlos/lucity/pkg/domains"
+	"github.com/zeitlos/lucity/pkg/edge"
+	environmentK8s "github.com/zeitlos/lucity/pkg/environment/kubernetes"
 	"github.com/zeitlos/lucity/pkg/graceful"
+	"github.com/zeitlos/lucity/pkg/hostname"
+	"github.com/zeitlos/lucity/pkg/jobs"
 	"github.com/zeitlos/lucity/pkg/logger"
 	"github.com/zeitlos/lucity/pkg/logto"
-	"github.com/zeitlos/lucity/services/stagehand/placement"
+	"github.com/zeitlos/lucity/pkg/pipeline"
+	platformK8s "github.com/zeitlos/lucity/pkg/platform/kubernetes"
+	"github.com/zeitlos/lucity/services/stagehand/admission"
+	"github.com/zeitlos/lucity/services/stagehand/environments"
 )
 
 // Version is set at build time via ldflags. It must equal the conductor's
@@ -26,11 +38,19 @@ import (
 // applies.
 var Version = "0.0.0-dev"
 
+const backupInterval = 10 * time.Minute
+
 type Config struct {
 	LogLevel string        `envconfig:"LOG_LEVEL" default:"info"`
 	Interval time.Duration `envconfig:"INTERVAL" default:"2m"`
 	MaxMoves int           `envconfig:"MAX_MOVES" default:"3"`
 	DryRun   bool          `envconfig:"DRY_RUN" default:"false"`
+
+	SystemNamespace string `envconfig:"SYSTEM_NAMESPACE" default:"lucity-system"`
+	BuildNamespace  string `envconfig:"BUILD_NAMESPACE" default:"lucity-builds"`
+
+	MaxConcurrentReleases int `envconfig:"MAX_CONCURRENT_RELEASES" default:"5"`
+	MaxConcurrentBuilds   int `envconfig:"MAX_CONCURRENT_BUILDS" default:"2"`
 
 	LogtoEndpoint     string `envconfig:"LOGTO_ENDPOINT" required:"true"`
 	LogtoM2MAppID     string `envconfig:"LOGTO_M2M_APP_ID" required:"true"`
@@ -44,6 +64,22 @@ type Config struct {
 
 	WorkloadDefaultPlacement values.Placement `envconfig:"WORKLOAD_DEFAULT_PLACEMENT"`
 	WorkloadPaidPlacement    values.Placement `envconfig:"WORKLOAD_PAID_PLACEMENT"`
+
+	// Namespace scaffolding, the same settings as the conductor's.
+	RegistryPullSecret            string `envconfig:"REGISTRY_PULL_SECRET" default:"lucity-registry-pull"`
+	PodCIDR                       string `envconfig:"POD_CIDR" default:"10.244.0.0/16"`
+	ServiceCIDR                   string `envconfig:"SERVICE_CIDR" default:"10.96.0.0/12"`
+	DatabaseBackupRegion          string `envconfig:"DATABASE_BACKUP_S3_REGION"`
+	DatabaseBackupAccessKeyID     string `envconfig:"DATABASE_BACKUP_S3_ACCESS_KEY_ID"`
+	DatabaseBackupSecretAccessKey string `envconfig:"DATABASE_BACKUP_S3_SECRET_ACCESS_KEY"`
+
+	// Custom domains and the edge CDN, the same settings as the conductor's.
+	WorkloadDomain        string `envconfig:"WORKLOAD_DOMAIN" required:"true"`
+	IPAddress             string `envconfig:"IP_ADDRESS"`
+	BunnyAPIKey           string `envconfig:"BUNNY_API_KEY"`
+	EdgeOriginURL         string `envconfig:"EDGE_ORIGIN_URL"`
+	EdgeHeaderSecret      string `envconfig:"EDGE_HEADER_SECRET"`
+	EdgeWildcardTLSSecret string `envconfig:"EDGE_WILDCARD_TLS_SECRET" default:"lucity-app-wildcard-tls"`
 
 	// Every apply re-stamps these values, so they must match the conductor's.
 	RegistryPullURL        string `envconfig:"REGISTRY_PULL_URL" required:"true"`
@@ -74,7 +110,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	k8sClient, metadataClient, err := buildKubeClients()
+	k8sClient, dynClient, metadataClient, err := buildKubeClients()
 
 	if err != nil {
 		slog.Error("failed to build kube clients", "error", err)
@@ -120,35 +156,95 @@ func main() {
 		slog.Info("billing not configured, every environment gets the default placement")
 	}
 
+	platformClient := platformK8s.New(k8sClient, dynClient)
+	platformClient.Start(ctx)
+
+	environmentClient := environmentK8s.New(k8sClient, dynClient, config.SystemNamespace, config.RegistryPullSecret, config.PodCIDR, config.ServiceCIDR, environmentK8s.BackupCredentials{
+		AccessKeyID:     config.DatabaseBackupAccessKeyID,
+		SecretAccessKey: config.DatabaseBackupSecretAccessKey,
+		Region:          config.DatabaseBackupRegion,
+	})
+
+	var edgeClient edge.Interface = edge.Disabled{}
+
+	if config.BunnyAPIKey != "" && config.EdgeOriginURL != "" {
+		edgeClient = edge.New(bunny.New(config.BunnyAPIKey), edge.Config{
+			OriginURL:    config.EdgeOriginURL,
+			HeaderSecret: config.EdgeHeaderSecret,
+			ZonePrefix:   strings.ReplaceAll(config.WorkloadDomain, ".", "-"),
+		})
+	} else {
+		slog.Info("edge not configured, custom domains are not synced to the edge")
+	}
+
+	hostnameClient := hostname.New(config.WorkloadDomain, "lb."+config.WorkloadDomain, config.IPAddress, edgeClient.EdgeAddresses, k8sClient, dynClient)
+	domainsClient := domains.New(hostnameClient, edgeClient, platformClient, deployerClient, k8sClient, config.WorkloadDomain, config.GatewayNamespace, config.EdgeWildcardTLSSecret)
+
+	jobsCache, err := jobs.NewCache(k8sClient, config.BuildNamespace, config.SystemNamespace)
+
+	if err != nil {
+		slog.Error("failed to create job cache", "error", err)
+		os.Exit(1)
+	}
+
+	admissionWorker, err := admission.New(jobsCache, pipeline.New(k8sClient, jobsCache, config.MaxConcurrentReleases, config.MaxConcurrentBuilds))
+
+	if err != nil {
+		slog.Error("failed to create admission worker", "error", err)
+		os.Exit(1)
+	}
+
+	jobsCache.Start(ctx)
+
+	var backups time.Duration
+
+	if config.DatabaseBackupEnabled {
+		backups = backupInterval
+	}
+
 	directory := logto.New(config.LogtoEndpoint, config.LogtoM2MAppID, config.LogtoM2MAppSecret)
 
-	worker := placement.New(k8sClient, deployerClient.Environments(), directory, billingClient, config.WorkloadDefaultPlacement, config.WorkloadPaidPlacement, config.Interval, config.MaxMoves, config.DryRun)
+	environmentWorker := environments.New(k8sClient, platformClient, environmentClient, deployerClient.Environments(), domainsClient, directory, billingClient, config.WorkloadDefaultPlacement, config.WorkloadPaidPlacement, config.Interval, backups, config.MaxMoves, config.DryRun)
 
-	slog.Info("stagehand started", "version", Version, "interval", config.Interval, "max_moves", config.MaxMoves, "dry_run", config.DryRun)
+	slog.Info("stagehand started", "version", Version, "interval", config.Interval, "max_moves", config.MaxMoves, "dry_run", config.DryRun, "max_concurrent_releases", config.MaxConcurrentReleases, "max_concurrent_builds", config.MaxConcurrentBuilds)
 
-	worker.Run(ctx)
+	var workers sync.WaitGroup
+
+	workers.Go(func() { admissionWorker.Run(ctx) })
+	workers.Go(func() { environmentWorker.Run(ctx) })
+
+	workers.Wait()
 }
 
-func buildKubeClients() (kubernetes.Interface, metadata.Interface, error) {
+func buildKubeClients() (kubernetes.Interface, dynamic.Interface, metadata.Interface, error) {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 
 	cfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, &clientcmd.ConfigOverrides{}).ClientConfig()
 
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
+
+	cfg.QPS = 50
+	cfg.Burst = 100
 
 	k8s, err := kubernetes.NewForConfig(cfg)
 
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
+	}
+
+	dyn, err := dynamic.NewForConfig(cfg)
+
+	if err != nil {
+		return nil, nil, nil, err
 	}
 
 	meta, err := metadata.NewForConfig(cfg)
 
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	return k8s, meta, nil
+	return k8s, dyn, meta, nil
 }

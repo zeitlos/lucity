@@ -78,7 +78,7 @@ type EnvironmentClient interface {
 	Variables(ctx context.Context, id platform.EnvironmentID) (map[string]string, error)
 	SetVariables(ctx context.Context, id platform.EnvironmentID, vars map[string]string) (RevisionID, error)
 	Suspend(ctx context.Context, id platform.EnvironmentID, suspended bool) (RevisionID, error)
-	Reconcile(ctx context.Context, id platform.EnvironmentID) (RevisionID, error)
+	Outdated(ctx context.Context, id platform.EnvironmentID) (bool, error)
 	Placement(ctx context.Context, id platform.EnvironmentID) (*values.Placement, error)
 	Place(ctx context.Context, id platform.EnvironmentID, placement values.Placement) (RevisionID, error)
 	Export(ctx context.Context, id platform.EnvironmentID) ([]byte, error)

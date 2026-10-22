@@ -3,8 +3,6 @@ package helm
 import (
 	"context"
 	"errors"
-	"log/slog"
-	"strconv"
 
 	"github.com/blang/semver/v4"
 	"github.com/zeitlos/lucity/pkg/deployer"
@@ -129,20 +127,20 @@ func (e *environmentClient) Export(_ context.Context, id platform.EnvironmentID)
 	return values.Marshal(env)
 }
 
-func (e *environmentClient) Reconcile(ctx context.Context, id platform.EnvironmentID) (deployer.RevisionID, error) {
+func (e *environmentClient) Outdated(ctx context.Context, id platform.EnvironmentID) (bool, error) {
 	namespace := id.Namespace()
 
 	var newest types.UID
 
 	if releases := e.client.releases; releases != nil {
-		uid, revision, synced := releases.newest(namespace)
+		uid, _, synced := releases.newest(namespace)
 
 		if synced && uid == "" {
-			return "", nil
+			return false, nil
 		}
 
 		if synced && releases.isVerified(namespace, uid) {
-			return deployer.RevisionID(strconv.Itoa(revision)), nil
+			return false, nil
 		}
 
 		newest = uid
@@ -151,41 +149,34 @@ func (e *environmentClient) Reconcile(ctx context.Context, id platform.Environme
 	config := action.NewConfiguration()
 
 	if err := config.Init(restGetterFor(namespace), namespace, "secret"); err != nil {
-		return "", err
+		return false, err
 	}
 
 	metadata, err := action.NewGetMetadata(config).Run(releaseName)
 
 	if errors.Is(err, driver.ErrReleaseNotFound) {
-		return "", nil
+		return false, nil
 	}
 
 	if err != nil {
-		return "", err
+		return false, err
 	}
 
 	installed, err := semver.Parse(metadata.Version)
 
 	if err != nil {
-		return "", err
+		return false, err
 	}
 
-	updateRequired := e.client.chartVersion.GT(installed)
-
-	if !updateRequired {
-		if newest != "" {
-			e.client.releases.markVerified(namespace, newest)
-		}
-
-		return deployer.RevisionID(strconv.Itoa(metadata.Revision)), nil
+	if e.client.chartVersion.GT(installed) {
+		return true, nil
 	}
 
-	slog.Info("reconcile environment", "environment", id)
+	if newest != "" {
+		e.client.releases.markVerified(namespace, newest)
+	}
 
-	return e.client.applyEnv(ctx, id, func(env *values.Env) error {
-		// Empty apply to ensure a fresh install.
-		return nil
-	})
+	return false, nil
 }
 
 var _ deployer.EnvironmentClient = (*environmentClient)(nil)

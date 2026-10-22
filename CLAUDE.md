@@ -47,8 +47,8 @@ Each Lucity instance supports multiple workspaces. A workspace is the tenant bou
 
 | Service | Port | Protocol | Purpose |
 |---------|------|----------|---------|
-| Conductor | 8080 (HTTP), 9090 (gRPC), 9004 (webhook HTTP) | HTTP+gRPC | Unified control plane: GraphQL, Helm release management, build orchestration, custom-domain reconciliation, GitHub webhook receiver |
-| Stagehand | none | Kubernetes + Stripe (read) | Moves each environment to the node placement of its workspace's plan; paced, dry-run capable |
+| Conductor | 8080 (HTTP), 9090 (gRPC), 9004 (webhook HTTP) | HTTP+gRPC | Unified control plane: GraphQL, Helm release management for user changes, build orchestration, GitHub webhook receiver. Runs no background loops |
+| Stagehand | none | Kubernetes + Stripe (read) | Every background loop: build/deploy admission (event-driven), namespace scaffolding, chart upgrades, plan-based placement (paced, dry-run capable), custom-domain verification + edge sync, backup recovery floors |
 | Cashier | 9005 (gRPC), 9006 (HTTP) | gRPC + HTTP | Stripe billing, metering, suspension callbacks |
 | Exporter | 9007 (HTTP) | Prometheus `/metrics` | Usage from external providers (object storage sizes) as metrics, scraped by the node-local otel agent |
 | Dashboard | 5173 | HTTP | Vue 3 SPA |
@@ -67,9 +67,6 @@ services/conductor/
 │   ├── buildjob/                   # build Job orchestration (kubernetes/)
 │   ├── planner/                    # source detection + build planning (railpack/)
 │   ├── source/                     # user source repo access (github/)
-│   ├── environment/                # namespace lifecycle (kubernetes/)
-│   ├── platform/kubernetes/        # platform discovery from Kubernetes (types + IDs live in pkg/platform)
-│   ├── hostname/                   # custom-domain DNS verification
 │   ├── directory/                  # user/workspace directory (logto/)
 │   ├── dbquery/                    # database explorer query execution
 │   └── transport/grpc/             # external gRPC (cashier callbacks)
@@ -84,7 +81,7 @@ services/conductor/
 
 ### Shared Packages (`pkg/`)
 
-graceful (server lifecycle), logger (slog + tint), deployer (Helm release apply + lucity-app values, shared by conductor and stagehand), platform (IDs + value types), resources, image, usererror, billing (Stripe plan lookup), auth (OIDC/JWT), labels (K8s label constants), tenant (workspace context), github (App + OAuth), logto (Logto Management API), to (pointer/conversion helpers), conductor + cashier (proto definitions for cross-service gRPC).
+graceful (server lifecycle), logger (slog + tint), deployer (Helm release apply + lucity-app values, shared by conductor and stagehand), platform (IDs + value types; kubernetes/ = discovery from Kubernetes), environment (namespace lifecycle), jobs + pipeline (build/deploy Job cache and admission), hostname (custom-domain DNS verification), edge (Bunny CDN), domains (custom-domain attach + edge sync), resources, image, usererror, billing (Stripe plan lookup), auth (OIDC/JWT), labels (K8s label constants), tenant (workspace context), github (App + OAuth), logto (Logto Management API), to (pointer/conversion helpers), conductor + cashier (proto definitions for cross-service gRPC).
 
 ## Feature Development Workflow
 

@@ -3,10 +3,10 @@ package kubernetes
 import (
 	"time"
 
+	"github.com/zeitlos/lucity/pkg/jobs"
 	"github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployjob"
-	"github.com/zeitlos/lucity/services/conductor/internal/jobs"
 
 	batch "k8s.io/api/batch/v1"
 	core "k8s.io/api/core/v1"

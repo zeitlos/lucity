@@ -281,7 +281,7 @@ func (c *Client) RemoveService(ctx context.Context, svc platform.ServiceID) (boo
 
 	if service != nil {
 		for _, endpoint := range service.Endpoints {
-			c.unregisterEdge(ctx, svc.Workspace, endpoint.Host)
+			c.domains.Unregister(ctx, svc.Workspace, endpoint.Host)
 		}
 	}
 
@@ -427,7 +427,7 @@ func (c *Client) GenerateDomain(ctx context.Context, serviceID platform.ServiceI
 		return nil, fmt.Errorf("verify platform domain: %w", err)
 	}
 
-	c.registerEdge(ctx, serviceID, hostname)
+	c.domains.Register(ctx, serviceID, hostname)
 
 	return c.Service(ctx, serviceID)
 }
@@ -458,7 +458,7 @@ func (c *Client) AddCustomDomain(ctx context.Context, serviceID platform.Service
 		return nil, err
 	}
 
-	verified, err := c.isDomainVerified(ctx, serviceID.Workspace, hostname, redirectTo != "")
+	verified, err := c.domains.Verified(ctx, serviceID.Workspace, hostname, redirectTo != "")
 
 	if err != nil {
 		slog.WarnContext(ctx, "failed to verify domain", "error", err, "service", serviceID, "domain", hostname)
@@ -468,8 +468,8 @@ func (c *Client) AddCustomDomain(ctx context.Context, serviceID platform.Service
 		if _, err := c.deployer.Services().AttachDomain(ctx, serviceID, hostname, verified); err != nil {
 			// This will be re-tried by the reconcile loop, therefore we don't surface the error.
 			slog.WarnContext(ctx, "failed to set domain to verified", "error", err, "service", serviceID, "domain", hostname)
-		} else if c.usesEdge(ctx, hostname, redirectTo != "") {
-			c.registerEdge(ctx, serviceID, hostname)
+		} else if c.domains.UsesEdge(ctx, hostname, redirectTo != "") {
+			c.domains.Register(ctx, serviceID, hostname)
 		}
 	}
 
@@ -481,42 +481,9 @@ func (c *Client) RemoveDomain(ctx context.Context, serviceID platform.ServiceID,
 		return nil, err
 	}
 
-	c.unregisterEdge(ctx, serviceID.Workspace, hostname)
+	c.domains.Unregister(ctx, serviceID.Workspace, hostname)
 
 	return c.Service(ctx, serviceID)
-}
-
-func (c *Client) ReconcileServices(ctx context.Context) error {
-	workspaces, err := c.directory.Workspaces(ctx)
-
-	if err != nil {
-		return err
-	}
-
-	for _, workspace := range workspaces {
-		environments, err := c.platform.EnvironmentsByWorkspace(ctx, workspace.ID)
-
-		if err != nil {
-			slog.Warn("reconcile services: failed to list projects", "error", err, "workspace", workspace.ID)
-			continue
-		}
-
-		for _, environment := range environments {
-			if err := ctx.Err(); err != nil {
-				return err
-			}
-
-			if err := c.environment.Ensure(ctx, environment.ID, environment.ResourceTier); err != nil {
-				slog.Warn("reconcile services: failed to ensure environment", "error", err, "environment", environment.ID)
-			}
-
-			if _, err := c.deployer.Environments().Reconcile(ctx, environment.ID); err != nil {
-				slog.Warn("reconcile services: failed to reconcile", "error", err, "environment", environment)
-			}
-		}
-	}
-
-	return nil
 }
 
 func validateServiceResources(cpu, memory string) (deployer.Resources, error) {

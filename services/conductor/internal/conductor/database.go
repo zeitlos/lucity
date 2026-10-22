@@ -30,10 +30,7 @@ var (
 	defaultDatabaseMemory = resources.DefaultMemoryLimit
 )
 
-const (
-	backupRetentionDays = 30
-	backupRetryInterval = time.Hour
-)
+const backupRetentionDays = 30
 
 // DatabaseProvisioningError indicates the database is still being provisioned
 // and is not yet ready for queries.
@@ -178,83 +175,6 @@ func (c *Client) latestRestorePoint(ctx context.Context, id DatabaseID, serverNa
 
 func (c *Client) CreateDatabaseBackup(ctx context.Context, id DatabaseID) (*platform.DatabaseBackup, error) {
 	return c.platform.CreateDatabaseBackup(ctx, id)
-}
-
-// ReconcileDatabaseBackups gives every archiving database a recovery floor. A
-// scheduled backup fires the moment archiving is switched on, before the pods
-// carrying the backup sidecar have rolled, so the first one always fails and the
-// next is a week out. Until a base backup exists there is nothing to recover to,
-// however much write-ahead log has been archived.
-func (c *Client) ReconcileDatabaseBackups(ctx context.Context) error {
-	workspaces, err := c.directory.Workspaces(ctx)
-
-	if err != nil {
-		return err
-	}
-
-	for _, workspace := range workspaces {
-		environments, err := c.platform.EnvironmentsByWorkspace(ctx, workspace.ID)
-
-		if err != nil {
-			slog.Warn("reconcile backups: failed to list environments", "error", err, "workspace", workspace.ID)
-			continue
-		}
-
-		for _, environment := range environments {
-			if err := ctx.Err(); err != nil {
-				return err
-			}
-
-			databases, err := c.platform.Databases(ctx, environment.ID)
-
-			if err != nil {
-				slog.Warn("reconcile backups: failed to list databases", "error", err, "environment", environment.ID)
-				continue
-			}
-
-			for _, database := range databases {
-				if database.Status != platform.DatabaseHealthy {
-					continue
-				}
-
-				if err := c.ensureRecoveryFloor(ctx, database.ID); err != nil {
-					slog.Warn("reconcile backups: failed to ensure recovery floor", "error", err, "database", database.ID)
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
-func (c *Client) ensureRecoveryFloor(ctx context.Context, id DatabaseID) error {
-	backups, err := c.platform.DatabaseBackups(ctx, id)
-
-	if err != nil {
-		return err
-	}
-
-	if !backups.Enabled || backups.EarliestRestorePoint != nil {
-		return nil
-	}
-
-	for _, backup := range backups.Backups {
-		if backup.Status == platform.BackupRunning || backup.Status == platform.BackupPending {
-			return nil
-		}
-	}
-
-	// Sorted newest first, so this bounds retries when backups fail for a reason
-	// retrying will not fix.
-	if len(backups.Backups) > 0 && time.Since(backups.Backups[0].CreatedAt) < backupRetryInterval {
-		return nil
-	}
-
-	slog.Info("reconcile backups: no recovery point, starting a backup", "database", id)
-
-	_, err = c.platform.CreateDatabaseBackup(ctx, id)
-
-	return err
 }
 
 func (c *Client) CreateDatabase(ctx context.Context, environment platform.EnvironmentID, name string, size, cpu, memory string) (*Database, error) {

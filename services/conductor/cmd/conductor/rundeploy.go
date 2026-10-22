@@ -13,11 +13,11 @@ import (
 	"github.com/zeitlos/lucity/pkg/deployer"
 	helmDeployer "github.com/zeitlos/lucity/pkg/deployer/helm"
 	"github.com/zeitlos/lucity/pkg/deployer/values"
+	"github.com/zeitlos/lucity/pkg/jobs"
 	"github.com/zeitlos/lucity/pkg/logger"
 	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 	buildjobK8s "github.com/zeitlos/lucity/services/conductor/internal/buildjob/kubernetes"
-	"github.com/zeitlos/lucity/services/conductor/internal/jobs"
 )
 
 type DeployConfig struct {

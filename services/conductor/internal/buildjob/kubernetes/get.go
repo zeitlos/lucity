@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"log/slog"
 
+	"github.com/zeitlos/lucity/pkg/jobs"
 	"github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/pkg/usererror"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
-	"github.com/zeitlos/lucity/services/conductor/internal/jobs"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"

@@ -4,9 +4,9 @@ import (
 	"context"
 	"sort"
 
+	"github.com/zeitlos/lucity/pkg/jobs"
 	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployjob"
-	"github.com/zeitlos/lucity/services/conductor/internal/jobs"
 
 	k8slabels "k8s.io/apimachinery/pkg/labels"
 )

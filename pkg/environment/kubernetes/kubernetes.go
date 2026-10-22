@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/zeitlos/lucity/pkg/deployer"
+	"github.com/zeitlos/lucity/pkg/environment"
 	"github.com/zeitlos/lucity/pkg/platform"
-	"github.com/zeitlos/lucity/services/conductor/internal/environment"
 
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"

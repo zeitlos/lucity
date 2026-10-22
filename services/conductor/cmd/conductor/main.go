@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"io/fs"
 	"log/slog"
 	"net/http"
@@ -13,23 +12,24 @@ import (
 	"github.com/zeitlos/lucity/charts"
 	helmDeployer "github.com/zeitlos/lucity/pkg/deployer/helm"
 	"github.com/zeitlos/lucity/pkg/deployer/values"
+	"github.com/zeitlos/lucity/pkg/domains"
+	"github.com/zeitlos/lucity/pkg/edge"
+	environmentK8s "github.com/zeitlos/lucity/pkg/environment/kubernetes"
+	"github.com/zeitlos/lucity/pkg/hostname"
+	"github.com/zeitlos/lucity/pkg/jobs"
+	"github.com/zeitlos/lucity/pkg/pipeline"
+	platformK8s "github.com/zeitlos/lucity/pkg/platform/kubernetes"
 	webhookhttp "github.com/zeitlos/lucity/services/conductor/internal/api/webhook/http"
 	"github.com/zeitlos/lucity/services/conductor/internal/backuparchive"
 	buildjobK8s "github.com/zeitlos/lucity/services/conductor/internal/buildjob/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 	deployjobK8s "github.com/zeitlos/lucity/services/conductor/internal/deployjob/kubernetes"
 	directoryLogto "github.com/zeitlos/lucity/services/conductor/internal/directory/logto"
-	"github.com/zeitlos/lucity/services/conductor/internal/edge"
-	environmentK8s "github.com/zeitlos/lucity/services/conductor/internal/environment/kubernetes"
-	"github.com/zeitlos/lucity/services/conductor/internal/hostname"
-	"github.com/zeitlos/lucity/services/conductor/internal/jobs"
 	"github.com/zeitlos/lucity/services/conductor/internal/metrics"
 	"github.com/zeitlos/lucity/services/conductor/internal/objectstorage"
 	objectstorageBunny "github.com/zeitlos/lucity/services/conductor/internal/objectstorage/bunny"
 	objectstorageOVH "github.com/zeitlos/lucity/services/conductor/internal/objectstorage/ovh"
-	"github.com/zeitlos/lucity/services/conductor/internal/pipeline"
 	"github.com/zeitlos/lucity/services/conductor/internal/planner/railpack"
-	platformK8s "github.com/zeitlos/lucity/services/conductor/internal/platform/kubernetes"
 	scanjobK8s "github.com/zeitlos/lucity/services/conductor/internal/scanjob/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/scanreport"
 	sourceGH "github.com/zeitlos/lucity/services/conductor/internal/source/github"
@@ -153,9 +153,6 @@ type Config struct {
 	IPAddress                 string `envconfig:"IP_ADDRESS"`
 	CustomDomainClusterIssuer string `envconfig:"CUSTOM_DOMAIN_CLUSTER_ISSUER" default:"letsencrypt-http01"`
 
-	// Reconciliation
-	ReconcileEnabled bool `envconfig:"RECONCILE_ENABLED" default:"true"`
-
 	// Internal JWT (ES256)
 	InternalJWTPrivateKeyPath string `envconfig:"INTERNAL_JWT_PRIVATE_KEY_PATH"`
 	InternalJWTPublicKeyPath  string `envconfig:"INTERNAL_JWT_PUBLIC_KEY_PATH"`
@@ -252,7 +249,7 @@ func main() {
 		slog.Warn("internal JWT not configured — outgoing service-to-service calls are unauthenticated")
 	}
 
-	k8sClient, dynClient, metadataClient, err := buildKubeClients()
+	k8sClient, dynClient, _, err := buildKubeClients()
 	if err != nil {
 		slog.Error("failed to build kube clients", "error", err)
 		os.Exit(1)
@@ -380,8 +377,6 @@ func main() {
 
 	chartRef.Metadata.Version = version.String()
 
-	releaseCache := helmDeployer.NewReleaseCache(metadataClient)
-
 	var workloadDefaultPlacement values.Placement
 
 	if err := workloadDefaultPlacement.Decode(config.WorkloadDefaultPlacement); err != nil {
@@ -393,7 +388,7 @@ func main() {
 		Enabled:  config.DatabaseBackupEnabled,
 		Endpoint: config.DatabaseBackupEndpoint,
 		Bucket:   config.DatabaseBackupBucket,
-	}, config.RegistryPullURL, workloadDefaultPlacement, helmDeployer.WithEdgeHeader(config.EdgeHeaderEnforced), helmDeployer.WithHTTPSListener(config.GatewayHTTPSListener), helmDeployer.WithReleaseCache(releaseCache))
+	}, config.RegistryPullURL, workloadDefaultPlacement, helmDeployer.WithEdgeHeader(config.EdgeHeaderEnforced), helmDeployer.WithHTTPSListener(config.GatewayHTTPSListener))
 
 	if err != nil {
 		slog.Error("failed to create deployer client", "error", err)
@@ -444,6 +439,8 @@ func main() {
 
 	hostnameClient := hostname.New(config.WorkloadDomain, loadBalancerHostname, config.IPAddress, edgeClient.EdgeAddresses, k8sClient, dynClient)
 
+	domainsClient := domains.New(hostnameClient, edgeClient, platformClient, deployerClient, k8sClient, config.WorkloadDomain, config.GatewayNamespace, config.EdgeWildcardTLSSecret)
+
 	metricsProvider, err := metrics.New(config.VictoriaMetricsURL)
 	if err != nil {
 		slog.Error("failed to create metrics provider", "error", err)
@@ -479,14 +476,6 @@ func main() {
 			SecretAccessKey: config.DatabaseBackupSecretAccessKey,
 		}),
 	}
-	if _, disabled := edgeClient.(edge.Disabled); !disabled {
-		conductorConfig.WildcardCertificate = func(ctx context.Context) (*edge.Certificate, error) {
-			return tlsCertificate(ctx, k8sClient, config.GatewayNamespace, config.EdgeWildcardTLSSecret)
-		}
-		conductorConfig.CustomCertificate = func(ctx context.Context, namespace, host string) (*edge.Certificate, error) {
-			return tlsCertificate(ctx, k8sClient, namespace, values.TLSSecretName(host))
-		}
-	}
 
 	scanReportClient := scanreport.New(scanreport.Config{
 		Endpoint:     config.RegistryPullURL,
@@ -500,38 +489,12 @@ func main() {
 		Keychain:     keychain,
 	})
 
-	conductor := conductor.New(cashierClient, githubApp, logtoClient, directoryClient, platformClient, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, vulnerabilitiesClient, pipelineClient, planner, source, hostnameClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, edgeClient, conductorConfig)
+	conductor := conductor.New(cashierClient, githubApp, logtoClient, directoryClient, platformClient, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, vulnerabilitiesClient, pipelineClient, planner, source, hostnameClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, domainsClient, conductorConfig)
 
 	platformClient.Start(ctx)
 	jobsCache.Start(ctx)
 
-	var leaderDone <-chan struct{}
-
-	if config.ReconcileEnabled {
-		releaseCache.Start(ctx)
-
-		loops := []func(context.Context){
-			func(ctx context.Context) { runAdmissionReconciler(ctx, pipelineClient) },
-			func(ctx context.Context) { runDomainReconciler(ctx, conductor) },
-			func(ctx context.Context) { runServiceReconciler(ctx, conductor) },
-		}
-
-		if config.DatabaseBackupEnabled {
-			loops = append(loops, func(ctx context.Context) { runBackupReconciler(ctx, conductor) })
-		}
-
-		done, err := runAsLeader(ctx, k8sClient, config.SystemNamespace, loops...)
-
-		if err != nil {
-			slog.Error("failed to start leader election", "error", err)
-			os.Exit(1)
-		}
-
-		leaderDone = done
-		slog.Info("release admission ready", "maxConcurrent", config.MaxConcurrentReleases, "maxConcurrentBuilds", config.MaxConcurrentBuilds, "maxQueuedPerWorkspace", config.MaxQueuedReleases)
-	} else {
-		slog.Warn("background loops disabled: this conductor never admits queued builds or deploys")
-	}
+	slog.Info("release queue ready", "maxQueuedPerWorkspace", config.MaxQueuedReleases)
 
 	components := []grpcComponent{}
 	if cashierConn != nil {
@@ -575,10 +538,6 @@ func main() {
 	}
 
 	graceful.Serve(ctx, servers...)
-
-	if leaderDone != nil {
-		<-leaderDone
-	}
 }
 
 func buildKubeClients() (kubernetes.Interface, dynamic.Interface, metadata.Interface, error) {

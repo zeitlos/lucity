@@ -5,10 +5,10 @@ import (
 	"strings"
 
 	"github.com/zeitlos/lucity/pkg/github"
+	"github.com/zeitlos/lucity/pkg/jobs"
 	"github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
-	"github.com/zeitlos/lucity/services/conductor/internal/jobs"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	batch "k8s.io/api/batch/v1"
