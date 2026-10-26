@@ -99,7 +99,7 @@ func (s *Server) ChangePlan(ctx context.Context, req *cashier.ChangePlanRequest)
 		return nil, fmt.Errorf("customer_id required")
 	}
 
-	current, err := s.subscription(ctx, req.Workspace, req.CustomerId, req.SubscriptionId)
+	current, err := s.subscription(ctx, req.Workspace, req.CustomerId)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +130,7 @@ func (s *Server) Subscription(ctx context.Context, req *cashier.SubscriptionRequ
 		return nil, fmt.Errorf("customer_id required")
 	}
 
-	sub, err := s.subscription(ctx, req.Workspace, req.CustomerId, req.SubscriptionId)
+	sub, err := s.subscription(ctx, req.Workspace, req.CustomerId)
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +186,7 @@ func (s *Server) UsageSummary(ctx context.Context, req *cashier.UsageSummaryRequ
 		return nil, fmt.Errorf("customer_id required")
 	}
 
-	sub, err := s.subscription(ctx, req.Workspace, req.CustomerId, req.SubscriptionId)
+	sub, err := s.subscription(ctx, req.Workspace, req.CustomerId)
 	if err != nil {
 		return nil, err
 	}
@@ -237,16 +237,13 @@ func (s *Server) UsageSummary(ctx context.Context, req *cashier.UsageSummaryRequ
 	}, nil
 }
 
-func (s *Server) subscription(ctx context.Context, workspace, customerID, storedID string) (*gostripe.Subscription, error) {
+func (s *Server) subscription(ctx context.Context, workspace, customerID string) (*gostripe.Subscription, error) {
 	sub, err := s.billing.Subscription(ctx, customerID)
 	if err != nil {
 		return nil, err
 	}
 	if sub == nil {
 		return nil, status.Errorf(codes.NotFound, "workspace %s has no subscription", workspace)
-	}
-	if storedID != "" && storedID != sub.ID {
-		slog.InfoContext(ctx, "billing: stored subscription is stale", "workspace", workspace, "stored", storedID, "current", sub.ID)
 	}
 	return sub, nil
 }
@@ -480,7 +477,7 @@ func (s *Server) AddPlan(ctx context.Context, req *cashier.AddPlanRequest) (*cas
 		return nil, fmt.Errorf("customer_id and checkout_session_id required")
 	}
 
-	current, err := s.subscription(ctx, req.Workspace, req.CustomerId, req.SubscriptionId)
+	current, err := s.subscription(ctx, req.Workspace, req.CustomerId)
 	if err != nil {
 		return nil, err
 	}

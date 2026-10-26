@@ -7,6 +7,9 @@ import (
 	"regexp"
 	"strings"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/cashier"
 	"github.com/zeitlos/lucity/pkg/usererror"
@@ -168,19 +171,14 @@ func (c *Client) EnsurePersonalWorkspace(ctx context.Context, userID, username s
 		if memErr == nil {
 			for _, m := range members {
 				if m.ID == userID {
-					// User is already a member. Self-heal billing if needed.
-					if existing.CustomData != nil {
-						stripeCustomerID, _ := existing.CustomData["stripeCustomerId"].(string)
-						stripeSubID, _ := existing.CustomData["stripeSubscriptionId"].(string)
-						if stripeCustomerID == "" || stripeSubID == "" {
-							user, _ := c.logto.User(ctx, userID)
-							email := ""
-							if user != nil {
-								email = user.PrimaryEmail
-							}
-							c.setupBilling(ctx, wsID, username, email, 14)
+					// User is already a member. Self-heal billing in the background.
+					go func() {
+						email := ""
+						if user, _ := c.logto.User(context.WithoutCancel(ctx), userID); user != nil {
+							email = user.PrimaryEmail
 						}
-					}
+						c.setupBilling(ctx, wsID, username, email, 14)
+					}()
 					slog.Info("personal workspace restored", "id", wsID, "user", userID)
 					return wsID, false, nil
 				}
@@ -252,8 +250,9 @@ func (c *Client) findAvailableWorkspaceID(ctx context.Context, base string) (str
 }
 
 // setupBilling ensures a Stripe customer and subscription exist for a workspace and
-// stores their IDs in the Logto org customData. Idempotent: skips steps that are
-// already complete, and self-heals on every login if a previous attempt partially failed.
+// stores the customer ID in the Logto org customData. Idempotent: cashier reuses the
+// customer's subscription and never starts a second trial, so this self-heals on
+// every login if a previous attempt partially failed.
 //
 // creditDays > 0 creates a promotional credit grant that expires after that many days.
 // Personal workspaces get 14 days of credits; additional workspaces get 0 (no promo credits).
@@ -272,6 +271,7 @@ func (c *Client) setupBilling(ctx context.Context, workspace, name, email string
 	// immediately after this returns, which cancels r.Context(). Billing setup must
 	// survive that cancellation.
 	billingCtx := context.WithoutCancel(ctx)
+	outCtx := auth.OutgoingContext(billingCtx)
 
 	// Resolve workspace ID to Logto org ID for API calls
 	orgID, err := c.orgID(billingCtx, workspace)
@@ -281,22 +281,19 @@ func (c *Client) setupBilling(ctx context.Context, workspace, name, email string
 	}
 
 	// Read current org customData to check if billing is already (partially) set up.
-	var customData map[string]interface{}
 	org, err := c.logto.Organization(billingCtx, orgID)
 	if err != nil {
 		slog.Warn("failed to read org for billing setup", "workspace", workspace, "error", err)
+		return
+	}
+	customData := org.CustomData
+	if customData == nil {
 		customData = make(map[string]interface{})
-	} else {
-		customData = org.CustomData
-		if customData == nil {
-			customData = make(map[string]interface{})
-		}
 	}
 
 	// Step 1: Ensure Stripe customer exists.
 	customerID, _ := customData["stripeCustomerId"].(string)
 	if customerID == "" {
-		outCtx := auth.OutgoingContext(billingCtx)
 		custCtx, custCancel := context.WithTimeout(outCtx, grpcTimeout)
 		defer custCancel()
 		custResp, custErr := c.cashier.CreateCustomer(custCtx, &cashier.CreateCustomerRequest{
@@ -309,46 +306,31 @@ func (c *Client) setupBilling(ctx context.Context, workspace, name, email string
 			return // Will retry on next login
 		}
 		customerID = custResp.CustomerId
+		customData["stripeCustomerId"] = customerID
+		if _, err := c.logto.UpdateOrganizationCustomData(billingCtx, orgID, customData); err != nil {
+			slog.Warn("failed to store billing IDs in org customData", "workspace", workspace, "error", err)
+			return // Will retry on next login
+		}
 	}
 
 	// Step 2: Ensure Stripe subscription exists (metered items only, no plan).
-	subscriptionID, _ := customData["stripeSubscriptionId"].(string)
-	if subscriptionID == "" {
-		outCtx := auth.OutgoingContext(billingCtx)
-		subCtx, subCancel := context.WithTimeout(outCtx, grpcTimeout)
-		defer subCancel()
-		subResp, subErr := c.cashier.CreateSubscription(subCtx, &cashier.CreateSubscriptionRequest{
-			Workspace:  workspace,
-			CustomerId: customerID,
-			CreditDays: creditDays,
-		})
-		if subErr != nil {
-			slog.Warn("failed to create Stripe subscription for workspace", "workspace", workspace, "error", subErr)
-			// Store at least the customer ID so we don't re-create it next time.
-			customData["stripeCustomerId"] = customerID
-			_, _ = c.logto.UpdateOrganizationCustomData(billingCtx, orgID, customData)
-			return // Will retry subscription on next login
-		}
-		subscriptionID = subResp.SubscriptionId
-	}
-
-	// Step 3: Persist both IDs to the org customData.
-	// Skip if both are already stored (nothing changed).
-	existingCustID, _ := customData["stripeCustomerId"].(string)
-	existingSubID, _ := customData["stripeSubscriptionId"].(string)
-	if existingCustID == customerID && existingSubID == subscriptionID {
-		slog.Debug("billing already set up", "workspace", workspace)
+	subCtx, subCancel := context.WithTimeout(outCtx, grpcTimeout)
+	defer subCancel()
+	subResp, subErr := c.cashier.CreateSubscription(subCtx, &cashier.CreateSubscriptionRequest{
+		Workspace:  workspace,
+		CustomerId: customerID,
+		CreditDays: creditDays,
+	})
+	if status.Code(subErr) == codes.FailedPrecondition {
+		slog.Debug("subscription ended, no new trial", "workspace", workspace)
 		return
 	}
-
-	customData["stripeCustomerId"] = customerID
-	customData["stripeSubscriptionId"] = subscriptionID
-	if _, err := c.logto.UpdateOrganizationCustomData(billingCtx, orgID, customData); err != nil {
-		slog.Warn("failed to store billing IDs in org customData", "workspace", workspace, "error", err)
-		return // Will retry on next login
+	if subErr != nil {
+		slog.Warn("failed to create Stripe subscription for workspace", "workspace", workspace, "error", subErr)
+		return // Will retry subscription on next login
 	}
 
-	slog.Info("billing setup complete", "workspace", workspace, "customer_id", customerID, "subscription_id", subscriptionID)
+	slog.Debug("billing set up", "workspace", workspace, "customer_id", customerID, "subscription_id", subResp.SubscriptionId)
 }
 
 // CreateWorkspaceCheckout creates a Stripe Checkout Session for a new workspace subscription.
@@ -453,8 +435,7 @@ func (c *Client) CompleteWorkspaceCheckout(ctx context.Context, sessionID string
 
 	// Create the workspace, stamping Stripe IDs into the directory metadata.
 	metadata := map[string]any{
-		"stripeCustomerId":     session.CustomerId,
-		"stripeSubscriptionId": session.SubscriptionId,
+		"stripeCustomerId": session.CustomerId,
 	}
 	workspace, err := c.directory.CreateWorkspace(ctx, wsID, wsName, metadata)
 	if err != nil {
