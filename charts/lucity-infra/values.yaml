@@ -380,7 +380,7 @@ rybbit:
   backend:
     image:
       repository: ghcr.io/rybbit-io/rybbit-backend
-      tag: v2.9.1
+      tag: v2.9.2
       pullPolicy: IfNotPresent
     port: 3001
     baseUrl: ""
@@ -398,7 +398,7 @@ rybbit:
   client:
     image:
       repository: ghcr.io/rybbit-io/rybbit-client
-      tag: v2.9.1
+      tag: v2.9.2
       pullPolicy: IfNotPresent
     port: 3002
     resources:
