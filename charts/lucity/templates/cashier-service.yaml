@@ -13,10 +13,6 @@ spec:
       targetPort: grpc
       protocol: TCP
       name: grpc
-    - port: {{ .Values.cashier.webhookPort }}
-      targetPort: http
-      protocol: TCP
-      name: http
   selector:
     {{- include "lucity.selectorLabels" (dict "name" "cashier" "release" .Release.Name) | nindent 4 }}
 {{- end }}

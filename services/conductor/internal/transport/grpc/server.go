@@ -4,70 +4,29 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/conductor"
-	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/platform"
 )
 
 // Service implements the ConductorService gRPC server — the inbound surface
 // the conductor exposes to other platform services (today: cashier). It is
-// the only entry point to the deployer / platform clients from outside the
-// conductor binary.
+// the only entry point to the platform client from outside the conductor
+// binary.
 type Service struct {
 	conductor.UnimplementedConductorServiceServer
 
 	platform platform.Interface
-	deployer deployer.Interface
 }
 
-func NewService(platform platform.Interface, deployer deployer.Interface) *Service {
+func NewService(platform platform.Interface) *Service {
 	return &Service{
 		platform: platform,
-		deployer: deployer,
 	}
-}
-
-// SuspendWorkspace flips the suspended bit on every environment owned by
-// the workspace. Each env is its own helm release, so the call fans out one
-// helm upgrade per env; failures on a single env are logged and skipped so
-// one bad env doesn't block the rest.
-func (s *Service) SuspendWorkspace(ctx context.Context, req *conductor.SuspendWorkspaceRequest) (*conductor.SuspendWorkspaceResponse, error) {
-	ws := req.GetWorkspace()
-
-	if ws == "" {
-		return nil, status.Error(codes.InvalidArgument, "workspace required")
-	}
-
-	projects, err := s.platform.Projects(ctx, ws)
-
-	if err != nil {
-		return nil, fmt.Errorf("list projects: %w", err)
-	}
-
-	for _, project := range projects {
-		envs, err := s.platform.Environments(ctx, project.ID)
-
-		if err != nil {
-			slog.Warn("suspend: list environments failed", "project", project.ID, "error", err)
-			continue
-		}
-
-		for _, env := range envs {
-			if _, err := s.deployer.Environments().Suspend(ctx, env.ID, req.GetSuspended()); err != nil {
-				slog.Warn("suspend: env failed", "env", env.ID, "error", err)
-			}
-		}
-	}
-
-	return &conductor.SuspendWorkspaceResponse{}, nil
 }
 
 // ListResourceAllocations enumerates platform-managed namespaces and returns
@@ -117,9 +76,8 @@ type Server struct {
 }
 
 // NewServer registers Service on a new grpc.Server with the internal-JWT
-// auth interceptor. Cashier's two RPCs (SuspendWorkspace,
-// ListResourceAllocations) carry workspace explicitly, so no tenant
-// metadata interceptor is needed.
+// auth interceptor. Cashier's one RPC, ListResourceAllocations, needs no
+// tenant metadata interceptor.
 func NewServer(addr string, svc *Service, verifier *auth.InternalVerifier) *Server {
 	s := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(auth.UnaryServerInterceptor(verifier)),

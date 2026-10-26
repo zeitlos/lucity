@@ -39,12 +39,6 @@ func (e *environmentClient) SetVariables(ctx context.Context, id platform.Enviro
 	})
 }
 
-func (e *environmentClient) Suspend(ctx context.Context, id platform.EnvironmentID, suspended bool) (deployer.RevisionID, error) {
-	return e.client.applyEnv(ctx, id, func(env *values.Env) error {
-		return values.SetSuspended(env, suspended)
-	})
-}
-
 func (e *environmentClient) State(ctx context.Context, id platform.EnvironmentID) (*deployer.EnvironmentState, error) {
 	namespace := id.Namespace()
 

@@ -86,7 +86,7 @@ spec:
           protocol: TCP
 ---
 {{- if .Values.cashier.enabled }}
-# Cashier: gRPC from conductor (namespace) + HTTP webhook from any source
+# Cashier: gRPC from conductor (namespace)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -107,10 +107,6 @@ spec:
               app.kubernetes.io/instance: {{ .Release.Name }}
       ports:
         - port: {{ .Values.cashier.port }}
-          protocol: TCP
-    # Stripe webhook from any source
-    - ports:
-        - port: {{ .Values.cashier.webhookPort }}
           protocol: TCP
 {{- end }}
 {{- if .Values.exporter.enabled }}

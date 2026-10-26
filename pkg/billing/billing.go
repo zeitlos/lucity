@@ -36,6 +36,8 @@ func (p Plan) rank() int {
 	return 0
 }
 
+const paymentGrace = 7 * 24 * time.Hour
+
 type Client struct {
 	stripe       *stripe.Client
 	hobbyPriceID string
@@ -162,8 +164,10 @@ type Standing struct {
 }
 
 // Standing reports whether a workspace billed through the subscription is in
-// good standing. A past_due subscription still is, as a grace period, and so
-// is a trial until it expires without a payment method.
+// good standing. A past_due subscription with a plan or a payment method
+// still is for a grace period of a week into its unpaid billing period. A
+// trial without either is good until its credit is used up (its threshold
+// invoice goes past_due) or it expires.
 func (c *Client) Standing(subscription *stripe.Subscription, hasPaymentMethod bool, now time.Time) Standing {
 	switch {
 	case Ended(subscription):
@@ -175,7 +179,15 @@ func (c *Client) Standing(subscription *stripe.Subscription, hasPaymentMethod bo
 	}
 
 	if c.Plan(subscription).Paid() || hasPaymentMethod || subscription.DefaultPaymentMethod != nil {
+		if subscription.Status == stripe.SubscriptionStatusPastDue && !now.Before(periodStart(subscription).Add(paymentGrace)) {
+			return Standing{Reason: "payment overdue"}
+		}
+
 		return Standing{Good: true}
+	}
+
+	if subscription.Status == stripe.SubscriptionStatusPastDue {
+		return Standing{Reason: "trial credit used up"}
 	}
 
 	if end := trialEnd(subscription); !end.IsZero() && !now.Before(end) {
@@ -183,6 +195,18 @@ func (c *Client) Standing(subscription *stripe.Subscription, hasPaymentMethod bo
 	}
 
 	return Standing{Good: true}
+}
+
+func periodStart(subscription *stripe.Subscription) time.Time {
+	if subscription.Items != nil {
+		for _, item := range subscription.Items.Data {
+			if item.CurrentPeriodStart > 0 {
+				return time.Unix(item.CurrentPeriodStart, 0)
+			}
+		}
+	}
+
+	return time.Time{}
 }
 
 func trialEnd(subscription *stripe.Subscription) time.Time {

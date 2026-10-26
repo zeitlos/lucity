@@ -67,7 +67,7 @@ conductor:
     pullPolicy: IfNotPresent
   # GraphQL + auth + dashboard API
   httpPort: 8080
-  # Inbound gRPC (cashier callbacks: SuspendWorkspace, ListResourceAllocations)
+  # Inbound gRPC (cashier: ListResourceAllocations)
   grpcPort: 9090
   # GitHub webhook receiver
   webhookPort: 9004
@@ -133,7 +133,6 @@ cashier:
     tag: ""
     pullPolicy: IfNotPresent
   port: 9005
-  webhookPort: 9006
   serviceAccount:
     create: true
   env: {}
@@ -187,8 +186,6 @@ stagehand:
   interval: 2m
   # Only log what would move
   dryRun: false
-  # Apply billing and abuse suspension; when false, only log what would change
-  enforceSuspension: false
   env: {}
   envSecret: {}
   resources:

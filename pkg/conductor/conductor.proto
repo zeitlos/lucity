@@ -13,27 +13,12 @@ option go_package = "./conductor";
 // reserved for service-to-service callbacks where typed contracts
 // matter.
 service ConductorService {
-  // SuspendWorkspace flips the suspended flag for every project /
-  // environment owned by the workspace. Called by cashier on payment
-  // failure (suspended=true) and on payment recovery (suspended=false).
-  // The implementation enumerates the workspace's namespaces,
-  // groups by (project, environment), and persists the change in
-  // each environment's GitOps values, which ArgoCD then enforces.
-  rpc SuspendWorkspace(SuspendWorkspaceRequest) returns (SuspendWorkspaceResponse);
-
   // ListResourceAllocations returns the resource quota tier and
   // allocations for every managed (workspace, project, environment)
   // namespace. Called by cashier's metering worker each interval to
   // attribute compute usage to subscriptions.
   rpc ListResourceAllocations(ListResourceAllocationsRequest) returns (ListResourceAllocationsResponse);
 }
-
-message SuspendWorkspaceRequest {
-  string workspace = 1;
-  bool suspended = 2;
-}
-
-message SuspendWorkspaceResponse {}
 
 // ResourceTier mirrors deployer.ResourceTier for byte-compatible
 // migration. Cashier reads .Tier directly so the enum values must

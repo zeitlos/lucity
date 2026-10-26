@@ -538,7 +538,7 @@ func main() {
 			slog.Error("failed to create internal JWT verifier", "error", err)
 			os.Exit(1)
 		}
-		grpcSvc := conductorgrpc.NewService(platformClient, deployerClient)
+		grpcSvc := conductorgrpc.NewService(platformClient)
 		grpcSrv := conductorgrpc.NewServer(":"+config.GRPCPort, grpcSvc, internalVerifier)
 		slog.Info("conductor gRPC ready", "port", config.GRPCPort)
 		servers = append(servers, grpcSrv)

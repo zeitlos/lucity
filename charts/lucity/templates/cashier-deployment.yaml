@@ -62,9 +62,6 @@ spec:
             - name: grpc
               containerPort: {{ .Values.cashier.port }}
               protocol: TCP
-            - name: http
-              containerPort: {{ .Values.cashier.webhookPort }}
-              protocol: TCP
           livenessProbe:
             tcpSocket:
               port: grpc
@@ -78,8 +75,6 @@ spec:
           env:
             - name: PORT
               value: {{ .Values.cashier.port | quote }}
-            - name: WEBHOOK_PORT
-              value: {{ .Values.cashier.webhookPort | quote }}
             - name: SYSTEM_NAMESPACE
               value: {{ .Release.Namespace | quote }}
             {{- range $key, $value := .Values.cashier.env }}

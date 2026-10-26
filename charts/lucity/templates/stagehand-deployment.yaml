@@ -64,8 +64,6 @@ spec:
               value: {{ .Values.stagehand.interval | quote }}
             - name: DRY_RUN
               value: {{ .Values.stagehand.dryRun | quote }}
-            - name: SUSPENSION_ENFORCED
-              value: {{ .Values.stagehand.enforceSuspension | quote }}
             {{- with include "lucity.placementJSON" .Values.workloadPlacement.default }}
             - name: WORKLOAD_DEFAULT_PLACEMENT
               value: {{ . | quote }}

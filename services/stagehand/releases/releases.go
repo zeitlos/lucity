@@ -9,8 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"maps"
-	"slices"
 	"time"
 
 	"github.com/zeitlos/lucity/pkg/billing"
@@ -39,9 +37,6 @@ type Worker struct {
 	paid         values.Placement
 	interval     time.Duration
 	dryRun       bool
-	enforce      bool
-
-	shadow map[string]string
 }
 
 type verdict struct {
@@ -53,8 +48,8 @@ type verdict struct {
 
 // New returns a worker that converges environments every interval. With a
 // nil billing client every environment gets the default placement and only
-// the abuse flag suspends. Unless enforce is set, suspension is only logged.
-func New(environment environment.Interface, environments deployer.EnvironmentClient, directory *workspaces.Directory, billing *billing.Client, defaults, paid values.Placement, interval time.Duration, dryRun, enforce bool) *Worker {
+// the abuse flag suspends.
+func New(environment environment.Interface, environments deployer.EnvironmentClient, directory *workspaces.Directory, billing *billing.Client, defaults, paid values.Placement, interval time.Duration, dryRun bool) *Worker {
 	return &Worker{
 		environment:  environment,
 		environments: environments,
@@ -64,7 +59,6 @@ func New(environment environment.Interface, environments deployer.EnvironmentCli
 		paid:         paid,
 		interval:     interval,
 		dryRun:       dryRun,
-		enforce:      enforce,
 	}
 }
 
@@ -92,11 +86,7 @@ func (w *Worker) reconcile(ctx context.Context) error {
 	verdicts, placementFrozen := w.verdicts(ctx, organizations)
 	suspend, resume := changes(organizations, verdicts)
 
-	if !w.enforce {
-		w.logShadow(organizations, verdicts, suspend, resume)
-	} else {
-		w.mark(ctx, suspend, verdicts, true)
-	}
+	w.mark(ctx, suspend, verdicts, true)
 
 	environments, err := w.directory.Environments(ctx)
 
@@ -116,7 +106,7 @@ func (w *Worker) reconcile(ctx context.Context) error {
 			}
 		}
 
-		if w.enforce && verdict.judged {
+		if verdict.judged {
 			state.Suspended = verdict.suspended
 		}
 
@@ -133,7 +123,7 @@ func (w *Worker) reconcile(ctx context.Context) error {
 
 		verdict := verdicts[environment.ID.Workspace]
 
-		if !w.enforce || !verdict.judged {
+		if !verdict.judged {
 			continue
 		}
 
@@ -204,12 +194,10 @@ func (w *Worker) reconcile(ctx context.Context) error {
 		}
 	}
 
-	if w.enforce {
-		w.mark(ctx, resume, verdicts, false)
-	}
+	w.mark(ctx, resume, verdicts, false)
 
 	if applied > 0 || planned > 0 || len(suspend) > 0 || len(resume) > 0 {
-		slog.Info("release pass done", "applied", applied, "planned", planned, "suspended", len(suspend), "resumed", len(resume), "enforced", w.enforce)
+		slog.Info("release pass done", "applied", applied, "planned", planned, "suspended", len(suspend), "resumed", len(resume))
 	}
 
 	return nil
@@ -365,35 +353,4 @@ func (w *Worker) mark(ctx context.Context, organizations []logto.Organization, v
 
 		slog.Info("suspension: workspace marked", "workspace", organization.Name, "suspended", suspended, "reason", verdicts[organization.Name].reason)
 	}
-}
-
-func (w *Worker) logShadow(organizations []logto.Organization, verdicts map[string]verdict, suspend, resume []logto.Organization) {
-	lines := map[string]string{}
-
-	for _, organization := range suspend {
-		lines[organization.Name] = "would suspend: " + verdicts[organization.Name].reason
-	}
-
-	for _, organization := range resume {
-		lines[organization.Name] = "would resume"
-	}
-
-	unjudged := 0
-
-	for _, organization := range organizations {
-		if verdict := verdicts[organization.Name]; !verdict.judged && verdict.reason != "" {
-			lines[organization.Name] = "not judged: " + verdict.reason
-			unjudged++
-		}
-	}
-
-	if !maps.Equal(lines, w.shadow) {
-		for _, name := range slices.Sorted(maps.Keys(lines)) {
-			slog.Info("suspension shadow", "workspace", name, "verdict", lines[name])
-		}
-
-		w.shadow = lines
-	}
-
-	slog.Info("suspension shadow pass", "would_suspend", len(suspend), "would_resume", len(resume), "not_judged", unjudged)
 }

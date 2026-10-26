@@ -19,15 +19,13 @@ import (
 	"github.com/zeitlos/lucity/pkg/logger"
 	"github.com/zeitlos/lucity/pkg/logto"
 	cashiergrpc "github.com/zeitlos/lucity/services/cashier/grpc"
-	cashierhttp "github.com/zeitlos/lucity/services/cashier/http"
 	"github.com/zeitlos/lucity/services/cashier/metering"
 	stripelib "github.com/zeitlos/lucity/services/cashier/stripe"
 )
 
 type Config struct {
-	Port        string `envconfig:"PORT" default:"9005"`
-	WebhookPort string `envconfig:"WEBHOOK_PORT" default:"9006"`
-	LogLevel    string `envconfig:"LOG_LEVEL" default:"info"`
+	Port     string `envconfig:"PORT" default:"9005"`
+	LogLevel string `envconfig:"LOG_LEVEL" default:"info"`
 
 	// Conductor is the unified control-plane binary that absorbed
 	// the deployer, packager, builder, and webhook services.
@@ -35,8 +33,7 @@ type Config struct {
 	ConductorAddr string `envconfig:"CONDUCTOR_ADDR"`
 	DeployerAddr  string `envconfig:"DEPLOYER_ADDR" default:"localhost:9090"`
 
-	StripeSecretKey     string `envconfig:"STRIPE_SECRET_KEY" required:"true"`
-	StripeWebhookSecret string `envconfig:"STRIPE_WEBHOOK_SECRET" required:"true"`
+	StripeSecretKey string `envconfig:"STRIPE_SECRET_KEY" required:"true"`
 
 	HobbyPriceID    string `envconfig:"STRIPE_HOBBY_PRICE_ID" required:"true"`
 	ProPriceID      string `envconfig:"STRIPE_PRO_PRICE_ID" required:"true"`
@@ -81,8 +78,8 @@ func main() {
 
 	logger.Setup(config.LogLevel)
 
-	// Connect to conductor (formerly deployer) for SuspendWorkspace
-	// and ListResourceAllocations. CONDUCTOR_ADDR wins over the legacy
+	// Connect to conductor (formerly deployer) for ListResourceAllocations.
+	// CONDUCTOR_ADDR wins over the legacy
 	// DEPLOYER_ADDR when both are set.
 	conductorAddr := config.ConductorAddr
 	if conductorAddr == "" {
@@ -143,15 +140,11 @@ func main() {
 	}
 
 	// gRPC server
-	svc := cashiergrpc.NewServer(stripeClient, billingClient, conductorClient, logtoClient, issuer)
+	svc := cashiergrpc.NewServer(stripeClient, billingClient, logtoClient)
 
 	grpcServer := cashiergrpc.NewGRPCServer(":"+config.Port, svc, verifier)
 
-	// Stripe webhook HTTP server
-	webhookHandler := stripelib.NewWebhookHandler(config.StripeWebhookSecret, stripeClient, svc)
-	httpServer := cashierhttp.NewServer(config.WebhookPort, webhookHandler)
-
-	servers := []graceful.Server{grpcServer, httpServer}
+	servers := []graceful.Server{grpcServer}
 
 	// Metering worker (optional — requires VictoriaMetrics)
 	if config.VictoriaMetricsURL != "" {
@@ -165,7 +158,7 @@ func main() {
 		// without checkpoint/backfill if unavailable (e.g. local dev without cluster).
 		k8sClient := buildK8sClient()
 
-		worker := metering.NewWorker(stripeClient, billingClient, conductorClient, logtoClient, vmClient, k8sClient, svc, config.SystemNamespace, issuer, config.MeteringInterval)
+		worker := metering.NewWorker(stripeClient, billingClient, conductorClient, logtoClient, vmClient, k8sClient, config.SystemNamespace, issuer, config.MeteringInterval)
 		servers = append(servers, worker)
 		slog.Info("metering enabled", "interval", config.MeteringInterval)
 	} else {

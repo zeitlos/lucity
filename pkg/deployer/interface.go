@@ -77,7 +77,6 @@ type VolumeClient interface {
 type EnvironmentClient interface {
 	Variables(ctx context.Context, id platform.EnvironmentID) (map[string]string, error)
 	SetVariables(ctx context.Context, id platform.EnvironmentID, vars map[string]string) (RevisionID, error)
-	Suspend(ctx context.Context, id platform.EnvironmentID, suspended bool) (RevisionID, error)
 	Outdated(ctx context.Context, id platform.EnvironmentID) (bool, error)
 	State(ctx context.Context, id platform.EnvironmentID) (*EnvironmentState, error)
 	SetState(ctx context.Context, id platform.EnvironmentID, state EnvironmentState) (RevisionID, error)

@@ -2,8 +2,6 @@ package grpc
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -12,32 +10,24 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/billing"
 	"github.com/zeitlos/lucity/pkg/cashier"
-	"github.com/zeitlos/lucity/pkg/conductor"
 	"github.com/zeitlos/lucity/pkg/logto"
 	stripelib "github.com/zeitlos/lucity/services/cashier/stripe"
 )
 
-const suspendTimeout = 2 * time.Minute
-
 type Server struct {
 	cashier.UnimplementedCashierServiceServer
-	stripe    *stripelib.Client
-	billing   *billing.Client
-	conductor conductor.ConductorServiceClient
-	logto     *logto.Client
-	issuer    *auth.Issuer
+	stripe  *stripelib.Client
+	billing *billing.Client
+	logto   *logto.Client
 }
 
-func NewServer(stripeClient *stripelib.Client, billingClient *billing.Client, conductorClient conductor.ConductorServiceClient, logtoClient *logto.Client, issuer *auth.Issuer) *Server {
+func NewServer(stripeClient *stripelib.Client, billingClient *billing.Client, logtoClient *logto.Client) *Server {
 	return &Server{
-		stripe:    stripeClient,
-		billing:   billingClient,
-		conductor: conductorClient,
-		logto:     logtoClient,
-		issuer:    issuer,
+		stripe:  stripeClient,
+		billing: billingClient,
+		logto:   logtoClient,
 	}
 }
 
@@ -248,89 +238,6 @@ func (s *Server) subscription(ctx context.Context, workspace, customerID string)
 	return sub, nil
 }
 
-// HandleStripeEvent processes Stripe webhook events for billing lifecycle.
-// Returns an error if the event could not be processed (triggers Stripe retry).
-func (s *Server) HandleStripeEvent(event gostripe.Event) error {
-	switch event.Type {
-	case "invoice.payment_failed":
-		return s.handlePaymentFailed(event)
-	case "invoice.payment_succeeded":
-		return s.handlePaymentSucceeded(event)
-	case "customer.subscription.deleted":
-		return s.handleSubscriptionDeleted(event)
-	}
-	return nil
-}
-
-func (s *Server) handlePaymentFailed(event gostripe.Event) error {
-	var inv gostripe.Invoice
-	if err := json.Unmarshal(event.Data.Raw, &inv); err != nil {
-		return fmt.Errorf("failed to unmarshal invoice: %w", err)
-	}
-
-	workspace := ""
-	if inv.Parent != nil && inv.Parent.SubscriptionDetails != nil {
-		workspace = inv.Parent.SubscriptionDetails.Metadata["workspace"]
-	}
-	if workspace == "" {
-		return fmt.Errorf("no workspace in subscription metadata for invoice %s", inv.ID)
-	}
-
-	slog.Warn("payment failed, suspending workspace", "workspace", workspace, "invoice", inv.ID)
-	return s.SuspendWorkspace(workspace, true)
-}
-
-func (s *Server) handlePaymentSucceeded(event gostripe.Event) error {
-	var inv gostripe.Invoice
-	if err := json.Unmarshal(event.Data.Raw, &inv); err != nil {
-		return fmt.Errorf("failed to unmarshal invoice: %w", err)
-	}
-
-	// Stripe generates a $0 invoice the instant a subscription is created and
-	// auto-finalizes it as paid. That fires payment_succeeded immediately, which
-	// the trial-ended branch below would otherwise interpret as "trial cycle
-	// closed" and suspend the brand-new workspace. Real trial-end invoices come
-	// in as subscription_threshold (€5 hit) or subscription_cycle (interval).
-	if inv.BillingReason == gostripe.InvoiceBillingReasonSubscriptionCreate {
-		return nil
-	}
-
-	workspace := ""
-	var subscriptionID string
-	if inv.Parent != nil && inv.Parent.SubscriptionDetails != nil {
-		workspace = inv.Parent.SubscriptionDetails.Metadata["workspace"]
-		if inv.Parent.SubscriptionDetails.Subscription != nil {
-			subscriptionID = inv.Parent.SubscriptionDetails.Subscription.ID
-		}
-	}
-	if workspace == "" {
-		// Payment succeeded but no workspace — not actionable, don't retry.
-		return nil
-	}
-
-	// For trial subscriptions (no plan), check if the user has converted.
-	// If they haven't added a payment method, suspend: the trial is over.
-	if subscriptionID != "" {
-		ctx := context.Background()
-		sub, err := s.stripe.Subscription(ctx, subscriptionID)
-		if err != nil {
-			slog.Error("failed to fetch subscription for trial check", "error", err, "subscription", subscriptionID)
-			// Fall through to resume (safe default for paying customers)
-		} else if !s.subscriptionHasPlan(sub) {
-			// Trial subscription: check for payment method
-			hasPM, _ := s.stripe.HasPaymentMethod(ctx, sub)
-			if !hasPM {
-				slog.Info("trial ended, no plan or payment method, suspending workspace",
-					"workspace", workspace, "invoice", inv.ID)
-				return s.SuspendWorkspace(workspace, true)
-			}
-		}
-	}
-
-	slog.Info("payment succeeded, resuming workspace", "workspace", workspace, "invoice", inv.ID)
-	return s.SuspendWorkspace(workspace, false)
-}
-
 // subscriptionHasPlan returns true if the subscription has a Hobby or Pro plan item.
 func (s *Server) subscriptionHasPlan(sub *gostripe.Subscription) bool {
 	for _, item := range sub.Items.Data {
@@ -340,72 +247,6 @@ func (s *Server) subscriptionHasPlan(sub *gostripe.Subscription) bool {
 		}
 	}
 	return false
-}
-
-func (s *Server) handleSubscriptionDeleted(event gostripe.Event) error {
-	var sub gostripe.Subscription
-	if err := json.Unmarshal(event.Data.Raw, &sub); err != nil {
-		return fmt.Errorf("failed to unmarshal subscription: %w", err)
-	}
-
-	workspace := sub.Metadata["workspace"]
-	if workspace == "" {
-		return fmt.Errorf("no workspace in subscription metadata for %s", sub.ID)
-	}
-
-	slog.Warn("subscription deleted, suspending workspace", "workspace", workspace, "subscription", sub.ID)
-	return s.SuspendWorkspace(workspace, true)
-}
-
-// SuspendWorkspace suspends or resumes every environment of a workspace and,
-// once that succeeded, records the state on its Logto organization.
-func (s *Server) SuspendWorkspace(workspace string, suspended bool) error {
-	ctx := auth.NewContext(context.Background(), &auth.Claims{
-		Subject: "cashier",
-	})
-	ctx = auth.WithIssuer(ctx, s.issuer)
-	ctx = auth.OutgoingContext(ctx)
-	ctx, cancel := context.WithTimeout(ctx, suspendTimeout)
-	defer cancel()
-
-	action := "suspend"
-	if !suspended {
-		action = "resume"
-	}
-
-	_, err := s.conductor.SuspendWorkspace(ctx, &conductor.SuspendWorkspaceRequest{
-		Workspace: workspace,
-		Suspended: suspended,
-	})
-	if err != nil {
-		slog.Error("failed to "+action+" workspace", "workspace", workspace, "error", err)
-		return fmt.Errorf("failed to %s workspace %s: %w", action, workspace, err)
-	}
-
-	// 2. Persist suspension state in Logto org customData for dashboard visibility.
-	org, err := s.logto.OrganizationByName(ctx, workspace)
-	if errors.Is(err, logto.ErrOrganizationNotFound) {
-		slog.Warn("no logto org for workspace, suspension state not recorded", "workspace", workspace)
-		return nil
-	}
-	if err != nil {
-		slog.Error("failed to look up logto org for suspension", "workspace", workspace, "error", err)
-		return fmt.Errorf("failed to look up logto org of workspace %s: %w", workspace, err)
-	}
-	customData := org.CustomData
-	if customData == nil {
-		customData = make(map[string]interface{})
-	}
-	if suspended {
-		customData["suspended"] = true
-	} else {
-		delete(customData, "suspended")
-	}
-	if _, err := s.logto.UpdateOrganizationCustomData(ctx, org.ID, customData); err != nil {
-		slog.Error("failed to update logto suspension state", "workspace", workspace, "suspended", suspended, "error", err)
-		return fmt.Errorf("failed to record suspension of workspace %s: %w", workspace, err)
-	}
-	return nil
 }
 
 func (s *Server) CreateCheckoutSession(ctx context.Context, req *cashier.CreateCheckoutSessionRequest) (*cashier.CreateCheckoutSessionResponse, error) {
