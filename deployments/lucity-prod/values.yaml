@@ -120,7 +120,6 @@ cashier:
     VICTORIA_METRICS_URL: http://lucity-infra-victoria-metrics-single-server.lucity-system.svc.cluster.local:8428
   envSecret:
     STRIPE_SECRET_KEY: STRIPE_SECRET_KEY
-    STRIPE_WEBHOOK_SECRET: STRIPE_WEBHOOK_SECRET
     LOGTO_M2M_APP_ID: LOGTO_M2M_APP_ID
     LOGTO_M2M_APP_SECRET: LOGTO_M2M_APP_SECRET
 
