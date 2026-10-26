@@ -597,6 +597,34 @@ victoria-metrics-alert:
                 labels: { severity: critical }
                 annotations:
                   summary: "Cluster {{ $labels.resource }} requests at {{ $value | humanizePercentage }} of allocatable — new pods will fail to schedule"
+              # Pods the scheduler cannot place. Platform pods are named, tenant
+              # pods only counted, so these alerts carry no tenant names.
+              - alert: PlatformPodUnschedulable
+                expr: kube_pod_status_scheduled{condition="false", namespace=~"kube-system|kube-public|kube-node-lease|lucity-system|lucity-builds|cert-manager|cilium-secrets|default|external-dns|flexplane-observability|ingress-nginx|otel-system"} == 1
+                for: 10m
+                labels: { severity: warning }
+                annotations:
+                  summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} has not been scheduled for 10m"
+              - alert: TenantPodsUnschedulable
+                expr: count(kube_pod_status_scheduled{condition="false", namespace!~"kube-system|kube-public|kube-node-lease|lucity-system|lucity-builds|cert-manager|cilium-secrets|default|external-dns|flexplane-observability|ingress-nginx|otel-system"} == 1) >= 5
+                for: 30m
+                labels: { severity: warning }
+                annotations:
+                  summary: "{{ $value | humanize }} tenant pods cannot be scheduled: a node pool is out of pod slots, memory or volume slots"
+              # WaitForFirstConsumer claims stay Pending until volume creation
+              # succeeds, so a claim with a waiting pod means provisioning is
+              # stuck: usually the Hetzner project volume limit.
+              - alert: VolumeProvisioningStuck
+                expr: |-
+                  count(
+                    (kube_persistentvolumeclaim_status_phase{phase="Pending"} == 1)
+                      and on (namespace, persistentvolumeclaim)
+                    (kube_pod_spec_volumes_persistentvolumeclaims_info and on (namespace, pod) (kube_pod_status_phase{phase="Pending"} == 1))
+                  )
+                for: 30m
+                labels: { severity: warning }
+                annotations:
+                  summary: "{{ $value | humanize }} volume claims have a pod waiting for them but no volume: check the Hetzner volume limit and the hcloud-csi controller"
               - alert: PodCrashLoopBackOff
                 expr: kube_pod_container_status_waiting_reason{reason="CrashLoopBackOff", namespace=~"kube-system|lucity-system|lucity-builds"} == 1
                 for: 15m
