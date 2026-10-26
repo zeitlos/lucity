@@ -13,6 +13,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/zeitlos/lucity/pkg/auth"
+	"github.com/zeitlos/lucity/pkg/billing"
 	"github.com/zeitlos/lucity/pkg/conductor"
 	"github.com/zeitlos/lucity/pkg/graceful"
 	"github.com/zeitlos/lucity/pkg/logger"
@@ -122,6 +123,7 @@ func main() {
 		EgressEventName:   config.EgressMeterEvent,
 	}
 	stripeClient := stripelib.NewClient(config.StripeSecretKey, prices, meters)
+	billingClient := billing.New(config.StripeSecretKey, config.HobbyPriceID, config.ProPriceID)
 
 	// Logto client for workspace metadata and suspension state
 	logtoClient := logto.New(config.LogtoEndpoint, config.LogtoM2MAppID, config.LogtoM2MAppSecret)
@@ -141,7 +143,7 @@ func main() {
 	}
 
 	// gRPC server
-	svc := cashiergrpc.NewServer(stripeClient, conductorClient, logtoClient, issuer)
+	svc := cashiergrpc.NewServer(stripeClient, billingClient, conductorClient, logtoClient, issuer)
 
 	grpcServer := cashiergrpc.NewGRPCServer(":"+config.Port, svc, verifier)
 
@@ -163,7 +165,7 @@ func main() {
 		// without checkpoint/backfill if unavailable (e.g. local dev without cluster).
 		k8sClient := buildK8sClient()
 
-		worker := metering.NewWorker(stripeClient, conductorClient, logtoClient, vmClient, k8sClient, config.SystemNamespace, issuer, config.MeteringInterval)
+		worker := metering.NewWorker(stripeClient, billingClient, conductorClient, logtoClient, vmClient, k8sClient, svc, config.SystemNamespace, issuer, config.MeteringInterval)
 		servers = append(servers, worker)
 		slog.Info("metering enabled", "interval", config.MeteringInterval)
 	} else {

@@ -3,6 +3,7 @@ package conductor
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/usererror"
@@ -42,6 +43,12 @@ func (c *Client) CreateEnvironment(ctx context.Context, project ProjectID, name 
 
 	if err := c.environment.Ensure(ctx, envID, tier); err != nil {
 		return nil, err
+	}
+
+	if c.paid(ctx, envID.Workspace) {
+		if _, err := c.deployer.Environments().Place(ctx, envID, c.config.PaidPlacement); err != nil {
+			slog.WarnContext(ctx, "install on the paid placement failed", "environment", envID, "error", err)
+		}
 	}
 
 	environment, err := c.Environment(ctx, envID)

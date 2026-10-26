@@ -3,30 +3,38 @@ package grpc
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
 
 	gostripe "github.com/stripe/stripe-go/v87"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/zeitlos/lucity/pkg/auth"
+	"github.com/zeitlos/lucity/pkg/billing"
 	"github.com/zeitlos/lucity/pkg/cashier"
 	"github.com/zeitlos/lucity/pkg/conductor"
 	"github.com/zeitlos/lucity/pkg/logto"
 	stripelib "github.com/zeitlos/lucity/services/cashier/stripe"
 )
 
+const suspendTimeout = 2 * time.Minute
+
 type Server struct {
 	cashier.UnimplementedCashierServiceServer
 	stripe    *stripelib.Client
+	billing   *billing.Client
 	conductor conductor.ConductorServiceClient
 	logto     *logto.Client
 	issuer    *auth.Issuer
 }
 
-func NewServer(stripeClient *stripelib.Client, conductorClient conductor.ConductorServiceClient, logtoClient *logto.Client, issuer *auth.Issuer) *Server {
+func NewServer(stripeClient *stripelib.Client, billingClient *billing.Client, conductorClient conductor.ConductorServiceClient, logtoClient *logto.Client, issuer *auth.Issuer) *Server {
 	return &Server{
 		stripe:    stripeClient,
+		billing:   billingClient,
 		conductor: conductorClient,
 		logto:     logtoClient,
 		issuer:    issuer,
@@ -41,13 +49,14 @@ func (s *Server) CreateCustomer(ctx context.Context, req *cashier.CreateCustomer
 	// Idempotent: check if Logto org already has a stripeCustomerId.
 	org, err := s.logto.OrganizationByName(ctx, req.Workspace)
 	if err != nil {
-		slog.Warn("failed to look up logto org for customer check", "workspace", req.Workspace, "error", err)
+		return nil, fmt.Errorf("failed to look up workspace: %w", err)
 	}
-	if org != nil && org.CustomData != nil {
-		if existingID, ok := org.CustomData["stripeCustomerId"].(string); ok && existingID != "" {
-			slog.Info("stripe customer already exists", "workspace", req.Workspace, "customer_id", existingID)
-			return &cashier.CreateCustomerResponse{CustomerId: existingID}, nil
+	if existingID, _ := org.CustomData["stripeCustomerId"].(string); existingID != "" {
+		if err := s.stripe.EnsureCustomerWorkspace(ctx, existingID, req.Workspace); err != nil {
+			slog.WarnContext(ctx, "failed to link stripe customer to workspace", "workspace", req.Workspace, "customer_id", existingID, "error", err)
 		}
+		slog.Debug("stripe customer already exists", "workspace", req.Workspace, "customer_id", existingID)
+		return &cashier.CreateCustomerResponse{CustomerId: existingID}, nil
 	}
 
 	customerID, err := s.stripe.CreateCustomer(ctx, req.Workspace, req.Name, req.Email)
@@ -64,14 +73,16 @@ func (s *Server) CreateSubscription(ctx context.Context, req *cashier.CreateSubs
 		return nil, fmt.Errorf("workspace and customer_id required")
 	}
 
-	// Idempotent: check if an active subscription already exists for this customer.
-	existingSubID, err := s.stripe.ActiveSubscriptionForCustomer(ctx, req.CustomerId, req.Workspace)
+	existing, err := s.billing.Subscription(ctx, req.CustomerId)
 	if err != nil {
-		slog.Warn("failed to check for existing subscription", "workspace", req.Workspace, "error", err)
+		return nil, fmt.Errorf("failed to check for existing subscription: %w", err)
 	}
-	if existingSubID != "" {
-		slog.Info("stripe subscription already exists", "workspace", req.Workspace, "subscription_id", existingSubID)
-		return &cashier.CreateSubscriptionResponse{SubscriptionId: existingSubID}, nil
+	if existing != nil {
+		if billing.Ended(existing) {
+			return nil, status.Errorf(codes.FailedPrecondition, "the subscription of workspace %s has ended", req.Workspace)
+		}
+		slog.Debug("stripe subscription already exists", "workspace", req.Workspace, "subscription_id", existing.ID)
+		return &cashier.CreateSubscriptionResponse{SubscriptionId: existing.ID}, nil
 	}
 
 	subID, err := s.stripe.CreateSubscription(ctx, req.CustomerId, req.Workspace, int(req.CreditDays))
@@ -84,8 +95,13 @@ func (s *Server) CreateSubscription(ctx context.Context, req *cashier.CreateSubs
 }
 
 func (s *Server) ChangePlan(ctx context.Context, req *cashier.ChangePlanRequest) (*cashier.ChangePlanResponse, error) {
-	if req.CustomerId == "" || req.SubscriptionId == "" {
-		return nil, fmt.Errorf("customer_id and subscription_id required")
+	if req.CustomerId == "" {
+		return nil, fmt.Errorf("customer_id required")
+	}
+
+	current, err := s.subscription(ctx, req.Workspace, req.CustomerId, req.SubscriptionId)
+	if err != nil {
+		return nil, err
 	}
 
 	newPriceID := s.stripe.PlanPriceID(planToString(req.Plan))
@@ -96,7 +112,7 @@ func (s *Server) ChangePlan(ctx context.Context, req *cashier.ChangePlanRequest)
 		oldPriceID = s.stripe.Prices.ProPriceID
 	}
 
-	sub, err := s.stripe.ChangePlan(ctx, req.SubscriptionId, newPriceID, oldPriceID)
+	sub, err := s.stripe.ChangePlan(ctx, current.ID, newPriceID, oldPriceID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to change plan: %w", err)
 	}
@@ -110,11 +126,11 @@ func (s *Server) ChangePlan(ctx context.Context, req *cashier.ChangePlanRequest)
 }
 
 func (s *Server) Subscription(ctx context.Context, req *cashier.SubscriptionRequest) (*cashier.SubscriptionResponse, error) {
-	if req.CustomerId == "" || req.SubscriptionId == "" {
-		return nil, fmt.Errorf("customer_id and subscription_id required")
+	if req.CustomerId == "" {
+		return nil, fmt.Errorf("customer_id required")
 	}
 
-	sub, err := s.stripe.Subscription(ctx, req.SubscriptionId)
+	sub, err := s.subscription(ctx, req.Workspace, req.CustomerId, req.SubscriptionId)
 	if err != nil {
 		return nil, err
 	}
@@ -166,14 +182,19 @@ func (s *Server) BillingPortalURL(ctx context.Context, req *cashier.BillingPorta
 }
 
 func (s *Server) UsageSummary(ctx context.Context, req *cashier.UsageSummaryRequest) (*cashier.UsageSummaryResponse, error) {
-	if req.CustomerId == "" || req.SubscriptionId == "" {
-		return nil, fmt.Errorf("customer_id and subscription_id required")
+	if req.CustomerId == "" {
+		return nil, fmt.Errorf("customer_id required")
+	}
+
+	sub, err := s.subscription(ctx, req.Workspace, req.CustomerId, req.SubscriptionId)
+	if err != nil {
+		return nil, err
 	}
 
 	var resourceCost int64
 	var planCost int64
 
-	inv, err := s.stripe.UpcomingInvoice(ctx, req.CustomerId, req.SubscriptionId)
+	inv, err := s.stripe.UpcomingInvoice(ctx, req.CustomerId, sub.ID)
 	if err == nil {
 		for _, line := range inv.Lines.Data {
 			if line.Pricing == nil || line.Pricing.PriceDetails == nil || line.Pricing.PriceDetails.Price == nil {
@@ -191,7 +212,7 @@ func (s *Server) UsageSummary(ctx context.Context, req *cashier.UsageSummaryRequ
 	// Include open invoices (e.g. threshold-triggered invoices that are pending
 	// payment). Their usage is no longer on the upcoming preview but the credits
 	// haven't been deducted yet until the invoice is paid.
-	openTotal, err := s.stripe.UnpaidInvoiceTotal(ctx, req.SubscriptionId)
+	openTotal, err := s.stripe.UnpaidInvoiceTotal(ctx, sub.ID)
 	if err != nil {
 		slog.Warn("failed to get open invoice total", "workspace", req.Workspace, "error", err)
 	}
@@ -214,6 +235,20 @@ func (s *Server) UsageSummary(ctx context.Context, req *cashier.UsageSummaryRequ
 		CreditsCents:        int32(creditsApplied),
 		EstimatedTotalCents: int32(estimated),
 	}, nil
+}
+
+func (s *Server) subscription(ctx context.Context, workspace, customerID, storedID string) (*gostripe.Subscription, error) {
+	sub, err := s.billing.Subscription(ctx, customerID)
+	if err != nil {
+		return nil, err
+	}
+	if sub == nil {
+		return nil, status.Errorf(codes.NotFound, "workspace %s has no subscription", workspace)
+	}
+	if storedID != "" && storedID != sub.ID {
+		slog.InfoContext(ctx, "billing: stored subscription is stale", "workspace", workspace, "stored", storedID, "current", sub.ID)
+	}
+	return sub, nil
 }
 
 // HandleStripeEvent processes Stripe webhook events for billing lifecycle.
@@ -245,8 +280,7 @@ func (s *Server) handlePaymentFailed(event gostripe.Event) error {
 	}
 
 	slog.Warn("payment failed, suspending workspace", "workspace", workspace, "invoice", inv.ID)
-	s.suspendWorkspace(workspace, true)
-	return nil
+	return s.SuspendWorkspace(workspace, true)
 }
 
 func (s *Server) handlePaymentSucceeded(event gostripe.Event) error {
@@ -291,15 +325,13 @@ func (s *Server) handlePaymentSucceeded(event gostripe.Event) error {
 			if !hasPM {
 				slog.Info("trial ended, no plan or payment method, suspending workspace",
 					"workspace", workspace, "invoice", inv.ID)
-				s.suspendWorkspace(workspace, true)
-				return nil
+				return s.SuspendWorkspace(workspace, true)
 			}
 		}
 	}
 
 	slog.Info("payment succeeded, resuming workspace", "workspace", workspace, "invoice", inv.ID)
-	s.suspendWorkspace(workspace, false)
-	return nil
+	return s.SuspendWorkspace(workspace, false)
 }
 
 // subscriptionHasPlan returns true if the subscription has a Hobby or Pro plan item.
@@ -325,16 +357,19 @@ func (s *Server) handleSubscriptionDeleted(event gostripe.Event) error {
 	}
 
 	slog.Warn("subscription deleted, suspending workspace", "workspace", workspace, "subscription", sub.ID)
-	s.suspendWorkspace(workspace, true)
-	return nil
+	return s.SuspendWorkspace(workspace, true)
 }
 
-func (s *Server) suspendWorkspace(workspace string, suspended bool) {
+// SuspendWorkspace suspends or resumes every environment of a workspace and,
+// once that succeeded, records the state on its Logto organization.
+func (s *Server) SuspendWorkspace(workspace string, suspended bool) error {
 	ctx := auth.NewContext(context.Background(), &auth.Claims{
 		Subject: "cashier",
 	})
 	ctx = auth.WithIssuer(ctx, s.issuer)
 	ctx = auth.OutgoingContext(ctx)
+	ctx, cancel := context.WithTimeout(ctx, suspendTimeout)
+	defer cancel()
 
 	action := "suspend"
 	if !suspended {
@@ -347,13 +382,18 @@ func (s *Server) suspendWorkspace(workspace string, suspended bool) {
 	})
 	if err != nil {
 		slog.Error("failed to "+action+" workspace", "workspace", workspace, "error", err)
+		return fmt.Errorf("failed to %s workspace %s: %w", action, workspace, err)
 	}
 
 	// 2. Persist suspension state in Logto org customData for dashboard visibility.
-	org, err := s.logto.OrganizationByName(context.Background(), workspace)
+	org, err := s.logto.OrganizationByName(ctx, workspace)
+	if errors.Is(err, logto.ErrOrganizationNotFound) {
+		slog.Warn("no logto org for workspace, suspension state not recorded", "workspace", workspace)
+		return nil
+	}
 	if err != nil {
 		slog.Error("failed to look up logto org for suspension", "workspace", workspace, "error", err)
-		return
+		return fmt.Errorf("failed to look up logto org of workspace %s: %w", workspace, err)
 	}
 	customData := org.CustomData
 	if customData == nil {
@@ -364,9 +404,11 @@ func (s *Server) suspendWorkspace(workspace string, suspended bool) {
 	} else {
 		delete(customData, "suspended")
 	}
-	if _, err := s.logto.UpdateOrganizationCustomData(context.Background(), org.ID, customData); err != nil {
+	if _, err := s.logto.UpdateOrganizationCustomData(ctx, org.ID, customData); err != nil {
 		slog.Error("failed to update logto suspension state", "workspace", workspace, "suspended", suspended, "error", err)
+		return fmt.Errorf("failed to record suspension of workspace %s: %w", workspace, err)
 	}
+	return nil
 }
 
 func (s *Server) CreateCheckoutSession(ctx context.Context, req *cashier.CreateCheckoutSessionRequest) (*cashier.CreateCheckoutSessionResponse, error) {
@@ -434,8 +476,13 @@ func (s *Server) CreatePlanCheckoutSession(ctx context.Context, req *cashier.Cre
 }
 
 func (s *Server) AddPlan(ctx context.Context, req *cashier.AddPlanRequest) (*cashier.AddPlanResponse, error) {
-	if req.CustomerId == "" || req.SubscriptionId == "" || req.CheckoutSessionId == "" {
-		return nil, fmt.Errorf("customer_id, subscription_id, and checkout_session_id required")
+	if req.CustomerId == "" || req.CheckoutSessionId == "" {
+		return nil, fmt.Errorf("customer_id and checkout_session_id required")
+	}
+
+	current, err := s.subscription(ctx, req.Workspace, req.CustomerId, req.SubscriptionId)
+	if err != nil {
+		return nil, err
 	}
 
 	// Retrieve the setup checkout session to get the payment method.
@@ -455,7 +502,7 @@ func (s *Server) AddPlan(ctx context.Context, req *cashier.AddPlanRequest) (*cas
 	}
 
 	// Add the plan to the subscription.
-	sub, err := s.stripe.AddPlanToSubscription(ctx, req.SubscriptionId, planPriceID)
+	sub, err := s.stripe.AddPlanToSubscription(ctx, current.ID, planPriceID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add plan: %w", err)
 	}

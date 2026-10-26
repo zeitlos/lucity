@@ -65,28 +65,6 @@ func (c *Client) Workspace(ctx context.Context, id string) (*WorkspaceDetails, e
 	return c.directory.Workspace(ctx, id)
 }
 
-func (c *Client) CreateWorkspace(ctx context.Context, id, name string) (*WorkspaceDetails, error) {
-	claims, err := auth.FromContext(ctx)
-
-	if err != nil {
-		return nil, err
-	}
-
-	workspace, err := c.directory.CreateWorkspace(ctx, id, name, nil)
-
-	if err != nil {
-		return nil, err
-	}
-
-	slog.InfoContext(ctx, "workspace created", "id", id, "name", name)
-
-	// Best-effort: set up Stripe customer + subscription with no trial.
-	// Additional workspaces require a payment method — no free trial.
-	c.setupBilling(ctx, id, name, claims.Email, 0)
-
-	return workspace, nil
-}
-
 func (c *Client) UpdateWorkspace(ctx context.Context, id, name string) (*WorkspaceDetails, error) {
 	return c.directory.UpdateWorkspace(ctx, id, name)
 }
@@ -481,6 +459,17 @@ func (c *Client) CompleteWorkspaceCheckout(ctx context.Context, sessionID string
 	workspace, err := c.directory.CreateWorkspace(ctx, wsID, wsName, metadata)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create workspace: %w", err)
+	}
+
+	customerCtx, customerCancel := context.WithTimeout(outCtx, grpcTimeout)
+	defer customerCancel()
+
+	if _, err := c.cashier.CreateCustomer(customerCtx, &cashier.CreateCustomerRequest{
+		Workspace: wsID,
+		Name:      wsName,
+		Email:     session.Email,
+	}); err != nil {
+		slog.WarnContext(ctx, "failed to link the checkout customer to its workspace", "workspace", wsID, "error", err)
 	}
 
 	slog.Info("workspace created via checkout", "id", wsID, "name", wsName, "customer_id", session.CustomerId, "subscription_id", session.SubscriptionId)

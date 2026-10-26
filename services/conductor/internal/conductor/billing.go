@@ -106,6 +106,21 @@ func (c *Client) Subscription(ctx context.Context, ws string) (*BillingSubscript
 	return result, nil
 }
 
+func (c *Client) paid(ctx context.Context, ws string) bool {
+	if c.cashier == nil || c.config.PaidPlacement.IsZero() {
+		return false
+	}
+
+	subscription, err := c.Subscription(ctx, ws)
+
+	if err != nil {
+		slog.InfoContext(ctx, "plan lookup failed, keeping the default placement", "workspace", ws, "error", err)
+		return false
+	}
+
+	return subscription.Plan != nil && subscription.Status != "CANCELED" && subscription.Status != "INCOMPLETE"
+}
+
 func (c *Client) ChangePlan(ctx context.Context, ws, plan string) (*BillingSubscription, error) {
 	customerID, subscriptionID, err := c.stripeIDs(ctx, ws)
 

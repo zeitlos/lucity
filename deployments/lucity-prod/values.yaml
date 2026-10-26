@@ -164,7 +164,7 @@ stagehand:
     STRIPE_HOBBY_PRICE_ID: *hobby-price
     STRIPE_PRO_PRICE_ID: *pro-price
   envSecret:
-    STRIPE_SECRET_KEY: STRIPE_SECRET_KEY
+    STRIPE_SECRET_KEY: STAGEHAND_STRIPE_SECRET_KEY
 
 dashboard:
   nodeSelector: *platform-nodes

@@ -4,10 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
 )
+
+// ErrOrganizationNotFound is returned when no organization has the requested name.
+var ErrOrganizationNotFound = errors.New("organization not found")
 
 type Organization struct {
 	TenantID      string                 `json:"tenantId"`
@@ -74,7 +78,7 @@ func (c *Client) OrganizationByName(ctx context.Context, name string) (*Organiza
 		}
 	}
 
-	return nil, fmt.Errorf("organization with name %q not found", name)
+	return nil, fmt.Errorf("organization with name %q: %w", name, ErrOrganizationNotFound)
 }
 
 // CreateOrganization creates a new organization.

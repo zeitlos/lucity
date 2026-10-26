@@ -110,6 +110,10 @@ spec:
             - name: WORKLOAD_DEFAULT_PLACEMENT
               value: {{ . | quote }}
             {{- end }}
+            {{- with include "lucity.placementJSON" .Values.workloadPlacement.paid }}
+            - name: WORKLOAD_PAID_PLACEMENT
+              value: {{ . | quote }}
+            {{- end }}
             {{- if and .Values.conductor.buildkit.enabled .Values.conductor.buildkit.tls.enabled }}
             - name: BUILDKIT_TLS_SECRET
               value: {{ include "lucity.fullname" . }}-buildkit-tls-client

@@ -10,6 +10,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/zeitlos/lucity/pkg/cashier"
 	"github.com/zeitlos/lucity/pkg/deployer"
+	"github.com/zeitlos/lucity/pkg/deployer/values"
 	"github.com/zeitlos/lucity/pkg/domains"
 	"github.com/zeitlos/lucity/pkg/environment"
 	ghpkg "github.com/zeitlos/lucity/pkg/github"
@@ -81,6 +82,7 @@ type Config struct {
 	GitHubAppSlug        string
 	DashboardURL         string
 	MaxQueuedReleases    int
+	PaidPlacement        values.Placement
 	BackupArchive        *backuparchive.Client
 }
 

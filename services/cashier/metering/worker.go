@@ -8,12 +8,14 @@ import (
 	"strconv"
 	"time"
 
+	gostripe "github.com/stripe/stripe-go/v87"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/zeitlos/lucity/pkg/auth"
+	"github.com/zeitlos/lucity/pkg/billing"
 	"github.com/zeitlos/lucity/pkg/conductor"
 	"github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/pkg/logto"
@@ -37,13 +39,20 @@ const ingestionDelay = 5 * time.Minute
 const checkpointCMName = "metering-checkpoint"
 const checkpointKey = "last_window_end"
 
+// Suspender suspends or resumes every environment of a workspace.
+type Suspender interface {
+	SuspendWorkspace(workspace string, suspended bool) error
+}
+
 // Worker periodically queries resource usage and reports it to Stripe.
 type Worker struct {
 	stripe     *stripelib.Client
+	billing    *billing.Client
 	conductor  conductor.ConductorServiceClient
 	logto      *logto.Client
 	vm         *VMClient
 	k8s        kubernetes.Interface // nil if K8s not available (no checkpoint/backfill)
+	suspender  Suspender
 	namespace  string
 	issuer     *auth.Issuer
 	interval   time.Duration
@@ -53,13 +62,15 @@ type Worker struct {
 }
 
 // NewWorker creates a metering worker. k8sClient may be nil (disables checkpoint/backfill).
-func NewWorker(stripeClient *stripelib.Client, conductorClient conductor.ConductorServiceClient, logtoClient *logto.Client, vmClient *VMClient, k8sClient kubernetes.Interface, namespace string, issuer *auth.Issuer, interval time.Duration) *Worker {
+func NewWorker(stripeClient *stripelib.Client, billingClient *billing.Client, conductorClient conductor.ConductorServiceClient, logtoClient *logto.Client, vmClient *VMClient, k8sClient kubernetes.Interface, suspender Suspender, namespace string, issuer *auth.Issuer, interval time.Duration) *Worker {
 	return &Worker{
 		stripe:    stripeClient,
+		billing:   billingClient,
 		conductor: conductorClient,
 		logto:     logtoClient,
 		vm:        vmClient,
 		k8s:       k8sClient,
+		suspender: suspender,
 		namespace: namespace,
 		issuer:    issuer,
 		interval:  interval,
@@ -76,6 +87,7 @@ func (w *Worker) Start() error {
 	defer close(w.done)
 
 	w.catchUp(ctx)
+	w.endTrials(ctx)
 
 	ticker := time.NewTicker(w.interval)
 	defer ticker.Stop()
@@ -88,6 +100,7 @@ func (w *Worker) Start() error {
 			return nil
 		case <-ticker.C:
 			w.catchUp(ctx)
+			w.endTrials(ctx)
 			slog.Info("metering: next tick", "in", w.interval, "at", time.Now().Add(w.interval).Format(time.RFC3339))
 		}
 	}
@@ -167,8 +180,8 @@ func (w *Worker) conductorCtx(ctx context.Context) context.Context {
 	return auth.OutgoingContext(ctx)
 }
 
-// billableWorkspaces returns workspaces that have both stripeCustomerId and
-// stripeSubscriptionId in their Logto org customData.
+// billableWorkspaces returns workspaces that have a stripeCustomerId in their
+// Logto org customData.
 func (w *Worker) billableWorkspaces(ctx context.Context) (map[string]*workspaceData, error) {
 	orgs, err := w.logto.Organizations(ctx)
 	if err != nil {
@@ -181,13 +194,13 @@ func (w *Worker) billableWorkspaces(ctx context.Context) (map[string]*workspaceD
 			continue
 		}
 		customerID, _ := org.CustomData["stripeCustomerId"].(string)
-		subscriptionID, _ := org.CustomData["stripeSubscriptionId"].(string)
-		if customerID == "" || subscriptionID == "" {
+		if customerID == "" {
 			continue
 		}
+		suspended, _ := org.CustomData["suspended"].(bool)
 		result[org.Name] = &workspaceData{
-			customerID:     customerID,
-			subscriptionID: subscriptionID,
+			customerID: customerID,
+			suspended:  suspended,
 		}
 	}
 	return result, nil
@@ -196,7 +209,7 @@ func (w *Worker) billableWorkspaces(ctx context.Context) (map[string]*workspaceD
 // workspaceData holds billing metadata for a workspace.
 type workspaceData struct {
 	customerID      string
-	subscriptionID  string
+	suspended       bool
 	namespaces      []string
 	ecoNamespaces   []string
 	ecoAllocations  []allocEntry
@@ -295,12 +308,19 @@ func (w *Worker) processWindow(ctx context.Context, windowStart, windowEnd time.
 		}
 	}
 
+	subscriptions, err := w.billing.CurrentSubscriptions(ctx)
+	if err != nil {
+		slog.Error("metering: failed to list subscriptions, skipping credit grants", "error", err)
+	}
+
 	// 6. Report to Stripe per workspace and ensure credit grants exist.
 	for wsID, ws := range workspaces {
 		w.reportWorkspace(ctx, wsID, ws, cpuByNs, memByNs, diskByNs, windowStart, windowEnd)
 
 		// Ensure a credit grant exists for the current billing period.
-		w.ensureCreditGrant(ctx, wsID, ws)
+		if sub := subscriptions[ws.customerID]; sub != nil {
+			w.ensureCreditGrant(ctx, wsID, ws, sub)
+		}
 	}
 
 	slog.Info("metering tick completed",
@@ -441,13 +461,7 @@ func meterEventID(workspace, eventName string, windowStart time.Time) string {
 }
 
 // ensureCreditGrant creates a Stripe credit grant for the current billing period if one doesn't exist.
-func (w *Worker) ensureCreditGrant(ctx context.Context, wsID string, ws *workspaceData) {
-	sub, err := w.stripe.Subscription(ctx, ws.subscriptionID)
-	if err != nil {
-		slog.Error("metering: failed to get subscription for credit grant", "workspace", wsID, "error", err)
-		return
-	}
-
+func (w *Worker) ensureCreditGrant(ctx context.Context, wsID string, ws *workspaceData, sub *gostripe.Subscription) {
 	// Find the plan price and period boundaries from subscription items.
 	var planPriceID string
 	var periodStart, periodEnd int64
@@ -469,6 +483,60 @@ func (w *Worker) ensureCreditGrant(ctx context.Context, wsID string, ws *workspa
 	if err := w.stripe.CreateCreditGrantForPeriod(ctx, ws.customerID, creditCents, periodStart, periodEnd); err != nil {
 		slog.Error("metering: failed to ensure credit grant", "workspace", wsID, "error", err)
 	}
+}
+
+func (w *Worker) endTrials(ctx context.Context) {
+	workspaces, err := w.billableWorkspaces(ctx)
+	if err != nil {
+		slog.Error("trials: failed to list workspaces", "error", err)
+		return
+	}
+
+	subscriptions, err := w.billing.CurrentSubscriptions(ctx)
+	if err != nil {
+		slog.Error("trials: failed to list subscriptions", "error", err)
+		return
+	}
+
+	now := time.Now()
+	for wsID, ws := range workspaces {
+		if ws.suspended {
+			continue
+		}
+
+		sub := subscriptions[ws.customerID]
+		if sub == nil || w.billing.Plan(sub).Paid() {
+			continue
+		}
+
+		end := trialEnd(sub)
+		if end.IsZero() || now.Before(end) {
+			continue
+		}
+
+		hasPaymentMethod, err := w.stripe.HasPaymentMethod(ctx, sub)
+		if err != nil {
+			slog.Error("trials: failed to check payment method", "workspace", wsID, "error", err)
+			continue
+		}
+		if hasPaymentMethod {
+			continue
+		}
+
+		slog.Info("trial ended, no plan or payment method, suspending workspace",
+			"workspace", wsID, "subscription", sub.ID, "trial_end", end)
+		if err := w.suspender.SuspendWorkspace(wsID, true); err != nil {
+			slog.Error("trials: failed to suspend workspace, retrying next tick", "workspace", wsID, "error", err)
+		}
+	}
+}
+
+func trialEnd(sub *gostripe.Subscription) time.Time {
+	interval := sub.PendingInvoiceItemInterval
+	if interval == nil || interval.Interval != gostripe.SubscriptionPendingInvoiceItemIntervalIntervalDay {
+		return time.Time{}
+	}
+	return time.Unix(sub.StartDate, 0).AddDate(0, 0, int(interval.IntervalCount))
 }
 
 // lastCheckpoint reads the last successfully completed window end time from K8s.

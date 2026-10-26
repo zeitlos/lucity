@@ -480,28 +480,28 @@ func (c *Client) CreateCreditGrantForPeriod(ctx context.Context, customerID stri
 	return nil
 }
 
-// ActiveSubscriptionForCustomer returns the ID of an active subscription
-// for the given customer that has the specified workspace in its metadata.
-// Returns empty string if no matching subscription exists.
-func (c *Client) ActiveSubscriptionForCustomer(ctx context.Context, customerID, workspace string) (string, error) {
-	params := &gostripe.SubscriptionListParams{
-		ListParams: gostripe.ListParams{},
-	}
-	params.Filters.AddFilter("customer", "", customerID)
-	params.Filters.AddFilter("status", "", "active")
-
-	iter := subscription.List(params)
-	for iter.Next() {
-		sub := iter.Subscription()
-		if sub.Metadata["workspace"] == workspace {
-			return sub.ID, nil
-		}
-	}
-	if err := iter.Err(); err != nil {
-		return "", fmt.Errorf("failed to list subscriptions: %w", err)
+// EnsureCustomerWorkspace records the workspace on a customer that has none.
+func (c *Client) EnsureCustomerWorkspace(ctx context.Context, customerID, workspace string) error {
+	cust, err := customer.Get(customerID, nil)
+	if err != nil {
+		return fmt.Errorf("failed to get customer: %w", err)
 	}
 
-	return "", nil
+	switch existing := cust.Metadata["workspace"]; existing {
+	case workspace:
+		return nil
+	case "":
+	default:
+		return fmt.Errorf("customer %s belongs to workspace %s", customerID, existing)
+	}
+
+	params := &gostripe.CustomerParams{}
+	params.AddMetadata("workspace", workspace)
+
+	if _, err := customer.Update(customerID, params); err != nil {
+		return fmt.Errorf("failed to set customer workspace: %w", err)
+	}
+	return nil
 }
 
 // HasPaymentMethod reports whether the subscription's invoices have a card to charge:

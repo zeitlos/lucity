@@ -121,6 +121,7 @@ type Config struct {
 	// Tenant workload placement for releases installed by the conductor or its
 	// deploy Jobs. Stagehand moves releases to their plan's placement afterwards.
 	WorkloadDefaultPlacement string `envconfig:"WORKLOAD_DEFAULT_PLACEMENT"`
+	WorkloadPaidPlacement    string `envconfig:"WORKLOAD_PAID_PLACEMENT"`
 
 	// Secret scan tuning
 	ScanTimeout               time.Duration `envconfig:"SCAN_TIMEOUT" default:"60m"`
@@ -384,6 +385,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	var workloadPaidPlacement values.Placement
+
+	if err := workloadPaidPlacement.Decode(config.WorkloadPaidPlacement); err != nil {
+		slog.Error("failed to parse WORKLOAD_PAID_PLACEMENT", "error", err)
+		os.Exit(1)
+	}
+
 	deployerClient, err := helmDeployer.New(chartRef, config.GatewayName, config.GatewayNamespace, config.CustomDomainClusterIssuer, helmDeployer.BackupConfig{
 		Enabled:  config.DatabaseBackupEnabled,
 		Endpoint: config.DatabaseBackupEndpoint,
@@ -468,6 +476,7 @@ func main() {
 		GitHubAppSlug:        config.GitHubAppSlug,
 		DashboardURL:         config.DashboardURL,
 		MaxQueuedReleases:    config.MaxQueuedReleases,
+		PaidPlacement:        workloadPaidPlacement,
 		BackupArchive: backuparchive.New(backuparchive.Config{
 			Endpoint:        config.DatabaseBackupEndpoint,
 			Bucket:          config.DatabaseBackupBucket,
