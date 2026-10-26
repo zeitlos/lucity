@@ -53,6 +53,8 @@ type Config struct {
 	Interval time.Duration `envconfig:"INTERVAL" default:"2m"`
 	DryRun   bool          `envconfig:"DRY_RUN" default:"false"`
 
+	SuspensionEnforced bool `envconfig:"SUSPENSION_ENFORCED" default:"false"`
+
 	SystemNamespace string `envconfig:"SYSTEM_NAMESPACE" default:"lucity-system"`
 	BuildNamespace  string `envconfig:"BUILD_NAMESPACE" default:"lucity-builds"`
 
@@ -205,10 +207,10 @@ func main() {
 
 	directory := workspaces.New(logto.New(config.LogtoEndpoint, config.LogtoM2MAppID, config.LogtoM2MAppSecret), platformClient, workspaceMaxAge)
 
-	releaseWorker := releases.New(environmentClient, deployerClient.Environments(), directory, billingClient, config.WorkloadDefaultPlacement, config.WorkloadPaidPlacement, config.Interval, config.DryRun)
+	releaseWorker := releases.New(environmentClient, deployerClient.Environments(), directory, billingClient, config.WorkloadDefaultPlacement, config.WorkloadPaidPlacement, config.Interval, config.DryRun, config.SuspensionEnforced)
 	domainWorker := customdomains.New(domainsClient, directory, pendingDomainInterval, domainSyncInterval)
 
-	slog.Info("stagehand started", "version", Version, "interval", config.Interval, "dry_run", config.DryRun, "max_concurrent_releases", config.MaxConcurrentReleases, "max_concurrent_builds", config.MaxConcurrentBuilds)
+	slog.Info("stagehand started", "version", Version, "interval", config.Interval, "dry_run", config.DryRun, "suspension_enforced", config.SuspensionEnforced, "max_concurrent_releases", config.MaxConcurrentReleases, "max_concurrent_builds", config.MaxConcurrentBuilds)
 
 	var workers sync.WaitGroup
 

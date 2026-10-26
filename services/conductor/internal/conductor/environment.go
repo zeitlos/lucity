@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/usererror"
 )
@@ -46,7 +47,7 @@ func (c *Client) CreateEnvironment(ctx context.Context, project ProjectID, name 
 	}
 
 	if c.paid(ctx, envID.Workspace) {
-		if _, err := c.deployer.Environments().Place(ctx, envID, c.config.PaidPlacement); err != nil {
+		if _, err := c.deployer.Environments().SetState(ctx, envID, deployer.EnvironmentState{Placement: c.config.PaidPlacement}); err != nil {
 			slog.WarnContext(ctx, "install on the paid placement failed", "environment", envID, "error", err)
 		}
 	}

@@ -79,9 +79,16 @@ type EnvironmentClient interface {
 	SetVariables(ctx context.Context, id platform.EnvironmentID, vars map[string]string) (RevisionID, error)
 	Suspend(ctx context.Context, id platform.EnvironmentID, suspended bool) (RevisionID, error)
 	Outdated(ctx context.Context, id platform.EnvironmentID) (bool, error)
-	Placement(ctx context.Context, id platform.EnvironmentID) (*values.Placement, error)
-	Place(ctx context.Context, id platform.EnvironmentID, placement values.Placement) (RevisionID, error)
+	State(ctx context.Context, id platform.EnvironmentID) (*EnvironmentState, error)
+	SetState(ctx context.Context, id platform.EnvironmentID, state EnvironmentState) (RevisionID, error)
 	Export(ctx context.Context, id platform.EnvironmentID) ([]byte, error)
+}
+
+// EnvironmentState is what stagehand converges on a release: where its
+// workloads run and whether they are suspended.
+type EnvironmentState struct {
+	Placement values.Placement
+	Suspended bool
 }
 
 type ServiceVariablesSpec struct {

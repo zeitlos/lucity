@@ -12,7 +12,7 @@ import (
 	"k8s.io/client-go/metadata/metadatainformer"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/zeitlos/lucity/pkg/deployer/values"
+	"github.com/zeitlos/lucity/pkg/deployer"
 )
 
 // ReleaseCache watches the metadata of the Helm release secrets, never their
@@ -21,14 +21,14 @@ import (
 type ReleaseCache struct {
 	informer cache.SharedIndexInformer
 
-	mu         sync.Mutex
-	verified   map[string]types.UID
-	placements map[string]placedRelease
+	mu       sync.Mutex
+	verified map[string]types.UID
+	states   map[string]cachedState
 }
 
-type placedRelease struct {
-	uid       types.UID
-	placement values.Placement
+type cachedState struct {
+	uid   types.UID
+	state deployer.EnvironmentState
 }
 
 func NewReleaseCache(client metadata.Interface) *ReleaseCache {
@@ -44,9 +44,9 @@ func NewReleaseCache(client metadata.Interface) *ReleaseCache {
 	)
 
 	return &ReleaseCache{
-		informer:   informer.Informer(),
-		verified:   map[string]types.UID{},
-		placements: map[string]placedRelease{},
+		informer: informer.Informer(),
+		verified: map[string]types.UID{},
+		states:   map[string]cachedState{},
 	}
 }
 
@@ -99,22 +99,22 @@ func (r *ReleaseCache) markVerified(namespace string, uid types.UID) {
 	r.verified[namespace] = uid
 }
 
-func (r *ReleaseCache) placement(namespace string, uid types.UID) (values.Placement, bool) {
+func (r *ReleaseCache) state(namespace string, uid types.UID) (deployer.EnvironmentState, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	placed, ok := r.placements[namespace]
+	cached, ok := r.states[namespace]
 
-	if !ok || placed.uid != uid {
-		return values.Placement{}, false
+	if !ok || cached.uid != uid {
+		return deployer.EnvironmentState{}, false
 	}
 
-	return placed.placement, true
+	return cached.state, true
 }
 
-func (r *ReleaseCache) markPlacement(namespace string, uid types.UID, placement values.Placement) {
+func (r *ReleaseCache) markState(namespace string, uid types.UID, state deployer.EnvironmentState) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.placements[namespace] = placedRelease{uid: uid, placement: placement}
+	r.states[namespace] = cachedState{uid: uid, state: state}
 }

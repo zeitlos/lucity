@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"time"
 
 	"github.com/stripe/stripe-go/v87"
 )
@@ -102,28 +103,96 @@ func (c *Client) CurrentSubscriptions(ctx context.Context) (map[string]*stripe.S
 	return current, nil
 }
 
-// Plans returns the plan of every customer whose subscription is live and
-// carries a plan price, keyed by Stripe customer ID.
-func (c *Client) Plans(ctx context.Context) (map[string]Plan, error) {
-	subscriptions, err := c.CurrentSubscriptions(ctx)
+// Subscriptions returns the subscription of every customer that ever had
+// one, keyed by Stripe customer ID, picked the same way as Subscription.
+func (c *Client) Subscriptions(ctx context.Context) (map[string]*stripe.Subscription, error) {
+	params := &stripe.SubscriptionListParams{Status: stripe.String("all")}
+	params.Limit = stripe.Int64(100)
 
-	if err != nil {
-		return nil, err
-	}
+	byCustomer := map[string][]*stripe.Subscription{}
 
-	plans := map[string]Plan{}
+	for subscription, err := range c.stripe.V1Subscriptions.List(ctx, params).All(ctx) {
+		if err != nil {
+			return nil, fmt.Errorf("list subscriptions: %w", err)
+		}
 
-	for customerID, subscription := range subscriptions {
-		if !live(subscription.Status) {
+		if subscription.Customer == nil {
 			continue
 		}
 
-		if plan := c.Plan(subscription); plan.Paid() {
-			plans[customerID] = plan
-		}
+		byCustomer[subscription.Customer.ID] = append(byCustomer[subscription.Customer.ID], subscription)
 	}
 
-	return plans, nil
+	picked := make(map[string]*stripe.Subscription, len(byCustomer))
+
+	for customerID, subscriptions := range byCustomer {
+		picked[customerID] = c.pick(ctx, customerID, subscriptions)
+	}
+
+	return picked, nil
+}
+
+// PaymentMethods reports, keyed by Stripe customer ID, whether a customer has
+// a default payment method for its invoices.
+func (c *Client) PaymentMethods(ctx context.Context) (map[string]bool, error) {
+	params := &stripe.CustomerListParams{}
+	params.Limit = stripe.Int64(100)
+
+	methods := map[string]bool{}
+
+	for customer, err := range c.stripe.V1Customers.List(ctx, params).All(ctx) {
+		if err != nil {
+			return nil, fmt.Errorf("list customers: %w", err)
+		}
+
+		methods[customer.ID] = customer.InvoiceSettings != nil && customer.InvoiceSettings.DefaultPaymentMethod != nil
+	}
+
+	return methods, nil
+}
+
+// Paid reports whether a subscription is live and carries a plan price.
+func (c *Client) Paid(subscription *stripe.Subscription) bool {
+	return live(subscription.Status) && c.Plan(subscription).Paid()
+}
+
+type Standing struct {
+	Good   bool
+	Reason string
+}
+
+// Standing reports whether a workspace billed through the subscription is in
+// good standing. A past_due subscription still is, as a grace period, and so
+// is a trial until it expires without a payment method.
+func (c *Client) Standing(subscription *stripe.Subscription, hasPaymentMethod bool, now time.Time) Standing {
+	switch {
+	case Ended(subscription):
+		return Standing{Reason: "ended"}
+	case subscription.Status == stripe.SubscriptionStatusUnpaid:
+		return Standing{Reason: "unpaid"}
+	case subscription.Status == stripe.SubscriptionStatusPaused:
+		return Standing{Reason: "paused"}
+	}
+
+	if c.Plan(subscription).Paid() || hasPaymentMethod || subscription.DefaultPaymentMethod != nil {
+		return Standing{Good: true}
+	}
+
+	if end := trialEnd(subscription); !end.IsZero() && !now.Before(end) {
+		return Standing{Reason: "trial ended"}
+	}
+
+	return Standing{Good: true}
+}
+
+func trialEnd(subscription *stripe.Subscription) time.Time {
+	interval := subscription.PendingInvoiceItemInterval
+
+	if interval == nil || interval.Interval != stripe.SubscriptionPendingInvoiceItemIntervalIntervalDay {
+		return time.Time{}
+	}
+
+	return time.Unix(subscription.StartDate, 0).AddDate(0, 0, int(interval.IntervalCount))
 }
 
 func (c *Client) Plan(subscription *stripe.Subscription) Plan {

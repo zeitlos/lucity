@@ -45,7 +45,7 @@ func (e *environmentClient) Suspend(ctx context.Context, id platform.Environment
 	})
 }
 
-func (e *environmentClient) Placement(ctx context.Context, id platform.EnvironmentID) (*values.Placement, error) {
+func (e *environmentClient) State(ctx context.Context, id platform.EnvironmentID) (*deployer.EnvironmentState, error) {
 	namespace := id.Namespace()
 
 	var newest types.UID
@@ -58,8 +58,8 @@ func (e *environmentClient) Placement(ctx context.Context, id platform.Environme
 		}
 
 		if synced {
-			if placement, ok := releases.placement(namespace, uid); ok {
-				return &placement, nil
+			if state, ok := releases.state(namespace, uid); ok {
+				return &state, nil
 			}
 		}
 
@@ -82,16 +82,22 @@ func (e *environmentClient) Placement(ctx context.Context, id platform.Environme
 		return nil, nil
 	}
 
+	state := deployer.EnvironmentState{Placement: env.Placement, Suspended: env.Suspended}
+
 	if newest != "" {
-		e.client.releases.markPlacement(namespace, newest, env.Placement)
+		e.client.releases.markState(namespace, newest, state)
 	}
 
-	return &env.Placement, nil
+	return &state, nil
 }
 
-func (e *environmentClient) Place(ctx context.Context, id platform.EnvironmentID, placement values.Placement) (deployer.RevisionID, error) {
+func (e *environmentClient) SetState(ctx context.Context, id platform.EnvironmentID, state deployer.EnvironmentState) (deployer.RevisionID, error) {
 	return e.client.applyEnv(ctx, id, func(env *values.Env) error {
-		return values.SetPlacement(env, placement)
+		if err := values.SetPlacement(env, state.Placement); err != nil {
+			return err
+		}
+
+		return values.SetSuspended(env, state.Suspended)
 	})
 }
 

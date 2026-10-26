@@ -187,6 +187,8 @@ stagehand:
   interval: 2m
   # Only log what would move
   dryRun: false
+  # Apply billing and abuse suspension; when false, only log what would change
+  enforceSuspension: false
   env: {}
   envSecret: {}
   resources:

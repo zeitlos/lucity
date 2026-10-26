@@ -110,6 +110,7 @@ func (h *Handler) handlePush(event *github.Event) {
 	}
 
 	matched := 0
+	suspended := map[string]bool{}
 
 	for _, match := range matches {
 		if match.InstallationID != 0 && match.InstallationID != event.InstallationID {
@@ -129,6 +130,18 @@ func (h *Handler) handlePush(event *github.Event) {
 		}
 
 		if trackedBranch != pushedBranch {
+			continue
+		}
+
+		workspaceSuspended, checked := suspended[match.ID.Workspace]
+
+		if !checked {
+			workspaceSuspended = h.suspended(ctx, match.ID.Workspace)
+			suspended[match.ID.Workspace] = workspaceSuspended
+		}
+
+		if workspaceSuspended {
+			slog.Info("push: workspace suspended, skipping", "service", match.ID)
 			continue
 		}
 
@@ -172,4 +185,15 @@ func (s *Server) Start() error {
 
 func (s *Server) Shutdown(ctx context.Context) error {
 	return s.server.Shutdown(ctx)
+}
+
+func (h *Handler) suspended(ctx context.Context, workspace string) bool {
+	details, err := h.Conductor.Workspace(ctx, workspace)
+
+	if err != nil {
+		slog.Warn("push: failed to read workspace, deploying anyway", "workspace", workspace, "error", err)
+		return false
+	}
+
+	return details.Suspended
 }

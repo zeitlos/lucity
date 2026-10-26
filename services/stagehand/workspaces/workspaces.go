@@ -90,6 +90,40 @@ func (d *Directory) Environments(ctx context.Context) ([]platform.Environment, e
 	return environments, nil
 }
 
+// MarkSuspended records on the organization whether its workspace is
+// suspended, the flag conductor's mutation gate reads. Logto replaces the
+// whole custom data on update, so it re-reads the organization first and
+// writes only a change.
+func (d *Directory) MarkSuspended(ctx context.Context, organization logto.Organization, suspended bool) error {
+	current, err := d.logto.Organization(ctx, organization.ID)
+
+	if err != nil {
+		return err
+	}
+
+	customData := current.CustomData
+
+	if customData == nil {
+		customData = map[string]interface{}{}
+	}
+
+	if flagged, _ := customData["suspended"].(bool); flagged == suspended {
+		return nil
+	}
+
+	if suspended {
+		customData["suspended"] = true
+	} else {
+		delete(customData, "suspended")
+	}
+
+	if _, err := d.logto.UpdateOrganizationCustomData(ctx, organization.ID, customData); err != nil {
+		return fmt.Errorf("mark workspace %s: %w", organization.Name, err)
+	}
+
+	return nil
+}
+
 func IDs(environments []platform.Environment) []platform.EnvironmentID {
 	ids := make([]platform.EnvironmentID, 0, len(environments))
 
