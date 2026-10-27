@@ -18,7 +18,7 @@ const discardPrompt = useDiscardPrompt();
     <AnnouncementBanner />
     <RouterView />
     <VersionFooter />
-    <Sonner position="bottom-right" rich-colors close-button :theme="theme" />
+    <Sonner position="bottom-right" :theme="theme" />
     <ConfirmDialog
       :open="discardPrompt.open.value"
       title="Discard unsaved changes?"

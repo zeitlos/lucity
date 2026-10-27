@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import QueryError from '@/components/QueryError.vue';
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
@@ -701,32 +702,29 @@ watch(isOpen, (open) => {
 
 watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immediate: true });
 
-// If the env returns an error, bounce to the projects list
-watch(error, (err) => {
-  if (err) {
-    router.replace({ name: 'projects' });
-  }
-});
 </script>
 
 <template>
   <div class="flex h-[calc(100vh-var(--banner-height)-52px-0.75rem-0.5rem)] flex-col">
     <!-- Loading -->
-    <div v-if="loading && !environment" class="flex flex-1 items-center justify-center">
-      <div class="space-y-4 text-center">
-        <Skeleton class="mx-auto h-8 w-48" />
-        <Skeleton class="mx-auto h-4 w-64" />
+    <div v-if="loading && !environment" class="flex flex-1 gap-3 py-3">
+      <div class="w-12" />
+      <div class="flex flex-1 items-center justify-center gap-6 rounded-lg border bg-card">
+        <Skeleton v-for="i in 3" :key="i" class="h-32 w-64" />
       </div>
     </div>
 
     <!-- Error -->
     <div
-      v-else-if="error"
+      v-else-if="error && !environment"
       class="flex flex-1 items-center justify-center p-8"
     >
-      <div class="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-        Failed to load environment: {{ error.message }}
-      </div>
+      <QueryError
+        class="max-w-md"
+        title="Couldn't load this environment"
+        :error="error"
+        @retry="refetch()"
+      />
     </div>
 
     <template v-else-if="environment">

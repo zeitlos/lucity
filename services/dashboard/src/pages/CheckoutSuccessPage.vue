@@ -37,11 +37,6 @@ onMounted(async () => {
   try {
     const res = await mutate({ sessionId });
 
-    if (res?.errors?.length) {
-      error.value = res.errors.map(e => e.message).join(', ');
-      return;
-    }
-
     const workspace = res?.data?.completeWorkspaceCheckout;
     if (!workspace) {
       error.value = 'Failed to create workspace. Please try again.';

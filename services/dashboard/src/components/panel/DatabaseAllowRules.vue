@@ -7,8 +7,7 @@ import { graphql } from '@/gql';
 import { Button } from '@/components/ui/button';
 import IconButton from '@/components/IconButton.vue';
 import { Input } from '@/components/ui/input';
-import { toast, errorToast } from '@/components/ui/sonner';
-import { errorMessage } from '@/lib/utils';
+import { failureToast } from '@/components/ui/sonner';
 
 const ANY_ADDRESS = '0.0.0.0/0';
 
@@ -59,7 +58,7 @@ async function allow(range: string, description: string) {
     await addRule({ database: props.databaseId, rule: { range, description } });
     return true;
   } catch (e: unknown) {
-    errorToast('Failed to allow address', { description: errorMessage(e) });
+    failureToast('Failed to allow address', e);
     return false;
   }
 }
@@ -67,14 +66,12 @@ async function allow(range: string, description: string) {
 async function allowClient() {
   if (!props.clientAddress) return;
   if (await allow(props.clientAddress, 'Added from the dashboard')) {
-    toast.success(`${props.clientAddress} can now connect`);
   }
 }
 
 async function allowAnyAddress() {
   if (await allow(ANY_ADDRESS, 'Any address')) {
     anyAddressDialogOpen.value = false;
-    toast.success('Any address can now connect');
   }
 }
 
@@ -92,7 +89,7 @@ async function remove(range: string) {
   try {
     await removeRule({ database: props.databaseId, range });
   } catch (e: unknown) {
-    errorToast('Failed to remove address', { description: errorMessage(e) });
+    failureToast('Failed to remove address', e);
   } finally {
     removing.value = null;
   }

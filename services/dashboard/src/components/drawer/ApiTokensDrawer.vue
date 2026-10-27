@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import CopyButton from '@/components/CopyButton.vue';
+import QueryError from '@/components/QueryError.vue';
+import EmptyState from '@/components/EmptyState.vue';
 import DialogIcon from '@/components/DialogIcon.vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { ref, computed } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
-import { Copy, KeyRound } from '@lucide/vue';
+import { KeyRound } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { WorkspaceRole } from '@/gql/graphql';
 
@@ -39,7 +42,6 @@ const RevokeApiTokenDocument = graphql(`
 `);
 import ContextDrawer from '@/components/drawer/ContextDrawer.vue';
 import { Button } from '@/components/ui/button';
-import IconButton from '@/components/IconButton.vue';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -58,14 +60,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { toast, errorToast } from '@/components/ui/sonner';
-import { errorMessage } from '@/lib/utils';
+import { failureToast } from '@/components/ui/sonner';
 
 const emit = defineEmits<{
   (e: 'close'): void;
 }>();
 
-const { result, loading, refetch } = useQuery(ApiTokensDocument);
+const { result, loading, error, refetch } = useQuery(ApiTokensDocument);
 const apiTokens = computed(() => result.value?.apiTokens ?? []);
 
 const newName = ref('');
@@ -81,19 +82,13 @@ async function handleCreate() {
   if (!newName.value.trim()) return;
   try {
     const res = await createMutate({ input: { name: newName.value.trim(), role: newRole.value } });
-    if (res?.errors?.length) {
-      errorToast('Failed to create API token', {
-        description: res.errors.map(e => e.message).join(', '),
-      });
-      return;
-    }
     createdToken.value = res?.data?.createApiToken?.token ?? null;
     showTokenDialog.value = true;
     newName.value = '';
     newRole.value = WorkspaceRole.User;
     refetch();
   } catch (e: unknown) {
-    errorToast('Failed to create API token', { description: errorMessage(e) });
+    failureToast('Failed to create API token', e);
   }
 }
 
@@ -101,18 +96,11 @@ async function handleRevoke() {
   if (!tokenToRevoke.value) return;
   try {
     await revokeMutate({ id: tokenToRevoke.value.id });
-    toast.success('API token revoked');
     tokenToRevoke.value = null;
     refetch();
   } catch (e: unknown) {
-    errorToast('Failed to revoke API token', { description: errorMessage(e) });
+    failureToast('Failed to revoke API token', e);
   }
-}
-
-async function copyToken() {
-  if (!createdToken.value) return;
-  await navigator.clipboard.writeText(createdToken.value);
-  toast.success('Copied to clipboard');
 }
 
 function formatDate(dateStr: string): string {
@@ -158,6 +146,12 @@ function formatDate(dateStr: string): string {
         <Skeleton class="h-12 w-full" />
         <Skeleton class="h-12 w-full" />
       </div>
+      <QueryError
+        v-else-if="error && !result"
+        title="Couldn't load API tokens"
+        :error="error"
+        @retry="refetch()"
+      />
       <div v-else-if="apiTokens.length" class="divide-y overflow-hidden rounded-lg border">
         <div
           v-for="token in apiTokens"
@@ -182,10 +176,13 @@ function formatDate(dateStr: string): string {
           </Button>
         </div>
       </div>
-      <div v-else class="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-        <KeyRound :size="20" class="mx-auto mb-2 opacity-50" />
-        No API tokens yet.
-      </div>
+      <EmptyState
+        v-else
+        size="compact"
+        :icon="KeyRound"
+        title="No API tokens yet"
+        description="Create one for the CLI or a CI pipeline."
+      />
     </div>
 
     <ConfirmDialog
@@ -209,9 +206,7 @@ function formatDate(dateStr: string): string {
         </DialogHeader>
         <div class="flex min-w-0 items-start gap-2">
           <code class="min-w-0 flex-1 break-all rounded bg-muted px-2 py-1.5 font-mono text-xs">{{ createdToken }}</code>
-          <IconButton label="Copy token" variant="outline" size="icon" class="shrink-0" @click="copyToken">
-            <Copy />
-          </IconButton>
+          <CopyButton label="Copy token" variant="outline" size="icon" class="shrink-0" :value="createdToken ?? ''" />
         </div>
         <DialogFooter>
           <Button @click="showTokenDialog = false">Done</Button>

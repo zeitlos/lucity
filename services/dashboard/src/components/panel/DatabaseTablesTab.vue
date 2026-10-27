@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import EmptyState from '@/components/EmptyState.vue';
+import QueryError from '@/components/QueryError.vue';
 import { ref, computed, watch, onUnmounted } from 'vue';
 import { useQuery, useApolloClient } from '@vue/apollo-composable';
 import { ArrowLeft, Table2, Key, ChevronLeft, ChevronRight, DatabaseZap } from '@lucide/vue';
@@ -107,7 +109,7 @@ const dataLoading = ref(false);
 const dataColumns = ref<string[]>([]);
 const dataRows = ref<(string | null)[][]>([]);
 const totalEstimatedRows = ref(0);
-const dataError = ref<string | null>(null);
+const dataError = ref<unknown>(null);
 
 function openTable(tableName: string, schema: string) {
   selectedTable.value = tableName;
@@ -147,7 +149,7 @@ async function fetchData() {
     dataRows.value = data.databaseTableData.rows.filter((r): r is (string | null)[] => r !== null);
     totalEstimatedRows.value = data.databaseTableData.totalEstimatedRows;
   } catch (e: unknown) {
-    dataError.value = e instanceof Error ? e.message : String(e);
+    dataError.value = e;
   } finally {
     dataLoading.value = false;
   }
@@ -195,12 +197,12 @@ watch(() => props.databaseId, () => {
       </div>
 
       <!-- Error -->
-      <div
+      <QueryError
         v-else-if="dataError"
-        class="rounded-lg border border-destructive/30 bg-destructive/5 p-3"
-      >
-        <p class="font-mono text-xs text-destructive">{{ dataError }}</p>
-      </div>
+        title="Couldn't load rows"
+        :error="dataError"
+        @retry="fetchData()"
+      />
 
       <!-- Data table -->
       <template v-else>
@@ -274,34 +276,34 @@ watch(() => props.databaseId, () => {
       </div>
 
       <!-- Provisioning -->
-      <div
+      <EmptyState
         v-else-if="isProvisioning"
-        class="flex flex-col items-center justify-center gap-3 py-12 text-center"
+        size="compact"
+        :icon="DatabaseZap"
+        title="Database is provisioning"
+        description="Tables appear once PostgreSQL is ready, usually within a minute."
       >
-        <DatabaseZap :size="24" class="text-muted-foreground" />
-        <div class="space-y-1">
-          <p class="text-sm font-medium">Database is provisioning</p>
-          <p class="text-xs text-muted-foreground">Waiting for PostgreSQL to become ready (~30–60s)</p>
-        </div>
-        <Spinner :size="16" class="animate-spin text-muted-foreground" />
-      </div>
+        <template #action>
+          <Spinner :size="16" class="text-muted-foreground" />
+        </template>
+      </EmptyState>
 
       <!-- Error -->
-      <div
+      <QueryError
         v-else-if="tablesError"
-        class="rounded-lg border border-destructive/30 bg-destructive/5 p-3"
-      >
-        <p class="font-mono text-xs text-destructive">{{ tablesError.message }}</p>
-      </div>
+        title="Couldn't load tables"
+        :error="tablesError"
+        @retry="refetchTables()"
+      />
 
       <!-- Empty state -->
-      <div
+      <EmptyState
         v-else-if="tables.length === 0"
-        class="flex flex-col items-center justify-center gap-2 py-12 text-center"
-      >
-        <Table2 :size="24" class="text-muted-foreground" />
-        <p class="text-sm text-muted-foreground">No tables found in this database.</p>
-      </div>
+        size="compact"
+        :icon="Table2"
+        title="No tables yet"
+        description="Tables your app creates show up here."
+      />
 
       <!-- Table list -->
       <div v-else class="space-y-1">
@@ -341,7 +343,7 @@ watch(() => props.databaseId, () => {
       class="flex items-center justify-center gap-2 py-2"
     >
       <Spinner :size="14" class="animate-spin text-muted-foreground" />
-      <span class="text-xs text-muted-foreground">Loading...</span>
+      <span class="text-xs text-muted-foreground">Loading…</span>
     </div>
   </div>
 </template>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import QueryError from '@/components/QueryError.vue';
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
@@ -63,7 +64,7 @@ const projectId = computed(() => {
 
 const drawer = computed(() => route.params.drawer);
 
-const { result, loading, error } = useQuery(ProjectDocument, () => ({
+const { result, loading, error, refetch } = useQuery(ProjectDocument, () => ({
   id: projectId.value,
 }));
 
@@ -118,20 +119,26 @@ function handleEnvironmentCreated(environmentId: string) {
   router.push({ name: 'environment', params: { projectId: projectId.value, environmentId } });
 }
 
-watch(error, (err) => {
-  if (err) {
-    router.replace({ name: 'projects' });
-  }
-});
 </script>
 
 <template>
   <div class="flex h-[calc(100vh-var(--banner-height)-52px-0.75rem-0.5rem)] flex-col">
-    <div v-if="loading && !project" class="flex flex-1 items-center justify-center">
-      <div class="space-y-4 text-center">
-        <Skeleton class="mx-auto h-8 w-48" />
-        <Skeleton class="mx-auto h-4 w-64" />
+    <div v-if="loading && !project" class="flex flex-1 gap-3 py-3">
+      <div class="w-12" />
+      <div class="flex-1 space-y-4 rounded-lg border bg-card p-4">
+        <Skeleton class="h-8 w-48" />
+        <Skeleton class="h-24 w-full" />
+        <Skeleton class="h-24 w-full" />
       </div>
+    </div>
+
+    <div v-else-if="error && !project" class="flex flex-1 items-center justify-center p-8">
+      <QueryError
+        class="max-w-md"
+        title="Couldn't load this project"
+        :error="error"
+        @retry="refetch()"
+      />
     </div>
 
     <div v-else-if="project" class="relative flex flex-1 py-3">
@@ -166,17 +173,19 @@ watch(error, (err) => {
               />
             </div>
 
-            <div v-else class="rounded-lg border border-dashed">
-              <EmptyState
-                title="No environments yet"
-                description="Create an environment to start deploying services."
-                pattern="crosshatch"
-              >
-                <template #action>
-                  <Button @click="envDialogOpen = true">New environment</Button>
-                </template>
-              </EmptyState>
-            </div>
+            <EmptyState
+              v-else
+              title="No environments yet"
+              description="Create an environment to start deploying services."
+              pattern="crosshatch"
+            >
+              <template #action>
+                <Button @click="envDialogOpen = true">
+                  <Plus />
+                  New environment
+                </Button>
+              </template>
+            </EmptyState>
           </div>
         </div>
 

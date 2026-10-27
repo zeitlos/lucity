@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import QueryError from '@/components/QueryError.vue';
 import { ref, watch } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
 import { graphql } from '@/gql';
@@ -6,8 +7,7 @@ import { useUnsavedChanges } from '@/composables/useUnsavedChanges';
 import ContextDrawer from '@/components/drawer/ContextDrawer.vue';
 import FormFooter from '@/components/FormFooter.vue';
 import VariablesEditor from '@/components/VariablesEditor.vue';
-import { toast, errorToast } from '@/components/ui/sonner';
-import { errorMessage } from '@/lib/utils';
+import { failureToast } from '@/components/ui/sonner';
 import type { VariableRow } from '@/lib/variables';
 
 const SharedVariablesDocument = graphql(`
@@ -34,7 +34,7 @@ const emit = defineEmits<{
   (e: 'close'): void;
 }>();
 
-const { result, loading, refetch } = useQuery(SharedVariablesDocument, () => ({
+const { result, loading, error, refetch } = useQuery(SharedVariablesDocument, () => ({
   environment: props.environmentId,
 }));
 
@@ -58,25 +58,17 @@ const { mutate: setVarsMutate, loading: saving } = useMutation(SetSharedVariable
 
 async function handleSave() {
   try {
-    const res = await setVarsMutate({
+    await setVarsMutate({
       environment: props.environmentId,
       variables: rows.value
         .filter(r => r.key.trim())
         .map(r => ({ key: r.key.trim(), value: r.value })),
     });
 
-    if (res?.errors?.length) {
-      errorToast('Failed to save variables', {
-        description: res.errors.map(e => e.message).join(', '),
-      });
-      return;
-    }
-
-    toast.success('Shared variables saved');
     hasChanges.value = false;
     refetch();
   } catch (e: unknown) {
-    errorToast('Failed to save variables', { description: errorMessage(e) });
+    failureToast('Failed to save variables', e);
   }
 }
 </script>
@@ -86,19 +78,24 @@ async function handleSave() {
     title="Shared variables"
     @close="emit('close')"
   >
+    <QueryError
+      v-if="error && !result"
+      title="Couldn't load shared variables"
+      :error="error"
+      @retry="refetch()"
+    />
+
     <VariablesEditor
+      v-else
       v-model:rows="rows"
       :loading="loading"
       :disabled="saving"
+      empty-title="No shared variables yet"
+      :empty-description="`Services in ${environmentName} can reference them.`"
       @change="hasChanges = true"
-    >
-      <template #empty>
-        <p class="text-sm text-muted-foreground">No shared variables yet.</p>
-        <p class="mt-1 text-xs text-muted-foreground">Services in {{ environmentName }} can reference them.</p>
-      </template>
-    </VariablesEditor>
+    />
 
-    <template #footer>
+    <template v-if="result" #footer>
       <FormFooter
         class="border-t-0 p-0"
         :dirty="hasChanges"

@@ -633,9 +633,9 @@ watch(
     <!-- No releases yet -->
     <EmptyState
       v-else-if="!deploy.isDeploying && !activeDeployment"
+      size="compact"
       title="No deployments yet"
-      description="This service hasn't been deployed yet. Click Deploy to get started."
-      pattern="diagonal"
+      description="Deploy builds the latest commit and rolls it out."
     />
   </div>
 </template>

@@ -8,8 +8,7 @@ import { Trash2, HardDrive, Server, Plug, Unplug } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { toast, errorToast } from '@/components/ui/sonner';
-import { errorMessage } from '@/lib/utils';
+import { failureToast } from '@/components/ui/sonner';
 import type { Service } from '@/composables/useEnvironment';
 
 const DeleteVolumeDocument = graphql(`
@@ -93,17 +92,11 @@ const { mutate: expandVolume } = useMutation(ExpandVolumeDocument);
 async function handleExpand() {
   storageSaving.value = true;
   try {
-    const res = await expandVolume({ volume: props.volumeId, size: selectedSize.value });
+    await expandVolume({ volume: props.volumeId, size: selectedSize.value });
 
-    if (res?.errors?.length) {
-      errorToast('Failed to expand volume', { description: res.errors.map(e => e.message).join(', ') });
-      return;
-    }
-
-    toast.success('Volume expanded');
     emit('expanded');
   } catch (e: unknown) {
-    errorToast('Failed to expand volume', { description: errorMessage(e) });
+    failureToast('Failed to expand volume', e);
   } finally {
     storageSaving.value = false;
   }
@@ -115,11 +108,10 @@ const unmountDialogOpen = ref(false);
 async function handleUnmount() {
   try {
     await unmountVolume({ volume: props.volumeId });
-    toast.success('Volume unmounted');
     unmountDialogOpen.value = false;
     emit('unmounted');
   } catch (e: unknown) {
-    errorToast('Failed to unmount volume', { description: errorMessage(e) });
+    failureToast('Failed to unmount volume', e);
   }
 }
 
@@ -129,11 +121,10 @@ const deleteDialogOpen = ref(false);
 async function handleDelete() {
   try {
     await deleteVolume({ volume: props.volumeId });
-    toast.success('Volume deleted');
     deleteDialogOpen.value = false;
     emit('volume-removed');
   } catch (e: unknown) {
-    errorToast('Failed to delete volume', { description: errorMessage(e) });
+    failureToast('Failed to delete volume', e);
   }
 }
 </script>

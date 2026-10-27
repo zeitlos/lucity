@@ -1,19 +1,21 @@
 <script setup lang="ts">
+import CopyButton from '@/components/CopyButton.vue';
+import EmptyState from '@/components/EmptyState.vue';
+import QueryError from '@/components/QueryError.vue';
 import { useGuardedTab } from '@/composables/useUnsavedChanges';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import PanelShell from '@/components/PanelShell.vue';
 import { devicon } from '@/lib/devicons';
 import { reactive, computed, ref } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
-import { Copy, Eye, EyeOff, DatabaseZap, Trash2, Database, HardDrive } from '@lucide/vue';
+import { Eye, EyeOff, DatabaseZap, Trash2, Database, HardDrive } from '@lucide/vue';
 import Spinner from '@/components/LoadingSpinner.vue';
 import { graphql } from '@/gql';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { toast, errorToast } from '@/components/ui/sonner';
-import { errorMessage } from '@/lib/utils';
+import { failureToast } from '@/components/ui/sonner';
 
 const KeyValueStoreCredentialsDocument = graphql(`
   query KeyValueStoreCredentials($keyValueStore: KeyValueStoreID!) {
@@ -50,7 +52,7 @@ const emit = defineEmits<{
 const { tab: activeTab, selectTab } = useGuardedTab('connect');
 
 
-const { result, loading, error } = useQuery(
+const { result, loading, error, refetch } = useQuery(
   KeyValueStoreCredentialsDocument,
   () => ({ keyValueStore: props.store.id }),
   () => ({ enabled: !!props.store.id }),
@@ -94,10 +96,6 @@ function mask(value: string): string {
   return '*'.repeat(value.length - 2) + value.slice(-2);
 }
 
-function copyToClipboard(text: string) {
-  navigator.clipboard.writeText(text);
-  toast.success('Copied to clipboard');
-}
 
 const { mutate: deleteStore, loading: deleting } = useMutation(DeleteKeyValueStoreDocument);
 const deleteDialogOpen = ref(false);
@@ -105,11 +103,10 @@ const deleteDialogOpen = ref(false);
 async function handleDelete() {
   try {
     await deleteStore({ keyValueStore: props.store.id });
-    toast.success('Redis store deleted');
     deleteDialogOpen.value = false;
     emit('store-removed');
   } catch (e: unknown) {
-    errorToast('Failed to delete Redis store', { description: errorMessage(e) });
+    failureToast('Failed to delete Redis store', e);
   }
 }
 </script>
@@ -150,25 +147,25 @@ async function handleDelete() {
             </div>
 
             <!-- Provisioning -->
-            <div
+            <EmptyState
               v-else-if="isProvisioning"
-              class="flex flex-col items-center justify-center gap-3 py-12 text-center"
+              size="compact"
+              :icon="DatabaseZap"
+              title="Redis is provisioning"
+              description="Credentials appear once the store is ready."
             >
-              <DatabaseZap :size="24" class="text-muted-foreground" />
-              <div class="space-y-1">
-                <p class="text-sm font-medium">Redis is provisioning</p>
-                <p class="text-xs text-muted-foreground">Credentials will appear once the store is ready.</p>
-              </div>
-              <Spinner :size="16" class="animate-spin text-muted-foreground" />
-            </div>
+              <template #action>
+                <Spinner :size="16" class="text-muted-foreground" />
+              </template>
+            </EmptyState>
 
             <!-- Error (non-provisioning) -->
-            <div
+            <QueryError
               v-else-if="error && !isProvisioning"
-              class="rounded-lg border border-destructive/30 bg-destructive/5 p-3"
-            >
-              <p class="font-mono text-xs text-destructive">{{ error.message }}</p>
-            </div>
+              title="Couldn't load the connection details"
+              :error="error"
+              @retry="refetch()"
+            />
 
             <!-- Credentials -->
             <div v-else-if="groups.length" class="space-y-4">
@@ -193,14 +190,12 @@ async function handleDelete() {
                     <EyeOff v-if="revealed[field.key]" />
                     <Eye v-else />
                   </IconButton>
-                  <IconButton
+                  <CopyButton
                     :label="`Copy ${field.label}`"
                     size="icon-xs"
                     class="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-                    @click="copyToClipboard(field.value)"
-                  >
-                    <Copy />
-                  </IconButton>
+                    :value="field.value"
+                  />
                 </div>
               </div>
             </div>

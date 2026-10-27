@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Skeleton } from '@/components/ui/skeleton';
 import IconButton from '@/components/IconButton.vue';
 import { devicon } from '@/lib/devicons';
 import { ref, computed, watch, nextTick } from 'vue';
@@ -136,11 +137,10 @@ const CreateVolumeDocument = graphql(`
 `);
 import { useEnvironment } from '@/composables/useEnvironment';
 import { useGitHubInstall } from '@/composables/useGitHubInstall';
-import { errorToast } from '@/components/ui/sonner';
+import { failureToast } from '@/components/ui/sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { errorMessage } from '@/lib/utils';
 import { isValidSlug, deriveServiceName, isValidServiceName } from '@/lib/slug';
 import NameSlugField from '@/components/NameSlugField.vue';
 
@@ -438,13 +438,6 @@ async function finishEmptyOrImageProject() {
       },
     });
 
-    if (res?.errors?.length) {
-      errorToast('Failed to create project', {
-        description: res.errors.map(e => e.message).join(', '),
-      });
-      return;
-    }
-
     const project = res?.data?.createProject;
     if (!project) return;
 
@@ -459,7 +452,7 @@ async function finishEmptyOrImageProject() {
       router.push({ name: 'environment', params: { projectId: project.id, environmentId: targetEnvId } });
     }
   } catch (e: unknown) {
-    errorToast('Failed to create project', { description: errorMessage(e) });
+    failureToast('Failed to create project', e);
   }
 }
 
@@ -477,7 +470,7 @@ async function detectAndConfirm(repo: { fullName: string; htmlUrl: string }) {
     detectedServices.value = data?.detectServices ?? [];
     proceedAfterDetection(repo);
   } catch (e: unknown) {
-    errorToast('Failed to detect services', { description: errorMessage(e) });
+    failureToast('Failed to detect services', e);
   } finally {
     detectingServices.value = false;
     processingItemId.value = null;
@@ -600,13 +593,6 @@ async function handleCreateService() {
         },
       });
 
-      if (res?.errors?.length) {
-        errorToast('Failed to create project', {
-          description: res.errors.map(e => e.message).join(', '),
-        });
-        return;
-      }
-
       const project = res?.data?.createProject;
       const envId = project?.environments?.[0]?.id;
       if (!project || !envId) return;
@@ -622,7 +608,7 @@ async function handleCreateService() {
       .map(v => ({ key: v.key.trim(), value: v.value }))
       .filter(v => v.key.length > 0);
 
-    const res = await addServiceMutate({
+    await addServiceMutate({
       environmentId,
       input: {
         name: serviceName.value,
@@ -632,13 +618,6 @@ async function handleCreateService() {
       },
     });
 
-    if (res?.errors?.length) {
-      errorToast('Failed to create service', {
-        description: res.errors.map(e => e.message).join(', '),
-      });
-      return;
-    }
-
     close();
     if (navigate) {
       router.push({ name: 'environment', params: navigate });
@@ -646,7 +625,7 @@ async function handleCreateService() {
       emit('created');
     }
   } catch (e: unknown) {
-    errorToast('Failed to create service', { description: errorMessage(e) });
+    failureToast('Failed to create service', e);
   }
 }
 
@@ -683,24 +662,17 @@ async function handleCreateKeyValueStore() {
   if (!props.environmentId) return;
 
   try {
-    const res = await createKeyValueStoreMutate({
+    await createKeyValueStoreMutate({
       input: {
         environment: props.environmentId,
         name: newKeyValueStoreName.value,
       },
     });
 
-    if (res?.errors?.length) {
-      errorToast('Failed to create Redis store', {
-        description: res.errors.map(e => e.message).join(', '),
-      });
-      return;
-    }
-
     close();
     emit('created');
   } catch (e: unknown) {
-    errorToast('Failed to create Redis store', { description: errorMessage(e) });
+    failureToast('Failed to create Redis store', e);
   }
 }
 
@@ -712,24 +684,17 @@ async function handleCreateBucket() {
   if (!props.environmentId) return;
 
   try {
-    const res = await createBucketMutate({
+    await createBucketMutate({
       input: {
         environment: props.environmentId,
         name: newBucketName.value,
       },
     });
 
-    if (res?.errors?.length) {
-      errorToast('Failed to create bucket', {
-        description: res.errors.map(e => e.message).join(', '),
-      });
-      return;
-    }
-
     close();
     emit('created');
   } catch (e: unknown) {
-    errorToast('Failed to create bucket', { description: errorMessage(e) });
+    failureToast('Failed to create bucket', e);
   }
 }
 
@@ -744,23 +709,16 @@ async function handleCreateVolume() {
   if (!props.environmentId) return;
 
   try {
-    const res = await createVolumeMutate({
+    await createVolumeMutate({
       environment: props.environmentId,
       name: newVolumeName.value,
       size: newVolumeSize.value,
     });
 
-    if (res?.errors?.length) {
-      errorToast('Failed to create volume', {
-        description: res.errors.map(e => e.message).join(', '),
-      });
-      return;
-    }
-
     close();
     emit('created');
   } catch (e: unknown) {
-    errorToast('Failed to create volume', { description: errorMessage(e) });
+    failureToast('Failed to create volume', e);
   }
 }
 
@@ -817,7 +775,7 @@ async function handleSelectImage(imageRef: string) {
       close();
       emit('created');
     } catch (e: unknown) {
-      errorToast('Failed to add service', { description: errorMessage(e) });
+      failureToast('Failed to add service', e);
     } finally {
       processingItemId.value = null;
     }
@@ -825,19 +783,13 @@ async function handleSelectImage(imageRef: string) {
 }
 
 async function addImageService(environmentId: string, imageRef: string) {
-  const res = await addServiceMutate({
+  await addServiceMutate({
     environmentId: environmentId,
     input: {
       image: imageRef,
     },
   });
 
-  if (res?.errors?.length) {
-    errorToast('Failed to add service', {
-      description: res.errors.map(e => e.message).join(', '),
-    });
-    return;
-  }
 }
 
 watch([search, imageResults, repos], () => {
@@ -1069,7 +1021,9 @@ void activeEnvironment;
               />            </div>
 
             <template v-if="connectedLoading || sourcesLoading">
-              <div class="px-2 py-6 text-center text-sm text-muted-foreground">Loading...</div>
+              <div class="space-y-1 p-1">
+                <Skeleton v-for="i in 4" :key="i" class="h-9 w-full" />
+              </div>
             </template>
             <template v-else-if="!githubConnected">
               <div class="px-4 py-6 text-center">

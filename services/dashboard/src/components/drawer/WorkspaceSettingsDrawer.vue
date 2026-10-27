@@ -37,8 +37,7 @@ import ContextDrawer from '@/components/drawer/ContextDrawer.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { toast, errorToast } from '@/components/ui/sonner';
-import { errorMessage } from '@/lib/utils';
+import { failureToast } from '@/components/ui/sonner';
 import { useAuth } from '@/composables/useAuth';
 
 const props = defineProps<{
@@ -74,10 +73,9 @@ async function handleUpdateName() {
   if (!name || name === props.workspace.name) return;
   try {
     await updateMutate({ input: { name } });
-    toast.success('Workspace name updated');
     emit('changed');
   } catch (e: unknown) {
-    errorToast('Failed to update workspace', { description: errorMessage(e) });
+    failureToast('Failed to update workspace', e);
   }
 }
 
@@ -87,23 +85,16 @@ const { mutate: deleteMutate, loading: deleting } = useMutation(DeleteWorkspaceD
 
 async function handleDelete() {
   try {
-    const res = await deleteMutate();
-    if (res?.errors?.length) {
-      errorToast('Failed to delete workspace', {
-        description: res.errors.map(e => e.message).join(', '),
-      });
-      return;
-    }
+    await deleteMutate();
     await refreshToken();
     const firstWorkspace = user.value?.workspaces[0]?.workspace;
     if (firstWorkspace) {
       setActiveWorkspace(firstWorkspace);
     }
     apolloClient.resetStore();
-    toast.success('Workspace deleted');
     router.push({ name: 'projects' });
   } catch (e: unknown) {
-    errorToast('Failed to delete workspace', { description: errorMessage(e) });
+    failureToast('Failed to delete workspace', e);
   }
 }
 </script>

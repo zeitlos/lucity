@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue';
 import { Eye, EyeOff, Link, Plus, Trash2, Unlink } from '@lucide/vue';
+import EmptyState from '@/components/EmptyState.vue';
 import IconButton from '@/components/IconButton.vue';
 import SourceIcon from '@/components/SourceIcon.vue';
 import { Button } from '@/components/ui/button';
@@ -26,7 +27,10 @@ const props = withDefaults(defineProps<{
   references?: VariableReference[];
   loading?: boolean;
   disabled?: boolean;
+  emptyTitle: string;
+  emptyDescription?: string;
 }>(), {
+  emptyDescription: undefined,
   references: undefined,
   loading: false,
   disabled: false,
@@ -257,9 +261,12 @@ function referenceInfo(row: VariableRow) {
       </IconButton>
     </div>
 
-    <div v-if="rows.length === 0" class="rounded-lg border border-dashed p-6 text-center">
-      <slot name="empty" />
-    </div>
+    <EmptyState
+      v-if="rows.length === 0"
+      size="compact"
+      :title="emptyTitle"
+      :description="emptyDescription"
+    />
 
     <div class="flex items-center justify-end gap-2 pt-2">
       <Button

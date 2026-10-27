@@ -80,7 +80,7 @@ const rows = computed(() => props.project.environments.map(environment => ({
         class="relative z-10 -mx-1.5 grid min-h-[30px] grid-cols-[104px_minmax(0,1fr)] items-center gap-2.5 rounded-[6px] px-1.5 py-[3px] transition-colors hover:bg-muted/60"
       >
         <span class="truncate text-[12.5px] text-foreground">{{ row.environment.name }}</span>
-        <span v-if="row.services.length + row.data.length === 0" class="text-xs text-muted-foreground">Empty</span>
+        <span v-if="row.services.length + row.data.length === 0" class="text-xs text-muted-foreground">No resources yet</span>
         <span v-else class="flex flex-wrap items-center gap-1">
           <template v-for="(group, index) in [row.services, row.data]" :key="index">
             <span v-if="index === 1 && row.services.length && row.data.length" class="w-1" />

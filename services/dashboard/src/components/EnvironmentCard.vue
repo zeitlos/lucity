@@ -61,7 +61,7 @@ const tiles = computed<Tile[]>(() => [
           :style="{ background: `var(--status-${tile.tone})` }"
         />
       </span>
-      <span v-if="tiles.length === 0" class="col-span-full text-[12.5px] text-muted-foreground">Nothing here yet</span>
+      <span v-if="tiles.length === 0" class="col-span-full text-xs text-muted-foreground">No resources yet</span>
     </div>
   </RouterLink>
 </template>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import QueryError from '@/components/QueryError.vue';
+import EmptyState from '@/components/EmptyState.vue';
 import PanelShell from '@/components/PanelShell.vue';
 import { computed } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
@@ -49,7 +51,7 @@ const emit = defineEmits<{
 }>();
 
 
-const { result, loading } = useQuery(
+const { result, loading, error, refetch } = useQuery(
   ServiceVulnerabilitiesDocument,
   () => ({ id: props.serviceId }),
   { fetchPolicy: 'cache-and-network' },
@@ -94,6 +96,13 @@ function sourceLabel(source: string): string {
           <Skeleton class="h-12 w-full" />
           <Skeleton class="h-12 w-full" />
         </div>
+
+        <QueryError
+          v-else-if="error && !report"
+          title="Couldn't load vulnerabilities"
+          :error="error"
+          @retry="refetch()"
+        />
 
         <template v-else-if="report && report.vulnerabilities.length > 0">
           <div class="flex flex-wrap gap-2">
@@ -164,21 +173,14 @@ function sourceLabel(source: string): string {
           </div>
         </template>
 
-        <div
+        <EmptyState
           v-else
-          class="flex flex-col items-center justify-center overflow-hidden rounded-lg border border-border bg-card px-8 py-12 text-center"
-        >
-          <div
-            class="mb-4 rounded-full p-4"
-            :style="{ backgroundColor: 'color-mix(in srgb, var(--status-ok) 12%, transparent)' }"
-          >
-            <ShieldCheck :size="32" class="text-[var(--status-ok)]" />
-          </div>
-          <h3 class="text-sm font-semibold text-foreground">No known vulnerabilities</h3>
-          <p class="mt-1 max-w-sm text-sm text-muted-foreground">
-            The latest scan of the deployed image found no known CVEs in its packages.
-          </p>
-        </div>
+          size="compact"
+          tone="ok"
+          :icon="ShieldCheck"
+          title="No known vulnerabilities"
+          description="The latest scan of the deployed image found no known CVEs in its packages."
+        />
       </div>
     </ScrollArea>
   </PanelShell>

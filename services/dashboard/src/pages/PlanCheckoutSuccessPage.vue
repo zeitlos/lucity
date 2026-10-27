@@ -50,11 +50,6 @@ onMounted(async () => {
   try {
     const res = await mutate({ sessionId });
 
-    if (res?.errors?.length) {
-      error.value = res.errors.map(e => e.message).join(', ');
-      return;
-    }
-
     if (!res?.data?.completePlanCheckout) {
       error.value = 'Failed to activate plan. Please try again.';
       return;

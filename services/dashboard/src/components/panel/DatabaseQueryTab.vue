@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ref } from 'vue';
 import { useApolloClient } from '@vue/apollo-composable';
-import { Play } from '@lucide/vue';
+import { Play, CircleAlert } from '@lucide/vue';
 import Spinner from '@/components/LoadingSpinner.vue';
 import { graphql } from '@/gql';
 
@@ -112,13 +113,11 @@ function handleKeydown(event: KeyboardEvent) {
       </div>
     </div>
 
-    <!-- Error -->
-    <div
-      v-if="error"
-      class="rounded-lg border border-destructive/30 bg-destructive/5 p-3"
-    >
-      <p class="font-mono text-xs text-destructive">{{ error }}</p>
-    </div>
+    <Alert v-if="error" variant="danger">
+      <CircleAlert />
+      <AlertTitle>Query failed</AlertTitle>
+      <AlertDescription class="font-mono text-xs">{{ error }}</AlertDescription>
+    </Alert>
 
     <!-- Results -->
     <template v-if="hasRun && !error && !loading">

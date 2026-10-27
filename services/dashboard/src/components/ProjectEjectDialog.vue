@@ -9,7 +9,7 @@ import {
   Shield,
 } from '@lucide/vue';
 import { graphql } from '@/gql';
-import { toast, errorToast } from '@/components/ui/sonner';
+import { failureToast } from '@/components/ui/sonner';
 import {
   Dialog,
   DialogContent,
@@ -18,7 +18,6 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { errorMessage } from '@/lib/utils';
 
 const props = defineProps<{
   open: boolean;
@@ -76,11 +75,8 @@ async function handleEject() {
     URL.revokeObjectURL(a.href);
 
     emit('update:open', false);
-    toast.success('Project ejected', {
-      description: 'Your project has been exported as a self-contained zip file.',
-    });
   } catch (e: unknown) {
-    errorToast('Failed to eject project', { description: errorMessage(e) });
+    failureToast('Failed to eject project', e);
   } finally {
     ejecting.value = false;
   }

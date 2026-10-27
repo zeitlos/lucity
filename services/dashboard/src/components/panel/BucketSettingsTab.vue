@@ -5,8 +5,8 @@ import { useMutation } from '@vue/apollo-composable';
 import { Trash2, MapPin, HardDrive, Files } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { Button } from '@/components/ui/button';
-import { toast, errorToast } from '@/components/ui/sonner';
-import { errorMessage, formatBytes } from '@/lib/utils';
+import { failureToast } from '@/components/ui/sonner';
+import { formatBytes } from '@/lib/utils';
 
 const DeleteBucketDocument = graphql(`
   mutation DeleteBucket($bucket: BucketID!) {
@@ -34,11 +34,10 @@ const deleteDialogOpen = ref(false);
 async function handleDelete() {
   try {
     await deleteBucket({ bucket: props.bucketId });
-    toast.success('Bucket deleted');
     deleteDialogOpen.value = false;
     emit('bucket-removed');
   } catch (e: unknown) {
-    errorToast('Failed to delete bucket', { description: errorMessage(e) });
+    failureToast('Failed to delete bucket', e);
   }
 }
 </script>

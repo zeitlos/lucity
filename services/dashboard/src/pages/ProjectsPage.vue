@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import ContextDrawer from '@/components/drawer/ContextDrawer.vue';
+import QueryError from '@/components/QueryError.vue';
 import { useQuery } from '@vue/apollo-composable';
 import { useRoute, useRouter } from 'vue-router';
 import { computed, ref, watch } from 'vue';
@@ -90,7 +92,7 @@ import WorkspaceSettingsDrawer from '@/components/drawer/WorkspaceSettingsDrawer
 const route = useRoute();
 const router = useRouter();
 
-const { result, loading, error } = useQuery(ProjectsDocument);
+const { result, loading, error, refetch } = useQuery(ProjectsDocument);
 const { result: ghResult } = useQuery(GitHubConnectedDocument);
 
 const projects = computed(() => result.value?.projects ?? []);
@@ -103,6 +105,13 @@ const { result: workspaceResult, refetch: refetchWorkspace } = useQuery(Workspac
 const workspace = computed(() => workspaceResult.value?.workspace ?? null);
 
 const drawer = computed(() => route.params.drawer);
+const drawerTitles: Record<string, string> = {
+  'members': 'Members',
+  'api-tokens': 'API tokens',
+  'billing': 'Billing',
+  'settings': 'Workspace settings',
+};
+
 const railItems = computed(() => workspaceNavItems(isWorkspaceAdmin.value));
 const activeKey = computed(() => (typeof drawer.value === 'string' && drawer.value ? drawer.value : 'projects'));
 
@@ -247,7 +256,14 @@ onKeyStroke('/', (event) => {
             </PageToolbar>
 
             <div :class="['flex-1 overflow-y-auto', showTable ? '' : 'p-4']">
-              <div v-if="loading" class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div v-if="loading && view === 'list'" class="divide-y">
+                <div v-for="i in 4" :key="i" class="flex items-center gap-4 px-4 py-4">
+                  <Skeleton class="h-4 w-40" />
+                  <Skeleton class="h-4 w-24" />
+                  <Skeleton class="ml-auto h-4 w-20" />
+                </div>
+              </div>
+              <div v-else-if="loading" class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <Card v-for="i in 3" :key="i">
                   <CardHeader>
                     <Skeleton class="h-5 w-32" />
@@ -260,12 +276,12 @@ onKeyStroke('/', (event) => {
                 </Card>
               </div>
 
-              <div
-                v-else-if="error"
-                class="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive"
-              >
-                Failed to load projects: {{ error.message }}
-              </div>
+              <QueryError
+                v-else-if="error && !result"
+                title="Couldn't load projects"
+                :error="error"
+                @retry="refetch()"
+              />
 
               <WelcomeCard
                 v-else-if="isWelcome && projects.length === 0"
@@ -321,6 +337,21 @@ onKeyStroke('/', (event) => {
               </template>
             </div>
           </div>
+
+          <Transition name="slide-drawer">
+            <div
+              v-if="!workspace && drawer"
+              class="absolute inset-y-0 left-0 z-10 w-[440px] max-w-full"
+            >
+              <ContextDrawer :title="drawerTitles[String(drawer)] ?? ''" @close="closeDrawer">
+                <div class="space-y-3">
+                  <Skeleton class="h-9 w-full" />
+                  <Skeleton class="h-16 w-full" />
+                  <Skeleton class="h-16 w-full" />
+                </div>
+              </ContextDrawer>
+            </div>
+          </Transition>
 
           <Transition name="slide-drawer">
             <div

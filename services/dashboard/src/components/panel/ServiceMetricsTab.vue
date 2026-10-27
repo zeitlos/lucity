@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import QueryError from '@/components/QueryError.vue';
+import EmptyState from '@/components/EmptyState.vue';
+import { Skeleton } from '@/components/ui/skeleton';
 import { computed, ref } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
 import { graphql } from '@/gql';
@@ -63,7 +66,7 @@ const cursor = ref<number | null>(null);
 
 const grouping = computed(() => (perReplica.value ? MetricGrouping.PerReplica : MetricGrouping.Total));
 
-const { result, loading } = useQuery(
+const { result, loading, error, refetch } = useQuery(
   ServiceMetricsDocument,
   () => ({ id: props.serviceId, range: { window: selectedWindow.value }, grouping: grouping.value }),
   { pollInterval: 30000, fetchPolicy: 'cache-and-network' },
@@ -176,12 +179,21 @@ const hasData = computed(() => allPoints.value.some(p => p.value != null));
       />
     </section>
 
-    <div
-      v-else
-      class="flex h-[280px] items-center justify-center text-center text-sm text-muted-foreground"
-    >
-      <span v-if="loading">Loading metrics…</span>
-      <span v-else>No metrics yet. They appear within a minute or two of the service running.</span>
+    <div v-else-if="loading" class="space-y-3">
+      <Skeleton class="h-40 w-full" />
+      <Skeleton class="h-40 w-full" />
     </div>
+    <QueryError
+      v-else-if="error"
+      title="Couldn't load metrics"
+      :error="error"
+      @retry="refetch()"
+    />
+    <EmptyState
+      v-else
+      size="compact"
+      title="No metrics yet"
+      description="They appear within a minute or two of the service running."
+    />
   </div>
 </template>

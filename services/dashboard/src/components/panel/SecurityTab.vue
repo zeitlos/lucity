@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import QueryError from '@/components/QueryError.vue';
 import { computed, ref } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
 import { ShieldCheck, TriangleAlert, ExternalLink, ChevronDown, ChevronRight } from '@lucide/vue';
@@ -47,7 +48,7 @@ const props = defineProps<{
   serviceName: string;
 }>();
 
-const { result, loading } = useQuery(
+const { result, loading, error, refetch } = useQuery(
   ServiceSecurityDocument,
   () => ({ id: props.serviceId }),
   { fetchPolicy: 'cache-and-network' },
@@ -101,7 +102,14 @@ function formatRelativeTime(timestamp: string): string {
 </script>
 
 <template>
-  <div class="space-y-8">
+  <QueryError
+    v-if="error && !result"
+    title="Couldn't load security"
+    :error="error"
+    @retry="refetch()"
+  />
+
+  <div v-else class="space-y-8">
     <section v-if="showVulnerabilities" class="space-y-3">
       <div class="space-y-1">
         <h3 class="text-sm font-medium text-muted-foreground">Vulnerabilities</h3>
@@ -118,26 +126,19 @@ function formatRelativeTime(timestamp: string): string {
 
       <EmptyState
         v-else-if="!vulnerabilityReport"
+        size="compact"
         title="No scan yet"
         description="Vulnerabilities in the image show up here once this service has been deployed and scanned."
-        pattern="diagonal"
       />
 
-      <div
+      <EmptyState
         v-else-if="vulnerabilityReport.summary.total === 0"
-        class="flex flex-col items-center justify-center overflow-hidden rounded-lg border border-border bg-card px-8 py-12 text-center"
-      >
-        <div
-          class="mb-4 rounded-full p-4"
-          :style="{ backgroundColor: 'color-mix(in srgb, var(--status-ok) 12%, transparent)' }"
-        >
-          <ShieldCheck :size="32" class="text-[var(--status-ok)]" />
-        </div>
-        <h3 class="text-sm font-semibold text-foreground">No known vulnerabilities</h3>
-        <p class="mt-1 max-w-sm text-sm text-muted-foreground">
-          The latest scan of the deployed image found no known CVEs in its packages.
-        </p>
-      </div>
+        size="compact"
+        tone="ok"
+        :icon="ShieldCheck"
+        title="No known vulnerabilities"
+        description="The latest scan of the deployed image found no known CVEs in its packages."
+      />
 
       <template v-else>
         <div class="flex flex-wrap gap-2">
@@ -187,9 +188,9 @@ function formatRelativeTime(timestamp: string): string {
 
       <EmptyState
         v-else-if="!report"
+        size="compact"
         title="No scans yet"
         description="The report for the latest scanned commit shows up here after the first deployment."
-        pattern="diagonal"
       />
 
       <template v-else>
@@ -233,21 +234,14 @@ function formatRelativeTime(timestamp: string): string {
           </div>
         </div>
 
-        <div
+        <EmptyState
           v-else
-          class="flex flex-col items-center justify-center overflow-hidden rounded-lg border border-border bg-card px-8 py-[4.5rem] text-center"
-        >
-          <div
-            class="mb-4 rounded-full p-4"
-            :style="{ backgroundColor: 'color-mix(in srgb, var(--status-ok) 12%, transparent)' }"
-          >
-            <ShieldCheck :size="32" class="text-[var(--status-ok)]" />
-          </div>
-          <h3 class="text-sm font-semibold text-foreground">No leaked credentials</h3>
-          <p class="mt-1 max-w-sm text-sm text-muted-foreground">
-            The latest scan confirmed no live credentials in this repository or its history.
-          </p>
-        </div>
+          size="compact"
+          tone="ok"
+          :icon="ShieldCheck"
+          title="No leaked credentials"
+          description="The latest scan confirmed no live credentials in this repository or its history."
+        />
 
         <div v-if="possibleFindings.length > 0">
           <button

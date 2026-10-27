@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ApolloError } from '@apollo/client/core';
 import { ref, reactive, computed, watch, nextTick, onMounted } from 'vue';
 import type { Component } from 'vue';
 import { useApolloClient } from '@vue/apollo-composable';
@@ -6,8 +7,7 @@ import { onKeyStroke } from '@vueuse/core';
 import { ArrowLeft, Check, ChevronRight, CornerDownLeft } from '@lucide/vue';
 import Spinner from '@/components/LoadingSpinner.vue';
 import type { CommandFlowConfig } from '@/lib/commandFlow';
-import { errorToast } from '@/components/ui/sonner';
-import { errorMessage } from '@/lib/utils';
+import { failureToast } from '@/components/ui/sonner';
 
 const props = defineProps<{ flow: CommandFlowConfig }>();
 const emit = defineEmits<{
@@ -80,14 +80,12 @@ async function submit() {
       errorPolicy: 'all',
     });
     if (res.errors?.length) {
-      errorToast(`Failed to create ${props.flow.title.toLowerCase()}`, {
-        description: res.errors.map(e => e.message).join(', '),
-      });
+      failureToast(`Failed to create ${props.flow.title.toLowerCase()}`, new ApolloError({ graphQLErrors: res.errors }));
       return;
     }
     emit('created');
   } catch (e: unknown) {
-    errorToast(`Failed to create ${props.flow.title.toLowerCase()}`, { description: errorMessage(e) });
+    failureToast(`Failed to create ${props.flow.title.toLowerCase()}`, e);
   } finally {
     submitting.value = false;
   }

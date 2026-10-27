@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import QueryError from '@/components/QueryError.vue';
 import { ref, computed, watch } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
 import { useIntervalFn, useNow } from '@vueuse/core';
@@ -56,8 +57,7 @@ const RestoreDatabaseDocument = graphql(`
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { toast, errorToast } from '@/components/ui/sonner';
-import { errorMessage } from '@/lib/utils';
+import { failureToast, successToast } from '@/components/ui/sonner';
 import EmptyState from '@/components/EmptyState.vue';
 import RecoveryTimeline from './RecoveryTimeline.vue';
 
@@ -168,10 +168,9 @@ const canRestore = computed(() => {
 async function handleBackupNow() {
   try {
     await createBackup({ database: props.databaseId });
-    toast.success('Backup started');
     await refetch();
   } catch (e: unknown) {
-    errorToast('Could not start a backup', { description: errorMessage(e) });
+    failureToast('Failed to start backup', e);
   }
 }
 
@@ -192,21 +191,16 @@ async function handleRestore() {
       },
     });
 
-    if (response?.errors?.length) {
-      errorToast('Restore failed', { description: response.errors.map(e => e.message).join(', ') });
-      return;
-    }
-
     const clamped = response?.data?.restoreDatabase.clampedToLatest;
 
-    toast.success(`Restoring into ${restoreName.value}`, {
+    successToast(`Restoring into ${restoreName.value}`, {
       description: clamped
         ? 'Nothing was written after the most recent archived point, so it restores to there.'
         : 'It appears on the canvas as soon as the data is back.',
     });
     emit('database-restored');
   } catch (e: unknown) {
-    errorToast('Restore failed', { description: errorMessage(e) });
+    failureToast('Failed to restore', e);
   } finally {
     restoring.value = false;
   }
@@ -256,16 +250,19 @@ const visibleEntries = computed(() => (showAll.value ? entries.value : entries.v
       <Skeleton class="h-16 w-full" />
     </div>
 
-    <div v-else-if="error" class="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
-      <p class="font-mono text-xs text-destructive">{{ error.message }}</p>
-    </div>
+    <QueryError
+      v-else-if="error"
+      title="Couldn't load backups"
+      :error="error"
+      @retry="refetch()"
+    />
 
     <template v-else-if="backups">
       <EmptyState
         v-if="!backups.enabled"
+        size="compact"
         title="Backups are not switched on yet"
         description="Continuous backups are rolling out across the platform. This database picks them up automatically."
-        pattern="diagonal"
       />
 
       <template v-else>
@@ -386,9 +383,9 @@ const visibleEntries = computed(() => (showAll.value ? entries.value : entries.v
 
           <EmptyState
             v-if="entries.length === 0"
+            size="compact"
             title="No backups yet"
             description="The first one runs as soon as the database is ready."
-            pattern="dots"
           />
 
           <div v-else class="overflow-hidden rounded-lg border">

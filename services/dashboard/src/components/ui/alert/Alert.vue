@@ -2,12 +2,15 @@
 import { type VariantProps, cva } from 'class-variance-authority';
 
 export const alertVariants = cva(
-  'relative w-full rounded-lg border p-4 [&>svg~*]:pl-7 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground',
+  'relative w-full rounded-lg border p-3 text-sm [&>svg~*]:pl-7 [&>svg]:absolute [&>svg]:left-3 [&>svg]:top-3.5 [&>svg]:size-4',
   {
     variants: {
       variant: {
-        default: 'bg-background text-foreground',
-        destructive: 'border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive',
+        default: 'bg-card text-foreground [&>svg]:text-muted-foreground',
+        info: 'border-status-progress/30 bg-status-progress/5 [&>svg]:text-status-progress',
+        ok: 'border-status-ok/30 bg-status-ok/5 [&>svg]:text-status-ok',
+        warn: 'border-status-warn/30 bg-status-warn/5 [&>svg]:text-status-warn',
+        danger: 'border-status-danger/30 bg-status-danger/5 [&>svg]:text-status-danger',
       },
     },
     defaultVariants: {

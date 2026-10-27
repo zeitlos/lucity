@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import QueryError from '@/components/QueryError.vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { ref, computed } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
@@ -57,8 +58,7 @@ import PlanPicker from '@/components/PlanPicker.vue';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Status } from '@/components/ui/status';
-import { toast, errorToast } from '@/components/ui/sonner';
-import { errorMessage } from '@/lib/utils';
+import { failureToast } from '@/components/ui/sonner';
 
 defineProps<{
   isAdmin: boolean;
@@ -68,12 +68,13 @@ const emit = defineEmits<{
   (e: 'close'): void;
 }>();
 
-const { result: subResult, loading: subLoading, error: subError } = useQuery(SubscriptionDocument);
+const { result: subResult, loading: subLoading, error: subError, refetch: refetchSubscription } = useQuery(SubscriptionDocument);
 const subscription = computed(() => subResult.value?.subscription);
 
 const { result: usageResult, loading: usageLoading } = useQuery(UsageSummaryDocument);
 const usage = computed(() => usageResult.value?.usageSummary);
 
+const billingNotConfigured = computed(() => !!subError.value?.message.includes('not configured'));
 const billingAvailable = computed(() => !subError.value);
 
 const { mutate: selectPlanMutate, loading: selectingPlan } = useMutation(SelectPlanDocument, {
@@ -108,10 +109,9 @@ async function selectPlan(plan: Plan): Promise<boolean> {
       window.location.href = url;
       return false;
     }
-    toast.success(`You're on the ${plan === Plan.Pro ? 'Pro' : 'Hobby'} plan`);
     return true;
   } catch (e: unknown) {
-    errorToast('Failed to select the plan', { description: errorMessage(e) });
+    failureToast('Failed to select the plan', e);
     return false;
   }
 }
@@ -133,7 +133,7 @@ async function handleOpenPortal() {
       window.open(url, '_blank');
     }
   } catch (e: unknown) {
-    errorToast('Failed to open billing portal', { description: errorMessage(e) });
+    failureToast('Failed to open billing portal', e);
   }
 }
 </script>
@@ -147,6 +147,13 @@ async function handleOpenPortal() {
       <Skeleton class="h-28 w-full" />
       <Skeleton class="h-24 w-full" />
     </div>
+
+    <QueryError
+      v-else-if="subError && !billingNotConfigured"
+      title="Couldn't load billing"
+      :error="subError"
+      @retry="refetchSubscription()"
+    />
 
     <div v-else-if="!billingAvailable" class="flex items-center gap-3 rounded-lg border p-3">
       <CreditCard :size="18" class="shrink-0 text-muted-foreground" />

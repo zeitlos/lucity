@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import QueryError from '@/components/QueryError.vue';
 import { ref, watch, computed } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
 import { graphql } from '@/gql';
@@ -6,8 +7,7 @@ import { useEnvironment } from '@/composables/useEnvironment';
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges';
 import FormFooter from '@/components/FormFooter.vue';
 import VariablesEditor from '@/components/VariablesEditor.vue';
-import { toast, errorToast } from '@/components/ui/sonner';
-import { errorMessage } from '@/lib/utils';
+import { failureToast } from '@/components/ui/sonner';
 import type { VariableReference, VariableRow, VariableSourceTypename } from '@/lib/variables';
 
 const ServiceVariablesDocument = graphql(`
@@ -53,7 +53,7 @@ const environmentId = computed(() => activeEnvironment.value?.id ?? '');
 const rows = ref<VariableRow[]>([]);
 const hasChanges = ref(false);
 
-const { result, loading, refetch } = useQuery(
+const { result, loading, error, refetch } = useQuery(
   ServiceVariablesDocument,
   () => ({ service: props.serviceId }),
   () => ({ enabled: !!props.serviceId }),
@@ -99,37 +99,34 @@ async function handleSave() {
         ref: r.ref ?? undefined,
       }));
 
-    const res = await setVarsMutate({ service: props.serviceId, variables });
+    await setVarsMutate({ service: props.serviceId, variables });
 
-    if (res?.errors?.length) {
-      errorToast('Failed to save variables', {
-        description: res.errors.map((e: { message: string }) => e.message).join(', '),
-      });
-      return;
-    }
-
-    toast.success('Service variables saved');
     hasChanges.value = false;
     refetch();
   } catch (e: unknown) {
-    errorToast('Failed to save variables', { description: errorMessage(e) });
+    failureToast('Failed to save variables', e);
   }
 }
 </script>
 
 <template>
-  <div class="space-y-4">
+  <QueryError
+    v-if="error && !result"
+    title="Couldn't load variables"
+    :error="error"
+    @retry="refetch()"
+  />
+
+  <div v-else class="space-y-4">
     <VariablesEditor
       v-model:rows="rows"
       :references="references"
       :loading="loading"
       :disabled="saving"
+      empty-title="No variables yet"
+      empty-description="Add one, or paste KEY=value lines into a key field."
       @change="hasChanges = true"
-    >
-      <template #empty>
-        <p class="text-sm text-muted-foreground">No variables configured for this service.</p>
-      </template>
-    </VariablesEditor>
+    />
 
     <FormFooter
       class="sticky bottom-0 -mx-4 -mb-4 bg-card"

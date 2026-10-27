@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import CopyButton from '@/components/CopyButton.vue';
+import EmptyState from '@/components/EmptyState.vue';
+import QueryError from '@/components/QueryError.vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { reactive, computed, ref } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
-import { Copy, Eye, EyeOff, DatabaseZap, Globe, Lock, ShieldAlert } from '@lucide/vue';
+import { Eye, EyeOff, DatabaseZap, Globe, Lock, ShieldAlert } from '@lucide/vue';
 import Spinner from '@/components/LoadingSpinner.vue';
 import { graphql } from '@/gql';
 import IconButton from '@/components/IconButton.vue';
@@ -10,8 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import DatabaseAllowRules from '@/components/panel/DatabaseAllowRules.vue';
-import { toast, errorToast } from '@/components/ui/sonner';
-import { errorMessage } from '@/lib/utils';
+import { failureToast } from '@/components/ui/sonner';
 
 const DatabasePublicDocument = graphql(`
   query DatabasePublic($database: DatabaseID!) {
@@ -137,11 +139,8 @@ async function setExposed(next: boolean) {
     }
     exposeDialogOpen.value = false;
     await Promise.all([refetchDatabase(), refetchCredentials()]);
-    toast.success(next ? 'Database exposed to the internet' : 'Database is now private');
   } catch (e: unknown) {
-    errorToast(next ? 'Failed to expose database' : 'Failed to make database private', {
-      description: errorMessage(e),
-    });
+    failureToast(next ? 'Failed to expose database' : 'Failed to make database private', e);
   }
 }
 
@@ -156,10 +155,6 @@ function mask(value: string): string {
   return '*'.repeat(value.length - 2) + value.slice(-2);
 }
 
-function copyToClipboard(text: string) {
-  navigator.clipboard.writeText(text);
-  toast.success('Copied to clipboard');
-}
 
 const endpointLabels: Record<string, string> = {
   INTERNAL: 'Private network',
@@ -194,8 +189,8 @@ const privateGroups = computed(() => groups.value.filter(g => g.type !== 'PLATFO
 
 <template>
   <div class="space-y-4">
-    <!-- Internet access card -->
-    <div class="rounded-lg border">
+    <Skeleton v-if="!dbResult" class="h-16 w-full" />
+    <div v-else class="rounded-lg border">
       <div class="flex items-start gap-3 px-4 py-3">
         <Globe :size="16" class="mt-0.5 shrink-0 text-muted-foreground" />
         <div class="flex-1 space-y-0.5">
@@ -240,14 +235,12 @@ const privateGroups = computed(() => groups.value.filter(g => g.type !== 'PLATFO
             <EyeOff v-if="revealed[field.key]" />
             <Eye v-else />
           </IconButton>
-          <IconButton
+          <CopyButton
             :label="`Copy ${field.label}`"
             size="icon-xs"
             class="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-            @click="copyToClipboard(field.value)"
-          >
-            <Copy />
-          </IconButton>
+            :value="field.value"
+          />
         </div>
       </div>
     </div>
@@ -258,25 +251,25 @@ const privateGroups = computed(() => groups.value.filter(g => g.type !== 'PLATFO
     </div>
 
     <!-- Provisioning -->
-    <div
+    <EmptyState
       v-else-if="isProvisioning"
-      class="flex flex-col items-center justify-center gap-3 py-12 text-center"
+      size="compact"
+      :icon="DatabaseZap"
+      title="Database is provisioning"
+      description="Credentials appear once PostgreSQL is ready."
     >
-      <DatabaseZap :size="24" class="text-muted-foreground" />
-      <div class="space-y-1">
-        <p class="text-sm font-medium">Database is provisioning</p>
-        <p class="text-xs text-muted-foreground">Credentials will appear once PostgreSQL is ready.</p>
-      </div>
-      <Spinner :size="16" class="animate-spin text-muted-foreground" />
-    </div>
+      <template #action>
+        <Spinner :size="16" class="text-muted-foreground" />
+      </template>
+    </EmptyState>
 
     <!-- Error (non-provisioning) -->
-    <div
+    <QueryError
       v-else-if="error && !isProvisioning"
-      class="rounded-lg border border-destructive/30 bg-destructive/5 p-3"
-    >
-      <p class="font-mono text-xs text-destructive">{{ error.message }}</p>
-    </div>
+      title="Couldn't load the connection details"
+      :error="error"
+      @retry="refetchCredentials()"
+    />
 
     <!-- Private network / custom domain cards -->
     <template v-else>
@@ -308,14 +301,12 @@ const privateGroups = computed(() => groups.value.filter(g => g.type !== 'PLATFO
               <EyeOff v-if="revealed[field.key]" />
               <Eye v-else />
             </IconButton>
-            <IconButton
+            <CopyButton
               :label="`Copy ${field.label}`"
               size="icon-xs"
               class="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-              @click="copyToClipboard(field.value)"
-            >
-              <Copy />
-            </IconButton>
+              :value="field.value"
+            />
           </div>
         </div>
       </div>

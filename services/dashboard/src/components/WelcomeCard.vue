@@ -15,8 +15,7 @@ const SelectPlanDocument = graphql(`
   }
 `);
 import { useAuth } from '@/composables/useAuth';
-import { errorToast } from '@/components/ui/sonner';
-import { errorMessage } from '@/lib/utils';
+import { failureToast } from '@/components/ui/sonner';
 import PlanPicker from '@/components/PlanPicker.vue';
 
 defineEmits<{
@@ -38,7 +37,7 @@ async function continueWithPlan() {
       window.location.href = url;
     }
   } catch (e: unknown) {
-    errorToast('Failed to start checkout', { description: errorMessage(e) });
+    failureToast('Failed to start checkout', e);
   }
 }
 

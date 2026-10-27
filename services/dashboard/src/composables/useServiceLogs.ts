@@ -22,6 +22,7 @@ export function useServiceLogs(
 ) {
   const lines = ref<LogLine[]>([]);
   const isActive = ref(false);
+  const error = ref<string | null>(null);
 
   const { onResult, onError, stop, restart } = useSubscription(
     ServiceLogsDocument,
@@ -36,11 +37,13 @@ export function useServiceLogs(
     if (data?.serviceLogs) {
       lines.value.push(data.serviceLogs);
       isActive.value = true;
+      error.value = null;
     }
   });
 
-  onError(() => {
+  onError((e) => {
     isActive.value = false;
+    error.value = e.message;
   });
 
   watch(serviceId, () => {
@@ -52,5 +55,10 @@ export function useServiceLogs(
     lines.value = [];
   }
 
-  return { lines, isActive, clear, stop, restart };
+  function retry() {
+    error.value = null;
+    restart();
+  }
+
+  return { lines, isActive, error, clear, stop, restart, retry };
 }

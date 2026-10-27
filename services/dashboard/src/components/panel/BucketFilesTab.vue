@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import QueryError from '@/components/QueryError.vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { ref, computed, useTemplateRef } from 'vue';
 import { useQuery, useMutation, useApolloClient } from '@vue/apollo-composable';
@@ -18,8 +19,8 @@ import IconButton from '@/components/IconButton.vue';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
-import { errorToast } from '@/components/ui/sonner';
-import { errorMessage, formatBytes } from '@/lib/utils';
+import { failureToast } from '@/components/ui/sonner';
+import { formatBytes } from '@/lib/utils';
 
 const BucketObjectsDocument = graphql(`
   query BucketObjects($bucket: BucketID!, $prefix: String) {
@@ -170,7 +171,7 @@ async function uploadFiles(files: File[]) {
 
     await refetch();
   } catch (e: unknown) {
-    errorToast('Upload failed', { description: errorMessage(e) });
+    failureToast('Failed to upload files', e);
   } finally {
     uploading.value = false;
   }
@@ -219,7 +220,7 @@ async function createFolder() {
     newFolderName.value = '';
     await refetch();
   } catch (e: unknown) {
-    errorToast('Could not create folder', { description: errorMessage(e) });
+    failureToast('Failed to create folder', e);
   } finally {
     savingFolder.value = false;
   }
@@ -244,7 +245,7 @@ async function download(key: string) {
     anchor.click();
     anchor.remove();
   } catch (e: unknown) {
-    errorToast('Download failed', { description: errorMessage(e) });
+    failureToast('Failed to download file', e);
   }
 }
 
@@ -272,7 +273,7 @@ async function confirmDelete() {
     deleteOpen.value = false;
     await refetch();
   } catch (e: unknown) {
-    errorToast('Delete failed', { description: errorMessage(e) });
+    failureToast('Failed to delete file', e);
   } finally {
     deleting.value = false;
   }
@@ -351,9 +352,12 @@ async function confirmDelete() {
       </div>
 
       <!-- Error -->
-      <div v-else-if="error" class="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
-        <p class="font-mono text-xs text-destructive">{{ error.message }}</p>
-      </div>
+      <QueryError
+        v-else-if="error"
+        title="Couldn't load files"
+        :error="error"
+        @retry="refetch()"
+      />
 
       <!-- Content -->
       <template v-else>

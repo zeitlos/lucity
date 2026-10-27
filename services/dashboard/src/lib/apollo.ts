@@ -4,9 +4,7 @@ import { onError } from '@apollo/client/link/error';
 import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { getMainDefinition } from '@apollo/client/utilities';
 import { createClient } from 'graphql-ws';
-import { errorToast } from '@/components/ui/sonner';
 import { useAuth } from '@/composables/useAuth';
-import { openBugReport } from '@/composables/useReportBug';
 
 const { activeWorkspace, login } = useAuth();
 
@@ -19,32 +17,12 @@ const workspaceLink = setContext((_, { headers }) => ({
   },
 }));
 
-const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
+const errorLink = onError(({ graphQLErrors, networkError }) => {
   const authFailed =
     graphQLErrors?.some(e => e.message === 'unauthenticated' || e.message === 'unauthorized') ||
     (!!networkError && 'statusCode' in networkError && (networkError.statusCode === 401 || networkError.statusCode === 403));
 
-  if (authFailed) {
-    login();
-    return;
-  }
-
-  if (graphQLErrors) {
-    const def = getMainDefinition(operation.query);
-    if (def.kind === 'OperationDefinition' && def.operation === 'query') {
-      const msg = graphQLErrors.map(e => e.message).join(', ');
-      errorToast(msg, {
-        action: { label: 'Report', onClick: () => openBugReport({ error: msg }) },
-      });
-    }
-  }
-
-  if (networkError) {
-    errorToast('Network error', {
-      description: networkError.message,
-      action: { label: 'Report', onClick: () => openBugReport({ error: networkError.message }) },
-    });
-  }
+  if (authFailed) login();
 });
 
 const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';

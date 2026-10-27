@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CopyButton from '@/components/CopyButton.vue';
 import DialogIcon from '@/components/DialogIcon.vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { ref, computed, watch, nextTick, type ComponentPublicInstance } from 'vue';
@@ -216,7 +217,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { toast, errorToast } from '@/components/ui/sonner';
+import { errorToast, failureToast } from '@/components/ui/sonner';
 import { Switch } from '@/components/ui/switch';
 import {
   Select,
@@ -239,7 +240,6 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
-import { errorMessage } from '@/lib/utils';
 
 const props = defineProps<{
   service: Service;
@@ -284,7 +284,7 @@ async function refreshDomains() {
   try {
     await resolveClient().refetchQueries({ include: ['Environment'] });
   } catch (e: unknown) {
-    errorToast('Failed to refresh domain status', { description: errorMessage(e) });
+    failureToast('Failed to refresh domain status', e);
   } finally {
     refreshingDomains.value = false;
   }
@@ -416,10 +416,9 @@ async function handleSaveCommand() {
       service: props.service.id,
       command: customStartCommand.value,
     });
-    toast.success(customStartCommand.value ? 'Start command updated' : 'Start command cleared');
     emit('refetch');
   } catch (e: unknown) {
-    errorToast('Failed to update start command', { description: errorMessage(e) });
+    failureToast('Failed to update start command', e);
   } finally {
     commandSaving.value = false;
   }
@@ -463,17 +462,11 @@ async function handleSavePort() {
   const port = portInput.value && portInput.value > 0 ? portInput.value : null;
 
   try {
-    const res = await setServicePortMutate({ service: props.service.id, port });
+    await setServicePortMutate({ service: props.service.id, port });
 
-    if (res?.errors?.length) {
-      errorToast('Failed to update port', { description: res.errors.map(e => e.message).join(', ') });
-      return;
-    }
-
-    toast.success(port ? `Port set to ${port}` : 'Port removed');
     emit('refetch');
   } catch (e: unknown) {
-    errorToast('Failed to update port', { description: errorMessage(e) });
+    failureToast('Failed to update port', e);
   }
 }
 
@@ -574,17 +567,11 @@ async function handleSaveHealthCheck() {
   }
 
   try {
-    const res = await setHealthCheckMutate({ service: props.service.id, healthCheck: input });
+    await setHealthCheckMutate({ service: props.service.id, healthCheck: input });
 
-    if (res?.errors?.length) {
-      errorToast('Failed to update health check', { description: res.errors.map(e => e.message).join(', ') });
-      return;
-    }
-
-    toast.success(input ? 'Health check updated' : 'Health check reset to default');
     emit('refetch');
   } catch (e: unknown) {
-    errorToast('Failed to update health check', { description: errorMessage(e) });
+    failureToast('Failed to update health check', e);
   }
 }
 
@@ -626,7 +613,7 @@ async function copyCISnippet() {
     ciSnippetCopied.value = true;
     setTimeout(() => (ciSnippetCopied.value = false), 2000);
   } catch (e: unknown) {
-    errorToast('Failed to copy', { description: errorMessage(e) });
+    failureToast('Failed to copy', e);
   }
 }
 
@@ -651,7 +638,7 @@ async function loadBranches() {
     branches.value = data?.repositoryBranches ?? [];
     branchesLoaded.value = true;
   } catch (e: unknown) {
-    errorToast('Failed to load branches', { description: errorMessage(e) });
+    failureToast('Failed to load branches', e);
   } finally {
     branchesLoading.value = false;
   }
@@ -670,17 +657,11 @@ async function chooseBranch(branch: string | null) {
   if (value === (props.service.branch ?? null)) return;
 
   try {
-    const res = await setServiceBranchMutate({ service: props.service.id, branch: value });
+    await setServiceBranchMutate({ service: props.service.id, branch: value });
 
-    if (res?.errors?.length) {
-      errorToast('Failed to update branch', { description: res.errors.map(e => e.message).join(', ') });
-      return;
-    }
-
-    toast.success(value ? `Tracking ${value}` : 'Tracking default branch');
     emit('refetch');
   } catch (e: unknown) {
-    errorToast('Failed to update branch', { description: errorMessage(e) });
+    failureToast('Failed to update branch', e);
   }
 }
 
@@ -688,17 +669,11 @@ async function handleToggleAutoDeploy(enabled: boolean) {
   autoDeploySaving.value = true;
 
   try {
-    const res = await setAutoDeployMutate({ service: props.service.id, enabled });
+    await setAutoDeployMutate({ service: props.service.id, enabled });
 
-    if (res?.errors?.length) {
-      errorToast('Failed to update auto-deploy', { description: res.errors.map(e => e.message).join(', ') });
-      return;
-    }
-
-    toast.success(enabled ? 'Auto-deploy enabled' : 'Auto-deploy disabled');
     emit('refetch');
   } catch (e: unknown) {
-    errorToast('Failed to update auto-deploy', { description: errorMessage(e) });
+    failureToast('Failed to update auto-deploy', e);
   } finally {
     autoDeploySaving.value = false;
   }
@@ -708,17 +683,11 @@ async function handleToggleCIDeploy(enabled: boolean) {
   ciDeploySaving.value = true;
 
   try {
-    const res = await setCIDeployMutate({ service: props.service.id, enabled });
+    await setCIDeployMutate({ service: props.service.id, enabled });
 
-    if (res?.errors?.length) {
-      errorToast('Failed to update CI deploys', { description: res.errors.map(e => e.message).join(', ') });
-      return;
-    }
-
-    toast.success(enabled ? 'CI deploys enabled' : 'CI deploys disabled');
     emit('refetch');
   } catch (e: unknown) {
-    errorToast('Failed to update CI deploys', { description: errorMessage(e) });
+    failureToast('Failed to update CI deploys', e);
   } finally {
     ciDeploySaving.value = false;
   }
@@ -726,20 +695,10 @@ async function handleToggleCIDeploy(enabled: boolean) {
 
 async function handleGenerateDomain() {
   try {
-    const res = await generateDomainMutate({ service: props.service.id });
-
-    if (res?.errors?.length) {
-      errorToast('Failed to generate domain', {
-        description: res.errors.map(e => e.message).join(', '),
-      });
-      return;
-    }
-
-    const host = res?.data?.generateDomain?.endpoints?.[0]?.host;
-    toast.success(host ? `Domain generated: ${host}` : 'Domain generated');
+    await generateDomainMutate({ service: props.service.id });
     emit('refetch');
   } catch (e: unknown) {
-    errorToast('Failed to generate domain', { description: errorMessage(e) });
+    failureToast('Failed to generate domain', e);
   }
 }
 
@@ -748,56 +707,37 @@ async function handleAddCustomDomain() {
   if (!hostname || !canAddDomain.value) return;
 
   try {
-    const res = await addCustomDomainMutate({
+    await addCustomDomainMutate({
       service: props.service.id,
       hostname,
       redirectTo: redirectEnabled.value ? redirectTarget.value : null,
     });
 
-    if (res?.errors?.length) {
-      errorToast('Failed to add custom domain', {
-        description: res.errors.map(e => e.message).join(', '),
-      });
-      return;
-    }
-
     closeAddDomain();
     recordsHost.value = hostname;
     emit('refetch');
   } catch (e: unknown) {
-    errorToast('Failed to add custom domain', { description: errorMessage(e) });
+    failureToast('Failed to add custom domain', e);
   }
 }
 
 async function handleRemoveDomain(hostname: string) {
   removingHostname.value = hostname;
   try {
-    const res = await removeDomainMutate({
+    await removeDomainMutate({
       service: props.service.id,
       hostname,
     });
 
-    if (res?.errors?.length) {
-      errorToast('Failed to remove domain', {
-        description: res.errors.map(e => e.message).join(', '),
-      });
-      return;
-    }
-
-    toast.success('Domain removed');
     domainToRemove.value = null;
     emit('refetch');
   } catch (e: unknown) {
-    errorToast('Failed to remove domain', { description: errorMessage(e) });
+    failureToast('Failed to remove domain', e);
   } finally {
     removingHostname.value = null;
   }
 }
 
-function copyToClipboard(text: string) {
-  navigator.clipboard.writeText(text);
-  toast.success('Copied to clipboard');
-}
 
 // Source
 const sourceRepoUrl = computed(() => {
@@ -892,10 +832,9 @@ async function handleSaveScaling() {
     }
 
     await setScalingMutate({ input });
-    toast.success('Scaling updated');
     emit('refetch');
   } catch (e: unknown) {
-    errorToast('Failed to update scaling', { description: errorMessage(e) });
+    failureToast('Failed to update scaling', e);
   } finally {
     scalingSaving.value = false;
   }
@@ -947,17 +886,11 @@ async function handleSaveResources() {
       memory: selectedMemory.value,
     };
 
-    const res = await setResourcesMutate({ service: props.service.id, resources: input });
+    await setResourcesMutate({ service: props.service.id, resources: input });
 
-    if (res?.errors?.length) {
-      errorToast('Failed to update compute', { description: res.errors.map(e => e.message).join(', ') });
-      return;
-    }
-
-    toast.success('Compute updated');
     emit('refetch');
   } catch (e: unknown) {
-    errorToast('Failed to update compute', { description: errorMessage(e) });
+    failureToast('Failed to update compute', e);
   } finally {
     resourcesSaving.value = false;
   }
@@ -1006,17 +939,11 @@ async function handleSaveUser() {
 
   userSaving.value = true;
   try {
-    const res = await setUserMutate({ service: props.service.id, user });
+    await setUserMutate({ service: props.service.id, user });
 
-    if (res?.errors?.length) {
-      errorToast('Failed to update run-as user', { description: res.errors.map(e => e.message).join(', ') });
-      return;
-    }
-
-    toast.success('Run-as user updated');
     emit('refetch');
   } catch (e: unknown) {
-    errorToast('Failed to update run-as user', { description: errorMessage(e) });
+    failureToast('Failed to update run-as user', e);
   } finally {
     userSaving.value = false;
   }
@@ -1024,19 +951,11 @@ async function handleSaveUser() {
 
 async function handleRemoveService() {
   try {
-    const res = await removeServiceMutate({ service: props.service.id });
+    await removeServiceMutate({ service: props.service.id });
 
-    if (res?.errors?.length) {
-      errorToast('Failed to delete service', {
-        description: res.errors.map(e => e.message).join(', '),
-      });
-      return;
-    }
-
-    toast.success('Service deleted');
     emit('removed');
   } catch (e: unknown) {
-    errorToast('Failed to delete service', { description: errorMessage(e) });
+    failureToast('Failed to delete service', e);
   }
 }
 </script>
@@ -1471,13 +1390,11 @@ async function handleRemoveService() {
                     <ExternalLink :size="14" class="shrink-0 text-muted-foreground" />
                     <span class="truncate font-mono text-sm hover:underline">{{ platformEndpoint.host }}</span>
                   </a>
-                  <IconButton
+                  <CopyButton
                     label="Copy"
                     class="h-auto shrink-0 rounded-none border-l px-2.5 text-muted-foreground hover:text-foreground"
-                    @click="copyToClipboard(platformEndpoint!.host)"
-                  >
-                    <Copy />
-                  </IconButton>
+                    :value="platformEndpoint!.host"
+                  />
                 </div>
                 <IconButton
                   label="Remove domain"
@@ -1532,13 +1449,11 @@ async function handleRemoveService() {
                         <span class="truncate font-mono text-sm text-muted-foreground">{{ endpoint.redirectTo }}</span>
                       </template>
                     </a>
-                    <IconButton
+                    <CopyButton
                       label="Copy"
                       class="h-auto shrink-0 rounded-none border-l px-2.5 text-muted-foreground hover:text-foreground"
-                      @click="copyToClipboard(endpoint.host)"
-                    >
-                      <Copy />
-                    </IconButton>
+                      :value="endpoint.host"
+                    />
                   </div>
                   <div class="hidden shrink-0 items-center gap-3 text-[11px] text-muted-foreground sm:flex">
                     <span>DNS <span :class="['font-medium', dnsStatusColor(endpoint.dns.status)]">{{ endpoint.dns.status }}</span></span>
@@ -1659,14 +1574,10 @@ async function handleRemoveService() {
                 <div class="grid grid-cols-[3rem_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1">
                   <span class="text-muted-foreground">Name</span>
                   <span class="min-w-0 break-all font-mono">{{ record.host }}</span>
-                  <IconButton label="Copy name" size="icon-xs" @click="copyToClipboard(record.host)">
-                    <Copy />
-                  </IconButton>
+                  <CopyButton label="Copy name" size="icon-xs" :value="record.host" />
                   <span class="text-muted-foreground">Value</span>
                   <span class="min-w-0 break-all font-mono">{{ record.value }}</span>
-                  <IconButton label="Copy value" size="icon-xs" @click="copyToClipboard(record.value)">
-                    <Copy />
-                  </IconButton>
+                  <CopyButton label="Copy value" size="icon-xs" :value="record.value" />
                 </div>
               </div>
             </div>
@@ -1741,13 +1652,11 @@ async function handleRemoveService() {
                   <Network :size="14" class="shrink-0 text-muted-foreground" />
                   <span class="truncate font-mono text-sm">{{ internalEndpoint.host }}</span>
                 </div>
-                <IconButton
+                <CopyButton
                   label="Copy"
                   class="h-auto shrink-0 rounded-none border-l px-2.5 text-muted-foreground hover:text-foreground"
-                  @click="copyToClipboard(internalEndpoint.host)"
-                >
-                  <Copy />
-                </IconButton>
+                  :value="internalEndpoint.host"
+                />
               </div>
             </div>
           </CollapsibleContent>

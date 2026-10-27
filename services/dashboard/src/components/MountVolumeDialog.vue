@@ -6,8 +6,7 @@ import { useMutation } from '@vue/apollo-composable';
 import { onKeyStroke } from '@vueuse/core';
 import { Server, Plug, ArrowLeft, Search, X } from '@lucide/vue';
 import { graphql } from '@/gql';
-import { toast, errorToast } from '@/components/ui/sonner';
-import { errorMessage } from '@/lib/utils';
+import { failureToast } from '@/components/ui/sonner';
 import type { Service } from '@/composables/useEnvironment';
 
 const MountVolumeDocument = graphql(`
@@ -70,10 +69,6 @@ const filteredServices = computed(() => {
   const q = search.value.toLowerCase();
   return props.services.filter(s => s.name.toLowerCase().includes(q));
 });
-
-const selectedServiceName = computed(
-  () => props.services.find(s => s.id === selectedServiceId.value)?.name ?? '',
-);
 
 const pathError = computed(() => {
   const p = path.value.trim();
@@ -149,11 +144,10 @@ async function handleMount() {
       service: selectedServiceId.value,
       path: path.value.trim(),
     });
-    toast.success('Volume mounted', { description: `to ${selectedServiceName.value}` });
     close();
     emit('mounted');
   } catch (e: unknown) {
-    errorToast('Failed to mount volume', { description: errorMessage(e) });
+    failureToast('Failed to mount volume', e);
   }
 }
 </script>

@@ -237,6 +237,11 @@
   --color-accent-pop: var(--accent-pop);
   --color-accent-pop-foreground: var(--accent-pop-foreground);
   --color-destructive: var(--destructive);
+  --color-status-ok: var(--status-ok);
+  --color-status-warn: var(--status-warn);
+  --color-status-danger: var(--status-danger);
+  --color-status-progress: var(--status-progress);
+  --color-status-neutral: var(--status-neutral);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);

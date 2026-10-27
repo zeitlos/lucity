@@ -27,8 +27,7 @@ import { apolloClient } from '@/lib/apollo';
 import ContextDrawer from '@/components/drawer/ContextDrawer.vue';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { toast, errorToast } from '@/components/ui/sonner';
-import { errorMessage } from '@/lib/utils';
+import { failureToast } from '@/components/ui/sonner';
 
 const props = defineProps<{
   projectId: string;
@@ -73,9 +72,8 @@ async function handleSaveTier() {
         tier: tier.value,
       },
     });
-    toast.success('Resource tier updated');
   } catch (e: unknown) {
-    errorToast('Failed to update resource tier', { description: errorMessage(e) });
+    failureToast('Failed to update resource tier', e);
   }
 }
 
@@ -83,26 +81,18 @@ const { mutate: deleteEnvironmentMutate, loading: deleting } = useMutation(Delet
 const confirmOpen = ref(false);
 
 async function handleDelete() {
-  const { id, name } = props.environment;
+  const { id } = props.environment;
 
   try {
-    const res = await deleteEnvironmentMutate({ environment: id });
-
-    if (res?.errors?.length) {
-      errorToast('Failed to delete environment', {
-        description: res.errors.map(e => e.message).join(', '),
-      });
-      return;
-    }
+    await deleteEnvironmentMutate({ environment: id });
 
     apolloClient.cache.evict({ id: apolloClient.cache.identify({ __typename: 'Environment', id }) });
     apolloClient.cache.gc();
 
-    toast.success(`Environment "${name}" deleted`);
     confirmOpen.value = false;
     router.push({ name: 'project', params: { projectId: props.projectId } });
   } catch (e: unknown) {
-    errorToast('Failed to delete environment', { description: errorMessage(e) });
+    failureToast('Failed to delete environment', e);
   }
 }
 </script>

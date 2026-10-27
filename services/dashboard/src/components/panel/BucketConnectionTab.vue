@@ -1,14 +1,15 @@
 <script setup lang="ts">
+import CopyButton from '@/components/CopyButton.vue';
+import QueryError from '@/components/QueryError.vue';
 import Spinner from '@/components/LoadingSpinner.vue';
 import { reactive, computed, ref } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
-import { Copy, Eye, EyeOff, Globe } from '@lucide/vue';
+import { Eye, EyeOff, Globe } from '@lucide/vue';
 import { graphql } from '@/gql';
 import IconButton from '@/components/IconButton.vue';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
-import { toast, errorToast } from '@/components/ui/sonner';
-import { errorMessage } from '@/lib/utils';
+import { failureToast } from '@/components/ui/sonner';
 
 const BucketCredentialsDocument = graphql(`
   query BucketCredentials($bucket: BucketID!) {
@@ -39,7 +40,7 @@ const props = defineProps<{
   publicEndpoint: string;
 }>();
 
-const { result, loading, error } = useQuery(
+const { result, loading, error, refetch } = useQuery(
   BucketCredentialsDocument,
   () => ({ bucket: props.bucketId }),
   () => ({ enabled: !!props.bucketId }),
@@ -55,9 +56,8 @@ async function handleTogglePublic(value: boolean) {
 
   try {
     await setBucketPublic({ bucket: props.bucketId, public: value });
-    toast.success(value ? 'Bucket is now public' : 'Bucket is now private');
   } catch (e: unknown) {
-    errorToast('Failed to update public access', { description: errorMessage(e) });
+    failureToast('Failed to update public access', e);
   } finally {
     publicSaving.value = false;
   }
@@ -159,10 +159,6 @@ function mask(value: string): string {
   return '*'.repeat(value.length - 2) + value.slice(-2);
 }
 
-function copyToClipboard(text: string) {
-  navigator.clipboard.writeText(text);
-  toast.success('Copied to clipboard');
-}
 </script>
 
 <template>
@@ -188,9 +184,7 @@ function copyToClipboard(text: string) {
       <div v-if="props.public && props.publicEndpoint" class="space-y-1.5 border-t px-4 py-3">
         <div class="flex items-center justify-between px-1">
           <span class="text-xs font-medium text-muted-foreground">Public URL</span>
-          <IconButton label="Copy public URL" size="icon-xs" @click="copyToClipboard(props.publicEndpoint)">
-            <Copy />
-          </IconButton>
+          <CopyButton label="Copy public URL" size="icon-xs" :value="props.publicEndpoint" />
         </div>
         <div class="flex items-center gap-2 rounded-md bg-muted/40 px-3 py-2">
           <span class="flex-1 truncate font-mono text-xs text-foreground">{{ props.publicEndpoint }}</span>
@@ -207,12 +201,12 @@ function copyToClipboard(text: string) {
     </div>
 
     <!-- Error -->
-    <div
+    <QueryError
       v-else-if="error"
-      class="rounded-lg border border-destructive/30 bg-destructive/5 p-3"
-    >
-      <p class="font-mono text-xs text-destructive">{{ error.message }}</p>
-    </div>
+      title="Couldn't load the connection details"
+      :error="error"
+      @retry="refetch()"
+    />
 
     <!-- Credentials -->
     <template v-else-if="credentials">
@@ -236,14 +230,12 @@ function copyToClipboard(text: string) {
             <EyeOff v-if="revealed[field.key]" />
             <Eye v-else />
           </IconButton>
-          <IconButton
+          <CopyButton
             :label="`Copy ${field.label}`"
             size="icon-xs"
             class="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-            @click="copyToClipboard(field.value)"
-          >
-            <Copy />
-          </IconButton>
+            :value="field.value"
+          />
         </div>
       </div>
 
@@ -266,9 +258,7 @@ function copyToClipboard(text: string) {
               {{ snip.label }}
             </button>
           </div>
-          <IconButton label="Copy snippet" size="icon-xs" @click="copyToClipboard(currentSnippet)">
-            <Copy />
-          </IconButton>
+          <CopyButton label="Copy snippet" size="icon-xs" :value="currentSnippet" />
         </div>
         <pre class="overflow-x-auto rounded-md bg-muted/40 px-3 py-2 font-mono text-xs text-foreground">{{ displayedSnippet }}</pre>
       </div>

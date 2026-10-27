@@ -13,8 +13,7 @@ const DeleteProjectDocument = graphql(`
 import { apolloClient } from '@/lib/apollo';
 import ContextDrawer from '@/components/drawer/ContextDrawer.vue';
 import { Button } from '@/components/ui/button';
-import { toast, errorToast } from '@/components/ui/sonner';
-import { errorMessage } from '@/lib/utils';
+import { failureToast } from '@/components/ui/sonner';
 
 const props = defineProps<{
   project: {
@@ -33,22 +32,14 @@ const { mutate: deleteProjectMutate, loading: deleting } = useMutation(DeletePro
 
 async function handleDelete() {
   try {
-    const res = await deleteProjectMutate({ id: props.project.id });
-
-    if (res?.errors?.length) {
-      errorToast('Failed to delete project', {
-        description: res.errors.map(e => e.message).join(', '),
-      });
-      return;
-    }
+    await deleteProjectMutate({ id: props.project.id });
 
     apolloClient.cache.evict({ id: `Project:${props.project.id}` });
     apolloClient.cache.gc();
 
-    toast.success('Project deleted');
     router.push({ name: 'projects' });
   } catch (e: unknown) {
-    errorToast('Failed to delete project', { description: errorMessage(e) });
+    failureToast('Failed to delete project', e);
   }
 }
 </script>

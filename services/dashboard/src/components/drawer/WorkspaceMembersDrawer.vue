@@ -46,8 +46,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { toast, errorToast } from '@/components/ui/sonner';
-import { errorMessage } from '@/lib/utils';
+import { failureToast, successToast } from '@/components/ui/sonner';
 import { useAuth } from '@/composables/useAuth';
 
 const props = defineProps<{
@@ -72,22 +71,16 @@ const { mutate: inviteMutate, loading: inviting } = useMutation(InviteMemberDocu
 async function handleInvite() {
   if (!inviteEmail.value.trim()) return;
   try {
-    const res = await inviteMutate({
+    await inviteMutate({
       input: { email: inviteEmail.value.trim(), role: inviteRole.value },
     });
-    if (res?.errors?.length) {
-      errorToast('Failed to invite member', {
-        description: res.errors.map(e => e.message).join(', '),
-      });
-      return;
-    }
-    toast.success(`Invited ${inviteEmail.value.trim()}`);
+    successToast(`Invited ${inviteEmail.value.trim()}`);
     inviteEmail.value = '';
     inviteRole.value = WorkspaceRole.User;
     await refreshToken();
     emit('changed');
   } catch (e: unknown) {
-    errorToast('Failed to invite member', { description: errorMessage(e) });
+    failureToast('Failed to invite member', e);
   }
 }
 
@@ -98,12 +91,11 @@ async function handleRemoveMember() {
   if (!memberToRemove.value) return;
   try {
     await removeMutate({ userId: memberToRemove.value.id });
-    toast.success('Member removed');
     memberToRemove.value = null;
     await refreshToken();
     emit('changed');
   } catch (e: unknown) {
-    errorToast('Failed to remove member', { description: errorMessage(e) });
+    failureToast('Failed to remove member', e);
   }
 }
 
@@ -114,10 +106,9 @@ async function handleUpdateRole(userId: string, role: WorkspaceRole) {
   roleUpdatingFor.value = userId;
   try {
     await updateRoleMutate({ input: { userId, role } });
-    toast.success('Member role updated');
     emit('changed');
   } catch (e: unknown) {
-    errorToast('Failed to update role', { description: errorMessage(e) });
+    failureToast('Failed to update role', e);
   } finally {
     roleUpdatingFor.value = null;
   }

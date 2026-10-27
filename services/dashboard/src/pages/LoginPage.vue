@@ -3,7 +3,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import GithubIcon from '@/components/GithubIcon.vue';
 import { useAuth } from '@/composables/useAuth';
-import { toast } from '@/components/ui/sonner';
+import { infoToast } from '@/components/ui/sonner';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import BaseLogo from '@/components/BaseLogo.vue';
@@ -48,7 +48,7 @@ function onKeyDown(e: KeyboardEvent) {
 
 function triggerEasterEgg() {
   easterEggActive.value = true;
-  toast('You found the gopher!', {
+  infoToast('You found the gopher!', {
     description: 'Captain Gopher is navigating the deployment seas.',
   });
   setTimeout(() => { easterEggActive.value = false; }, 4000);

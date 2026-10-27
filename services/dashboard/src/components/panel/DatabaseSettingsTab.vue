@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import QueryError from '@/components/QueryError.vue';
+import { Skeleton } from '@/components/ui/skeleton';
 import FormFooter from '@/components/FormFooter.vue';
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
@@ -57,8 +59,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { toast, errorToast } from '@/components/ui/sonner';
-import { errorMessage } from '@/lib/utils';
+import { failureToast } from '@/components/ui/sonner';
 
 const props = defineProps<{
   databaseId: string;
@@ -100,7 +101,7 @@ const storageOptions = [
   { value: '1Ti', gib: 1024, label: '1 TB' },
 ];
 
-const { result: resourcesResult, refetch: refetchResources } = useQuery(DatabaseResourcesDocument, {
+const { result: resourcesResult, error: resourcesError, refetch: refetchResources } = useQuery(DatabaseResourcesDocument, {
   database: props.databaseId,
 });
 
@@ -135,17 +136,11 @@ async function handleSaveResources() {
       memory: selectedMemory.value,
     };
 
-    const res = await setResourcesMutate({ database: props.databaseId, resources: input });
+    await setResourcesMutate({ database: props.databaseId, resources: input });
 
-    if (res?.errors?.length) {
-      errorToast('Failed to update compute', { description: res.errors.map(e => e.message).join(', ') });
-      return;
-    }
-
-    toast.success('Compute updated');
     await refetchResources();
   } catch (e: unknown) {
-    errorToast('Failed to update compute', { description: errorMessage(e) });
+    failureToast('Failed to update compute', e);
   } finally {
     resourcesSaving.value = false;
   }
@@ -180,17 +175,11 @@ useUnsavedChanges(() => resourcesChanged.value || storageChanged.value);
 async function handleSaveStorage() {
   storageSaving.value = true;
   try {
-    const res = await setStorageMutate({ database: props.databaseId, size: selectedStorage.value });
+    await setStorageMutate({ database: props.databaseId, size: selectedStorage.value });
 
-    if (res?.errors?.length) {
-      errorToast('Failed to update storage', { description: res.errors.map(e => e.message).join(', ') });
-      return;
-    }
-
-    toast.success('Storage updated');
     await refetchResources();
   } catch (e: unknown) {
-    errorToast('Failed to update storage', { description: errorMessage(e) });
+    failureToast('Failed to update storage', e);
   } finally {
     storageSaving.value = false;
   }
@@ -202,17 +191,29 @@ const deleteDialogOpen = ref(false);
 async function handleDelete() {
   try {
     await deleteDatabase({ database: props.databaseId });
-    toast.success('Database deleted');
     deleteDialogOpen.value = false;
     emit('database-removed');
   } catch (e: unknown) {
-    errorToast('Failed to delete database', { description: errorMessage(e) });
+    failureToast('Failed to delete database', e);
   }
 }
 </script>
 
 <template>
-  <div class="space-y-6">
+  <QueryError
+    v-if="resourcesError && !resourcesResult"
+    title="Couldn't load database settings"
+    :error="resourcesError"
+    @retry="refetchResources()"
+  />
+
+  <div v-else-if="!resourcesResult" class="space-y-6">
+    <Skeleton class="h-24 w-full" />
+    <Skeleton class="h-40 w-full" />
+    <Skeleton class="h-28 w-full" />
+  </div>
+
+  <div v-else class="space-y-6">
     <!-- Configuration -->
     <section class="space-y-2">
       <h3 class="text-sm font-medium text-muted-foreground">

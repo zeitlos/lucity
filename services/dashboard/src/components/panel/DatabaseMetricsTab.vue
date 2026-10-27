@@ -1,11 +1,14 @@
 <script setup lang="ts">
+import CopyButton from '@/components/CopyButton.vue';
+import QueryError from '@/components/QueryError.vue';
+import EmptyState from '@/components/EmptyState.vue';
+import { Skeleton } from '@/components/ui/skeleton';
 import IconButton from '@/components/IconButton.vue';
 import { computed, ref } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
 import { ChevronDown, ChevronUp } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { DatabaseInstanceRole, DatabaseMetric, MetricGrouping, MetricWindow } from '@/gql/graphql';
-import { toast } from '@/components/ui/sonner';
 import { formatBytes, parseCpu, parseStorageSize, cn } from '@/lib/utils';
 import {
   formatCoreLimit,
@@ -106,7 +109,7 @@ const openQuery = ref<number | null>(null);
 
 const grouping = computed(() => (perInstance.value ? MetricGrouping.PerReplica : MetricGrouping.Total));
 
-const { result, loading } = useQuery(
+const { result, loading, error, refetch } = useQuery(
   DatabaseMetricsDocument,
   () => ({ id: props.databaseId, range: { window: selectedWindow.value }, grouping: grouping.value }),
   { pollInterval: 30000, fetchPolicy: 'cache-and-network' },
@@ -404,10 +407,6 @@ function toggleQuery(index: number) {
   openQuery.value = openQuery.value === index ? null : index;
 }
 
-function copyQuery(query: string) {
-  navigator.clipboard.writeText(query);
-  toast.success('Copied to clipboard');
-}
 </script>
 
 <template>
@@ -498,13 +497,22 @@ function copyQuery(query: string) {
       </section>
     </template>
 
-    <div
-      v-else
-      class="flex h-[280px] items-center justify-center text-center text-sm text-muted-foreground"
-    >
-      <span v-if="loading">Loading metrics…</span>
-      <span v-else>No metrics yet. They appear within a minute or two of the database running.</span>
+    <div v-else-if="loading" class="space-y-3">
+      <Skeleton class="h-40 w-full" />
+      <Skeleton class="h-40 w-full" />
     </div>
+    <QueryError
+      v-else-if="error"
+      title="Couldn't load metrics"
+      :error="error"
+      @retry="refetch()"
+    />
+    <EmptyState
+      v-else
+      size="compact"
+      title="No metrics yet"
+      description="They appear within a minute or two of the database running."
+    />
 
     <div class="-mx-4 overflow-x-auto">
       <table class="w-full border-collapse text-[13px]">
@@ -565,13 +573,7 @@ function copyQuery(query: string) {
                 <div class="mt-2.5 flex items-center gap-4 text-[11px] tabular-nums text-muted-foreground">
                   <span>{{ formatMilliseconds(statement.totalMilliseconds) }} in total</span>
                   <span>{{ rowsPerCall(statement.rows, statement.calls) }} rows per call</span>
-                  <button
-                    type="button"
-                    class="ml-auto rounded-md border bg-card px-2 py-0.5 text-[11px] text-foreground transition-colors hover:bg-muted"
-                    @click="copyQuery(statement.query)"
-                  >
-                    Copy query
-                  </button>
+                  <CopyButton label="Copy query" class="ml-auto" :value="statement.query" />
                 </div>
               </td>
             </tr>

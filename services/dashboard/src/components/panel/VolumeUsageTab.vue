@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import QueryError from '@/components/QueryError.vue';
+import EmptyState from '@/components/EmptyState.vue';
+import { Skeleton } from '@/components/ui/skeleton';
 import { computed, ref } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
 import { graphql } from '@/gql';
@@ -48,7 +51,7 @@ const emit = defineEmits<{
 const selectedWindow = ref<MetricWindow>(MetricWindow.Last_24H);
 const cursor = ref<number | null>(null);
 
-const { result: metricsResult, loading: metricsLoading } = useQuery(
+const { result: metricsResult, loading: metricsLoading, error: metricsError, refetch: refetchMetrics } = useQuery(
   VolumeMetricsDocument,
   () => ({ id: props.volumeId, range: { window: selectedWindow.value } }),
   { pollInterval: 30000, fetchPolicy: 'cache-and-network' },
@@ -113,15 +116,21 @@ const unit = computed(() => {
       />
     </section>
 
-    <div
-      v-else
-      class="flex h-[280px] items-center justify-center text-center text-sm text-muted-foreground"
-    >
-      <span v-if="metricsLoading">Loading usage…</span>
-      <span v-else-if="!volume.mount">
-        Mount this volume to a service to start collecting usage.
-      </span>
-      <span v-else>No usage data yet. Metrics appear within a minute or two.</span>
+    <div v-else-if="metricsLoading" class="space-y-3">
+      <Skeleton class="h-40 w-full" />
+      <Skeleton class="h-40 w-full" />
     </div>
+    <QueryError
+      v-else-if="metricsError"
+      title="Couldn't load metrics"
+      :error="metricsError"
+      @retry="refetchMetrics()"
+    />
+    <EmptyState
+      v-else
+      size="compact"
+      title="No usage data yet"
+      :description="volume.mount ? 'Usage appears within a minute or two.' : 'Mount this volume to a service to start collecting usage.'"
+    />
   </div>
 </template>

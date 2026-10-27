@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { useEscapeToClose } from '@/composables/useEscapeToClose';
 import { ref, computed, watch, nextTick } from 'vue';
-import { X, Pause, Play, Eraser } from '@lucide/vue';
+import { X, Pause, Play, Eraser, CircleAlert, RotateCw } from '@lucide/vue';
+import { Button } from '@/components/ui/button';
 import Spinner from '@/components/LoadingSpinner.vue';
 import LogLine from '@/components/LogLine.vue';
 import { useServiceLogs } from '@/composables/useServiceLogs';
@@ -21,7 +22,7 @@ useEscapeToClose(() => emit('close'));
 const serviceIdRef = computed(() => props.serviceId);
 const enabled = ref(true);
 
-const { lines, isActive, clear, stop, restart } = useServiceLogs(
+const { lines, isActive, error, clear, stop, restart, retry } = useServiceLogs(
   serviceIdRef,
   enabled,
 );
@@ -106,15 +107,24 @@ function clearLogs() {
       class="flex-1 overflow-auto p-4 font-mono text-xs leading-relaxed text-zinc-300"
       @scroll="handleScroll"
     >
+      <div v-if="error && lines.length === 0" class="flex flex-col items-start gap-2 font-sans">
+        <p class="flex items-center gap-2 text-sm font-medium text-status-danger">
+          <CircleAlert :size="14" />
+          Couldn't load logs
+        </p>
+        <p class="text-zinc-400">{{ error }}</p>
+        <Button variant="outline" size="xs" class="border-zinc-700 bg-transparent text-zinc-200" @click="retry">
+          <RotateCw />
+          Try again
+        </Button>
+      </div>
+
       <div
-        v-if="lines.length === 0 && !isActive"
+        v-else-if="lines.length === 0 && !isActive"
         class="flex items-center gap-2 text-zinc-500"
       >
-        <Spinner
-          :size="12"
-          class="animate-spin"
-        />
-        <span>Waiting for logs...</span>
+        <Spinner :size="12" />
+        <span>Waiting for logs…</span>
       </div>
 
       <div

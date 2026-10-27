@@ -2,7 +2,7 @@ import { reactive } from 'vue';
 import { apolloClient } from '@/lib/apollo';
 import { graphql } from '@/gql';
 import { BuildStatus } from '@/gql/graphql';
-import { toast, errorToast } from '@/components/ui/sonner';
+import { errorToast, failureToast, infoToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 
 const DeployDocument = graphql(`
@@ -76,7 +76,6 @@ export function useDeploy(): DeployState {
         if (build.status === BuildStatus.Succeeded) {
           stopPolling();
           state.isDeploying = false;
-          toast.success('Build complete');
         } else if (build.status === BuildStatus.Failed) {
           stopPolling();
           state.isDeploying = false;
@@ -91,7 +90,7 @@ export function useDeploy(): DeployState {
         stopPolling();
         state.isDeploying = false;
         state.error = errorMessage(e);
-        errorToast('Build status check failed', { description: state.error });
+        failureToast('Failed to check build status', e);
       }
     }, 2000);
   }
@@ -125,11 +124,11 @@ export function useDeploy(): DeployState {
         state.buildId = build.id;
         state.status = build.status;
         startPolling();
-        toast.info('Deploy started', { description: `Building ${serviceName}...` });
+        infoToast('Deploy started', { description: `Building ${serviceName}…` });
       } catch (e: unknown) {
         state.isDeploying = false;
         state.error = errorMessage(e);
-        errorToast('Failed to start deploy', { description: state.error });
+        failureToast('Failed to start deploy', e);
       }
     },
 

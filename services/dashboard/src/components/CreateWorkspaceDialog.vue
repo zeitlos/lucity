@@ -23,8 +23,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { errorToast } from '@/components/ui/sonner';
-import { errorMessage } from '@/lib/utils';
+import { failureToast } from '@/components/ui/sonner';
 import { isValidSlug } from '@/lib/slug';
 import NameSlugField from '@/components/NameSlugField.vue';
 import PlanPicker from '@/components/PlanPicker.vue';
@@ -53,19 +52,12 @@ async function handleCheckout() {
       input: { id: id.value, name: name.value.trim(), plan: selectedPlan.value },
     });
 
-    if (res?.errors?.length) {
-      errorToast('Failed to create checkout session', {
-        description: res.errors.map(e => e.message).join(', '),
-      });
-      return;
-    }
-
     const url = res?.data?.createWorkspaceCheckout?.url;
     if (url) {
       window.location.href = url;
     }
   } catch (e: unknown) {
-    errorToast('Failed to create checkout session', { description: errorMessage(e) });
+    failureToast('Failed to create checkout session', e);
   }
 }
 </script>

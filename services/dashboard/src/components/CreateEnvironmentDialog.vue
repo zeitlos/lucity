@@ -35,8 +35,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { toast, errorToast } from '@/components/ui/sonner';
-import { errorMessage } from '@/lib/utils';
+import { failureToast } from '@/components/ui/sonner';
 
 const props = defineProps<{
   open: boolean;
@@ -86,22 +85,14 @@ async function handleCreate() {
 
     const res = await mutate({ input });
 
-    if (res?.errors?.length) {
-      errorToast('Failed to create environment', {
-        description: res.errors.map(e => e.message).join(', '),
-      });
-      return;
-    }
-
     const newId = res?.data?.createEnvironment?.id;
-    toast.success(`Environment "${name.value.trim()}" created`);
     name.value = '';
     fromEnvironmentId.value = '';
     tier.value = ResourceTier.Eco;
     emit('update:open', false);
     if (newId) emit('created', newId);
   } catch (e: unknown) {
-    errorToast('Failed to create environment', { description: errorMessage(e) });
+    failureToast('Failed to create environment', e);
   }
 }
 </script>
