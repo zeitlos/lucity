@@ -18,29 +18,30 @@ const SetSharedVariablesDocument = graphql(`
     setSharedVariables(environment: $environment, variables: $variables)
   }
 `);
-import { useEnvironment } from '@/composables/useEnvironment';
+import ContextDrawer from '@/components/drawer/ContextDrawer.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 import { parseEnvAssignments } from '@/lib/env';
 
-const { activeEnvironment } = useEnvironment();
-const environmentId = computed(() => activeEnvironment.value?.id ?? '');
+const props = defineProps<{
+  environmentId: string;
+  environmentName: string;
+}>();
+
+const emit = defineEmits<{
+  (e: 'close'): void;
+}>();
 
 const { result, loading, refetch } = useQuery(SharedVariablesDocument, () => ({
-  environment: environmentId.value,
-}), () => ({
-  enabled: !!environmentId.value,
+  environment: props.environmentId,
 }));
 
 interface VarRow {
   key: string;
   value: string;
-  isNew?: boolean;
   revealed?: boolean;
 }
 
@@ -51,10 +52,7 @@ watch(
   () => result.value?.sharedVariables,
   (vars) => {
     if (vars) {
-      rows.value = vars.map((v) => ({
-        key: v.key,
-        value: v.value,
-      }));
+      rows.value = vars.map(v => ({ key: v.key, value: v.value }));
       hasChanges.value = false;
     }
   },
@@ -62,12 +60,12 @@ watch(
 );
 
 function addRow() {
-  rows.value.push({ key: '', value: '', isNew: true, revealed: true });
+  rows.value.push({ key: '', value: '', revealed: true });
   hasChanges.value = true;
 }
 
 const allRevealed = computed(
-  () => rows.value.length > 0 && rows.value.every((r) => r.revealed),
+  () => rows.value.length > 0 && rows.value.every(r => r.revealed),
 );
 
 function toggleAll() {
@@ -81,7 +79,7 @@ function onPaste(event: ClipboardEvent, index: number) {
   if (parsed.length === 0) return;
 
   event.preventDefault();
-  rows.value.splice(index, 1, ...parsed.map((p) => ({ key: p.key, value: p.value })));
+  rows.value.splice(index, 1, ...parsed.map(p => ({ key: p.key, value: p.value })));
   hasChanges.value = true;
 }
 
@@ -100,7 +98,7 @@ async function handleSave() {
   const validRows = rows.value.filter(r => r.key.trim());
   try {
     const res = await setVarsMutate({
-      environment: environmentId.value,
+      environment: props.environmentId,
       variables: validRows.map(r => ({ key: r.key.trim(), value: r.value })),
     });
 
@@ -121,29 +119,16 @@ async function handleSave() {
 </script>
 
 <template>
-  <div class="space-y-4">
-    <div>
-      <div class="flex items-center gap-2">
-        <h3 class="text-sm font-medium text-foreground">Shared Variables</h3>
-        <Badge v-if="activeEnvironment" variant="outline" class="font-mono text-xs">
-          {{ activeEnvironment.name }}
-        </Badge>
-      </div>
-      <p class="text-xs text-muted-foreground">
-        Only services in {{ activeEnvironment?.name || 'this environment' }} can reference these.
-        Switch the environment in the header to edit another one.
-      </p>
+  <ContextDrawer
+    title="Shared variables"
+    :description="`Services in ${environmentName} can reference these. Every environment keeps its own set.`"
+    @close="emit('close')"
+  >
+    <div v-if="loading && rows.length === 0" class="space-y-2">
+      <Skeleton class="h-9 w-full" />
+      <Skeleton class="h-9 w-full" />
     </div>
 
-    <Separator />
-
-    <!-- Loading state -->
-    <div v-if="loading" class="space-y-2">
-      <Skeleton class="h-10 w-full" />
-      <Skeleton class="h-10 w-full" />
-    </div>
-
-    <!-- Variable rows -->
     <div v-else class="space-y-2">
       <div
         v-for="(row, index) in rows"
@@ -153,24 +138,27 @@ async function handleSave() {
         <Input
           v-model="row.key"
           placeholder="KEY"
-          class="flex-1 font-mono text-sm uppercase"
+          aria-label="Key"
+          class="h-9 w-[150px] shrink-0 font-mono text-xs uppercase"
           @input="markChanged"
           @paste="onPaste($event, index)"
         />
-        <div class="relative flex-1">
+        <div class="relative min-w-0 flex-1">
           <Input
             v-model="row.value"
             :type="row.revealed ? 'text' : 'password'"
             placeholder="value"
+            :aria-label="`Value of ${row.key || 'new variable'}`"
             autocomplete="off"
             data-1p-ignore="true"
-            class="w-full pr-9 font-mono text-sm"
+            class="h-9 w-full pr-9 font-mono text-xs"
             @input="markChanged"
           />
           <button
             type="button"
             tabindex="-1"
-            class="absolute right-0 top-0 flex h-10 w-9 items-center justify-center text-muted-foreground hover:text-foreground"
+            :aria-label="row.revealed ? 'Hide value' : 'Show value'"
+            class="absolute right-0 top-0 flex h-9 w-9 items-center justify-center text-muted-foreground hover:text-foreground"
             @click="row.revealed = !row.revealed"
           >
             <EyeOff v-if="row.revealed" :size="14" />
@@ -181,6 +169,7 @@ async function handleSave() {
           variant="ghost"
           size="icon"
           class="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+          :aria-label="`Remove ${row.key || 'variable'}`"
           @click="removeRow(index)"
         >
           <Trash2 :size="14" />
@@ -188,48 +177,42 @@ async function handleSave() {
       </div>
 
       <div v-if="rows.length === 0" class="rounded-lg border border-dashed p-6 text-center">
-        <p class="text-sm text-muted-foreground">No shared variables configured for this environment.</p>
+        <p class="text-sm text-muted-foreground">No shared variables in {{ environmentName }} yet.</p>
       </div>
 
-      <!-- Actions -->
-      <div class="flex items-center justify-between pt-2">
-        <div class="flex items-center gap-2">
-          <Button variant="outline" size="sm" @click="addRow">
-            <Plus :size="14" class="mr-1" />
-            Add Variable
-          </Button>
-          <Button
-            v-if="rows.length > 0"
-            variant="ghost"
-            size="sm"
-            class="text-muted-foreground"
-            @click="toggleAll"
-          >
-            <EyeOff v-if="allRevealed" :size="14" class="mr-1" />
-            <Eye v-else :size="14" class="mr-1" />
-            {{ allRevealed ? 'Hide all' : 'Show all' }}
-          </Button>
-        </div>
-
-        <div class="flex items-center gap-2">
-          <Badge v-if="hasChanges" variant="secondary" class="text-xs">
-            Unsaved changes
-          </Badge>
-          <Button
-            size="sm"
-            :disabled="!hasChanges || saving"
-            @click="handleSave"
-          >
-            {{ saving ? 'Saving...' : 'Save' }}
-          </Button>
-        </div>
+      <div class="flex items-center gap-2 pt-1.5">
+        <Button variant="outline" size="sm" @click="addRow">
+          <Plus :size="14" class="mr-1" />
+          Add variable
+        </Button>
+        <Button
+          v-if="rows.length > 0"
+          variant="ghost"
+          size="sm"
+          class="text-muted-foreground"
+          @click="toggleAll"
+        >
+          <EyeOff v-if="allRevealed" :size="14" class="mr-1" />
+          <Eye v-else :size="14" class="mr-1" />
+          {{ allRevealed ? 'Hide all' : 'Show all' }}
+        </Button>
       </div>
     </div>
 
-    <Separator />
-
-    <div class="space-y-1 text-sm text-muted-foreground">
-      <p>Paste <code class="rounded bg-muted px-1 py-0.5 font-mono text-xs">KEY=value</code> lines into a key field to add several at once.</p>
-    </div>
-  </div>
+    <template #footer>
+      <div class="flex items-center justify-between gap-4">
+        <p class="text-xs leading-[18px] text-muted-foreground">
+          Paste <code class="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">KEY=value</code> lines into a key field to add several.
+        </p>
+        <Button
+          size="sm"
+          class="shrink-0"
+          :disabled="!hasChanges || saving"
+          @click="handleSave"
+        >
+          {{ saving ? 'Saving...' : 'Save' }}
+        </Button>
+      </div>
+    </template>
+  </ContextDrawer>
 </template>

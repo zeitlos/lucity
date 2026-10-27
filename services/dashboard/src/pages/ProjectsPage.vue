@@ -38,6 +38,7 @@ import CreateCommandPalette from '@/components/CreateCommandPalette.vue';
 import WelcomeCard from '@/components/WelcomeCard.vue';
 import { useOnboarding } from '@/composables/useOnboarding';
 import { useGitHubInstall } from '@/composables/useGitHubInstall';
+import { preferredEnvironment } from '@/lib/lastEnvironment';
 
 const route = useRoute();
 const router = useRouter();
@@ -79,6 +80,14 @@ watch(() => route.query.github, (val) => {
 watch(paletteOpen, (open) => {
   if (!open) initialPaletteView.value = 'main';
 });
+
+function projectLink(project: { id: string; environments: { id: string }[] }) {
+  const target = preferredEnvironment(project.id, project.environments);
+  if (target) {
+    return { name: 'environment', params: { projectId: project.id, environmentId: target.id } };
+  }
+  return { name: 'project', params: { projectId: project.id } };
+}
 
 function allServices(project: { environments: { services?: { id: string; name: string; sourceUrl: string }[] }[] }) {
   const seen = new Set<string>();
@@ -177,7 +186,7 @@ function uniqueRepoCount(services: { sourceUrl: string }[]): number {
         v-for="project in projects"
         :key="project.id"
         class="block text-left"
-        :to="{ name: 'project', params: { projectId: project.id }}"
+        :to="projectLink(project)"
       >
         <Card class="transition-shadow hover:shadow-md">
           <CardHeader>

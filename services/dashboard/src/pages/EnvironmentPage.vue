@@ -247,8 +247,12 @@ const ProjectEnvironmentsDocument = graphql(`
     }
   }
 `);
+import { Braces, SlidersHorizontal, Workflow } from '@lucide/vue';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import ContextRail from '@/components/ContextRail.vue';
+import SharedVariablesDrawer from '@/components/drawer/SharedVariablesDrawer.vue';
+import EnvironmentSettingsDrawer from '@/components/drawer/EnvironmentSettingsDrawer.vue';
 import ServiceCanvas from '@/components/canvas/ServiceCanvas.vue';
 import ServicePanel from '@/components/panel/ServicePanel.vue';
 import DatabasePanel from '@/components/panel/DatabasePanel.vue';
@@ -267,6 +271,7 @@ import { useBuildLogsPanel } from '@/composables/useBuildLogsPanel';
 import { useServiceLogsPanel } from '@/composables/useServiceLogsPanel';
 import { useVulnerabilitiesPanel } from '@/composables/useVulnerabilitiesPanel';
 import { parseStorageSize } from '@/lib/utils';
+import { rememberEnvironment } from '@/lib/lastEnvironment';
 
 const route = useRoute();
 const router = useRouter();
@@ -652,6 +657,50 @@ const hasResources = computed(() =>
   activeEnvVolumes.value.length > 0,
 );
 
+const drawer = computed(() => route.params.drawer);
+
+const projectName = computed(() => projectResult.value?.project?.name ?? projectId.value);
+
+const railItems = computed(() => [
+  {
+    key: 'canvas',
+    label: 'Canvas',
+    icon: Workflow,
+    to: { name: 'environment', params: { projectId: projectId.value, environmentId: environmentId.value } },
+  },
+  {
+    key: 'variables',
+    label: 'Variables',
+    icon: Braces,
+    to: { name: 'environment', params: { projectId: projectId.value, environmentId: environmentId.value, drawer: 'variables' } },
+  },
+  {
+    key: 'settings',
+    label: 'Settings',
+    icon: SlidersHorizontal,
+    to: { name: 'environment', params: { projectId: projectId.value, environmentId: environmentId.value, drawer: 'settings' } },
+  },
+]);
+
+const activeKey = computed(() => {
+  if (drawer.value === 'variables' || drawer.value === 'settings') return drawer.value;
+  return 'canvas';
+});
+
+function closeDrawer() {
+  router.push({ name: 'environment', params: { projectId: projectId.value, environmentId: environmentId.value } });
+}
+
+watch(drawer, (value) => {
+  if (value) closePanel();
+});
+
+watch(isOpen, (open) => {
+  if (open && drawer.value) closeDrawer();
+});
+
+watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immediate: true });
+
 // If the env returns an error, bounce to the projects list
 watch(error, (err) => {
   if (err) {
@@ -681,36 +730,74 @@ watch(error, (err) => {
     </div>
 
     <template v-else-if="environment">
-      <div class="relative flex-1 py-3">
-        <div class="h-full w-full overflow-hidden rounded-lg border bg-card shadow-sm">
-          <template v-if="hasResources">
-            <ServiceCanvas
-              :services="activeEnvServices"
-              :databases="activeEnvDatabases"
-              :key-value-stores="activeEnvKeyValueStores"
-              :buckets="activeEnvBuckets"
-              :volumes="activeEnvVolumes"
-              :environment-id="environmentId"
-              @create="paletteOpen = true"
-              @deploy-completed="refetch()"
-              @mount-volume="openMountDialog"
-            />
-          </template>
-          <template v-else>
-            <div class="flex h-full items-center justify-center">
-              <EmptyState
-                title="No resources yet"
-                description="Create a service or database to get started."
-                pattern="crosshatch"
-              >
-                <template #action>
-                  <Button @click="paletteOpen = true">
-                    Create Resource
-                  </Button>
-                </template>
-              </EmptyState>
+      <div class="relative flex flex-1 py-3">
+        <ContextRail
+          :items="railItems"
+          :active-key="activeKey"
+          :up-label="`Up to ${projectName}`"
+          :up-to="{ name: 'project', params: { projectId } }"
+          :project-id="projectId"
+          :project-name="projectName"
+        />
+
+        <div class="relative min-w-0 flex-1">
+          <div class="h-full w-full overflow-hidden rounded-lg border bg-card shadow-sm">
+            <template v-if="hasResources">
+              <ServiceCanvas
+                :services="activeEnvServices"
+                :databases="activeEnvDatabases"
+                :key-value-stores="activeEnvKeyValueStores"
+                :buckets="activeEnvBuckets"
+                :volumes="activeEnvVolumes"
+                :environment-id="environmentId"
+                @create="paletteOpen = true"
+                @deploy-completed="refetch()"
+                @mount-volume="openMountDialog"
+              />
+            </template>
+            <template v-else>
+              <div class="flex h-full items-center justify-center">
+                <EmptyState
+                  title="No resources yet"
+                  description="Create a service or database to get started."
+                  pattern="crosshatch"
+                >
+                  <template #action>
+                    <Button @click="paletteOpen = true">
+                      Create Resource
+                    </Button>
+                  </template>
+                </EmptyState>
+              </div>
+            </template>
+          </div>
+
+          <Transition name="slide-drawer">
+            <div
+              v-if="drawer === 'variables'"
+              class="absolute inset-y-0 left-0 z-10 w-[440px] max-w-full"
+            >
+              <SharedVariablesDrawer
+                :environment-id="environmentId"
+                :environment-name="environment.name"
+                @close="closeDrawer"
+              />
             </div>
-          </template>
+          </Transition>
+
+          <Transition name="slide-drawer">
+            <div
+              v-if="drawer === 'settings'"
+              class="absolute inset-y-0 left-0 z-10 w-[440px] max-w-full"
+            >
+              <EnvironmentSettingsDrawer
+                :project-id="projectId"
+                :project-name="projectName"
+                :environment="environment"
+                @close="closeDrawer"
+              />
+            </div>
+          </Transition>
         </div>
 
         <!-- Service Detail Panel -->
@@ -868,6 +955,20 @@ watch(error, (err) => {
 .slide-panel-enter-from,
 .slide-panel-leave-to {
   transform: translateX(100%);
+  opacity: 0;
+}
+
+.slide-drawer-enter-active {
+  transition: transform 0.25s ease, opacity 0.2s ease;
+}
+
+.slide-drawer-leave-active {
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.slide-drawer-enter-from,
+.slide-drawer-leave-to {
+  transform: translateX(-16px);
   opacity: 0;
 }
 </style>

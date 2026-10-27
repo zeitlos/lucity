@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
+import { computed } from 'vue';
+import { RouterLink, RouterView, useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
-import { Download, LogOut, Settings } from '@lucide/vue';
+import { LogOut, Settings } from '@lucide/vue';
 import { useAuth } from '@/composables/useAuth';
 import { graphql } from '@/gql';
 
@@ -26,11 +26,9 @@ import BaseLogo from '@/components/BaseLogo.vue';
 import ContextNav from '@/components/ContextNav.vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 import HelpMenu from '@/components/HelpMenu.vue';
-import ProjectEjectDialog from '@/components/ProjectEjectDialog.vue';
 import SuspensionBanner from '@/components/SuspensionBanner.vue';
 import TrialIndicator from '@/components/TrialIndicator.vue';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,15 +37,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-const route = useRoute();
 const router = useRouter();
 const { user, logout } = useAuth();
 const { result: wsResult } = useQuery(WorkspaceDocument, null, { fetchPolicy: 'cache-and-network' });
 const suspended = computed(() => wsResult.value?.workspace?.suspended ?? false);
-
-const isProjectRoute = computed(() => route.fullPath.startsWith('/projects/'));
-const projectId = computed(() => route.params.projectId as string | undefined);
-const ejectOpen = ref(false);
 
 async function handleLogout() {
   await logout();
@@ -76,30 +69,8 @@ async function handleLogout() {
           </template>
         </div>
 
-        <!-- Right: Project nav + Theme + User menu -->
+        <!-- Right: Theme + User menu -->
         <div class="flex items-center gap-2">
-          <Button
-            v-if="isProjectRoute"
-            variant="ghost"
-            size="sm"
-            class="text-muted-foreground"
-            @click="ejectOpen = true"
-          >
-            <Download :size="14" class="mr-1.5" />
-            Eject
-          </Button>
-
-          <Button
-            v-if="isProjectRoute && projectId"
-            variant="ghost"
-            size="sm"
-            class="text-muted-foreground"
-            @click="router.push({ name: 'project-settings', params: { projectId } })"
-          >
-            <Settings :size="14" class="mr-1.5" />
-            Settings
-          </Button>
-
           <TrialIndicator v-if="user && !suspended" />
 
           <ThemeToggle />
@@ -143,13 +114,6 @@ async function handleLogout() {
       <main class="flex-1">
         <RouterView />
       </main>
-
-      <ProjectEjectDialog
-        v-if="isProjectRoute && projectId"
-        v-model:open="ejectOpen"
-        :project-id="projectId"
-        :project-name="projectId"
-      />
     </div>
   </div>
 </template>

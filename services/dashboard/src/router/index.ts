@@ -16,17 +16,12 @@ const router = createRouter({
           component: () => import('@/pages/ProjectsPage.vue'),
         },
         {
-          path: 'projects/:projectId',
+          path: 'projects/:projectId/:drawer(settings)?',
           name: 'project',
           component: () => import('@/pages/ProjectPage.vue'),
         },
         {
-          path: 'projects/:projectId/settings/:section?',
-          name: 'project-settings',
-          component: () => import('@/pages/ProjectSettingsPage.vue'),
-        },
-        {
-          path: 'projects/:projectId/environments/:environmentId',
+          path: 'projects/:projectId/environments/:environmentId/:drawer(variables|settings)?',
           name: 'environment',
           component: () => import('@/pages/EnvironmentPage.vue'),
         },

@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
-import { ChevronDown, Plus, Check, User, Users, Settings } from '@lucide/vue';
+import { ChevronDown, Plus, Check, User, Users, Settings, SlidersHorizontal } from '@lucide/vue';
 import Spinner from '@/components/LoadingSpinner.vue';
 import { useAuth } from '@/composables/useAuth';
 import { useEnvironment } from '@/composables/useEnvironment';
@@ -33,6 +33,7 @@ const ProjectsForNavDocument = graphql(`
   }
 `);
 import { apolloClient } from '@/lib/apollo';
+import { preferredEnvironment } from '@/lib/lastEnvironment';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -52,7 +53,7 @@ import {
 const route = useRoute();
 const router = useRouter();
 const { activeWorkspace, setActiveWorkspace } = useAuth();
-const { activeEnvironment, environments, setEnvironmentById } = useEnvironment();
+const { activeEnvironment, environments } = useEnvironment();
 
 const { result: wsResult } = useQuery(WorkspacesDocument);
 const workspaces = computed(() => wsResult.value?.workspaces ?? []);
@@ -62,14 +63,7 @@ const { result: projResult } = useQuery(ProjectsForNavDocument);
 const projects = computed(() => projResult.value?.projects ?? []);
 
 const isEnvironmentRoute = computed(() => route.name === 'environment');
-const isProjectSettingsRoute = computed(() => route.name === 'project-settings');
 const isWorkspaceSettingsRoute = computed(() => route.name === 'workspace-settings');
-const isEnvironmentScopedSettings = computed(
-  () => isProjectSettingsRoute.value && route.params.section === 'variables',
-);
-const showEnvironmentSwitcher = computed(
-  () => isEnvironmentRoute.value || isEnvironmentScopedSettings.value,
-);
 
 // Resolve the current project ID from either route shape
 const activeProjectId = computed<string | undefined>(() => {
@@ -100,24 +94,20 @@ async function handleWorkspaceSwitch(id: string) {
 function handleProjectSwitch(id: string) {
   if (id === activeProjectId.value) return;
   const project = projects.value.find((p: { id: string }) => p.id === id);
-  const firstEnv = project?.environments?.[0];
-  if (firstEnv) {
-    router.push({ name: 'environment', params: { projectId: id, environmentId: firstEnv.id } });
+  const target = preferredEnvironment(id, project?.environments ?? []);
+  if (target) {
+    router.push({ name: 'environment', params: { projectId: id, environmentId: target.id } });
   } else {
-    router.push({ name: 'project-settings', params: { projectId: id, section: 'environments' } });
+    router.push({ name: 'project', params: { projectId: id } });
   }
 }
 
 function handleEnvironmentSwitch(envId: string) {
   if (envId === activeEnvironment.value?.id) return;
   if (!activeProjectId.value) return;
-  if (isEnvironmentScopedSettings.value) {
-    setEnvironmentById(envId);
-    return;
-  }
   router.push({
     name: 'environment',
-    params: { projectId: activeProjectId.value, environmentId: envId },
+    params: { projectId: activeProjectId.value, environmentId: envId, drawer: route.params.drawer },
   });
 }
 
@@ -134,13 +124,17 @@ function tierLabel(tier?: string | null) {
   return 'Eco';
 }
 
-function handleEnvSettings(envName: string) {
+function handleEnvSettings(envId: string) {
   if (!activeProjectId.value) return;
   router.push({
-    name: 'project-settings',
-    params: { projectId: activeProjectId.value, section: 'environments' },
-    query: { env: envName },
+    name: 'environment',
+    params: { projectId: activeProjectId.value, environmentId: envId, drawer: 'settings' },
   });
+}
+
+function handleProjectSettings() {
+  if (!activeProjectId.value) return;
+  router.push({ name: 'project', params: { projectId: activeProjectId.value, drawer: 'settings' } });
 }
 
 const projectEnvironments = computed(() => {
@@ -217,12 +211,17 @@ const projectEnvironments = computed(() => {
               />
             </div>
           </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem @select="handleProjectSettings">
+            <SlidersHorizontal :size="14" class="mr-2" />
+            Settings
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </template>
 
-    <!-- Environment Dropdown (environment route and environment-scoped settings) -->
-    <template v-if="showEnvironmentSwitcher && activeEnvironment">
+    <!-- Environment Dropdown (only on environment route) -->
+    <template v-if="isEnvironmentRoute && activeEnvironment">
       <span class="text-sm text-border">/</span>
       <DropdownMenu>
         <DropdownMenuTrigger
@@ -256,7 +255,7 @@ const projectEnvironments = computed(() => {
             </DropdownMenuItem>
             <button
               class="mr-1 rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              @click="handleEnvSettings(env.name)"
+              @click="handleEnvSettings(env.id)"
             >
               <Settings :size="13" />
             </button>
@@ -271,11 +270,6 @@ const projectEnvironments = computed(() => {
     </template>
 
     <template v-if="isWorkspaceSettingsRoute">
-      <span class="text-sm text-border">/</span>
-      <span class="px-1.5 py-0.5 text-sm text-muted-foreground">Settings</span>
-    </template>
-
-    <template v-if="isProjectSettingsRoute">
       <span class="text-sm text-border">/</span>
       <span class="px-1.5 py-0.5 text-sm text-muted-foreground">Settings</span>
     </template>

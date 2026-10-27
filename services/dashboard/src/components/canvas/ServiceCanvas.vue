@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, watch, ref, onMounted, toRef } from 'vue';
-import { VueFlow, useVueFlow, Panel, PanOnScrollMode } from '@vue-flow/core';
+import { VueFlow, useVueFlow, PanOnScrollMode } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
 import { Plus, Maximize2, RotateCcw } from '@lucide/vue';
 import { usePanel } from '@/composables/usePanel';
@@ -284,26 +284,23 @@ watch(
       </template>
 
       <Background variant="dots" :gap="24" :size="1" />
-
-      <Panel position="top-left" class="!m-3 flex gap-2">
-        <button
-          class="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground"
-          title="Fit view"
-          @click="handleFitView"
-        >
-          <Maximize2 :size="14" />
-        </button>
-        <button
-          class="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground"
-          title="Reset layout"
-          @click="handleResetLayout"
-        >
-          <RotateCcw :size="14" />
-        </button>
-      </Panel>
     </VueFlow>
 
-    <div class="absolute right-4 top-4">
+    <div class="absolute right-4 top-4 flex items-center gap-2">
+      <button
+        class="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground"
+        title="Fit view"
+        @click="handleFitView"
+      >
+        <Maximize2 :size="14" />
+      </button>
+      <button
+        class="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground"
+        title="Reset layout"
+        @click="handleResetLayout"
+      >
+        <RotateCcw :size="14" />
+      </button>
       <Button
         variant="outline"
         size="sm"
