@@ -3,14 +3,12 @@ import { RouterView } from 'vue-router';
 import { Sonner } from '@/components/ui/sonner';
 import { useTheme } from '@/composables/useTheme';
 import AnnouncementBanner from '@/components/AnnouncementBanner.vue';
-import BackgroundGrid from '@/components/BackgroundGrid.vue';
 import VersionFooter from '@/components/VersionFooter.vue';
 
 const { theme } = useTheme();
 </script>
 
 <template>
-  <BackgroundGrid />
   <AnnouncementBanner />
   <RouterView />
   <VersionFooter />
