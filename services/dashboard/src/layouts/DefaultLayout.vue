@@ -52,7 +52,7 @@ const menuWorkspaceItems = computed(() =>
   workspaceNavItems(isWorkspaceAdmin.value).filter(item => item.key !== 'projects'),
 );
 
-const trayItemClass = 'h-[34px] gap-2 rounded-[9px] px-2.5 text-[12.5px] text-muted-foreground focus:text-foreground [&_svg]:size-3.5';
+const trayItemClass = 'h-[34px] gap-2 whitespace-nowrap rounded-[9px] px-2.5 text-[12.5px] text-muted-foreground focus:text-foreground [&_svg]:size-3.5';
 
 async function handleLogout() {
   await logout();
@@ -159,7 +159,7 @@ async function handleLogout() {
                   </DropdownMenuItem>
                   <DropdownMenuItem :class="trayItemClass" @select="requestFeature()">
                     <Lightbulb />
-                    Request a feature
+                    Feature idea
                   </DropdownMenuItem>
                 </div>
                 <DropdownMenuSeparator class="mx-1 my-1.5" />
