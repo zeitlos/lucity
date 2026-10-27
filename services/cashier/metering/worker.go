@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"math"
 	"strconv"
+	"strings"
 	"time"
 
 	gostripe "github.com/stripe/stripe-go/v87"
@@ -14,9 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/billing"
-	"github.com/zeitlos/lucity/pkg/conductor"
 	"github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/pkg/logto"
 	stripelib "github.com/zeitlos/lucity/services/cashier/stripe"
@@ -43,29 +42,26 @@ const checkpointKey = "last_window_end"
 type Worker struct {
 	stripe     *stripelib.Client
 	billing    *billing.Client
-	conductor  conductor.ConductorServiceClient
 	logto      *logto.Client
 	vm         *VMClient
-	k8s        kubernetes.Interface // nil if K8s not available (no checkpoint/backfill)
+	k8s        kubernetes.Interface
 	namespace  string
-	issuer     *auth.Issuer
 	interval   time.Duration
 	checkpoint time.Time
 	cancel     context.CancelFunc
 	done       chan struct{}
 }
 
-// NewWorker creates a metering worker. k8sClient may be nil (disables checkpoint/backfill).
-func NewWorker(stripeClient *stripelib.Client, billingClient *billing.Client, conductorClient conductor.ConductorServiceClient, logtoClient *logto.Client, vmClient *VMClient, k8sClient kubernetes.Interface, namespace string, issuer *auth.Issuer, interval time.Duration) *Worker {
+// NewWorker creates a metering worker. It reads the environment namespaces and
+// keeps its checkpoint through k8sClient.
+func NewWorker(stripeClient *stripelib.Client, billingClient *billing.Client, logtoClient *logto.Client, vmClient *VMClient, k8sClient kubernetes.Interface, namespace string, interval time.Duration) *Worker {
 	return &Worker{
 		stripe:    stripeClient,
 		billing:   billingClient,
-		conductor: conductorClient,
 		logto:     logtoClient,
 		vm:        vmClient,
 		k8s:       k8sClient,
 		namespace: namespace,
-		issuer:    issuer,
 		interval:  interval,
 		done:      make(chan struct{}),
 	}
@@ -162,15 +158,6 @@ func (w *Worker) catchUp(ctx context.Context) {
 	}
 }
 
-// conductorCtx creates a system-level auth context for calling conductor.
-func (w *Worker) conductorCtx(ctx context.Context) context.Context {
-	ctx = auth.NewContext(ctx, &auth.Claims{
-		Subject: "cashier",
-	})
-	ctx = auth.WithIssuer(ctx, w.issuer)
-	return auth.OutgoingContext(ctx)
-}
-
 // billableWorkspaces returns workspaces that have a stripeCustomerId in their
 // Logto org customData.
 func (w *Worker) billableWorkspaces(ctx context.Context) (map[string]*workspaceData, error) {
@@ -197,25 +184,14 @@ func (w *Worker) billableWorkspaces(ctx context.Context) (map[string]*workspaceD
 
 // workspaceData holds billing metadata for a workspace.
 type workspaceData struct {
-	customerID      string
-	namespaces      []string
-	ecoNamespaces   []string
-	ecoAllocations  []allocEntry
-	prodAllocations []allocEntry
-	storageBytes    float64
-	egressBytes     float64
-}
-
-type allocEntry struct {
-	namespace string
-	cpuMillis int32
-	memoryMB  int32
-	diskMB    int32
+	customerID   string
+	namespaces   []string
+	storageBytes float64
+	egressBytes  float64
 }
 
 func (w *Worker) processWindow(ctx context.Context, windowStart, windowEnd time.Time) error {
 	start := time.Now()
-	callCtx := w.conductorCtx(ctx)
 
 	// 1. List all billable workspaces from Logto.
 	workspaces, err := w.billableWorkspaces(ctx)
@@ -228,41 +204,28 @@ func (w *Worker) processWindow(ctx context.Context, windowStart, windowEnd time.
 		return nil
 	}
 
-	// 3. List all resource allocations.
-	allocResp, err := w.conductor.ListResourceAllocations(callCtx, &conductor.ListResourceAllocationsRequest{})
+	// 2. Group the environment namespaces by workspace.
+	namespaces, err := w.k8s.CoreV1().Namespaces().List(ctx, metav1.ListOptions{
+		LabelSelector: strings.Join([]string{labels.Workspace, labels.Project, labels.Environment}, ","),
+	})
 	if err != nil {
-		return fmt.Errorf("failed to list resource allocations: %w", err)
+		return fmt.Errorf("failed to list namespaces: %w", err)
 	}
 
-	// 4. Group allocations by workspace.
-	var allEcoNamespaces []string
-	for _, alloc := range allocResp.Allocations {
-		ws, ok := workspaces[alloc.Workspace]
+	metered := 0
+	for _, namespace := range namespaces.Items {
+		ws, ok := workspaces[namespace.Labels[labels.Workspace]]
 		if !ok {
 			continue
 		}
 
-		ns := alloc.Namespace
-		ws.namespaces = append(ws.namespaces, ns)
-		entry := allocEntry{
-			namespace: ns,
-			cpuMillis: alloc.CpuMillicores,
-			memoryMB:  alloc.MemoryMb,
-			diskMB:    alloc.DiskMb,
-		}
-
-		if alloc.Tier == conductor.ResourceTier_RESOURCE_TIER_ECO {
-			ws.ecoNamespaces = append(ws.ecoNamespaces, ns)
-			ws.ecoAllocations = append(ws.ecoAllocations, entry)
-			allEcoNamespaces = append(allEcoNamespaces, ns)
-		} else {
-			ws.prodAllocations = append(ws.prodAllocations, entry)
-		}
+		ws.namespaces = append(ws.namespaces, namespace.Name)
+		metered++
 	}
 
-	// 5. Query VictoriaMetrics for eco namespace usage.
+	// 3. Query VictoriaMetrics for namespace usage.
 	var cpuByNs, memByNs, diskByNs map[string]float64
-	if len(allEcoNamespaces) > 0 {
+	if metered > 0 {
 		cpuByNs, err = w.vm.CPUByNamespace(ctx, windowStart, windowEnd)
 		if err != nil {
 			return fmt.Errorf("failed to query CPU usage: %w", err)
@@ -324,10 +287,10 @@ func (w *Worker) reportWorkspace(ctx context.Context, wsID string, ws *workspace
 	intervalMinutes := windowEnd.Sub(windowStart).Minutes()
 	timestamp := windowEnd.Unix()
 
-	// Report eco usage from VictoriaMetrics via Billing Meter events.
-	if len(ws.ecoNamespaces) > 0 {
+	// Report usage from VictoriaMetrics via Billing Meter events.
+	if len(ws.namespaces) > 0 {
 		var totalCPUSeconds, totalMemBytes, totalDiskBytes float64
-		for _, ns := range ws.ecoNamespaces {
+		for _, ns := range ws.namespaces {
 			totalCPUSeconds += cpuByNs[ns]
 			totalMemBytes += memByNs[ns]
 			totalDiskBytes += diskByNs[ns]
@@ -364,50 +327,6 @@ func (w *Worker) reportWorkspace(ctx context.Context, wsID string, ws *workspace
 			"workspace", wsID,
 			"cpu_minutes", cpuMinutes,
 			"memory_gb_minutes", gbMinutes,
-			"disk_gb", diskGB,
-		)
-	}
-
-	// Report production allocations via Billing Meter events.
-	if len(ws.prodAllocations) > 0 {
-		var totalCPUMillis, totalMemMB, totalDiskMB int32
-		for _, alloc := range ws.prodAllocations {
-			totalCPUMillis += alloc.cpuMillis
-			totalMemMB += alloc.memoryMB
-			totalDiskMB += alloc.diskMB
-		}
-
-		// CPU: millicores -> vCPU-minutes (allocation × interval).
-		cpuMinutes := int64(math.Ceil(float64(totalCPUMillis) / 1000 * intervalMinutes))
-		if cpuMinutes > 0 && w.stripe.Meters.ProdCPUEventName != "" {
-			id := meterEventID(wsID, w.stripe.Meters.ProdCPUEventName, windowStart)
-			if err := w.stripe.ReportMeterEvent(ctx, w.stripe.Meters.ProdCPUEventName, ws.customerID, float64(cpuMinutes), timestamp, id); err != nil {
-				slog.Error("metering: prod CPU report failed", "workspace", wsID, "error", err)
-			}
-		}
-
-		// Memory: MB -> GB-minutes (allocation × interval).
-		memGBMinutes := int64(math.Ceil(float64(totalMemMB) / 1024 * intervalMinutes))
-		if memGBMinutes > 0 && w.stripe.Meters.ProdMemEventName != "" {
-			id := meterEventID(wsID, w.stripe.Meters.ProdMemEventName, windowStart)
-			if err := w.stripe.ReportMeterEvent(ctx, w.stripe.Meters.ProdMemEventName, ws.customerID, float64(memGBMinutes), timestamp, id); err != nil {
-				slog.Error("metering: prod memory report failed", "workspace", wsID, "error", err)
-			}
-		}
-
-		// Disk: MB -> GB (point-in-time, same as eco).
-		diskGB := int64(math.Ceil(float64(totalDiskMB) / 1024))
-		if diskGB > 0 && w.stripe.Meters.ProdDiskEventName != "" {
-			id := meterEventID(wsID, w.stripe.Meters.ProdDiskEventName, windowStart)
-			if err := w.stripe.ReportMeterEvent(ctx, w.stripe.Meters.ProdDiskEventName, ws.customerID, float64(diskGB), timestamp, id); err != nil {
-				slog.Error("metering: prod disk report failed", "workspace", wsID, "error", err)
-			}
-		}
-
-		slog.Info("metering: prod usage reported",
-			"workspace", wsID,
-			"cpu_minutes", cpuMinutes,
-			"memory_gb_minutes", memGBMinutes,
 			"disk_gb", diskGB,
 		)
 	}
@@ -476,10 +395,6 @@ func (w *Worker) ensureCreditGrant(ctx context.Context, wsID string, ws *workspa
 // lastCheckpoint reads the last successfully completed window end time from K8s.
 // Returns zero time if no checkpoint exists (first run or lost state).
 func (w *Worker) lastCheckpoint(ctx context.Context) (time.Time, error) {
-	if w.k8s == nil {
-		return time.Time{}, nil
-	}
-
 	cm, err := w.k8s.CoreV1().ConfigMaps(w.namespace).Get(ctx, checkpointCMName, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		return time.Time{}, nil
@@ -497,10 +412,6 @@ func (w *Worker) lastCheckpoint(ctx context.Context) (time.Time, error) {
 
 // saveCheckpoint writes the window end time to the ConfigMap (create or update).
 func (w *Worker) saveCheckpoint(ctx context.Context, windowEnd time.Time) error {
-	if w.k8s == nil {
-		return nil
-	}
-
 	data := map[string]string{checkpointKey: strconv.FormatInt(windowEnd.Unix(), 10)}
 
 	cm, err := w.k8s.CoreV1().ConfigMaps(w.namespace).Get(ctx, checkpointCMName, metav1.GetOptions{})

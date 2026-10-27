@@ -35,22 +35,26 @@ type BillingPortalUrl {
   url: String!
 }
 
+"""The outcome of choosing a plan: the subscription now on it, or a checkout to complete first when the workspace has no card on file."""
+type PlanSelection {
+  subscription: BillingSubscription
+  checkoutUrl: String
+}
+
 extend type Query {
-  """The plan of the workspace, with its subscription status, billing period and credit balance."""
+  """The plan of the workspace, with its subscription status, billing period and credit balance. Null when the workspace has never had a subscription."""
   subscription: BillingSubscription @hasRole(role: WORKSPACE_MEMBER)
-  """The costs of the current billing period so far, in cents."""
+  """The costs of the current billing period so far, in cents. Null when the workspace has never had a subscription."""
   usageSummary: UsageSummary @hasRole(role: WORKSPACE_MEMBER)
 }
 
 extend type Mutation {
   """Sets the tier of an environment. Services and databases pick it up the next time they are created or resized."""
   setEnvironmentResources(input: SetEnvironmentResourcesInput!): Environment! @hasRole(role: WORKSPACE_MEMBER)
-  """Switches the workspace to another plan, prorated. The workspace needs a plan already."""
-  changePlan(plan: Plan!): BillingSubscription! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
+  """Puts the workspace on a plan: switches its plan, prorated, adds one to its trial, or starts a new subscription when it has none. Returns a checkout URL instead when a card is needed first."""
+  selectPlan(plan: Plan!): PlanSelection! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
   """A link to the billing portal, where payment details and invoices are managed."""
   billingPortalUrl: BillingPortalUrl! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
-  """Starts a checkout that sets up a plan for a workspace without one, and returns the URL to complete it."""
-  createPlanCheckout(plan: Plan!): CheckoutSession! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
-  """Completes a plan checkout, starts the new billing period and returns the subscription."""
+  """Completes the checkout a plan selection started, puts the workspace on the plan and returns the subscription."""
   completePlanCheckout(sessionId: String!): BillingSubscription! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
 }

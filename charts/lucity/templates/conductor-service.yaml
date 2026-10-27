@@ -14,10 +14,6 @@ spec:
       port: {{ .Values.conductor.httpPort }}
       targetPort: http
       protocol: TCP
-    - name: grpc
-      port: {{ .Values.conductor.grpcPort }}
-      targetPort: grpc
-      protocol: TCP
     - name: webhook
       port: {{ .Values.conductor.webhookPort }}
       targetPort: webhook

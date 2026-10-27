@@ -25,11 +25,11 @@ require (
 	github.com/ovh/go-ovh v1.9.0
 	github.com/railwayapp/railpack v0.40.1
 	github.com/rs/cors v1.11.1
+	github.com/stripe/stripe-go/v87 v87.0.0
 	github.com/vektah/gqlparser/v2 v2.5.59
 	github.com/zeitlos/lucity/charts v0.0.0-20260706084318-3ef7184f18d8
 	github.com/zeitlos/lucity/pkg v0.0.0-20260706084318-3ef7184f18d8
 	golang.org/x/oauth2 v0.37.0
-	google.golang.org/grpc v1.84.0
 	k8s.io/api v0.37.1
 	k8s.io/apimachinery v0.37.1
 	k8s.io/client-go v0.37.1
@@ -122,7 +122,6 @@ require (
 	github.com/gobwas/glob v1.0.0 // indirect
 	github.com/gofrs/flock v0.13.1 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
-	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/gnostic-models v0.7.1 // indirect
 	github.com/google/go-github/v88 v88.0.0 // indirect
@@ -208,6 +207,7 @@ require (
 	golang.org/x/time v0.16.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260928230214-8a89bd6388cc // indirect
+	google.golang.org/grpc v1.84.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect

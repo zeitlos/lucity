@@ -63,9 +63,6 @@ spec:
             - name: http
               containerPort: {{ .Values.conductor.httpPort }}
               protocol: TCP
-            - name: grpc
-              containerPort: {{ .Values.conductor.grpcPort }}
-              protocol: TCP
             - name: webhook
               containerPort: {{ .Values.conductor.webhookPort }}
               protocol: TCP
@@ -84,8 +81,6 @@ spec:
           env:
             - name: PORT
               value: {{ .Values.conductor.httpPort | quote }}
-            - name: GRPC_PORT
-              value: {{ .Values.conductor.grpcPort | quote }}
             - name: WEBHOOK_PORT
               value: {{ .Values.conductor.webhookPort | quote }}
             - name: BUILD_NAMESPACE
@@ -137,11 +132,6 @@ spec:
               mountPath: /secrets/github
               readOnly: true
             {{- end }}
-            {{- if and .Values.internalJWT .Values.internalJWT.privateKey }}
-            - name: internal-jwt
-              mountPath: /secrets/internal-jwt
-              readOnly: true
-            {{- end }}
             - name: workdir
               mountPath: /tmp/lucity-builds
           resources:
@@ -151,11 +141,6 @@ spec:
         - name: github-app-key
           secret:
             secretName: {{ include "lucity.fullname" . }}-github-app
-        {{- end }}
-        {{- if and .Values.internalJWT .Values.internalJWT.privateKey }}
-        - name: internal-jwt
-          secret:
-            secretName: {{ include "lucity.fullname" . }}-internal-jwt
         {{- end }}
         - name: workdir
           emptyDir: {}

@@ -482,6 +482,12 @@ type Mount struct {
 type Mutation struct {
 }
 
+// The outcome of choosing a plan: the subscription now on it, or a checkout to complete first when the workspace has no card on file.
+type PlanSelection struct {
+	Subscription *BillingSubscription `json:"subscription,omitempty"`
+	CheckoutURL  *string              `json:"checkoutUrl,omitempty"`
+}
+
 type Project struct {
 	ID           platform.ProjectID `json:"id"`
 	Name         string             `json:"name"`

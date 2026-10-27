@@ -1,4 +1,4 @@
-.PHONY: build proto dev dev-conductor dev-cashier dev-dashboard dev-docs dev-logs dev-stop dev-agent generate-graphql generate-cli-docs lint minikube dns infra infra-down infra-forward infra-forward-stop db-forward deploy-prod deploy-prod-infra generate-internal-keys
+.PHONY: build dev dev-conductor dev-cashier dev-dashboard dev-docs dev-logs dev-stop dev-agent generate-graphql generate-cli-docs lint minikube dns infra infra-down infra-forward infra-forward-stop db-forward deploy-prod deploy-prod-infra
 
 # Build all Go services
 build:
@@ -7,10 +7,6 @@ build:
 	go build ./services/cashier/cmd/cashier/...
 	go build ./services/exporter/cmd/exporter/...
 	go build ./services/stagehand/cmd/stagehand/...
-
-# Generate protobuf code (requires protoc, protoc-gen-go, protoc-gen-go-grpc)
-proto:
-	cd pkg && go generate ./...
 
 # Generate GraphQL resolvers (requires gqlgen)
 generate-graphql:
@@ -199,11 +195,3 @@ dev-agent:
 # Sync workspace
 sync:
 	go work sync
-
-# Generate ES256 keypair for internal gRPC JWT authentication
-generate-internal-keys:
-	openssl ecparam -name prime256v1 -genkey -noout -out internal-jwt-private.pem
-	openssl ec -in internal-jwt-private.pem -pubout -out internal-jwt-public.pem
-	@echo "Generated internal-jwt-private.pem and internal-jwt-public.pem"
-	@echo "Set INTERNAL_JWT_PRIVATE_KEY_PATH and INTERNAL_JWT_PUBLIC_KEY_PATH"
-	@echo "in services/conductor/.env and services/cashier/.env"

@@ -6,7 +6,7 @@ Open-source PaaS on Kubernetes with full ejectability. Monorepo with a single Go
 
 - **Go workspace**: `go.work` with multi-module layout (Go 1.27)
 - **Module path**: `github.com/zeitlos/lucity`
-- **Monorepo**: `services/conductor` (control plane), `services/stagehand` (workload changes nobody asked for: plan-based placement), `services/cashier` (billing), `services/exporter` (external usage metrics), `services/dashboard` (Vue), `services/switchboard` (agent chat bridge, experimental), `pkg/` (shared Go), `charts/` (Helm)
+- **Monorepo**: `services/conductor` (control plane), `services/stagehand` (workload changes nobody asked for: plan-based placement), `services/cashier` (usage metering), `services/exporter` (external usage metrics), `services/dashboard` (Vue), `services/switchboard` (agent chat bridge, experimental), `pkg/` (shared Go), `charts/` (Helm)
 - **Platform images**: `ghcr.io/zeitlos/lucity/{conductor,stagehand,cashier,exporter,dashboard,docs,switchboard}`
 - **User workload images**: Zot (self-hosted OCI registry, `localhost:5000` in dev)
 - **Coding rules**: see `.claude/rules/` for architecture, Go, frontend, GraphQL, marketing, and working conventions
@@ -20,7 +20,6 @@ Open-source PaaS on Kubernetes with full ejectability. Monorepo with a single Go
 - **Dashboard**: `npm run dev` from `services/dashboard/`
 - **Build all**: `make build`
 - **GraphQL codegen**: `go generate ./internal/api/graphql/resolver.go` from `services/conductor/`
-- **Proto codegen**: `make proto`
 
 ## Architecture
 
@@ -47,9 +46,9 @@ Each Lucity instance supports multiple workspaces. A workspace is the tenant bou
 
 | Service | Port | Protocol | Purpose |
 |---------|------|----------|---------|
-| Conductor | 8080 (HTTP), 9090 (gRPC), 9004 (webhook HTTP) | HTTP+gRPC | Unified control plane: GraphQL, Helm release management for user changes, build orchestration, GitHub webhook receiver. Runs no background loops |
+| Conductor | 8080 (HTTP), 9004 (webhook HTTP) | HTTP | Unified control plane: GraphQL, Helm release management for user changes, build orchestration, GitHub webhook receiver, the Stripe billing a user triggers (trial, plan selection, checkout, portal). Runs no background loops |
 | Stagehand | none | Kubernetes + Stripe (read) + Logto | Every background loop: build/deploy admission (event-driven), namespace scaffolding, chart upgrades, plan-based placement (dry-run capable), billing + abuse suspension (computed every pass, no webhooks), custom-domain verification + edge sync, backup recovery floors |
-| Cashier | 9005 (gRPC) | gRPC | Stripe billing calls for conductor, usage metering and plan credits |
+| Cashier | none | Stripe + VictoriaMetrics + Kubernetes (read) | Usage metering into Stripe meter events, monthly plan credits |
 | Exporter | 9007 (HTTP) | Prometheus `/metrics` | Usage from external providers (object storage sizes) as metrics, scraped by the node-local otel agent |
 | Dashboard | 5173 | HTTP | Vue 3 SPA |
 | Switchboard | none, outbound only | Telegram Bot API + ACP | On-call agent bridge: Telegram topics to an ACP agent (`claude-agent-acp`), approvals as buttons. Deployed per agent with `charts/lucity-agent` |
@@ -58,7 +57,7 @@ Each Lucity instance supports multiple workspaces. A workspace is the tenant bou
 
 ```
 services/conductor/
-├── cmd/conductor/                  # main, config, OIDC login, GraphQL + gRPC + webhook servers
+├── cmd/conductor/                  # main, config, OIDC login, GraphQL + webhook servers
 ├── internal/
 │   ├── api/
 │   │   ├── graphql/                # gqlgen schema, resolvers, directives, models
@@ -69,26 +68,26 @@ services/conductor/
 │   ├── source/                     # user source repo access (github/)
 │   ├── directory/                  # user/workspace directory (logto/)
 │   ├── dbquery/                    # database explorer query execution
-│   └── transport/grpc/             # external gRPC (cashier callbacks)
+│   └── billing/                    # Stripe billing a user triggers (trial, plans, checkout, portal)
 ```
 
 ### Communication
 
 - **Dashboard ↔ Conductor**: GraphQL over HTTP (port 8080)
-- **Cashier ↔ Conductor**: gRPC (port 9090), authenticated with internal ES256 JWTs — ListResourceAllocations
+- **No service calls another**: conductor, stagehand and cashier share state through Stripe, Logto and the Helm releases only
 - **GitHub → Conductor**: HTTP webhooks (port 9004)
 - **Long-running operations**: polling (watch registry for images, poll Helm/Kubernetes for rollout status)
 
 ### Shared Packages (`pkg/`)
 
-graceful (server lifecycle), logger (slog + tint), deployer (Helm release apply + lucity-app values, shared by conductor and stagehand), platform (IDs + value types; kubernetes/ = discovery from Kubernetes), environment (namespace lifecycle), jobs + pipeline (build/deploy Job cache and admission), hostname (custom-domain DNS verification), edge (Bunny CDN), domains (custom-domain attach + edge sync), resources, image, usererror, billing (Stripe plan lookup), auth (OIDC/JWT), labels (K8s label constants), tenant (workspace context), github (App + OAuth), logto (Logto Management API), to (pointer/conversion helpers), conductor + cashier (proto definitions for cross-service gRPC).
+graceful (server lifecycle), logger (slog + tint), deployer (Helm release apply + lucity-app values, shared by conductor and stagehand), platform (IDs + value types; kubernetes/ = discovery from Kubernetes), environment (namespace lifecycle), jobs + pipeline (build/deploy Job cache and admission), hostname (custom-domain DNS verification), edge (Bunny CDN), domains (custom-domain attach + edge sync), resources, image, usererror, billing (Stripe subscription lookup, plans, standing), auth (OIDC/JWT), labels (K8s label constants), tenant (workspace context), github (App + OAuth), logto (Logto Management API), to (pointer/conversion helpers).
 
 ## Feature Development Workflow
 
 1. **Research** — how do Railway, Heroku, Render, Fly.io handle this?
 2. **Architecture fit** — does it respect stateless design? Is it ejectable?
 3. **Day-2 operations cost** — can a small team run it?
-4. **Design APIs** — GraphQL schema + (rare) gRPC proto definitions
+4. **Design APIs** — GraphQL schema
 5. **Design deployment values** — how does this affect the lucity-app chart values?
 6. **Design frontend** — Vue pages, composables, GraphQL queries
 7. **Implement minimal** — ship the smallest useful version first

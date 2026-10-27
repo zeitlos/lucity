@@ -49,7 +49,7 @@ const (
 	allowSuspendedDirective = "allowSuspended"
 )
 
-func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvider *oidc.Provider, store *sessionStore, codec *session.Codec, verifier *auth.Verifier, logtoClient *logto.Client, internalIssuer *auth.Issuer, callbackURL, dashboardURL, githubAppSlug, githubActionsAudience, oidcIssuer, oidcAudience, oidcCLIClientID string, grpcComponents []grpcComponent) *GraphQLServer {
+func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvider *oidc.Provider, store *sessionStore, codec *session.Codec, verifier *auth.Verifier, logtoClient *logto.Client, callbackURL, dashboardURL, githubAppSlug, githubActionsAudience, oidcIssuer, oidcAudience, oidcCLIClientID string) *GraphQLServer {
 	resolver := gatewaygraphql.Resolver{
 		Conductor: conductorClient,
 	}
@@ -173,16 +173,10 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 				}
 			}
 
-			// Inject internal JWT issuer for gRPC calls made during subscriptions.
-			if internalIssuer != nil {
-				ctx = auth.WithIssuer(ctx, internalIssuer)
-			}
-
 			// Workspace: browser can't send custom headers on WS upgrade,
 			// so read from connectionParams.
 			if ws, ok := initPayload[tenant.Header].(string); ok && ws != "" {
 				ctx = tenant.NewContext(ctx, ws)
-				ctx = auth.WithActiveWorkspace(ctx, ws)
 
 				// Cookie clients have no per-workspace token yet; mint it
 				// from the session and fold the role into the claims.
@@ -311,7 +305,7 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 	})
 
 	// Version endpoint
-	mux.HandleFunc("/version", versionHandler(grpcComponents))
+	mux.HandleFunc("/version", versionHandler())
 
 	// Auth endpoints
 	var ciVerifier *githubActionsVerifier
@@ -326,18 +320,6 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 
 	authMiddleware := sessionAuth(store, codec, verifier)
 
-	// Issuer middleware injects the internal JWT issuer into the request context.
-	// This enables auth.OutgoingContext to mint ES256 JWTs for gRPC calls.
-	issuerMiddleware := func(next http.Handler) http.Handler {
-		if internalIssuer == nil {
-			return next
-		}
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx := auth.WithIssuer(r.Context(), internalIssuer)
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
-	}
-
 	// TODO: Validate if CORS is even needed. Dashboard and conductor run under the same hostname.
 	corsHandler := cors.New(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:5173", dashboardURL},
@@ -351,10 +333,8 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 			securityHeadersMiddleware(
 				clientAddressMiddleware(
 					authMiddleware(
-						issuerMiddleware(
-							tenant.Middleware(
-								tenant.AuthorizeMiddleware(mux),
-							),
+						tenant.Middleware(
+							tenant.AuthorizeMiddleware(mux),
 						),
 					),
 				),

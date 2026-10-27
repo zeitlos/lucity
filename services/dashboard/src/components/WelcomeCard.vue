@@ -6,10 +6,10 @@ import GithubIcon from '@/components/GithubIcon.vue';
 import { graphql } from '@/gql';
 import { Plan } from '@/gql/graphql';
 
-const CreatePlanCheckoutDocument = graphql(`
-  mutation CreatePlanCheckout($plan: Plan!) {
-    createPlanCheckout(plan: $plan) {
-      url
+const SelectPlanDocument = graphql(`
+  mutation WelcomeSelectPlan($plan: Plan!) {
+    selectPlan(plan: $plan) {
+      checkoutUrl
     }
   }
 `);
@@ -27,12 +27,12 @@ defineEmits<{
 const { user } = useAuth();
 const selectedPlan = ref<Plan>(Plan.Hobby);
 
-const { mutate: planCheckoutMutate, loading: checkingOut } = useMutation(CreatePlanCheckoutDocument);
+const { mutate: selectPlanMutate, loading: checkingOut } = useMutation(SelectPlanDocument);
 
 async function continueWithPlan() {
   try {
-    const result = await planCheckoutMutate({ plan: selectedPlan.value });
-    const url = result?.data?.createPlanCheckout?.url;
+    const result = await selectPlanMutate({ plan: selectedPlan.value });
+    const url = result?.data?.selectPlan?.checkoutUrl;
     if (url) {
       window.location.href = url;
     }

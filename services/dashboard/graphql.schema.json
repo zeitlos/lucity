@@ -5731,41 +5731,8 @@
             "deprecationReason": null
           },
           {
-            "name": "changePlan",
-            "description": "Switches the workspace to another plan, prorated. The workspace needs a plan already.",
-            "args": [
-              {
-                "name": "plan",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "name": "Plan",
-                    "kind": "ENUM",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "name": "BillingSubscription",
-                "kind": "OBJECT",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "completePlanCheckout",
-            "description": "Completes a plan checkout, starts the new billing period and returns the subscription.",
+            "description": "Completes the checkout a plan selection started, puts the workspace on the plan and returns the subscription.",
             "args": [
               {
                 "name": "sessionId",
@@ -5798,7 +5765,7 @@
           },
           {
             "name": "completeWorkspaceCheckout",
-            "description": "Completes a workspace checkout and returns the new workspace.",
+            "description": "Completes a workspace checkout, lifts the workspace's suspension and returns it.",
             "args": [
               {
                 "name": "sessionId",
@@ -6028,39 +5995,6 @@
             "deprecationReason": null
           },
           {
-            "name": "createPlanCheckout",
-            "description": "Starts a checkout that sets up a plan for a workspace without one, and returns the URL to complete it.",
-            "args": [
-              {
-                "name": "plan",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "name": "Plan",
-                    "kind": "ENUM",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "name": "CheckoutSession",
-                "kind": "OBJECT",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "createProject",
             "description": "Creates a project with an empty `development` environment. Services and resources are added to the environment afterwards.",
             "args": [
@@ -6160,7 +6094,7 @@
           },
           {
             "name": "createWorkspaceCheckout",
-            "description": "Starts the checkout for a new workspace on a paid plan and returns the URL to complete it. The workspace is created once the checkout completes.",
+            "description": "Creates a workspace on a paid plan and returns the URL of the checkout that pays for it. The workspace stays suspended until the checkout completes.",
             "args": [
               {
                 "name": "input",
@@ -7018,6 +6952,39 @@
               "ofType": {
                 "name": "Boolean",
                 "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "selectPlan",
+            "description": "Puts the workspace on a plan: switches its plan, prorated, adds one to its trial, or starts a new subscription when it has none. Returns a checkout URL instead when a card is needed first.",
+            "args": [
+              {
+                "name": "plan",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "Plan",
+                    "kind": "ENUM",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "PlanSelection",
+                "kind": "OBJECT",
                 "ofType": null
               }
             },
@@ -7887,6 +7854,42 @@
             "deprecationReason": null
           }
         ],
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "PlanSelection",
+        "description": "The outcome of choosing a plan: the subscription now on it, or a checkout to complete first when the workspace has no card on file.",
+        "isOneOf": null,
+        "fields": [
+          {
+            "name": "checkoutUrl",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "subscription",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "BillingSubscription",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
         "possibleTypes": null
       },
       {
@@ -9082,7 +9085,7 @@
           },
           {
             "name": "subscription",
-            "description": "The plan of the workspace, with its subscription status, billing period and credit balance.",
+            "description": "The plan of the workspace, with its subscription status, billing period and credit balance. Null when the workspace has never had a subscription.",
             "args": [],
             "type": {
               "kind": "OBJECT",
@@ -9094,7 +9097,7 @@
           },
           {
             "name": "usageSummary",
-            "description": "The costs of the current billing period so far, in cents.",
+            "description": "The costs of the current billing period so far, in cents. Null when the workspace has never had a subscription.",
             "args": [],
             "type": {
               "kind": "OBJECT",

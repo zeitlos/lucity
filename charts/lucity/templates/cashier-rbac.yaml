@@ -33,5 +33,31 @@ subjects:
   - kind: ServiceAccount
     name: {{ include "lucity.fullname" . }}-cashier
     namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "lucity.fullname" . }}-cashier
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [namespaces]
+    verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "lucity.fullname" . }}-cashier
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "lucity.fullname" . }}-cashier
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "lucity.fullname" . }}-cashier
+    namespace: {{ .Release.Namespace }}
 {{- end }}
 {{- end }}

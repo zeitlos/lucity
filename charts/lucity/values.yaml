@@ -67,8 +67,6 @@ conductor:
     pullPolicy: IfNotPresent
   # GraphQL + auth + dashboard API
   httpPort: 8080
-  # Inbound gRPC (cashier: ListResourceAllocations)
-  grpcPort: 9090
   # GitHub webhook receiver
   webhookPort: 9004
   # -- Namespace for BuildKit and build Jobs (isolated from platform services)
@@ -132,7 +130,6 @@ cashier:
     repository: ghcr.io/zeitlos/lucity/cashier
     tag: ""
     pullPolicy: IfNotPresent
-  port: 9005
   serviceAccount:
     create: true
   env: {}

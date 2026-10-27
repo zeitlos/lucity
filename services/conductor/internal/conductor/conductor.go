@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/google/go-containerregistry/pkg/authn"
-	"github.com/zeitlos/lucity/pkg/cashier"
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/deployer/values"
 	"github.com/zeitlos/lucity/pkg/domains"
@@ -20,6 +19,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/usererror"
 	"github.com/zeitlos/lucity/services/conductor/internal/backuparchive"
+	"github.com/zeitlos/lucity/services/conductor/internal/billing"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/directory"
@@ -35,7 +35,7 @@ import (
 )
 
 type Client struct {
-	cashier   cashier.CashierServiceClient
+	billing   *billing.Client
 	gitHubApp *ghpkg.App
 	logto     *logto.Client
 
@@ -86,9 +86,9 @@ type Config struct {
 	BackupArchive        *backuparchive.Client
 }
 
-func New(cashier cashier.CashierServiceClient, githubApp *ghpkg.App, logto *logto.Client, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, deployjob deployjob.Interface, scanjob scanjob.Interface, scanreport *scanreport.Client, vulnerabilities *vulnerabilities.Client, pipeline pipeline.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, deployer deployer.Interface, environment environment.Interface, objectStorage objectstorage.Interface, metrics *metrics.Provider, domains *domains.Client, config Config) *Client {
+func New(billing *billing.Client, githubApp *ghpkg.App, logto *logto.Client, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, deployjob deployjob.Interface, scanjob scanjob.Interface, scanreport *scanreport.Client, vulnerabilities *vulnerabilities.Client, pipeline pipeline.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, deployer deployer.Interface, environment environment.Interface, objectStorage objectstorage.Interface, metrics *metrics.Provider, domains *domains.Client, config Config) *Client {
 	return &Client{
-		cashier:         cashier,
+		billing:         billing,
 		gitHubApp:       githubApp,
 		logto:           logto,
 		config:          config,

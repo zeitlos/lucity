@@ -38,7 +38,7 @@ type Documents = {
     "\n  mutation SetSharedVariables($environment: EnvironmentID!, $variables: [VariableInput!]!) {\n    setSharedVariables(environment: $environment, variables: $variables)\n  }\n": typeof types.SetSharedVariablesDocument,
     "\n  query Subscription {\n    subscription {\n      plan\n      status\n      currentPeriodEnd\n      creditAmountCents\n      creditExpiry\n      hasPaymentMethod\n    }\n  }\n": typeof types.SubscriptionDocument,
     "\n  query UsageSummary {\n    usageSummary {\n      resourceCostCents\n      creditsCents\n      estimatedTotalCents\n    }\n  }\n": typeof types.UsageSummaryDocument,
-    "\n  mutation CreatePlanCheckout($plan: Plan!) {\n    createPlanCheckout(plan: $plan) {\n      url\n    }\n  }\n": typeof types.CreatePlanCheckoutDocument,
+    "\n  mutation WelcomeSelectPlan($plan: Plan!) {\n    selectPlan(plan: $plan) {\n      checkoutUrl\n    }\n  }\n": typeof types.WelcomeSelectPlanDocument,
     "\n  query BucketCredentials($bucket: BucketID!) {\n    bucketCredentials(bucket: $bucket) {\n      endpoint\n      region\n      bucket\n      accessKeyId\n      secretAccessKey\n    }\n  }\n": typeof types.BucketCredentialsDocument,
     "\n  mutation SetBucketPublic($bucket: BucketID!, $public: Boolean!) {\n    setBucketPublic(bucket: $bucket, public: $public) {\n      id\n      public\n      publicEndpoint\n    }\n  }\n": typeof types.SetBucketPublicDocument,
     "\n  query BucketObjects($bucket: BucketID!, $prefix: String) {\n    bucketObjects(bucket: $bucket, prefix: $prefix) {\n      prefix\n      folders {\n        prefix\n      }\n      objects {\n        key\n        size\n        lastModified\n      }\n    }\n  }\n": typeof types.BucketObjectsDocument,
@@ -115,7 +115,7 @@ type Documents = {
     "\n  mutation InviteMember($input: InviteMemberInput!) {\n    inviteMember(input: $input) {\n      id\n      email\n      name\n      role\n    }\n  }\n": typeof types.InviteMemberDocument,
     "\n  mutation RemoveMember($userId: ID!) {\n    removeMember(userId: $userId)\n  }\n": typeof types.RemoveMemberDocument,
     "\n  mutation UpdateMemberRole($input: UpdateMemberRoleInput!) {\n    updateMemberRole(input: $input) {\n      id\n      email\n      name\n      role\n    }\n  }\n": typeof types.UpdateMemberRoleDocument,
-    "\n  mutation ChangePlan($plan: Plan!) {\n    changePlan(plan: $plan) {\n      plan\n      status\n      currentPeriodEnd\n      creditAmountCents\n      creditExpiry\n    }\n  }\n": typeof types.ChangePlanDocument,
+    "\n  mutation SelectPlan($plan: Plan!) {\n    selectPlan(plan: $plan) {\n      checkoutUrl\n      subscription {\n        plan\n        status\n        currentPeriodEnd\n        creditAmountCents\n        creditExpiry\n        hasPaymentMethod\n      }\n    }\n  }\n": typeof types.SelectPlanDocument,
     "\n  mutation BillingPortalUrl {\n    billingPortalUrl {\n      url\n    }\n  }\n": typeof types.BillingPortalUrlDocument,
 };
 const documents: Documents = {
@@ -143,7 +143,7 @@ const documents: Documents = {
     "\n  mutation SetSharedVariables($environment: EnvironmentID!, $variables: [VariableInput!]!) {\n    setSharedVariables(environment: $environment, variables: $variables)\n  }\n": types.SetSharedVariablesDocument,
     "\n  query Subscription {\n    subscription {\n      plan\n      status\n      currentPeriodEnd\n      creditAmountCents\n      creditExpiry\n      hasPaymentMethod\n    }\n  }\n": types.SubscriptionDocument,
     "\n  query UsageSummary {\n    usageSummary {\n      resourceCostCents\n      creditsCents\n      estimatedTotalCents\n    }\n  }\n": types.UsageSummaryDocument,
-    "\n  mutation CreatePlanCheckout($plan: Plan!) {\n    createPlanCheckout(plan: $plan) {\n      url\n    }\n  }\n": types.CreatePlanCheckoutDocument,
+    "\n  mutation WelcomeSelectPlan($plan: Plan!) {\n    selectPlan(plan: $plan) {\n      checkoutUrl\n    }\n  }\n": types.WelcomeSelectPlanDocument,
     "\n  query BucketCredentials($bucket: BucketID!) {\n    bucketCredentials(bucket: $bucket) {\n      endpoint\n      region\n      bucket\n      accessKeyId\n      secretAccessKey\n    }\n  }\n": types.BucketCredentialsDocument,
     "\n  mutation SetBucketPublic($bucket: BucketID!, $public: Boolean!) {\n    setBucketPublic(bucket: $bucket, public: $public) {\n      id\n      public\n      publicEndpoint\n    }\n  }\n": types.SetBucketPublicDocument,
     "\n  query BucketObjects($bucket: BucketID!, $prefix: String) {\n    bucketObjects(bucket: $bucket, prefix: $prefix) {\n      prefix\n      folders {\n        prefix\n      }\n      objects {\n        key\n        size\n        lastModified\n      }\n    }\n  }\n": types.BucketObjectsDocument,
@@ -220,7 +220,7 @@ const documents: Documents = {
     "\n  mutation InviteMember($input: InviteMemberInput!) {\n    inviteMember(input: $input) {\n      id\n      email\n      name\n      role\n    }\n  }\n": types.InviteMemberDocument,
     "\n  mutation RemoveMember($userId: ID!) {\n    removeMember(userId: $userId)\n  }\n": types.RemoveMemberDocument,
     "\n  mutation UpdateMemberRole($input: UpdateMemberRoleInput!) {\n    updateMemberRole(input: $input) {\n      id\n      email\n      name\n      role\n    }\n  }\n": types.UpdateMemberRoleDocument,
-    "\n  mutation ChangePlan($plan: Plan!) {\n    changePlan(plan: $plan) {\n      plan\n      status\n      currentPeriodEnd\n      creditAmountCents\n      creditExpiry\n    }\n  }\n": types.ChangePlanDocument,
+    "\n  mutation SelectPlan($plan: Plan!) {\n    selectPlan(plan: $plan) {\n      checkoutUrl\n      subscription {\n        plan\n        status\n        currentPeriodEnd\n        creditAmountCents\n        creditExpiry\n        hasPaymentMethod\n      }\n    }\n  }\n": types.SelectPlanDocument,
     "\n  mutation BillingPortalUrl {\n    billingPortalUrl {\n      url\n    }\n  }\n": types.BillingPortalUrlDocument,
 };
 
@@ -337,7 +337,7 @@ export function graphql(source: "\n  query UsageSummary {\n    usageSummary {\n 
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation CreatePlanCheckout($plan: Plan!) {\n    createPlanCheckout(plan: $plan) {\n      url\n    }\n  }\n"): (typeof documents)["\n  mutation CreatePlanCheckout($plan: Plan!) {\n    createPlanCheckout(plan: $plan) {\n      url\n    }\n  }\n"];
+export function graphql(source: "\n  mutation WelcomeSelectPlan($plan: Plan!) {\n    selectPlan(plan: $plan) {\n      checkoutUrl\n    }\n  }\n"): (typeof documents)["\n  mutation WelcomeSelectPlan($plan: Plan!) {\n    selectPlan(plan: $plan) {\n      checkoutUrl\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -645,7 +645,7 @@ export function graphql(source: "\n  mutation UpdateMemberRole($input: UpdateMem
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation ChangePlan($plan: Plan!) {\n    changePlan(plan: $plan) {\n      plan\n      status\n      currentPeriodEnd\n      creditAmountCents\n      creditExpiry\n    }\n  }\n"): (typeof documents)["\n  mutation ChangePlan($plan: Plan!) {\n    changePlan(plan: $plan) {\n      plan\n      status\n      currentPeriodEnd\n      creditAmountCents\n      creditExpiry\n    }\n  }\n"];
+export function graphql(source: "\n  mutation SelectPlan($plan: Plan!) {\n    selectPlan(plan: $plan) {\n      checkoutUrl\n      subscription {\n        plan\n        status\n        currentPeriodEnd\n        creditAmountCents\n        creditExpiry\n        hasPaymentMethod\n      }\n    }\n  }\n"): (typeof documents)["\n  mutation SelectPlan($plan: Plan!) {\n    selectPlan(plan: $plan) {\n      checkoutUrl\n      subscription {\n        plan\n        status\n        currentPeriodEnd\n        creditAmountCents\n        creditExpiry\n        hasPaymentMethod\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

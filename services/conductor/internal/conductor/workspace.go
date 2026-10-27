@@ -2,17 +2,15 @@ package conductor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"regexp"
 	"strings"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
 	"github.com/zeitlos/lucity/pkg/auth"
-	"github.com/zeitlos/lucity/pkg/cashier"
 	"github.com/zeitlos/lucity/pkg/usererror"
+	"github.com/zeitlos/lucity/services/conductor/internal/billing"
 	"github.com/zeitlos/lucity/services/conductor/internal/directory"
 )
 
@@ -259,8 +257,8 @@ func (c *Client) findAvailableWorkspaceID(ctx context.Context, base string) (str
 //
 // Uses context.WithoutCancel to detach from the HTTP request lifecycle. Billing setup
 // must complete even if the browser navigates away during the OIDC callback redirect.
-func (c *Client) setupBilling(ctx context.Context, workspace, name, email string, creditDays int32) {
-	if c.cashier == nil {
+func (c *Client) setupBilling(ctx context.Context, workspace, name, email string, creditDays int) {
+	if c.billing == nil {
 		return
 	}
 	if c.logto == nil {
@@ -271,7 +269,6 @@ func (c *Client) setupBilling(ctx context.Context, workspace, name, email string
 	// immediately after this returns, which cancels r.Context(). Billing setup must
 	// survive that cancellation.
 	billingCtx := context.WithoutCancel(ctx)
-	outCtx := auth.OutgoingContext(billingCtx)
 
 	// Resolve workspace ID to Logto org ID for API calls
 	orgID, err := c.orgID(billingCtx, workspace)
@@ -294,18 +291,11 @@ func (c *Client) setupBilling(ctx context.Context, workspace, name, email string
 	// Step 1: Ensure Stripe customer exists.
 	customerID, _ := customData["stripeCustomerId"].(string)
 	if customerID == "" {
-		custCtx, custCancel := context.WithTimeout(outCtx, grpcTimeout)
-		defer custCancel()
-		custResp, custErr := c.cashier.CreateCustomer(custCtx, &cashier.CreateCustomerRequest{
-			Workspace: workspace,
-			Name:      name,
-			Email:     email,
-		})
-		if custErr != nil {
-			slog.Warn("failed to create Stripe customer for workspace", "workspace", workspace, "error", custErr)
+		customerID, err = c.billing.CreateCustomer(billingCtx, workspace, name, email)
+		if err != nil {
+			slog.Warn("failed to create Stripe customer for workspace", "workspace", workspace, "error", err)
 			return // Will retry on next login
 		}
-		customerID = custResp.CustomerId
 		customData["stripeCustomerId"] = customerID
 		if _, err := c.logto.UpdateOrganizationCustomData(billingCtx, orgID, customData); err != nil {
 			slog.Warn("failed to store billing IDs in org customData", "workspace", workspace, "error", err)
@@ -314,27 +304,22 @@ func (c *Client) setupBilling(ctx context.Context, workspace, name, email string
 	}
 
 	// Step 2: Ensure Stripe subscription exists (metered items only, no plan).
-	subCtx, subCancel := context.WithTimeout(outCtx, grpcTimeout)
-	defer subCancel()
-	subResp, subErr := c.cashier.CreateSubscription(subCtx, &cashier.CreateSubscriptionRequest{
-		Workspace:  workspace,
-		CustomerId: customerID,
-		CreditDays: creditDays,
-	})
-	if status.Code(subErr) == codes.FailedPrecondition {
+	err = c.billing.StartTrial(billingCtx, customerID, workspace, creditDays)
+	if errors.Is(err, billing.ErrSubscriptionEnded) {
 		slog.Debug("subscription ended, no new trial", "workspace", workspace)
 		return
 	}
-	if subErr != nil {
-		slog.Warn("failed to create Stripe subscription for workspace", "workspace", workspace, "error", subErr)
+	if err != nil {
+		slog.Warn("failed to create Stripe subscription for workspace", "workspace", workspace, "error", err)
 		return // Will retry subscription on next login
 	}
 
-	slog.Debug("billing set up", "workspace", workspace, "customer_id", customerID, "subscription_id", subResp.SubscriptionId)
+	slog.Debug("billing set up", "workspace", workspace, "customer_id", customerID)
 }
 
-// CreateWorkspaceCheckout creates a Stripe Checkout Session for a new workspace subscription.
-// The workspace is not created until the checkout completes (see CompleteWorkspaceCheckout).
+// CreateWorkspaceCheckout creates a workspace on a paid plan and returns the
+// URL of the checkout that pays for it. The workspace exists, suspended, from
+// the start; completing the checkout lifts the suspension.
 func (c *Client) CreateWorkspaceCheckout(ctx context.Context, id, name, plan string) (string, error) {
 	claims, err := auth.FromContext(ctx)
 
@@ -342,51 +327,57 @@ func (c *Client) CreateWorkspaceCheckout(ctx context.Context, id, name, plan str
 		return "", err
 	}
 
-	if c.logto == nil {
-		return "", fmt.Errorf("logto not configured")
-	}
-
-	if c.cashier == nil {
-		return "", fmt.Errorf("billing not configured")
+	if c.logto == nil || c.billing == nil {
+		return "", errors.New("billing not configured")
 	}
 
 	if !workspaceIDPattern.MatchString(id) {
 		return "", usererror.New("invalid workspace ID: must be 3-63 lowercase alphanumeric characters or hyphens")
 	}
 
-	// Check if workspace ID is already taken.
 	if _, err = c.logto.OrganizationByName(ctx, id); err == nil {
 		return "", usererror.Errorf("workspace ID %q is already taken", id)
 	}
 
-	// Build Stripe Checkout URLs.
-	successURL := fmt.Sprintf("%s/checkout/success?session_id={CHECKOUT_SESSION_ID}", c.config.DashboardURL)
-	cancelURL := c.config.DashboardURL
+	customerID, err := c.billing.CreateCustomer(ctx, id, name, claims.Email)
 
-	outCtx := auth.OutgoingContext(ctx)
-	callCtx, cancel := context.WithTimeout(outCtx, grpcTimeout)
-	defer cancel()
-
-	planProto := stringToPlanProto(plan)
-	resp, err := c.cashier.CreateCheckoutSession(callCtx, &cashier.CreateCheckoutSessionRequest{
-		Workspace:  id,
-		Name:       name,
-		Plan:       planProto,
-		Email:      claims.Email,
-		SuccessUrl: successURL,
-		CancelUrl:  cancelURL,
-		UserId:     claims.Subject,
-	})
 	if err != nil {
-		return "", fmt.Errorf("failed to create checkout session: %w", err)
+		return "", err
 	}
 
-	slog.Info("workspace checkout initiated", "workspace", id, "plan", plan, "user", claims.Email)
-	return resp.Url, nil
+	if _, err := c.directory.CreateWorkspace(ctx, id, name, map[string]any{
+		"stripeCustomerId": customerID,
+		"suspended":        true,
+	}); err != nil {
+		return "", fmt.Errorf("failed to create workspace: %w", err)
+	}
+
+	selection, err := c.billing.SelectPlan(ctx, customerID, id, planOf(plan), billing.Checkout{
+		SuccessURL: c.config.DashboardURL + "/checkout/success?session_id={CHECKOUT_SESSION_ID}",
+		CancelURL:  c.config.DashboardURL,
+		Metadata: map[string]string{
+			"workspace_id":   id,
+			"workspace_name": name,
+			"user_id":        claims.Subject,
+		},
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	if selection.CheckoutURL == "" {
+		return "", errors.New("a new workspace got no checkout")
+	}
+
+	slog.InfoContext(ctx, "workspace checkout initiated", "workspace", id, "plan", plan, "user", claims.Email)
+
+	return selection.CheckoutURL, nil
 }
 
-// CompleteWorkspaceCheckout verifies a completed Stripe Checkout Session and creates the workspace.
-// Called after the user is redirected back from Stripe.
+// CompleteWorkspaceCheckout verifies a completed workspace checkout, lifts the
+// workspace's suspension and returns it. Called after the user is redirected
+// back from Stripe.
 func (c *Client) CompleteWorkspaceCheckout(ctx context.Context, sessionID string) (*WorkspaceDetails, error) {
 	claims, err := auth.FromContext(ctx)
 
@@ -394,66 +385,68 @@ func (c *Client) CompleteWorkspaceCheckout(ctx context.Context, sessionID string
 		return nil, err
 	}
 
-	if c.cashier == nil {
-		return nil, fmt.Errorf("billing not configured")
+	if c.billing == nil {
+		return nil, errors.New("billing not configured")
 	}
 
-	// Retrieve the checkout session from Cashier/Stripe.
-	outCtx := auth.OutgoingContext(ctx)
-	callCtx, cancel := context.WithTimeout(outCtx, grpcTimeout)
-	defer cancel()
+	session, err := c.billing.Session(ctx, sessionID)
 
-	session, err := c.cashier.RetrieveCheckoutSession(callCtx, &cashier.RetrieveCheckoutSessionRequest{
-		SessionId: sessionID,
-	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve checkout session: %w", err)
+		return nil, err
 	}
 
-	if session.Status != "complete" {
-		return nil, usererror.Errorf("checkout session not complete (status: %s)", session.Status)
+	if !session.Complete {
+		return nil, usererror.New("the checkout is not complete")
 	}
 
-	// Verify the session belongs to the current user.
-	if session.UserId != claims.Subject {
+	if session.Metadata["user_id"] != claims.Subject {
 		return nil, usererror.New("checkout session does not belong to current user")
 	}
 
-	wsID := session.Workspace
-	wsName := session.Name
+	wsID := session.Metadata["workspace_id"]
 
-	// Idempotent: if workspace already exists with this user as member, return it.
-	if existing, err := c.directory.Workspace(ctx, wsID); err == nil {
-		for _, m := range existing.Members {
-			if m.ID == claims.Subject {
-				slog.Info("workspace checkout completed (already exists)", "workspace", wsID)
-				return existing, nil
-			}
+	if _, err := c.logto.OrganizationByName(ctx, wsID); err != nil {
+		return c.completeLegacyWorkspaceCheckout(ctx, wsID, session)
+	}
+
+	customerID, err := c.stripeCustomerID(ctx, wsID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if customerID == "" || customerID != session.CustomerID {
+		return nil, usererror.New("checkout session does not belong to this workspace")
+	}
+
+	c.resume(ctx, wsID, customerID)
+
+	workspace, err := c.directory.Workspace(ctx, wsID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for _, member := range workspace.Members {
+		if member.ID == claims.Subject {
+			slog.InfoContext(ctx, "workspace checkout completed", "workspace", wsID)
+			return workspace, nil
 		}
-		return nil, usererror.Errorf("workspace ID %q is already taken", wsID)
 	}
 
-	// Create the workspace, stamping Stripe IDs into the directory metadata.
-	metadata := map[string]any{
-		"stripeCustomerId": session.CustomerId,
-	}
-	workspace, err := c.directory.CreateWorkspace(ctx, wsID, wsName, metadata)
+	return nil, usererror.Errorf("workspace ID %q is already taken", wsID)
+}
+
+func (c *Client) completeLegacyWorkspaceCheckout(ctx context.Context, wsID string, session *billing.Session) (*WorkspaceDetails, error) {
+	workspace, err := c.directory.CreateWorkspace(ctx, wsID, session.Metadata["workspace_name"], map[string]any{
+		"stripeCustomerId": session.CustomerID,
+	})
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to create workspace: %w", err)
 	}
 
-	customerCtx, customerCancel := context.WithTimeout(outCtx, grpcTimeout)
-	defer customerCancel()
-
-	if _, err := c.cashier.CreateCustomer(customerCtx, &cashier.CreateCustomerRequest{
-		Workspace: wsID,
-		Name:      wsName,
-		Email:     session.Email,
-	}); err != nil {
-		slog.WarnContext(ctx, "failed to link the checkout customer to its workspace", "workspace", wsID, "error", err)
-	}
-
-	slog.Info("workspace created via checkout", "id", wsID, "name", wsName, "customer_id", session.CustomerId, "subscription_id", session.SubscriptionId)
+	slog.InfoContext(ctx, "workspace created from a checkout started before workspace-first signup", "workspace", wsID, "customer_id", session.CustomerID)
 
 	return workspace, nil
 }

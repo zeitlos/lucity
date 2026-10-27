@@ -2,15 +2,16 @@ package conductor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
+	pkgbilling "github.com/zeitlos/lucity/pkg/billing"
 	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/usererror"
-
-	"github.com/zeitlos/lucity/pkg/auth"
-	"github.com/zeitlos/lucity/pkg/cashier"
+	"github.com/zeitlos/lucity/services/conductor/internal/billing"
 )
 
 type BillingSubscription struct {
@@ -28,8 +29,11 @@ type UsageSummaryResult struct {
 	EstimatedTotalCents int
 }
 
-type BillingPortalUrlResult struct {
-	URL string
+// PlanSelection is the subscription now on the selected plan, or the URL of
+// the checkout to complete first.
+type PlanSelection struct {
+	Subscription *BillingSubscription
+	CheckoutURL  string
 }
 
 type ResourceTier = platform.ResourceTier
@@ -61,107 +65,175 @@ func (c *Client) SetEnvironmentResources(ctx context.Context, environmentID plat
 	return environment, nil
 }
 
+// Subscription returns the workspace's subscription, or nil when it never
+// had one.
 func (c *Client) Subscription(ctx context.Context, ws string) (*BillingSubscription, error) {
-	if c.cashier == nil {
-		return nil, fmt.Errorf("billing not configured")
-	}
-
-	customerID, err := c.stripeCustomerID(ctx, ws)
+	customerID, err := c.billingCustomer(ctx, ws)
 
 	if err != nil {
 		return nil, err
 	}
 
-	if customerID == "" {
-		return nil, usererror.New("billing is not configured for this workspace")
-	}
-
-	ctx = auth.OutgoingContext(ctx)
-
-	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
-	defer cancel()
-	resp, err := c.cashier.Subscription(callCtx, &cashier.SubscriptionRequest{
-		Workspace:  ws,
-		CustomerId: customerID,
-	})
+	subscription, err := c.billing.Subscription(ctx, customerID)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to get subscription: %w", err)
+		return nil, fmt.Errorf("read subscription: %w", err)
 	}
 
-	result := &BillingSubscription{
-		Plan:              planProtoToPtr(resp.Plan),
-		Status:            subscriptionStatusProtoToString(resp.Status),
-		CurrentPeriodEnd:  time.Unix(resp.CurrentPeriodEnd, 0),
-		CreditAmountCents: int(resp.CreditAmountCents),
-		HasPaymentMethod:  resp.HasPaymentMethod,
-	}
-
-	if resp.CreditExpiry > 0 {
-		t := time.Unix(resp.CreditExpiry, 0)
-		result.CreditExpiry = &t
-	}
-
-	return result, nil
+	return convertSubscription(subscription), nil
 }
 
 func (c *Client) paid(ctx context.Context, ws string) bool {
-	if c.cashier == nil || c.config.PaidPlacement.IsZero() {
+	if c.billing == nil || c.config.PaidPlacement.IsZero() {
 		return false
 	}
 
-	subscription, err := c.Subscription(ctx, ws)
+	customerID, err := c.stripeCustomerID(ctx, ws)
+
+	if err != nil || customerID == "" {
+		return false
+	}
+
+	paid, err := c.billing.Paid(ctx, customerID)
 
 	if err != nil {
 		slog.InfoContext(ctx, "plan lookup failed, keeping the default placement", "workspace", ws, "error", err)
 		return false
 	}
 
-	return subscription.Plan != nil && subscription.Status != "CANCELED" && subscription.Status != "INCOMPLETE"
+	return paid
 }
 
-func (c *Client) ChangePlan(ctx context.Context, ws, plan string) (*BillingSubscription, error) {
-	customerID, err := c.stripeCustomerID(ctx, ws)
+// SelectPlan puts the workspace on a plan, or returns the checkout to
+// complete first when it has no card on file.
+func (c *Client) SelectPlan(ctx context.Context, ws, plan string) (*PlanSelection, error) {
+	customerID, err := c.billingCustomer(ctx, ws)
 
 	if err != nil {
 		return nil, err
 	}
 
-	if customerID == "" {
-		return nil, usererror.New("billing is not configured for this workspace")
-	}
-
-	ctx = auth.OutgoingContext(ctx)
-
-	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
-	defer cancel()
-	resp, err := c.cashier.ChangePlan(callCtx, &cashier.ChangePlanRequest{
-		Workspace:  ws,
-		Plan:       stringToPlanProto(plan),
-		CustomerId: customerID,
+	selection, err := c.billing.SelectPlan(ctx, customerID, ws, planOf(plan), billing.Checkout{
+		SuccessURL: c.config.DashboardURL + "/checkout/plan-success?session_id={CHECKOUT_SESSION_ID}",
+		CancelURL:  c.config.DashboardURL + "/workspace/settings?tab=billing",
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to change plan: %w", err)
+		return nil, err
 	}
 
-	result := &BillingSubscription{
-		Plan:              planProtoToPtr(resp.Plan),
-		Status:            subscriptionStatusProtoToString(resp.Status),
-		CurrentPeriodEnd:  time.Unix(resp.CurrentPeriodEnd, 0),
-		CreditAmountCents: int(resp.CreditAmountCents),
-		HasPaymentMethod:  resp.HasPaymentMethod,
+	if selection.CheckoutURL != "" {
+		slog.InfoContext(ctx, "plan checkout started", "workspace", ws, "plan", plan)
+	} else {
+		slog.InfoContext(ctx, "plan selected", "workspace", ws, "plan", plan)
 	}
 
-	if resp.CreditExpiry > 0 {
-		t := time.Unix(resp.CreditExpiry, 0)
-		result.CreditExpiry = &t
+	return &PlanSelection{Subscription: convertSubscription(selection.Subscription), CheckoutURL: selection.CheckoutURL}, nil
+}
+
+func (c *Client) CompletePlanCheckout(ctx context.Context, ws, sessionID string) (*BillingSubscription, error) {
+	customerID, err := c.billingCustomer(ctx, ws)
+
+	if err != nil {
+		return nil, err
 	}
 
-	return result, nil
+	subscription, err := c.billing.CompleteCheckout(ctx, customerID, ws, sessionID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if subscription == nil {
+		return nil, errors.New("no subscription after a completed checkout")
+	}
+
+	c.resume(ctx, ws, customerID)
+
+	return convertSubscription(subscription), nil
 }
 
 func (c *Client) BillingPortalURL(ctx context.Context, ws string) (string, error) {
+	customerID, err := c.billingCustomer(ctx, ws)
+
+	if err != nil {
+		return "", err
+	}
+
+	return c.billing.PortalURL(ctx, customerID, c.config.DashboardURL+"/workspace/settings?tab=billing")
+}
+
+// UsageSummary returns the costs of the current billing period so far, or
+// nil when the workspace never had a subscription.
+func (c *Client) UsageSummary(ctx context.Context, ws string) (*UsageSummaryResult, error) {
+	customerID, err := c.billingCustomer(ctx, ws)
+
+	if err != nil {
+		return nil, err
+	}
+
+	usage, err := c.billing.Usage(ctx, customerID)
+
+	if err != nil || usage == nil {
+		return nil, err
+	}
+
+	return &UsageSummaryResult{
+		ResourceCostCents:   int(usage.ResourceCents),
+		CreditsCents:        int(usage.CreditCents),
+		EstimatedTotalCents: int(usage.EstimatedTotalCents),
+	}, nil
+}
+
+func (c *Client) resume(ctx context.Context, ws, customerID string) {
+	standing, judged, err := c.billing.Standing(ctx, customerID)
+
+	if err != nil {
+		slog.WarnContext(ctx, "resume after checkout: failed to read standing", "workspace", ws, "error", err)
+		return
+	}
+
+	if !judged || !standing.Good {
+		return
+	}
+
+	orgID, err := c.orgID(ctx, ws)
+
+	if err != nil {
+		slog.WarnContext(ctx, "resume after checkout: failed to resolve org", "workspace", ws, "error", err)
+		return
+	}
+
+	org, err := c.logto.Organization(ctx, orgID)
+
+	if err != nil {
+		slog.WarnContext(ctx, "resume after checkout: failed to read org", "workspace", ws, "error", err)
+		return
+	}
+
+	if abuse, _ := org.CustomData["abuse"].(bool); abuse {
+		return
+	}
+
+	if suspended, _ := org.CustomData["suspended"].(bool); !suspended {
+		return
+	}
+
+	delete(org.CustomData, "suspended")
+
+	if _, err := c.logto.UpdateOrganizationCustomData(ctx, orgID, org.CustomData); err != nil {
+		slog.WarnContext(ctx, "resume after checkout: failed to update org", "workspace", ws, "error", err)
+		return
+	}
+
+	slog.InfoContext(ctx, "workspace resumed after checkout", "workspace", ws)
+}
+
+func (c *Client) billingCustomer(ctx context.Context, ws string) (string, error) {
+	if c.billing == nil {
+		return "", errors.New("billing not configured")
+	}
+
 	customerID, err := c.stripeCustomerID(ctx, ws)
 
 	if err != nil {
@@ -172,52 +244,7 @@ func (c *Client) BillingPortalURL(ctx context.Context, ws string) (string, error
 		return "", usererror.New("billing is not configured for this workspace")
 	}
 
-	ctx = auth.OutgoingContext(ctx)
-
-	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
-	defer cancel()
-
-	resp, err := c.cashier.BillingPortalURL(callCtx, &cashier.BillingPortalURLRequest{
-		Workspace:  ws,
-		ReturnUrl:  "", // Stripe defaults to billing portal home
-		CustomerId: customerID,
-	})
-
-	if err != nil {
-		return "", fmt.Errorf("failed to get billing portal URL: %w", err)
-	}
-
-	return resp.Url, nil
-}
-
-func (c *Client) UsageSummary(ctx context.Context, ws string) (*UsageSummaryResult, error) {
-	if c.cashier == nil {
-		return nil, fmt.Errorf("billing not configured")
-	}
-	customerID, err := c.stripeCustomerID(ctx, ws)
-	if err != nil {
-		return nil, err
-	}
-	if customerID == "" {
-		return nil, usererror.New("billing is not configured for this workspace")
-	}
-	ctx = auth.OutgoingContext(ctx)
-
-	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
-	defer cancel()
-	resp, err := c.cashier.UsageSummary(callCtx, &cashier.UsageSummaryRequest{
-		Workspace:  ws,
-		CustomerId: customerID,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get usage summary: %w", err)
-	}
-
-	return &UsageSummaryResult{
-		ResourceCostCents:   int(resp.ResourceCostCents),
-		CreditsCents:        int(resp.CreditsCents),
-		EstimatedTotalCents: int(resp.EstimatedTotalCents),
-	}, nil
+	return customerID, nil
 }
 
 // stripeCustomerID reads the Stripe customer ID from the Logto org customData.
@@ -234,118 +261,34 @@ func (c *Client) stripeCustomerID(ctx context.Context, ws string) (string, error
 	return customerID, nil
 }
 
-func (c *Client) CreatePlanCheckout(ctx context.Context, ws, plan string) (string, error) {
-	claims, err := auth.FromContext(ctx)
-
-	if err != nil {
-		return "", err
-	}
-
-	customerID, err := c.stripeCustomerID(ctx, ws)
-	if err != nil {
-		return "", err
-	}
-	if customerID == "" {
-		return "", usererror.New("billing is not configured for this workspace")
-	}
-
-	successURL := fmt.Sprintf("%s/checkout/plan-success?session_id={CHECKOUT_SESSION_ID}", c.config.DashboardURL)
-	cancelURL := fmt.Sprintf("%s/settings", c.config.DashboardURL)
-
-	ctx = auth.OutgoingContext(ctx)
-	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
-	defer cancel()
-
-	resp, err := c.cashier.CreatePlanCheckoutSession(callCtx, &cashier.CreatePlanCheckoutSessionRequest{
-		CustomerId: customerID,
-		Plan:       stringToPlanProto(plan),
-		SuccessUrl: successURL,
-		CancelUrl:  cancelURL,
-	})
-	if err != nil {
-		return "", fmt.Errorf("failed to create plan checkout: %w", err)
-	}
-
-	slog.Info("plan checkout initiated", "plan", plan, "user", claims.Email)
-
-	return resp.Url, nil
-}
-
-func (c *Client) CompletePlanCheckout(ctx context.Context, ws, sessionID string) (*BillingSubscription, error) {
-	customerID, err := c.stripeCustomerID(ctx, ws)
-
-	if err != nil {
-		return nil, err
-	}
-
-	if customerID == "" {
-		return nil, usererror.New("billing is not configured for this workspace")
-	}
-
-	ctx = auth.OutgoingContext(ctx)
-	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
-	defer cancel()
-
-	resp, err := c.cashier.AddPlan(callCtx, &cashier.AddPlanRequest{
-		Workspace:         ws,
-		CustomerId:        customerID,
-		CheckoutSessionId: sessionID,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to add plan: %w", err)
-	}
-
-	return &BillingSubscription{
-		Plan:              planProtoToPtr(resp.Plan),
-		Status:            subscriptionStatusProtoToString(resp.Status),
-		CurrentPeriodEnd:  time.Unix(resp.CurrentPeriodEnd, 0),
-		CreditAmountCents: int(resp.CreditAmountCents),
-		HasPaymentMethod:  resp.HasPaymentMethod,
-	}, nil
-}
-
-func planProtoToString(p cashier.Plan) string {
-	switch p {
-	case cashier.Plan_PLAN_PRO:
-		return "PRO"
-	case cashier.Plan_PLAN_HOBBY:
-		return "HOBBY"
-	default:
-		return ""
-	}
-}
-
-// planProtoToPtr returns a pointer to the plan string, or nil if no plan is set.
-func planProtoToPtr(p cashier.Plan) *string {
-	s := planProtoToString(p)
-	if s == "" {
+func convertSubscription(subscription *billing.Subscription) *BillingSubscription {
+	if subscription == nil {
 		return nil
 	}
-	return &s
+
+	result := &BillingSubscription{
+		Status:            string(subscription.Status),
+		CurrentPeriodEnd:  subscription.CurrentPeriodEnd,
+		CreditAmountCents: int(subscription.CreditCents),
+		CreditExpiry:      subscription.CreditExpiry,
+		HasPaymentMethod:  subscription.HasPaymentMethod,
+	}
+
+	if subscription.Plan.Paid() {
+		plan := strings.ToUpper(string(subscription.Plan))
+		result.Plan = &plan
+	}
+
+	return result
 }
 
-func stringToPlanProto(s string) cashier.Plan {
-	switch s {
+func planOf(plan string) pkgbilling.Plan {
+	switch plan {
+	case "HOBBY":
+		return pkgbilling.PlanHobby
 	case "PRO":
-		return cashier.Plan_PLAN_PRO
-	default:
-		return cashier.Plan_PLAN_HOBBY
+		return pkgbilling.PlanPro
 	}
-}
 
-func subscriptionStatusProtoToString(s cashier.SubscriptionStatus) string {
-	switch s {
-	case cashier.SubscriptionStatus_SUBSCRIPTION_STATUS_ACTIVE:
-		return "ACTIVE"
-	case cashier.SubscriptionStatus_SUBSCRIPTION_STATUS_PAST_DUE:
-		return "PAST_DUE"
-	case cashier.SubscriptionStatus_SUBSCRIPTION_STATUS_CANCELED:
-		return "CANCELED"
-	case cashier.SubscriptionStatus_SUBSCRIPTION_STATUS_INCOMPLETE:
-		return "INCOMPLETE"
-	case cashier.SubscriptionStatus_SUBSCRIPTION_STATUS_TRIALING:
-		return "TRIALING"
-	default:
-		return "ACTIVE"
-	}
+	return pkgbilling.Plan(strings.ToLower(plan))
 }

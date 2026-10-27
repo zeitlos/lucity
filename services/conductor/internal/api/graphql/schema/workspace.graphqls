@@ -45,9 +45,9 @@ type CheckoutSession {
 }
 
 extend type Mutation {
-  """Starts the checkout for a new workspace on a paid plan and returns the URL to complete it. The workspace is created once the checkout completes."""
+  """Creates a workspace on a paid plan and returns the URL of the checkout that pays for it. The workspace stays suspended until the checkout completes."""
   createWorkspaceCheckout(input: CreateWorkspaceCheckoutInput!): CheckoutSession! @hasRole(role: AUTHENTICATED)
-  """Completes a workspace checkout and returns the new workspace."""
+  """Completes a workspace checkout, lifts the workspace's suspension and returns it."""
   completeWorkspaceCheckout(sessionId: String!): Workspace! @hasRole(role: AUTHENTICATED)
   """Renames the workspace. Its id stays the same."""
   updateWorkspace(input: UpdateWorkspaceInput!): Workspace! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)

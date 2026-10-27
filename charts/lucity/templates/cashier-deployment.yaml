@@ -58,23 +58,7 @@ spec:
             capabilities:
               drop: [ALL]
             readOnlyRootFilesystem: true
-          ports:
-            - name: grpc
-              containerPort: {{ .Values.cashier.port }}
-              protocol: TCP
-          livenessProbe:
-            tcpSocket:
-              port: grpc
-            initialDelaySeconds: 5
-            periodSeconds: 15
-          readinessProbe:
-            tcpSocket:
-              port: grpc
-            initialDelaySeconds: 3
-            periodSeconds: 10
           env:
-            - name: PORT
-              value: {{ .Values.cashier.port | quote }}
             - name: SYSTEM_NAMESPACE
               value: {{ .Release.Namespace | quote }}
             {{- range $key, $value := .Values.cashier.env }}
@@ -88,27 +72,6 @@ spec:
                   name: {{ include "lucity.fullname" $ }}
                   key: {{ $value }}
             {{- end }}
-          {{- if and .Values.internalJWT (or .Values.internalJWT.publicKey .Values.internalJWT.privateKey) }}
-          volumeMounts:
-            - name: internal-jwt
-              mountPath: /secrets/internal-jwt
-              readOnly: true
-          {{- end }}
           resources:
             {{- toYaml .Values.cashier.resources | nindent 12 }}
-      {{- if and .Values.internalJWT (or .Values.internalJWT.publicKey .Values.internalJWT.privateKey) }}
-      volumes:
-        - name: internal-jwt
-          secret:
-            secretName: {{ include "lucity.fullname" . }}-internal-jwt
-            items:
-              {{- if .Values.internalJWT.publicKey }}
-              - key: public.pem
-                path: public.pem
-              {{- end }}
-              {{- if .Values.internalJWT.privateKey }}
-              - key: private.pem
-                path: private.pem
-              {{- end }}
-      {{- end }}
 {{- end }}

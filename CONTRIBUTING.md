@@ -72,15 +72,7 @@ Exposes infrastructure on localhost:
 
 Deployed services with a configured hostname are accessible at `http://<name>.lucity.local:8880` via Envoy Gateway and Gateway API HTTPRoutes.
 
-### 5. Generate internal JWT keys
-
-```sh
-make generate-internal-keys
-```
-
-Writes the ES256 keypair used to authenticate the conductor ↔ cashier gRPC boundary. Reference the generated paths from each service's `.env`.
-
-### 6. Configure services
+### 5. Configure services
 
 The conductor and cashier each ship a `.env.example`. Copy and fill in the values:
 
@@ -94,15 +86,15 @@ Key configuration:
 | Service | Required Variables |
 |---------|-------------------|
 | Conductor | GitHub App (`GITHUB_APP_ID`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, private key), OIDC/Logto (`OIDC_*`, `LOGTO_*`), registry URLs, `WORKLOAD_DOMAIN` |
-| Cashier | `STRIPE_*`, `LOGTO_*` (only needed when working on billing) |
+| Cashier | `STRIPE_*`, `LOGTO_*`, `VICTORIA_METRICS_URL` (only needed when working on metering) |
 
 Point the conductor at Zot's fixed ClusterIP (assigned in `deployments/minikube/values.yaml`, e.g. `10.96.100.50:5000`) for the image refs it writes into Helm values, so kubelet can pull them.
 
 > **Why a ClusterIP, not a DNS name?** Docker on minikube uses the host DNS resolver, not CoreDNS. Cluster-internal DNS names like `*.svc.cluster.local` don't resolve for image pulls. The fixed ClusterIP works because `--insecure-registry` already covers the service CIDR.
 
-Billing is optional in dev: leave `CASHIER_ADDR` unset on the conductor to run without cashier.
+Billing is optional in dev: leave `STRIPE_SECRET_KEY` unset on the conductor to run without it.
 
-### 7. Start all services
+### 6. Start all services
 
 ```sh
 make dev
@@ -117,16 +109,15 @@ make minikube                # 1. Create cluster (one-time)
 make infra                   # 2. CRDs + Envoy Gateway + lucity-infra chart
 make dns                     # 3. Wildcard DNS for *.lucity.local (one-time)
 make infra-forward           # 4. Port-forward infrastructure
-make generate-internal-keys  # 5. ES256 keypair for conductor <-> cashier
-make dev                     # 6. Start services with hot reload
+make dev                     # 5. Start services with hot reload
 ```
 
 ## Services
 
 | Service | Port | Protocol | Purpose |
 |---------|------|----------|---------|
-| Conductor | 8080 (HTTP), 9090 (gRPC), 9004 (webhook) | HTTP + gRPC | Unified control plane: GraphQL API, Helm release management, build orchestration, GitHub webhooks |
-| Cashier | 9005 (gRPC), 9006 (HTTP) | gRPC + HTTP | Stripe billing, metering, suspension callbacks |
+| Conductor | 8080 (HTTP), 9004 (webhook) | HTTP | Unified control plane: GraphQL API, Helm release management, build orchestration, GitHub webhooks, Stripe billing |
+| Cashier | none | outbound only | Usage metering into Stripe, monthly plan credits |
 | Dashboard | 5173 | HTTP | Vue 3 SPA for project and environment management |
 
 `builder` is a separate image (`ghcr.io/zeitlos/lucity/builder`) that the conductor runs inside a per-build Kubernetes Job, not a long-running service.
@@ -139,13 +130,11 @@ make dev                     # 6. Start services with hot reload
 | `make infra` | Install CRDs + Envoy Gateway + deploy the `lucity-infra` chart |
 | `make dns` | Set up wildcard DNS for `*.lucity.local` (one-time) |
 | `make infra-forward` | Port-forward infrastructure to localhost |
-| `make generate-internal-keys` | Generate the ES256 keypair for internal gRPC auth |
 | `make dev` | Start all services with hot reload |
 | `make dev-<service>` | Start one service (e.g. `make dev-conductor`) |
 | `make dev-logs` | Tail all service logs |
 | `make dev-stop` | Stop all services |
 | `make build` | Build all Go services |
-| `make proto` | Regenerate protobuf code |
 | `make generate-graphql` | Regenerate GraphQL resolvers |
 | `make lint` | Run dashboard linter |
 | `make infra-down` | Uninstall infrastructure from cluster |

@@ -19,9 +19,7 @@ func Middleware(next http.Handler) http.Handler {
 		}
 
 		if ws != "" {
-			ctx := NewContext(r.Context(), ws)
-			ctx = auth.WithActiveWorkspace(ctx, ws)
-			r = r.WithContext(ctx)
+			r = r.WithContext(NewContext(r.Context(), ws))
 		}
 		next.ServeHTTP(w, r)
 	})

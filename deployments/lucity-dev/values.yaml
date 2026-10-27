@@ -37,10 +37,17 @@ conductor:
 
     LOGTO_ENDPOINT: http://lucity-infra-logto.lucity-system.svc.cluster.local:3001
 
-    INTERNAL_JWT_PRIVATE_KEY_PATH: /secrets/internal-jwt/private.pem
-    INTERNAL_JWT_PUBLIC_KEY_PATH: /secrets/internal-jwt/public.pem
 
-    CASHIER_ADDR: lucity-cashier:9005
+    STRIPE_HOBBY_PRICE_ID: &hobby-price price_1USdK4Aczm59y8RPx4EL5iAb
+    STRIPE_PRO_PRICE_ID: &pro-price price_1USdK3Aczm59y8RPoIYz1agP
+    STRIPE_ECO_CPU_PRICE_ID: price_1USdNKAczm59y8RPBPjvI7pN
+    STRIPE_ECO_MEM_PRICE_ID: price_1USdNLAczm59y8RPG4kbNhu5
+    STRIPE_ECO_DISK_PRICE_ID: price_1USdNLAczm59y8RPgnBW0BEG
+    STRIPE_PROD_CPU_PRICE_ID: price_1USdNMAczm59y8RPiJHefikh
+    STRIPE_PROD_MEM_PRICE_ID: price_1USdNNAczm59y8RPdeDMpXtS
+    STRIPE_PROD_DISK_PRICE_ID: price_1USdNOAczm59y8RPvke3Og3S
+    STRIPE_STORAGE_PRICE_ID: price_1USdNPAczm59y8RPMUYnmHfj
+    STRIPE_EGRESS_PRICE_ID: price_1USdNPAczm59y8RPyFgdLdK9
 
     REGISTRY_URL: lucity-infra-zot.lucity-system.svc.cluster.local:5000
     REGISTRY_PUSH_URL: lucity-infra-zot.lucity-system.svc.cluster.local:5000
@@ -66,6 +73,7 @@ conductor:
 
     DATABASE_BACKUP_ENABLED: "false"
   envSecret:
+    STRIPE_SECRET_KEY: CONDUCTOR_STRIPE_SECRET_KEY
     SESSION_SECRET: SESSION_SECRET
     GITHUB_CLIENT_SECRET: GITHUB_CLIENT_SECRET
     LOGTO_M2M_APP_ID: LOGTO_M2M_APP_ID
@@ -80,26 +88,12 @@ conductor:
 cashier:
   enabled: true
   env:
-    INTERNAL_JWT_PUBLIC_KEY_PATH: /secrets/internal-jwt/public.pem
-    INTERNAL_JWT_PRIVATE_KEY_PATH: /secrets/internal-jwt/private.pem
-    CONDUCTOR_ADDR: lucity-conductor:9090
     LOGTO_ENDPOINT: http://lucity-infra-logto.lucity-system.svc.cluster.local:3001
-    STRIPE_HOBBY_PRICE_ID: &hobby-price price_1USdK4Aczm59y8RPx4EL5iAb
-    STRIPE_PRO_PRICE_ID: &pro-price price_1USdK3Aczm59y8RPoIYz1agP
-    STRIPE_ECO_CPU_PRICE_ID: price_1USdNKAczm59y8RPBPjvI7pN
-    STRIPE_ECO_MEM_PRICE_ID: price_1USdNLAczm59y8RPG4kbNhu5
-    STRIPE_ECO_DISK_PRICE_ID: price_1USdNLAczm59y8RPgnBW0BEG
-    STRIPE_PROD_CPU_PRICE_ID: price_1USdNMAczm59y8RPiJHefikh
-    STRIPE_PROD_MEM_PRICE_ID: price_1USdNNAczm59y8RPdeDMpXtS
-    STRIPE_PROD_DISK_PRICE_ID: price_1USdNOAczm59y8RPvke3Og3S
-    STRIPE_STORAGE_PRICE_ID: price_1USdNPAczm59y8RPMUYnmHfj
-    STRIPE_EGRESS_PRICE_ID: price_1USdNPAczm59y8RPyFgdLdK9
+    STRIPE_HOBBY_PRICE_ID: *hobby-price
+    STRIPE_PRO_PRICE_ID: *pro-price
     STRIPE_ECO_CPU_METER_EVENT: eco_cpu_usage
     STRIPE_ECO_MEM_METER_EVENT: eco_memory_usage
     STRIPE_ECO_DISK_METER_EVENT: eco_disk_usage
-    STRIPE_PROD_CPU_METER_EVENT: prod_cpu_usage
-    STRIPE_PROD_MEM_METER_EVENT: prod_memory_usage
-    STRIPE_PROD_DISK_METER_EVENT: prod_disk_usage
     STRIPE_STORAGE_METER_EVENT: object_storage_usage
     STRIPE_EGRESS_METER_EVENT: egress_usage
     METERING_INTERVAL: 5m

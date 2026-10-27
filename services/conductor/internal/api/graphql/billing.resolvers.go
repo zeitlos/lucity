@@ -29,17 +29,17 @@ func (r *mutationResolver) SetEnvironmentResources(ctx context.Context, input mo
 	return new(convertEnvironment(*result)), nil
 }
 
-// ChangePlan is the resolver for the changePlan field.
-func (r *mutationResolver) ChangePlan(ctx context.Context, plan model.Plan) (*model.BillingSubscription, error) {
+// SelectPlan is the resolver for the selectPlan field.
+func (r *mutationResolver) SelectPlan(ctx context.Context, plan model.Plan) (*model.PlanSelection, error) {
 	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	res, err := r.Conductor.ChangePlan(ctx, ws, string(plan))
+	res, err := r.Conductor.SelectPlan(ctx, ws, string(plan))
 	if err != nil {
 		return nil, err
 	}
-	return convertBillingSubscription(res), nil
+	return convertPlanSelection(res), nil
 }
 
 // BillingPortalURL is the resolver for the billingPortalUrl field.
@@ -57,19 +57,6 @@ func (r *mutationResolver) BillingPortalURL(ctx context.Context) (*model.Billing
 	}
 
 	return &model.BillingPortalURL{URL: url}, nil
-}
-
-// CreatePlanCheckout is the resolver for the createPlanCheckout field.
-func (r *mutationResolver) CreatePlanCheckout(ctx context.Context, plan model.Plan) (*model.CheckoutSession, error) {
-	ws, err := tenant.FromContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-	url, err := r.Conductor.CreatePlanCheckout(ctx, ws, string(plan))
-	if err != nil {
-		return nil, err
-	}
-	return &model.CheckoutSession{URL: url}, nil
 }
 
 // CompletePlanCheckout is the resolver for the completePlanCheckout field.
@@ -105,7 +92,7 @@ func (r *queryResolver) UsageSummary(ctx context.Context) (*model.UsageSummary, 
 		return nil, err
 	}
 	res, err := r.Conductor.UsageSummary(ctx, ws)
-	if err != nil {
+	if err != nil || res == nil {
 		return nil, err
 	}
 	return new(convertUsageSummary(*res)), nil

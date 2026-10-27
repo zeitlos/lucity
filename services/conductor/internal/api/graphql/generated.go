@@ -401,7 +401,6 @@ type ComplexityRoot struct {
 		AddService                func(childComplexity int, environment platform.EnvironmentID, input model.AddServiceInput) int
 		BillingPortalURL          func(childComplexity int) int
 		BucketObjectUploadURL     func(childComplexity int, bucket platform.BucketID, key string) int
-		ChangePlan                func(childComplexity int, plan model.Plan) int
 		CompletePlanCheckout      func(childComplexity int, sessionID string) int
 		CompleteWorkspaceCheckout func(childComplexity int, sessionID string) int
 		CreateAPIToken            func(childComplexity int, input model.CreateAPITokenInput) int
@@ -410,7 +409,6 @@ type ComplexityRoot struct {
 		CreateDatabaseBackup      func(childComplexity int, database platform.DatabaseID) int
 		CreateEnvironment         func(childComplexity int, input model.CreateEnvironmentInput) int
 		CreateKeyValueStore       func(childComplexity int, input model.CreateKeyValueStoreInput) int
-		CreatePlanCheckout        func(childComplexity int, plan model.Plan) int
 		CreateProject             func(childComplexity int, input model.CreateProjectInput) int
 		CreateVolume              func(childComplexity int, environment platform.EnvironmentID, name string, size string) int
 		CreateWorkspaceCheckout   func(childComplexity int, input model.CreateWorkspaceCheckoutInput) int
@@ -436,6 +434,7 @@ type ComplexityRoot struct {
 		RestoreDatabase           func(childComplexity int, input model.RestoreDatabaseInput) int
 		RevokeAPIToken            func(childComplexity int, id string) int
 		Rollback                  func(childComplexity int, deployment platform.DeploymentID) int
+		SelectPlan                func(childComplexity int, plan model.Plan) int
 		SetAutoDeploy             func(childComplexity int, service platform.ServiceID, enabled bool) int
 		SetBucketPublic           func(childComplexity int, bucket platform.BucketID, public bool) int
 		SetCIDeploy               func(childComplexity int, service platform.ServiceID, enabled bool) int
@@ -455,6 +454,11 @@ type ComplexityRoot struct {
 		UnmountVolume             func(childComplexity int, volume platform.VolumeID) int
 		UpdateMemberRole          func(childComplexity int, input model.UpdateMemberRoleInput) int
 		UpdateWorkspace           func(childComplexity int, input model.UpdateWorkspaceInput) int
+	}
+
+	PlanSelection struct {
+		CheckoutURL  func(childComplexity int) int
+		Subscription func(childComplexity int) int
 	}
 
 	Project struct {
@@ -733,9 +737,8 @@ type MutationResolver interface {
 	CreateDatabaseBackup(ctx context.Context, database platform.DatabaseID) (*model.DatabaseBackup, error)
 	RestoreDatabase(ctx context.Context, input model.RestoreDatabaseInput) (*model.RestoreDatabaseResult, error)
 	SetEnvironmentResources(ctx context.Context, input model.SetEnvironmentResourcesInput) (*model.Environment, error)
-	ChangePlan(ctx context.Context, plan model.Plan) (*model.BillingSubscription, error)
+	SelectPlan(ctx context.Context, plan model.Plan) (*model.PlanSelection, error)
 	BillingPortalURL(ctx context.Context) (*model.BillingPortalURL, error)
-	CreatePlanCheckout(ctx context.Context, plan model.Plan) (*model.CheckoutSession, error)
 	CompletePlanCheckout(ctx context.Context, sessionID string) (*model.BillingSubscription, error)
 	CreateDatabase(ctx context.Context, input model.CreateDatabaseInput) (*model.Database, error)
 	SetDatabaseResources(ctx context.Context, database platform.DatabaseID, resources model.ResourcesInput) (*model.Database, error)
@@ -2220,17 +2223,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.BucketObjectUploadURL(childComplexity, args["bucket"].(platform.BucketID), args["key"].(string)), true
-	case "Mutation.changePlan":
-		if e.ComplexityRoot.Mutation.ChangePlan == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_changePlan_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.ComplexityRoot.Mutation.ChangePlan(childComplexity, args["plan"].(model.Plan)), true
 	case "Mutation.completePlanCheckout":
 		if e.ComplexityRoot.Mutation.CompletePlanCheckout == nil {
 			break
@@ -2319,17 +2311,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CreateKeyValueStore(childComplexity, args["input"].(model.CreateKeyValueStoreInput)), true
-	case "Mutation.createPlanCheckout":
-		if e.ComplexityRoot.Mutation.CreatePlanCheckout == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_createPlanCheckout_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.ComplexityRoot.Mutation.CreatePlanCheckout(childComplexity, args["plan"].(model.Plan)), true
 	case "Mutation.createProject":
 		if e.ComplexityRoot.Mutation.CreateProject == nil {
 			break
@@ -2600,6 +2581,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.Rollback(childComplexity, args["deployment"].(platform.DeploymentID)), true
+	case "Mutation.selectPlan":
+		if e.ComplexityRoot.Mutation.SelectPlan == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_selectPlan_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SelectPlan(childComplexity, args["plan"].(model.Plan)), true
 	case "Mutation.setAutoDeploy":
 		if e.ComplexityRoot.Mutation.SetAutoDeploy == nil {
 			break
@@ -2809,6 +2801,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.UpdateWorkspace(childComplexity, args["input"].(model.UpdateWorkspaceInput)), true
+
+	case "PlanSelection.checkoutUrl":
+		if e.ComplexityRoot.PlanSelection.CheckoutURL == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PlanSelection.CheckoutURL(childComplexity), true
+	case "PlanSelection.subscription":
+		if e.ComplexityRoot.PlanSelection.Subscription == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PlanSelection.Subscription(childComplexity), true
 
 	case "Project.environments":
 		if e.ComplexityRoot.Project.Environments == nil {
@@ -4799,6 +4804,16 @@ func (ec *executionContext) childFields_Mount(ctx context.Context, field graphql
 	return nil, fmt.Errorf("no field named %q was found under type Mount", field.Name)
 }
 
+func (ec *executionContext) childFields_PlanSelection(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "subscription":
+		return ec.fieldContext_PlanSelection_subscription(ctx, field)
+	case "checkoutUrl":
+		return ec.fieldContext_PlanSelection_checkoutUrl(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type PlanSelection", field.Name)
+}
+
 func (ec *executionContext) childFields_Project(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "id":
@@ -5590,20 +5605,6 @@ func (ec *executionContext) field_Mutation_bucketObjectUploadUrl_argsKey(
 	}
 }
 
-func (ec *executionContext) field_Mutation_changePlan_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "plan",
-		func(ctx context.Context, v any) (model.Plan, error) {
-			return ec.unmarshalNPlan2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐPlan(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["plan"] = arg0
-	return args, nil
-}
-
 func (ec *executionContext) field_Mutation_completePlanCheckout_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -5713,20 +5714,6 @@ func (ec *executionContext) field_Mutation_createKeyValueStore_args(ctx context.
 		return nil, err
 	}
 	args["input"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_createPlanCheckout_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "plan",
-		func(ctx context.Context, v any) (model.Plan, error) {
-			return ec.unmarshalNPlan2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐPlan(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["plan"] = arg0
 	return args, nil
 }
 
@@ -6257,6 +6244,20 @@ func (ec *executionContext) field_Mutation_rollback_args(ctx context.Context, ra
 		return nil, err
 	}
 	args["deployment"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_selectPlan_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "plan",
+		func(ctx context.Context, v any) (model.Plan, error) {
+			return ec.unmarshalNPlan2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐPlan(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["plan"] = arg0
 	return args, nil
 }
 
@@ -12841,24 +12842,24 @@ func (ec *executionContext) fieldContext_Mutation_setEnvironmentResources(ctx co
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_changePlan(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_selectPlan(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
 		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Mutation_changePlan(ctx, field)
+			return ec.fieldContext_Mutation_selectPlan(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().ChangePlan(ctx, fc.Args["plan"].(model.Plan))
+			return ec.Resolvers.Mutation().SelectPlan(ctx, fc.Args["plan"].(model.Plan))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
 				if ec.Directives.AllowSuspended == nil {
-					var zeroVal *model.BillingSubscription
+					var zeroVal *model.PlanSelection
 					return zeroVal, errors.New("directive allowSuspended is not implemented")
 				}
 				return ec.Directives.AllowSuspended(ctx, nil, directive0)
@@ -12866,11 +12867,11 @@ func (ec *executionContext) _Mutation_changePlan(ctx context.Context, field grap
 			directive2 := func(ctx context.Context) (any, error) {
 				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_ADMIN")
 				if err != nil {
-					var zeroVal *model.BillingSubscription
+					var zeroVal *model.PlanSelection
 					return zeroVal, err
 				}
 				if ec.Directives.HasRole == nil {
-					var zeroVal *model.BillingSubscription
+					var zeroVal *model.PlanSelection
 					return zeroVal, errors.New("directive hasRole is not implemented")
 				}
 				return ec.Directives.HasRole(ctx, nil, directive1, role)
@@ -12879,21 +12880,21 @@ func (ec *executionContext) _Mutation_changePlan(ctx context.Context, field grap
 			next = directive2
 			return next
 		},
-		func(ctx context.Context, selections ast.SelectionSet, v *model.BillingSubscription) graphql.Marshaler {
-			return ec.marshalNBillingSubscription2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBillingSubscription(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v *model.PlanSelection) graphql.Marshaler {
+			return ec.marshalNPlanSelection2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐPlanSelection(ctx, selections, v)
 		},
 		true,
 		true,
 	)
 }
-func (ec *executionContext) fieldContext_Mutation_changePlan(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_selectPlan(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
 		IsMethod:   true,
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_BillingSubscription(ctx, field)
+			return ec.childFields_PlanSelection(ctx, field)
 		},
 	}
 	defer func() {
@@ -12903,7 +12904,7 @@ func (ec *executionContext) fieldContext_Mutation_changePlan(ctx context.Context
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_changePlan_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_selectPlan_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -12963,75 +12964,6 @@ func (ec *executionContext) fieldContext_Mutation_billingPortalUrl(_ context.Con
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_BillingPortalUrl(ctx, field)
 		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_createPlanCheckout(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Mutation_createPlanCheckout(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().CreatePlanCheckout(ctx, fc.Args["plan"].(model.Plan))
-		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.AllowSuspended == nil {
-					var zeroVal *model.CheckoutSession
-					return zeroVal, errors.New("directive allowSuspended is not implemented")
-				}
-				return ec.Directives.AllowSuspended(ctx, nil, directive0)
-			}
-			directive2 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_ADMIN")
-				if err != nil {
-					var zeroVal *model.CheckoutSession
-					return zeroVal, err
-				}
-				if ec.Directives.HasRole == nil {
-					var zeroVal *model.CheckoutSession
-					return zeroVal, errors.New("directive hasRole is not implemented")
-				}
-				return ec.Directives.HasRole(ctx, nil, directive1, role)
-			}
-
-			next = directive2
-			return next
-		},
-		func(ctx context.Context, selections ast.SelectionSet, v *model.CheckoutSession) graphql.Marshaler {
-			return ec.marshalNCheckoutSession2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐCheckoutSession(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_Mutation_createPlanCheckout(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_CheckoutSession(ctx, field)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_createPlanCheckout_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
 	}
 	return fc, nil
 }
@@ -16196,6 +16128,61 @@ func (ec *executionContext) fieldContext_Mutation_updateMemberRole(ctx context.C
 		return fc, err
 	}
 	return fc, nil
+}
+
+func (ec *executionContext) _PlanSelection_subscription(ctx context.Context, field graphql.CollectedField, obj *model.PlanSelection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_PlanSelection_subscription(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Subscription, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.BillingSubscription) graphql.Marshaler {
+			return ec.marshalOBillingSubscription2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBillingSubscription(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_PlanSelection_subscription(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PlanSelection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_BillingSubscription(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PlanSelection_checkoutUrl(ctx context.Context, field graphql.CollectedField, obj *model.PlanSelection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_PlanSelection_checkoutUrl(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CheckoutURL, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_PlanSelection_checkoutUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("PlanSelection", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _Project_id(ctx context.Context, field graphql.CollectedField, obj *model.Project) (ret graphql.Marshaler) {
@@ -27262,9 +27249,9 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "changePlan":
+		case "selectPlan":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_changePlan(ctx, field)
+				return ec._Mutation_selectPlan(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -27272,13 +27259,6 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "billingPortalUrl":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_billingPortalUrl(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "createPlanCheckout":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_createPlanCheckout(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -27638,6 +27618,49 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 				return ec._Mutation_updateMemberRole(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var planSelectionImplementors = []string{"PlanSelection"}
+
+func (ec *executionContext) _PlanSelection(ctx context.Context, sel ast.SelectionSet, obj *model.PlanSelection) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, planSelectionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PlanSelection")
+		case "subscription":
+			out.Values[i] = ec._PlanSelection_subscription(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "checkoutUrl":
+			out.Values[i] = ec._PlanSelection_checkoutUrl(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
 		default:
@@ -31794,6 +31817,16 @@ func (ec *executionContext) unmarshalNPlan2githubᚗcomᚋzeitlosᚋlucityᚋser
 
 func (ec *executionContext) marshalNPlan2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐPlan(ctx context.Context, sel ast.SelectionSet, v model.Plan) graphql.Marshaler {
 	return v
+}
+
+func (ec *executionContext) marshalNPlanSelection2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐPlanSelection(ctx context.Context, sel ast.SelectionSet, v *model.PlanSelection) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._PlanSelection(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNProject2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐProject(ctx context.Context, sel ast.SelectionSet, v model.Project) graphql.Marshaler {

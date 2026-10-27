@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 	platformK8s "github.com/zeitlos/lucity/pkg/platform/kubernetes"
 	webhookhttp "github.com/zeitlos/lucity/services/conductor/internal/api/webhook/http"
 	"github.com/zeitlos/lucity/services/conductor/internal/backuparchive"
+	"github.com/zeitlos/lucity/services/conductor/internal/billing"
 	buildjobK8s "github.com/zeitlos/lucity/services/conductor/internal/buildjob/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 	deployjobK8s "github.com/zeitlos/lucity/services/conductor/internal/deployjob/kubernetes"
@@ -33,12 +35,10 @@ import (
 	scanjobK8s "github.com/zeitlos/lucity/services/conductor/internal/scanjob/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/scanreport"
 	sourceGH "github.com/zeitlos/lucity/services/conductor/internal/source/github"
-	conductorgrpc "github.com/zeitlos/lucity/services/conductor/internal/transport/grpc"
 	"github.com/zeitlos/lucity/services/conductor/internal/vulnerabilities"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/bunny"
-	"github.com/zeitlos/lucity/pkg/cashier"
 	ghpkg "github.com/zeitlos/lucity/pkg/github"
 	"github.com/zeitlos/lucity/pkg/graceful"
 	"github.com/zeitlos/lucity/pkg/kvstore"
@@ -49,8 +49,6 @@ import (
 
 	kauth "github.com/google/go-containerregistry/pkg/authn/kubernetes"
 	"github.com/kelseyhightower/envconfig"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
@@ -61,7 +59,6 @@ import (
 
 type Config struct {
 	Port        string `envconfig:"PORT" default:"8080"`
-	GRPCPort    string `envconfig:"GRPC_PORT" default:"9090"`
 	WebhookPort string `envconfig:"WEBHOOK_PORT" default:"9004"`
 	LogLevel    string `envconfig:"LOG_LEVEL" default:"info"`
 
@@ -83,8 +80,18 @@ type Config struct {
 	LogtoM2MAppID     string `envconfig:"LOGTO_M2M_APP_ID" required:"true"`
 	LogtoM2MAppSecret string `envconfig:"LOGTO_M2M_APP_SECRET" required:"true"`
 
-	// External services (still gRPC)
-	CashierAddr string `envconfig:"CASHIER_ADDR"`
+	// Stripe billing: optional, disabled without a key
+	StripeSecretKey       string `envconfig:"STRIPE_SECRET_KEY"`
+	StripeHobbyPriceID    string `envconfig:"STRIPE_HOBBY_PRICE_ID"`
+	StripeProPriceID      string `envconfig:"STRIPE_PRO_PRICE_ID"`
+	StripeEcoCPUPriceID   string `envconfig:"STRIPE_ECO_CPU_PRICE_ID"`
+	StripeEcoMemPriceID   string `envconfig:"STRIPE_ECO_MEM_PRICE_ID"`
+	StripeEcoDiskPriceID  string `envconfig:"STRIPE_ECO_DISK_PRICE_ID"`
+	StripeProdCPUPriceID  string `envconfig:"STRIPE_PROD_CPU_PRICE_ID"`
+	StripeProdMemPriceID  string `envconfig:"STRIPE_PROD_MEM_PRICE_ID"`
+	StripeProdDiskPriceID string `envconfig:"STRIPE_PROD_DISK_PRICE_ID"`
+	StripeStoragePriceID  string `envconfig:"STRIPE_STORAGE_PRICE_ID"`
+	StripeEgressPriceID   string `envconfig:"STRIPE_EGRESS_PRICE_ID"`
 
 	// Webhook (GitHub events)
 	WebhookSecret string `envconfig:"WEBHOOK_SECRET" required:"true"`
@@ -153,10 +160,6 @@ type Config struct {
 	DatabaseDomain            string `envconfig:"DATABASE_DOMAIN" required:"true"`
 	IPAddress                 string `envconfig:"IP_ADDRESS"`
 	CustomDomainClusterIssuer string `envconfig:"CUSTOM_DOMAIN_CLUSTER_ISSUER" default:"letsencrypt-http01"`
-
-	// Internal JWT (ES256)
-	InternalJWTPrivateKeyPath string `envconfig:"INTERNAL_JWT_PRIVATE_KEY_PATH"`
-	InternalJWTPublicKeyPath  string `envconfig:"INTERNAL_JWT_PUBLIC_KEY_PATH"`
 
 	// OVH
 	OVHEndpoint    string `envconfig:"OVH_ENDPOINT" default:"ovh-eu"`
@@ -238,39 +241,38 @@ func main() {
 		os.Exit(1)
 	}
 
-	var internalIssuer *auth.Issuer
-	if config.InternalJWTPrivateKeyPath != "" {
-		internalIssuer, err = auth.NewIssuerFromFile(config.InternalJWTPrivateKeyPath)
-		if err != nil {
-			slog.Error("failed to create internal JWT issuer", "error", err)
-			os.Exit(1)
-		}
-		slog.Info("internal JWT issuer initialized (ES256)")
-	} else {
-		slog.Warn("internal JWT not configured — outgoing service-to-service calls are unauthenticated")
-	}
-
 	k8sClient, dynClient, _, err := buildKubeClients()
 	if err != nil {
 		slog.Error("failed to build kube clients", "error", err)
 		os.Exit(1)
 	}
 
-	var cashierClient cashier.CashierServiceClient
-	var cashierConn *grpc.ClientConn
-	if config.CashierAddr != "" {
-		cashierConn, err = grpc.NewClient(config.CashierAddr,
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-		)
-		if err != nil {
-			slog.Error("failed to connect to cashier", "error", err, "addr", config.CashierAddr)
+	var billingClient *billing.Client
+	if config.StripeSecretKey != "" {
+		metered := []string{
+			config.StripeEcoCPUPriceID,
+			config.StripeEcoMemPriceID,
+			config.StripeEcoDiskPriceID,
+			config.StripeProdCPUPriceID,
+			config.StripeProdMemPriceID,
+			config.StripeProdDiskPriceID,
+			config.StripeStoragePriceID,
+			config.StripeEgressPriceID,
+		}
+
+		if config.StripeHobbyPriceID == "" || config.StripeProPriceID == "" || slices.Contains(metered, "") {
+			slog.Error("billing needs all ten STRIPE_*_PRICE_ID settings with STRIPE_SECRET_KEY")
 			os.Exit(1)
 		}
-		defer cashierConn.Close()
-		cashierClient = cashier.NewCashierServiceClient(cashierConn)
-		slog.Info("billing enabled", "addr", config.CashierAddr)
+
+		billingClient = billing.New(config.StripeSecretKey, billing.Prices{
+			Hobby:   config.StripeHobbyPriceID,
+			Pro:     config.StripeProPriceID,
+			Metered: metered,
+		})
+		slog.Info("billing enabled")
 	} else {
-		slog.Info("cashier not configured — billing disabled")
+		slog.Info("STRIPE_SECRET_KEY not set, billing disabled")
 	}
 
 	githubApp, err := ghpkg.NewApp(config.GitHubAppID, config.GitHubClientID, config.GitHubClientSecret, config.GitHubPrivateKeyPath)
@@ -498,24 +500,19 @@ func main() {
 		Keychain:     keychain,
 	})
 
-	conductor := conductor.New(cashierClient, githubApp, logtoClient, directoryClient, platformClient, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, vulnerabilitiesClient, pipelineClient, planner, source, hostnameClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, domainsClient, conductorConfig)
+	conductor := conductor.New(billingClient, githubApp, logtoClient, directoryClient, platformClient, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, vulnerabilitiesClient, pipelineClient, planner, source, hostnameClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, domainsClient, conductorConfig)
 
 	platformClient.Start(ctx)
 	jobsCache.Start(ctx)
 
 	slog.Info("release queue ready", "maxQueuedPerWorkspace", config.MaxQueuedReleases)
 
-	components := []grpcComponent{}
-	if cashierConn != nil {
-		components = append(components, grpcComponent{name: "cashier", conn: cashierConn})
-	}
-
 	githubActionsAudience := config.GitHubActionsAudience
 	if githubActionsAudience == "" {
 		githubActionsAudience = originFromURL(config.OIDCCallbackURL)
 	}
 
-	graphqlServer := NewGraphQLServer(config.Port, conductor, oidcProvider, sessionStore, sessionCodec, verifier, logtoClient, internalIssuer, config.OIDCCallbackURL, config.DashboardURL, config.GitHubAppSlug, githubActionsAudience, config.OIDCIssuerURL, apiAudience, config.OIDCCLIClientID, components)
+	graphqlServer := NewGraphQLServer(config.Port, conductor, oidcProvider, sessionStore, sessionCodec, verifier, logtoClient, config.OIDCCallbackURL, config.DashboardURL, config.GitHubAppSlug, githubActionsAudience, config.OIDCIssuerURL, apiAudience, config.OIDCCLIClientID)
 
 	servers := []graceful.Server{graphqlServer}
 
@@ -530,20 +527,6 @@ func main() {
 		slog.Info("webhook receiver ready", "port", config.WebhookPort)
 	} else {
 		slog.Info("webhook receiver disabled (GitHub App not configured)")
-	}
-
-	if config.InternalJWTPublicKeyPath != "" {
-		internalVerifier, err := auth.NewInternalVerifierFromFile(config.InternalJWTPublicKeyPath)
-		if err != nil {
-			slog.Error("failed to create internal JWT verifier", "error", err)
-			os.Exit(1)
-		}
-		grpcSvc := conductorgrpc.NewService(platformClient)
-		grpcSrv := conductorgrpc.NewServer(":"+config.GRPCPort, grpcSvc, internalVerifier)
-		slog.Info("conductor gRPC ready", "port", config.GRPCPort)
-		servers = append(servers, grpcSrv)
-	} else {
-		slog.Info("internal JWT public key not set — conductor gRPC server disabled")
 	}
 
 	graceful.Serve(ctx, servers...)

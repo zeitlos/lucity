@@ -471,7 +471,21 @@ func convertWorkspaceMember(m *conductor.WorkspaceMember) *model.WorkspaceMember
 	return result
 }
 
+func convertPlanSelection(selection *conductor.PlanSelection) *model.PlanSelection {
+	result := &model.PlanSelection{Subscription: convertBillingSubscription(selection.Subscription)}
+
+	if selection.CheckoutURL != "" {
+		result.CheckoutURL = &selection.CheckoutURL
+	}
+
+	return result
+}
+
 func convertBillingSubscription(s *conductor.BillingSubscription) *model.BillingSubscription {
+	if s == nil {
+		return nil
+	}
+
 	var plan *model.Plan
 	if s.Plan != nil {
 		p := convertPlan(*s.Plan)

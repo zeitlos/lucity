@@ -148,6 +148,8 @@ func (w *Worker) reconcile(ctx context.Context) error {
 		}
 	}
 
+	w.mark(ctx, resume, verdicts, false)
+
 	for _, environment := range environments {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -193,8 +195,6 @@ func (w *Worker) reconcile(ctx context.Context) error {
 			planned++
 		}
 	}
-
-	w.mark(ctx, resume, verdicts, false)
 
 	if applied > 0 || planned > 0 || len(suspend) > 0 || len(resume) > 0 {
 		slog.Info("release pass done", "applied", applied, "planned", planned, "suspended", len(suspend), "resumed", len(resume))

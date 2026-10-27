@@ -125,14 +125,18 @@ const UsageSummaryDocument = graphql(`
   }
 `);
 
-const ChangePlanDocument = graphql(`
-  mutation ChangePlan($plan: Plan!) {
-    changePlan(plan: $plan) {
-      plan
-      status
-      currentPeriodEnd
-      creditAmountCents
-      creditExpiry
+const SelectPlanDocument = graphql(`
+  mutation SelectPlan($plan: Plan!) {
+    selectPlan(plan: $plan) {
+      checkoutUrl
+      subscription {
+        plan
+        status
+        currentPeriodEnd
+        creditAmountCents
+        creditExpiry
+        hasPaymentMethod
+      }
     }
   }
 `);
@@ -145,13 +149,6 @@ const BillingPortalUrlDocument = graphql(`
   }
 `);
 
-const CreatePlanCheckoutDocument = graphql(`
-  mutation CreatePlanCheckout($plan: Plan!) {
-    createPlanCheckout(plan: $plan) {
-      url
-    }
-  }
-`);
 
 const WorkspaceDocument = graphql(`
   query Workspace {
@@ -299,16 +296,16 @@ const subscription = computed(() => subResult.value?.subscription);
 const { result: usageResult, loading: usageLoading } = useQuery(UsageSummaryDocument);
 const usage = computed(() => usageResult.value?.usageSummary);
 
-const billingAvailable = computed(() => !subError.value && subscription.value);
+const billingAvailable = computed(() => !subError.value);
 
-const { mutate: changePlanMutate, loading: changingPlan } = useMutation(ChangePlanDocument, {
+const { mutate: selectPlanMutate, loading: selectingPlan } = useMutation(SelectPlanDocument, {
   refetchQueries: () => [{ query: SubscriptionDocument }, { query: UsageSummaryDocument }],
 });
 const { mutate: portalMutate, loading: openingPortal } = useMutation(BillingPortalUrlDocument);
-const { mutate: planCheckoutMutate, loading: startingPlanCheckout } = useMutation(CreatePlanCheckoutDocument);
 const confirmPlan = ref<Plan | null>(null);
 const trialSelectedPlan = ref<Plan>(Plan.Hobby);
-const hasPlan = computed(() => billingAvailable.value && !!subscription.value?.plan);
+const subscriptionEnded = computed(() => subscription.value?.status === SubscriptionStatus.Canceled);
+const hasPlan = computed(() => billingAvailable.value && !!subscription.value?.plan && !subscriptionEnded.value);
 const isTrialing = computed(() => billingAvailable.value && subscription.value?.status === SubscriptionStatus.Trialing);
 
 function formatCents(cents: number): string {
@@ -319,27 +316,28 @@ function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
-async function handleChangePlan() {
-  if (!confirmPlan.value) return;
+async function selectPlan(plan: Plan): Promise<boolean> {
   try {
-    await changePlanMutate({ plan: confirmPlan.value });
-    toast.success(`Switched to ${confirmPlan.value === Plan.Pro ? 'Pro' : 'Hobby'} plan`);
+    const res = await selectPlanMutate({ plan });
+    const url = res?.data?.selectPlan?.checkoutUrl;
+    if (url) {
+      window.location.href = url;
+      return false;
+    }
+    toast.success(`You're on the ${plan === Plan.Pro ? 'Pro' : 'Hobby'} plan`);
+    return true;
   } catch (e: unknown) {
-    errorToast('Failed to change plan', { description: errorMessage(e) });
-  } finally {
-    confirmPlan.value = null;
+    errorToast('Failed to select the plan', { description: errorMessage(e) });
+    return false;
   }
 }
 
-async function handlePlanCheckout(plan: Plan) {
+async function handleChangePlan() {
+  if (!confirmPlan.value) return;
   try {
-    const res = await planCheckoutMutate({ plan });
-    const url = res?.data?.createPlanCheckout?.url;
-    if (url) {
-      window.location.href = url;
-    }
-  } catch (e: unknown) {
-    errorToast('Failed to start checkout', { description: errorMessage(e) });
+    await selectPlan(confirmPlan.value);
+  } finally {
+    confirmPlan.value = null;
   }
 }
 
@@ -632,8 +630,14 @@ async function handleDelete() {
                     <h3 class="text-sm font-medium text-foreground">
                       Choose a plan to continue
                     </h3>
-                    <p v-if="isTrialing" class="mt-1 text-sm text-muted-foreground">
-                      You're on a trial with &euro;5 in free credits<template v-if="subscription!.creditExpiry">, expiring {{ formatDate(subscription!.creditExpiry) }}</template>.
+                    <p v-if="!subscription" class="mt-1 text-sm text-muted-foreground">
+                      Pick a plan and add a payment method to start using your workspace.
+                    </p>
+                    <p v-else-if="subscriptionEnded" class="mt-1 text-sm text-muted-foreground">
+                      Your subscription has ended. Pick a plan to reactivate your workspace.
+                    </p>
+                    <p v-else-if="isTrialing" class="mt-1 text-sm text-muted-foreground">
+                      You're on a trial with &euro;5 in free credits<template v-if="subscription.creditExpiry">, expiring {{ formatDate(subscription.creditExpiry) }}</template>.
                       Pick a plan and add a payment method to keep your workspace running.
                     </p>
                     <p v-else class="mt-1 text-sm text-muted-foreground">
@@ -644,14 +648,14 @@ async function handleDelete() {
 
                 <PlanPicker
                   v-model="trialSelectedPlan"
-                  :disabled="startingPlanCheckout"
+                  :disabled="selectingPlan"
                 />
 
                 <Button
-                  :disabled="startingPlanCheckout"
-                  @click="handlePlanCheckout(trialSelectedPlan)"
+                  :disabled="selectingPlan"
+                  @click="selectPlan(trialSelectedPlan)"
                 >
-                  {{ startingPlanCheckout ? 'Redirecting...' : `Continue with ${trialSelectedPlan === Plan.Pro ? 'Pro' : 'Hobby'}` }}
+                  {{ selectingPlan ? 'Working...' : `Continue with ${trialSelectedPlan === Plan.Pro ? 'Pro' : 'Hobby'}` }}
                 </Button>
               </div>
 
@@ -733,9 +737,9 @@ async function handleDelete() {
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel :disabled="changingPlan" @click="confirmPlan = null">Cancel</AlertDialogCancel>
-                    <Button :disabled="changingPlan" @click="handleChangePlan">
-                      {{ changingPlan ? 'Switching...' : 'Confirm' }}
+                    <AlertDialogCancel :disabled="selectingPlan" @click="confirmPlan = null">Cancel</AlertDialogCancel>
+                    <Button :disabled="selectingPlan" @click="handleChangePlan">
+                      {{ selectingPlan ? 'Switching...' : 'Confirm' }}
                     </Button>
                   </AlertDialogFooter>
                 </AlertDialogContent>
