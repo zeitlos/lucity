@@ -72,7 +72,7 @@ func (c *VMClient) EgressByNamespace(ctx context.Context, start, end time.Time) 
 
 func (c *VMClient) StorageByWorkspace(ctx context.Context, start, end time.Time) (map[string]float64, error) {
 	q := fmt.Sprintf(
-		`sum by (workspace) (avg_over_time(lucity_bucket_size_bytes[%s]))`,
+		`sum by (workspace) (avg_over_time((max by (workspace, project, environment, bucket) (lucity_bucket_size_bytes))[%s:1m]))`,
 		promDuration(end.Sub(start)),
 	)
 	return c.queryByLabel(ctx, q, end, "workspace")
