@@ -81,7 +81,7 @@ func (c *Client) SelectPlan(ctx context.Context, customerID, workspace string, p
 	if live {
 		err = c.addPlan(ctx, current.ID, price)
 	} else {
-		err = c.subscribe(ctx, customerID, workspace, price)
+		err = c.subscribe(ctx, customerID, workspace, price, current)
 	}
 
 	if err != nil {
@@ -202,14 +202,20 @@ func (c *Client) addPlan(ctx context.Context, subscriptionID, price string) erro
 	return nil
 }
 
-func (c *Client) subscribe(ctx context.Context, customerID, workspace, price string) error {
-	if _, err := c.stripe.V1Subscriptions.Create(ctx, &stripe.SubscriptionCreateParams{
+func (c *Client) subscribe(ctx context.Context, customerID, workspace, price string, ended *stripe.Subscription) error {
+	params := &stripe.SubscriptionCreateParams{
 		Customer:        stripe.String(customerID),
 		PaymentBehavior: stripe.String("error_if_incomplete"),
 		BillingMode:     &stripe.SubscriptionCreateBillingModeParams{Type: stripe.String(string(stripe.SubscriptionBillingModeTypeClassic))},
 		Items:           c.items(price),
 		Metadata:        map[string]string{"workspace": workspace},
-	}); err != nil {
+	}
+
+	if ended != nil && ended.DefaultPaymentMethod != nil {
+		params.DefaultPaymentMethod = stripe.String(ended.DefaultPaymentMethod.ID)
+	}
+
+	if _, err := c.stripe.V1Subscriptions.Create(ctx, params); err != nil {
 		return fmt.Errorf("create subscription: %w", err)
 	}
 
@@ -217,6 +223,10 @@ func (c *Client) subscribe(ctx context.Context, customerID, workspace, price str
 }
 
 func (c *Client) checkout(ctx context.Context, customerID, workspace, price string, live bool, checkout Checkout) (string, error) {
+	if err := c.expireCheckouts(ctx, customerID); err != nil {
+		return "", err
+	}
+
 	params := &stripe.CheckoutSessionCreateParams{
 		Customer:   stripe.String(customerID),
 		SuccessURL: stripe.String(checkout.SuccessURL),
@@ -260,6 +270,25 @@ func (c *Client) checkout(ctx context.Context, customerID, workspace, price stri
 	}
 
 	return session.URL, nil
+}
+
+func (c *Client) expireCheckouts(ctx context.Context, customerID string) error {
+	params := &stripe.CheckoutSessionListParams{
+		Customer: stripe.String(customerID),
+		Status:   stripe.String(string(stripe.CheckoutSessionStatusOpen)),
+	}
+
+	for session, err := range c.stripe.V1CheckoutSessions.List(ctx, params).All(ctx) {
+		if err != nil {
+			return fmt.Errorf("list open checkouts: %w", err)
+		}
+
+		if _, err := c.stripe.V1CheckoutSessions.Expire(ctx, session.ID, nil); err != nil {
+			return fmt.Errorf("expire checkout: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func (c *Client) planPrice(plan billing.Plan) (string, error) {
