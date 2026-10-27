@@ -39,7 +39,6 @@ import { errorMessage } from '@/lib/utils';
 
 const props = defineProps<{
   projectId: string;
-  projectName: string;
   environment: {
     id: string;
     name: string;
@@ -109,7 +108,6 @@ async function handleDelete() {
 <template>
   <ContextDrawer
     title="Environment settings"
-    :description="`These apply to ${environment.name} only. Project-wide settings are one level up, in ${projectName}.`"
     @close="emit('close')"
   >
     <div class="flex min-h-full flex-col gap-6">

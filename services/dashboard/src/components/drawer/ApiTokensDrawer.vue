@@ -68,10 +68,6 @@ import {
 import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 
-defineProps<{
-  workspaceName: string;
-}>();
-
 const emit = defineEmits<{
   (e: 'close'): void;
 }>();
@@ -134,7 +130,6 @@ function formatDate(dateStr: string): string {
 <template>
   <ContextDrawer
     title="API tokens"
-    :description="`Tokens let the CLI and CI work in ${workspaceName} without a browser login. Each one acts with the role you give it.`"
     @close="emit('close')"
   >
     <div class="space-y-5">
@@ -161,6 +156,9 @@ function formatDate(dateStr: string): string {
             {{ creating ? 'Creating...' : 'Create' }}
           </Button>
         </div>
+        <p class="text-xs text-muted-foreground">
+          For the CLI and CI. A token acts with the role you give it.
+        </p>
       </form>
 
       <div v-if="loading" class="space-y-2">

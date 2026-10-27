@@ -1,9 +1,9 @@
 <script setup lang="ts">
+import { useEscapeToClose } from '@/composables/useEscapeToClose';
 import { ref, computed, watch, nextTick } from 'vue';
 import { X, Pause, Play, AlertCircle, Eraser } from '@lucide/vue';
 import Spinner from '@/components/LoadingSpinner.vue';
 import LogLine from '@/components/LogLine.vue';
-import { onKeyStroke } from '@vueuse/core';
 import { useBuildLogs } from '@/composables/useBuildLogs';
 import { useDeployLogs } from '@/composables/useDeployLogs';
 import { useScanLogs } from '@/composables/useScanLogs';
@@ -23,7 +23,7 @@ const emit = defineEmits<{
   (e: 'close'): void;
 }>();
 
-onKeyStroke('Escape', () => emit('close'));
+useEscapeToClose(() => emit('close'));
 
 const buildIdRef = computed(() => (props.kind === 'build' ? props.id : null));
 const deployIdRef = computed(() => (props.kind === 'deploy' ? props.id : null));

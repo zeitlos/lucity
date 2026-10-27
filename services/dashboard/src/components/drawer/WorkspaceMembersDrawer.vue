@@ -139,9 +139,6 @@ function initial(member: { email: string; name?: string | null }) {
 <template>
   <ContextDrawer
     title="Members"
-    :description="isAdmin
-      ? `Everyone with access to ${props.workspace.name}. Admins can invite people and change roles.`
-      : `Everyone with access to ${props.workspace.name}.`"
     @close="emit('close')"
   >
     <div class="space-y-5">
@@ -170,6 +167,9 @@ function initial(member: { email: string; name?: string | null }) {
           </Button>
         </div>
       </form>
+      <p v-else class="text-xs text-muted-foreground">
+        Only admins can invite people.
+      </p>
 
       <div class="divide-y overflow-hidden rounded-lg border">
         <div

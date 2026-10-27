@@ -1,11 +1,10 @@
 <script setup lang="ts">
+import PanelShell from '@/components/PanelShell.vue';
 import { ref } from 'vue';
-import { X, SquareArrowOutUpRight, Container } from '@lucide/vue';
+import { SquareArrowOutUpRight, Container } from '@lucide/vue';
 import GithubIcon from '@/components/GithubIcon.vue';
-import { onKeyStroke } from '@vueuse/core';
 import { useServiceLogsPanel } from '@/composables/useServiceLogsPanel';
 import type { Service } from '@/composables/useEnvironment';
-import IconButton from '@/components/IconButton.vue';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import DeploymentsTab from './DeploymentsTab.vue';
@@ -32,28 +31,14 @@ function openLogs() {
   serviceLogsPanel.open(props.service.id, props.service.name);
 }
 
-onKeyStroke('Escape', () => {
-  emit('close');
-});
 </script>
 
 <template>
-  <div class="flex h-full flex-col rounded-lg border bg-card">
-    <!-- Header -->
-    <div class="flex shrink-0 items-center justify-between border-b px-4 py-3">
-      <div class="flex items-center gap-3">
-        <GithubIcon v-if="service.sourceUrl" :size="24" />
-        <Container v-else :size="24" />
-        <h2 class="text-lg font-semibold text-foreground">{{ service.name }}</h2>
-      </div>
-
-      <IconButton
-        label="Close" shortcut="Esc"
-        @click="emit('close')"
-      >
-        <X />
-      </IconButton>
-    </div>
+  <PanelShell :title="service.name" @close="emit('close')">
+    <template #icon>
+      <GithubIcon v-if="service.sourceUrl" />
+      <Container v-else />
+    </template>
 
     <!-- Tab Content -->
     <ScrollArea class="flex-1">
@@ -106,5 +91,5 @@ onKeyStroke('Escape', () => {
         </TabsContent>
       </Tabs>
     </ScrollArea>
-  </div>
+  </PanelShell>
 </template>

@@ -792,7 +792,6 @@ watch(error, (err) => {
             >
               <EnvironmentSettingsDrawer
                 :project-id="projectId"
-                :project-name="projectName"
                 :environment="environment"
                 @close="closeDrawer"
               />
@@ -899,7 +898,6 @@ watch(error, (err) => {
           >
             <ServiceVulnerabilitiesPanel
               :service-id="vulnerabilitiesPanel.serviceId.value!"
-              :service-name="vulnerabilitiesPanel.serviceName.value"
               @close="vulnerabilitiesPanel.close()"
             />
           </div>

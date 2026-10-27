@@ -65,7 +65,6 @@ async function handleDelete() {
 <template>
   <ContextDrawer
     title="Project settings"
-    :description="`These apply to ${project.name} as a whole, across all of its environments.`"
     @close="emit('close')"
   >
     <div class="flex min-h-full flex-col gap-6">

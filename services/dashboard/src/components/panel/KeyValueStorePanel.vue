@@ -1,13 +1,12 @@
 <script setup lang="ts">
+import PanelShell from '@/components/PanelShell.vue';
 import { devicon } from '@/lib/devicons';
 import { reactive, computed, ref } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
-import { X, Copy, Eye, EyeOff, DatabaseZap, Trash2, Database, HardDrive } from '@lucide/vue';
+import { Copy, Eye, EyeOff, DatabaseZap, Trash2, Database, HardDrive } from '@lucide/vue';
 import Spinner from '@/components/LoadingSpinner.vue';
-import { onKeyStroke } from '@vueuse/core';
 import { graphql } from '@/gql';
 import { Button } from '@/components/ui/button';
-import IconButton from '@/components/IconButton.vue';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -56,9 +55,6 @@ const emit = defineEmits<{
   (e: 'store-removed'): void;
 }>();
 
-onKeyStroke('Escape', () => {
-  emit('close');
-});
 
 const { result, loading, error } = useQuery(
   KeyValueStoreCredentialsDocument,
@@ -125,24 +121,15 @@ async function handleDelete() {
 </script>
 
 <template>
-  <div class="flex h-full flex-col rounded-lg border bg-card shadow-sm">
-    <!-- Header -->
-    <div class="flex shrink-0 items-center justify-between border-b px-4 py-3">
-      <div class="flex items-center gap-3">
-        <img
-          :src="devicon('redis')"
-          :width="24"
-          :height="24"
-          class="shrink-0"
-          alt=""
-        />
-        <h2 class="text-lg font-semibold text-foreground">{{ store.name }}</h2>
-      </div>
-
-      <IconButton label="Close" shortcut="Esc" @click="emit('close')">
-        <X />
-      </IconButton>
-    </div>
+  <PanelShell :title="store.name" @close="emit('close')">
+    <template #icon>
+      <img
+        :src="devicon('redis')"
+        :width="24"
+        :height="24"
+        alt=""
+      />
+    </template>
 
     <!-- Tab Content -->
     <ScrollArea class="flex-1">
@@ -302,5 +289,5 @@ async function handleDelete() {
         </TabsContent>
       </Tabs>
     </ScrollArea>
-  </div>
+  </PanelShell>
 </template>

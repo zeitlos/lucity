@@ -1005,6 +1005,9 @@ void activeEnvironment;
     <Transition name="palette">
       <div
         v-if="open"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Create"
         class="fixed inset-0 z-50 flex items-start justify-center pt-[20vh]"
       >
         <!-- Backdrop -->

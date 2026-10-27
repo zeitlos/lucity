@@ -122,7 +122,6 @@ async function handleSave() {
 <template>
   <ContextDrawer
     title="Shared variables"
-    :description="`Services in ${environmentName} can reference these. Every environment keeps its own set.`"
     @close="emit('close')"
   >
     <div v-if="loading && rows.length === 0" class="space-y-2">
@@ -176,7 +175,8 @@ async function handleSave() {
       </div>
 
       <div v-if="rows.length === 0" class="rounded-lg border border-dashed p-6 text-center">
-        <p class="text-sm text-muted-foreground">No shared variables in {{ environmentName }} yet.</p>
+        <p class="text-sm text-muted-foreground">No shared variables yet.</p>
+        <p class="mt-1 text-xs text-muted-foreground">Services in {{ environmentName }} can reference them.</p>
       </div>
 
       <div class="flex items-center gap-2 pt-1.5">

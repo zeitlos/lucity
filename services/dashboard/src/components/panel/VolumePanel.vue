@@ -1,8 +1,7 @@
 <script setup lang="ts">
+import PanelShell from '@/components/PanelShell.vue';
 import { ref } from 'vue';
-import { HardDrive, X } from '@lucide/vue';
-import { onKeyStroke } from '@vueuse/core';
-import IconButton from '@/components/IconButton.vue';
+import { HardDrive } from '@lucide/vue';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { Service } from '@/composables/useEnvironment';
@@ -28,27 +27,13 @@ const emit = defineEmits<{
 
 const activeTab = ref('usage');
 
-onKeyStroke('Escape', () => {
-  emit('close');
-});
 </script>
 
 <template>
-  <div class="flex h-full flex-col rounded-lg border bg-card shadow-sm">
-    <!-- Header -->
-    <div class="flex shrink-0 items-center justify-between border-b px-4 py-3">
-      <div class="flex items-center gap-3">
-        <HardDrive :size="22" class="shrink-0 text-muted-foreground" />
-        <h2 class="text-lg font-semibold text-foreground">{{ volume.name }}</h2>
-      </div>
-
-      <IconButton
-        label="Close" shortcut="Esc"
-        @click="emit('close')"
-      >
-        <X />
-      </IconButton>
-    </div>
+  <PanelShell :title="volume.name" @close="emit('close')">
+    <template #icon>
+      <HardDrive />
+    </template>
 
     <!-- Tab Content -->
     <ScrollArea class="flex-1">
@@ -81,5 +66,5 @@ onKeyStroke('Escape', () => {
         </TabsContent>
       </Tabs>
     </ScrollArea>
-  </div>
+  </PanelShell>
 </template>

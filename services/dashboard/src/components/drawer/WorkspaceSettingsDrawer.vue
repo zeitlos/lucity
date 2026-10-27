@@ -115,7 +115,6 @@ async function handleDelete() {
 <template>
   <ContextDrawer
     title="Workspace settings"
-    :description="`These apply to ${workspace.name} and every project in it.`"
     @close="emit('close')"
   >
     <div class="flex min-h-full flex-col gap-6">

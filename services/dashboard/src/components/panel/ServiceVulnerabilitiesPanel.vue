@@ -1,10 +1,9 @@
 <script setup lang="ts">
+import PanelShell from '@/components/PanelShell.vue';
 import { computed } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
-import { X, ShieldCheck, ExternalLink, Layers, Package } from '@lucide/vue';
-import { onKeyStroke } from '@vueuse/core';
+import { ShieldCheck, ExternalLink, Layers, Package } from '@lucide/vue';
 import { graphql } from '@/gql';
-import IconButton from '@/components/IconButton.vue';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { severityStyle, severityLabel } from '@/lib/severity';
@@ -43,14 +42,12 @@ const ServiceVulnerabilitiesDocument = graphql(`
 
 const props = defineProps<{
   serviceId: string;
-  serviceName: string;
 }>();
 
 const emit = defineEmits<{
   (e: 'close'): void;
 }>();
 
-onKeyStroke('Escape', () => emit('close'));
 
 const { result, loading } = useQuery(
   ServiceVulnerabilitiesDocument,
@@ -87,19 +84,7 @@ function sourceLabel(source: string): string {
 </script>
 
 <template>
-  <div class="flex h-full flex-col rounded-lg border bg-card shadow-2xl">
-    <div class="flex shrink-0 items-center justify-between border-b px-4 py-3">
-      <div class="min-w-0">
-        <h2 class="truncate text-sm font-semibold text-foreground">Vulnerabilities</h2>
-        <p class="truncate text-xs text-muted-foreground">{{ serviceName }}</p>
-      </div>
-      <IconButton
-        label="Close" shortcut="Esc"
-        @click="emit('close')"
-      >
-        <X />
-      </IconButton>
-    </div>
+  <PanelShell title="Vulnerabilities" @close="emit('close')">
 
     <ScrollArea class="flex-1">
       <div class="space-y-4 px-4 py-4">
@@ -196,5 +181,5 @@ function sourceLabel(source: string): string {
         </div>
       </div>
     </ScrollArea>
-  </div>
+  </PanelShell>
 </template>

@@ -69,7 +69,6 @@ import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 
 defineProps<{
-  workspaceName: string;
   isAdmin: boolean;
 }>();
 
@@ -150,7 +149,6 @@ async function handleOpenPortal() {
 <template>
   <ContextDrawer
     title="Billing"
-    :description="`Plan, credits and this period's usage for ${workspaceName}.`"
     @close="emit('close')"
   >
     <div v-if="subLoading" class="space-y-3">

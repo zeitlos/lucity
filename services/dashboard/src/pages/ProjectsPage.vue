@@ -341,7 +341,7 @@ onKeyStroke('/', (event) => {
               v-if="workspace && isWorkspaceAdmin && drawer === 'api-tokens'"
               class="absolute inset-y-0 left-0 z-10 w-[440px] max-w-full"
             >
-              <ApiTokensDrawer :workspace-name="workspace.name" @close="closeDrawer" />
+              <ApiTokensDrawer @close="closeDrawer" />
             </div>
           </Transition>
 
@@ -351,7 +351,6 @@ onKeyStroke('/', (event) => {
               class="absolute inset-y-0 left-0 z-10 w-[440px] max-w-full"
             >
               <WorkspaceBillingDrawer
-                :workspace-name="workspace.name"
                 :is-admin="isWorkspaceAdmin"
                 @close="closeDrawer"
               />

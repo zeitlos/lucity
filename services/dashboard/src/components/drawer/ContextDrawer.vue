@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { X } from '@lucide/vue';
-import IconButton from '@/components/IconButton.vue';
+import PanelShell from '@/components/PanelShell.vue';
 
 defineProps<{
   title: string;
-  description?: string;
 }>();
 
 const emit = defineEmits<{
@@ -13,29 +11,17 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <aside
-    :aria-label="title"
-    class="flex h-full flex-col rounded-lg border bg-card shadow-lg"
+  <PanelShell
+    as="aside"
+    :title="title"
+    @close="emit('close')"
   >
-    <div class="flex shrink-0 items-center justify-between pb-1 pl-5 pr-4 pt-4">
-      <h2 class="text-base font-semibold text-foreground">{{ title }}</h2>
-      <IconButton
-        label="Close"
-        @click="emit('close')"
-      >
-        <X />
-      </IconButton>
-    </div>
-    <p v-if="description" class="shrink-0 px-5 text-[13px] leading-5 text-muted-foreground">
-      {{ description }}
-    </p>
-
-    <div class="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+    <div class="min-h-0 flex-1 overflow-y-auto p-4">
       <slot />
     </div>
 
-    <div v-if="$slots.footer" class="shrink-0 border-t px-5 py-3.5">
+    <template v-if="$slots.footer" #footer>
       <slot name="footer" />
-    </div>
-  </aside>
+    </template>
+  </PanelShell>
 </template>
