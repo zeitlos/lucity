@@ -514,7 +514,7 @@ watch(
 
     <!-- Release history -->
     <div v-if="historyReleases.length > 0" class="space-y-2">
-      <h3 class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <h3 class="text-[13px] font-medium text-muted-foreground">
         History
       </h3>
 

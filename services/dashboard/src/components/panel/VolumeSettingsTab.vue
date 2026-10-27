@@ -134,7 +134,7 @@ async function handleDelete() {
   <div class="space-y-6">
     <!-- Mount -->
     <section class="space-y-2">
-      <h3 class="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <h3 class="text-[13px] font-medium text-muted-foreground">
         Mount
       </h3>
 
@@ -196,7 +196,7 @@ async function handleDelete() {
 
     <!-- Storage -->
     <section class="space-y-2">
-      <h3 class="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <h3 class="text-[13px] font-medium text-muted-foreground">
         Storage
       </h3>
 
@@ -235,46 +235,31 @@ async function handleDelete() {
       </div>
     </section>
 
-    <!-- Danger Zone -->
-    <section class="mt-8">
-      <div class="relative overflow-hidden rounded-lg border border-destructive/20">
-        <div class="pattern-crosshatch pointer-events-none absolute inset-0 opacity-[0.04]" />
-        <div class="relative border-b border-destructive/15 bg-destructive/[0.03] px-4 py-2.5">
-          <h3 class="text-xs font-semibold uppercase tracking-wider text-destructive/70">
-            Danger Zone
-          </h3>
-        </div>
-        <div class="relative px-4 py-4">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm font-medium text-foreground">Delete Volume</p>
-              <p class="text-xs text-muted-foreground">
-                Permanently delete this volume and all its data.
-              </p>
-            </div>
-            <ConfirmDialog
-              v-model:open="deleteDialogOpen"
-              :title="`Delete volume &quot;${volume.name}&quot;?`"
-              :description="volume.mount
-                ? 'All data on it is deleted with it. To keep the data, unmount it instead. This can\'t be undone.'
-                : 'All data on it is deleted with it. This can\'t be undone.'"
-              confirm-label="Delete volume"
-              pending-label="Deleting…"
-              :pending="deleting"
-              :confirm-text="volume.name"
-              destructive
-              @confirm="handleDelete"
-            >
-              <template #trigger>
-                <Button variant="destructive">
-                  <Trash2 />
-                  Delete
-                </Button>
-              </template>
-            </ConfirmDialog>
-          </div>
-        </div>
+    <div class="flex items-center justify-between gap-4 rounded-lg border border-destructive/30 p-3">
+      <div>
+        <p class="text-[13px] font-medium text-foreground">Delete volume</p>
+        <p class="text-xs text-muted-foreground">Permanently delete this volume and all its data.</p>
       </div>
-    </section>
+      <ConfirmDialog
+        v-model:open="deleteDialogOpen"
+        :title="`Delete volume &quot;${volume.name}&quot;?`"
+        :description="volume.mount
+          ? 'All data on it is deleted with it. To keep the data, unmount it instead. This can\'t be undone.'
+          : 'All data on it is deleted with it. This can\'t be undone.'"
+        confirm-label="Delete volume"
+        pending-label="Deleting…"
+        :pending="deleting"
+        :confirm-text="volume.name"
+        destructive
+        @confirm="handleDelete"
+      >
+        <template #trigger>
+          <Button variant="destructive">
+            <Trash2 />
+            Delete
+          </Button>
+        </template>
+      </ConfirmDialog>
+    </div>
   </div>
 </template>

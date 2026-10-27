@@ -994,7 +994,7 @@ async function handleRemoveService() {
   <div class="space-y-6">
     <!-- Source -->
     <section v-if="service.sourceUrl" class="space-y-2">
-      <h3 class="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <h3 class="text-[13px] font-medium text-muted-foreground">
         Source
       </h3>
 
@@ -1139,7 +1139,7 @@ async function handleRemoveService() {
 
     <!-- Deploy -->
     <section class="space-y-2">
-      <h3 class="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <h3 class="text-[13px] font-medium text-muted-foreground">
         Deploy
       </h3>
 
@@ -1185,7 +1185,7 @@ async function handleRemoveService() {
 
     <!-- Networking -->
     <section class="space-y-2">
-      <h3 class="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <h3 class="text-[13px] font-medium text-muted-foreground">
         Networking
       </h3>
 
@@ -1700,7 +1700,7 @@ async function handleRemoveService() {
 
     <!-- Scaling -->
     <section class="space-y-2">
-      <h3 class="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <h3 class="text-[13px] font-medium text-muted-foreground">
         Scaling
       </h3>
 
@@ -1883,7 +1883,7 @@ async function handleRemoveService() {
 
     <!-- Compute -->
     <section class="space-y-2">
-      <h3 class="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <h3 class="text-[13px] font-medium text-muted-foreground">
         Compute
       </h3>
 
@@ -1962,7 +1962,7 @@ async function handleRemoveService() {
 
     <!-- Run as user (image-based services only) -->
     <section v-if="!service.sourceUrl" class="space-y-2">
-      <h3 class="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <h3 class="text-[13px] font-medium text-muted-foreground">
         Run as user
       </h3>
 
@@ -1994,42 +1994,27 @@ async function handleRemoveService() {
       </div>
     </section>
 
-    <!-- Danger Zone -->
-    <section class="mt-8">
-      <div class="relative overflow-hidden rounded-lg border border-destructive/20">
-        <div class="pattern-crosshatch pointer-events-none absolute inset-0 opacity-[0.04]" />
-        <div class="relative border-b border-destructive/15 bg-destructive/[0.03] px-4 py-2.5">
-          <h3 class="text-xs font-semibold uppercase tracking-wider text-destructive/70">
-            Danger Zone
-          </h3>
-        </div>
-        <div class="relative px-4 py-4">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm font-medium text-foreground">Delete Service</p>
-              <p class="text-xs text-muted-foreground">
-                Permanently remove this service from the project.
-              </p>
-            </div>
-            <ConfirmDialog
-              :title="`Delete service &quot;${service.name}&quot;?`"
-              description="This can't be undone."
-              confirm-label="Delete service"
-              pending-label="Deleting…"
-              :pending="removing"
-              destructive
-              @confirm="handleRemoveService"
-            >
-              <template #trigger>
-                <Button variant="destructive">
-                  <Trash2 />
-                  Delete
-                </Button>
-              </template>
-            </ConfirmDialog>
-          </div>
-        </div>
+    <div class="flex items-center justify-between gap-4 rounded-lg border border-destructive/30 p-3">
+      <div>
+        <p class="text-[13px] font-medium text-foreground">Delete service</p>
+        <p class="text-xs text-muted-foreground">Permanently delete this service.</p>
       </div>
-    </section>
+      <ConfirmDialog
+        :title="`Delete service &quot;${service.name}&quot;?`"
+        description="This can't be undone."
+        confirm-label="Delete service"
+        pending-label="Deleting…"
+        :pending="removing"
+        destructive
+        @confirm="handleRemoveService"
+      >
+        <template #trigger>
+          <Button variant="destructive">
+            <Trash2 />
+            Delete
+          </Button>
+        </template>
+      </ConfirmDialog>
+    </div>
   </div>
 </template>

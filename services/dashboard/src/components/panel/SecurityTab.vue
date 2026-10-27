@@ -101,11 +101,11 @@ function formatRelativeTime(timestamp: string): string {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-8">
     <section v-if="showVulnerabilities" class="space-y-3">
       <div class="space-y-1">
-        <h3 class="text-sm font-semibold text-foreground">Vulnerabilities</h3>
-        <p class="text-sm text-muted-foreground">
+        <h3 class="text-[13px] font-medium text-muted-foreground">Vulnerabilities</h3>
+        <p class="text-xs text-muted-foreground">
           Known CVEs in the deployed image. Its operating-system and dependency packages are
           scanned continuously and matched against public vulnerability databases.
         </p>
@@ -163,11 +163,9 @@ function formatRelativeTime(timestamp: string): string {
       </template>
     </section>
 
-    <div v-if="showVulnerabilities" class="border-t border-border" />
-
     <section class="space-y-4">
-      <div class="space-y-1 text-sm text-muted-foreground">
-        <h3 class="text-sm font-semibold text-foreground">Leaked secrets</h3>
+      <div class="space-y-1 text-xs text-muted-foreground">
+        <h3 class="text-[13px] font-medium text-muted-foreground">Leaked secrets</h3>
         <p v-if="report">
           Scanned {{ formatRelativeTime(report.scannedAt) }} at
           <code class="rounded bg-muted px-1 py-0.5 font-mono text-xs">{{ shortCommit(report.commit) }}</code>.

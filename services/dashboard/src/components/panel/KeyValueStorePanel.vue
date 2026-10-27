@@ -135,7 +135,7 @@ async function handleDelete() {
         <TabsContent value="connect" class="px-4 py-4">
           <div class="space-y-4">
             <div>
-              <h3 class="text-sm font-medium text-foreground">Connection Details</h3>
+              <h3 class="text-[13px] font-medium text-muted-foreground">Connection details</h3>
               <p class="text-xs text-muted-foreground">
                 Credentials for <strong>{{ store.name }}</strong>. Reachable from your other services over the private network.
               </p>
@@ -208,7 +208,7 @@ async function handleDelete() {
           <div class="space-y-6">
             <!-- Configuration -->
             <section class="space-y-2">
-              <h3 class="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <h3 class="text-[13px] font-medium text-muted-foreground">
                 Configuration
               </h3>
 
@@ -228,45 +228,30 @@ async function handleDelete() {
               </div>
             </section>
 
-            <!-- Danger Zone -->
-            <section class="mt-8">
-              <div class="relative overflow-hidden rounded-lg border border-destructive/20">
-                <div class="pattern-crosshatch pointer-events-none absolute inset-0 opacity-[0.04]" />
-                <div class="relative border-b border-destructive/15 bg-destructive/[0.03] px-4 py-2.5">
-                  <h3 class="text-xs font-semibold uppercase tracking-wider text-destructive/70">
-                    Danger Zone
-                  </h3>
-                </div>
-                <div class="relative px-4 py-4">
-                  <div class="flex items-center justify-between">
-                    <div>
-                      <p class="text-sm font-medium text-foreground">Delete Redis</p>
-                      <p class="text-xs text-muted-foreground">
-                        Permanently delete this store and all its data.
-                      </p>
-                    </div>
-                    <ConfirmDialog
-                      v-model:open="deleteDialogOpen"
-                      :title="`Delete Redis store &quot;${store.name}&quot;?`"
-                      description="All its data is deleted with it. This can't be undone."
-                      confirm-label="Delete Redis store"
-                      pending-label="Deleting…"
-                      :pending="deleting"
-                      :confirm-text="store.name"
-                      destructive
-                      @confirm="handleDelete"
-                    >
-                      <template #trigger>
-                        <Button variant="destructive">
-                          <Trash2 />
-                          Delete
-                        </Button>
-                      </template>
-                    </ConfirmDialog>
-                  </div>
-                </div>
+            <div class="flex items-center justify-between gap-4 rounded-lg border border-destructive/30 p-3">
+              <div>
+                <p class="text-[13px] font-medium text-foreground">Delete Redis store</p>
+                <p class="text-xs text-muted-foreground">Permanently delete this store and all its data.</p>
               </div>
-            </section>
+              <ConfirmDialog
+                v-model:open="deleteDialogOpen"
+                :title="`Delete Redis store &quot;${store.name}&quot;?`"
+                description="All its data is deleted with it. This can't be undone."
+                confirm-label="Delete Redis store"
+                pending-label="Deleting…"
+                :pending="deleting"
+                :confirm-text="store.name"
+                destructive
+                @confirm="handleDelete"
+              >
+                <template #trigger>
+                  <Button variant="destructive">
+                    <Trash2 />
+                    Delete
+                  </Button>
+                </template>
+              </ConfirmDialog>
+            </div>
           </div>
         </TabsContent>
       </Tabs>
