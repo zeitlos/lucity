@@ -103,7 +103,7 @@ async function handleDelete() {
   >
     <div class="flex min-h-full flex-col gap-6">
       <section class="space-y-2.5">
-        <h3 class="text-[13px] font-medium text-muted-foreground">Resource tier</h3>
+        <h3 class="text-sm font-medium text-muted-foreground">Resource tier</h3>
         <RadioGroup
           :model-value="tier"
           class="grid gap-2.5"
@@ -150,14 +150,14 @@ async function handleDelete() {
       </section>
 
       <section class="space-y-2.5">
-        <h3 class="text-[13px] font-medium text-muted-foreground">General</h3>
+        <h3 class="text-sm font-medium text-muted-foreground">General</h3>
         <div class="space-y-2.5 rounded-lg border p-3">
           <div class="flex items-center justify-between gap-4">
-            <span class="text-[13px] text-muted-foreground">Name</span>
-            <span class="text-[13px] font-medium text-foreground">{{ environment.name }}</span>
+            <span class="text-sm text-muted-foreground">Name</span>
+            <span class="text-sm font-medium text-foreground">{{ environment.name }}</span>
           </div>
           <div class="flex items-center justify-between gap-4">
-            <span class="text-[13px] text-muted-foreground">ID</span>
+            <span class="text-sm text-muted-foreground">ID</span>
             <span class="truncate font-mono text-xs text-foreground">{{ environment.id }}</span>
           </div>
         </div>
@@ -165,7 +165,7 @@ async function handleDelete() {
 
       <div class="mt-auto flex items-center justify-between gap-4 rounded-lg border border-destructive/30 p-3">
         <div>
-          <p class="text-[13px] font-medium text-foreground">Delete environment</p>
+          <p class="text-sm font-medium text-foreground">Delete environment</p>
           <p class="text-xs text-muted-foreground">
             It has to be empty, and the last environment of a project can't be deleted.
           </p>

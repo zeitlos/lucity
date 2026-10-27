@@ -994,7 +994,7 @@ async function handleRemoveService() {
   <div class="space-y-6">
     <!-- Source -->
     <section v-if="service.sourceUrl" class="space-y-2">
-      <h3 class="text-[13px] font-medium text-muted-foreground">
+      <h3 class="text-sm font-medium text-muted-foreground">
         Source
       </h3>
 
@@ -1139,7 +1139,7 @@ async function handleRemoveService() {
 
     <!-- Deploy -->
     <section class="space-y-2">
-      <h3 class="text-[13px] font-medium text-muted-foreground">
+      <h3 class="text-sm font-medium text-muted-foreground">
         Deploy
       </h3>
 
@@ -1185,7 +1185,7 @@ async function handleRemoveService() {
 
     <!-- Networking -->
     <section class="space-y-2">
-      <h3 class="text-[13px] font-medium text-muted-foreground">
+      <h3 class="text-sm font-medium text-muted-foreground">
         Networking
       </h3>
 
@@ -1700,7 +1700,7 @@ async function handleRemoveService() {
 
     <!-- Scaling -->
     <section class="space-y-2">
-      <h3 class="text-[13px] font-medium text-muted-foreground">
+      <h3 class="text-sm font-medium text-muted-foreground">
         Scaling
       </h3>
 
@@ -1883,7 +1883,7 @@ async function handleRemoveService() {
 
     <!-- Compute -->
     <section class="space-y-2">
-      <h3 class="text-[13px] font-medium text-muted-foreground">
+      <h3 class="text-sm font-medium text-muted-foreground">
         Compute
       </h3>
 
@@ -1962,7 +1962,7 @@ async function handleRemoveService() {
 
     <!-- Run as user (image-based services only) -->
     <section v-if="!service.sourceUrl" class="space-y-2">
-      <h3 class="text-[13px] font-medium text-muted-foreground">
+      <h3 class="text-sm font-medium text-muted-foreground">
         Run as user
       </h3>
 
@@ -1996,7 +1996,7 @@ async function handleRemoveService() {
 
     <div class="flex items-center justify-between gap-4 rounded-lg border border-destructive/30 p-3">
       <div>
-        <p class="text-[13px] font-medium text-foreground">Delete service</p>
+        <p class="text-sm font-medium text-foreground">Delete service</p>
         <p class="text-xs text-muted-foreground">Permanently delete this service.</p>
       </div>
       <ConfirmDialog

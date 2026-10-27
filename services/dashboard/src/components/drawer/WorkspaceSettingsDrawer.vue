@@ -110,7 +110,7 @@ async function handleDelete() {
   >
     <div class="flex min-h-full flex-col gap-6">
       <section class="space-y-2.5">
-        <h3 class="text-[13px] font-medium text-muted-foreground">General</h3>
+        <h3 class="text-sm font-medium text-muted-foreground">General</h3>
         <div class="space-y-3.5 rounded-lg border p-3">
           <form class="space-y-1.5" @submit.prevent="handleUpdateName">
             <Label for="workspace-name" class="text-xs text-muted-foreground">Name</Label>
@@ -118,7 +118,7 @@ async function handleDelete() {
               <Input
                 id="workspace-name"
                 v-model="editName"
-                class="h-9 min-w-0 flex-1 text-[13px]"
+                class="h-9 min-w-0 flex-1"
                 :disabled="!isAdmin || updating"
               />
               <Button
@@ -146,7 +146,7 @@ async function handleDelete() {
         class="mt-auto flex items-center justify-between gap-4 rounded-lg border border-destructive/30 p-3"
       >
         <div>
-          <p class="text-[13px] font-medium text-foreground">Delete workspace</p>
+          <p class="text-sm font-medium text-foreground">Delete workspace</p>
           <p class="text-xs text-muted-foreground">
             Removes the workspace and its members. All projects have to be deleted first.
           </p>

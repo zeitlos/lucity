@@ -9,7 +9,7 @@ defineProps<{
 
 <template>
   <span
-    class="mb-2 flex size-10 items-center justify-center self-center rounded-[11px] border bg-card shadow-sm sm:self-start"
+    class="mb-2 flex size-10 items-center justify-center self-center rounded-md border bg-card shadow-sm sm:self-start"
     :class="destructive ? 'text-destructive' : 'text-foreground'"
   >
     <component :is="icon" :size="18" />

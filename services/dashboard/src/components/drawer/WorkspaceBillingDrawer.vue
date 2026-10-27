@@ -151,7 +151,7 @@ async function handleOpenPortal() {
     <div v-else-if="!billingAvailable" class="flex items-center gap-3 rounded-lg border p-3">
       <CreditCard :size="18" class="shrink-0 text-muted-foreground" />
       <div>
-        <p class="text-[13px] font-medium">Billing is not configured</p>
+        <p class="text-sm font-medium">Billing is not configured</p>
         <p class="text-xs text-muted-foreground">
           Billing is not available for this workspace. Contact your administrator to set up billing.
         </p>
@@ -161,7 +161,7 @@ async function handleOpenPortal() {
     <div v-else class="space-y-6">
       <section v-if="!hasPlan && isAdmin" class="space-y-4 rounded-lg border p-4">
         <div>
-          <h3 class="text-[13px] font-medium text-foreground">Choose a plan to continue</h3>
+          <h3 class="text-sm font-medium text-foreground">Choose a plan to continue</h3>
           <p v-if="!subscription" class="mt-1 text-xs text-muted-foreground">
             Pick a plan and add a payment method to start using your workspace.
           </p>
@@ -183,23 +183,23 @@ async function handleOpenPortal() {
       </section>
 
       <section v-if="hasPlan" class="space-y-2.5">
-        <h3 class="text-[13px] font-medium text-muted-foreground">Subscription</h3>
+        <h3 class="text-sm font-medium text-muted-foreground">Subscription</h3>
         <div class="space-y-2.5 rounded-lg border p-3">
-          <div class="flex items-center justify-between text-[13px]">
+          <div class="flex items-center justify-between text-sm">
             <span class="text-muted-foreground">Status</span>
             <Status :tone="subscription!.status === SubscriptionStatus.Active ? 'ok' : 'danger'">
               {{ statusLabel(subscription!.status) }}
             </Status>
           </div>
-          <div class="flex items-center justify-between text-[13px]">
+          <div class="flex items-center justify-between text-sm">
             <span class="text-muted-foreground">Current plan</span>
             <span class="font-medium">{{ subscription!.plan === Plan.Pro ? 'Pro' : 'Hobby' }}</span>
           </div>
-          <div class="flex items-center justify-between text-[13px]">
+          <div class="flex items-center justify-between text-sm">
             <span class="text-muted-foreground">Current period ends</span>
             <span>{{ formatDate(subscription!.currentPeriodEnd) }}</span>
           </div>
-          <div class="flex items-center justify-between text-[13px]">
+          <div class="flex items-center justify-between text-sm">
             <span class="text-muted-foreground">Credit balance</span>
             <span>{{ formatCents(subscription!.creditAmountCents) }}</span>
           </div>
@@ -210,7 +210,7 @@ async function handleOpenPortal() {
         v-if="hasPlan && subscription!.creditExpiry && !subscription!.hasPaymentMethod"
         class="rounded-lg border border-primary/30 bg-primary/5 p-3"
       >
-        <p class="text-[13px] font-medium text-foreground">
+        <p class="text-sm font-medium text-foreground">
           Your credits expire on {{ formatDate(subscription!.creditExpiry) }}. Add a payment method to continue using the platform.
         </p>
         <p class="mt-1 text-xs text-muted-foreground">
@@ -221,13 +221,13 @@ async function handleOpenPortal() {
         v-else-if="hasPlan && subscription!.creditExpiry && subscription!.hasPaymentMethod"
         class="rounded-lg border border-green-500/30 bg-green-500/5 p-3"
       >
-        <p class="text-[13px] font-medium text-foreground">
+        <p class="text-sm font-medium text-foreground">
           You're all set! Your payment method is on file and billing will continue automatically after your credits expire on {{ formatDate(subscription!.creditExpiry) }}.
         </p>
       </div>
 
       <section class="space-y-2.5">
-        <h3 class="text-[13px] font-medium text-muted-foreground">This period</h3>
+        <h3 class="text-sm font-medium text-muted-foreground">This period</h3>
         <div class="space-y-2.5 rounded-lg border p-3">
           <template v-if="usageLoading">
             <Skeleton class="h-4 w-full" />
@@ -235,16 +235,16 @@ async function handleOpenPortal() {
             <Skeleton class="h-4 w-full" />
           </template>
           <template v-else-if="usage">
-            <div class="flex items-center justify-between text-[13px]">
+            <div class="flex items-center justify-between text-sm">
               <span class="text-muted-foreground">Resources</span>
               <span>{{ formatCents(usage.resourceCostCents) }}</span>
             </div>
-            <div class="flex items-center justify-between text-[13px]">
+            <div class="flex items-center justify-between text-sm">
               <span class="text-muted-foreground">Credits</span>
               <span class="text-green-600">-{{ formatCents(usage.creditsCents) }}</span>
             </div>
             <div class="h-px bg-border/60" />
-            <div class="flex items-center justify-between text-[13px] font-semibold">
+            <div class="flex items-center justify-between text-sm font-semibold">
               <span>Estimated total</span>
               <span>{{ formatCents(usage.estimatedTotalCents) }}</span>
             </div>
@@ -253,7 +253,7 @@ async function handleOpenPortal() {
       </section>
 
       <section v-if="isAdmin && hasPlan" class="space-y-2.5">
-        <h3 class="text-[13px] font-medium text-muted-foreground">Plan</h3>
+        <h3 class="text-sm font-medium text-muted-foreground">Plan</h3>
         <PlanPicker
           :model-value="subscription!.plan ?? Plan.Hobby"
           @update:model-value="confirmPlan = $event"

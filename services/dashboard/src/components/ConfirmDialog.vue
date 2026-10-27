@@ -60,7 +60,7 @@ function confirm() {
     <AlertDialogTrigger v-if="$slots.trigger" as-child>
       <slot name="trigger" />
     </AlertDialogTrigger>
-    <AlertDialogContent class="flex min-h-[272px] max-w-md flex-col">
+    <AlertDialogContent class="flex min-h-68 max-w-md flex-col">
       <AlertDialogHeader>
         <DialogIcon :icon="tileIcon" :destructive="destructive" />
         <AlertDialogTitle>{{ title }}</AlertDialogTitle>
@@ -72,7 +72,7 @@ function confirm() {
       <slot />
 
       <form v-if="confirmText" class="space-y-1.5" @submit.prevent="confirm">
-        <label :for="inputId" class="text-[13px] text-muted-foreground">
+        <label :for="inputId" class="text-sm text-muted-foreground">
           Type "{{ confirmText }}" to confirm
         </label>
         <Input

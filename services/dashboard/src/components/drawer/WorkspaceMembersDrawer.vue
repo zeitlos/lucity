@@ -135,18 +135,18 @@ function initial(member: { email: string; name?: string | null }) {
   >
     <div class="space-y-5">
       <form v-if="isAdmin" class="space-y-2" @submit.prevent="handleInvite">
-        <Label for="invite-email" class="text-[13px] text-muted-foreground">Invite by email</Label>
+        <Label for="invite-email" class="text-sm text-muted-foreground">Invite by email</Label>
         <div class="flex items-center gap-2">
           <Input
             id="invite-email"
             v-model="inviteEmail"
             type="email"
             placeholder="user@example.com"
-            class="h-9 min-w-0 flex-1 text-[13px]"
+            class="h-9 min-w-0 flex-1"
             :disabled="inviting"
           />
           <Select v-model="inviteRole">
-            <SelectTrigger class="h-9 w-28 shrink-0 text-[13px]" aria-label="Role">
+            <SelectTrigger class="h-9 w-28 shrink-0" aria-label="Role">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -173,7 +173,7 @@ function initial(member: { email: string; name?: string | null }) {
             {{ initial(member) }}
           </span>
           <div class="min-w-0 flex-1">
-            <p class="truncate text-[13px] font-medium text-foreground">
+            <p class="truncate text-sm font-medium text-foreground">
               {{ member.name || member.email }}
               <span v-if="member.email === user?.email" class="font-normal text-muted-foreground">(you)</span>
             </p>

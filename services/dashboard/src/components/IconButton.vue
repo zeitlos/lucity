@@ -39,7 +39,7 @@ const props = withDefaults(defineProps<{
       {{ label }}
       <kbd
         v-if="shortcut"
-        class="ml-1.5 rounded border border-background/30 px-1 font-mono text-[10px] [.dark_&]:border-border"
+        class="ml-1.5 rounded border border-background/30 px-1 font-mono [.dark_&]:border-border"
       >{{ shortcut }}</kbd>
     </TooltipContent>
   </Tooltip>

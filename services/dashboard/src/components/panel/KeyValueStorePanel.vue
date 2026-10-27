@@ -135,8 +135,8 @@ async function handleDelete() {
         <TabsContent value="connect" class="px-4 py-4">
           <div class="space-y-4">
             <div>
-              <h3 class="text-[13px] font-medium text-muted-foreground">Connection details</h3>
-              <p class="text-xs text-muted-foreground">
+              <h3 class="text-sm font-medium text-muted-foreground">Connection details</h3>
+              <p class="text-sm text-muted-foreground/80">
                 Credentials for <strong>{{ store.name }}</strong>. Reachable from your other services over the private network.
               </p>
             </div>
@@ -208,7 +208,7 @@ async function handleDelete() {
           <div class="space-y-6">
             <!-- Configuration -->
             <section class="space-y-2">
-              <h3 class="text-[13px] font-medium text-muted-foreground">
+              <h3 class="text-sm font-medium text-muted-foreground">
                 Configuration
               </h3>
 
@@ -230,7 +230,7 @@ async function handleDelete() {
 
             <div class="flex items-center justify-between gap-4 rounded-lg border border-destructive/30 p-3">
               <div>
-                <p class="text-[13px] font-medium text-foreground">Delete Redis store</p>
+                <p class="text-sm font-medium text-foreground">Delete Redis store</p>
                 <p class="text-xs text-muted-foreground">Permanently delete this store and all its data.</p>
               </div>
               <ConfirmDialog

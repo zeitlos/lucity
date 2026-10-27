@@ -60,14 +60,14 @@ async function handleDelete() {
   >
     <div class="flex min-h-full flex-col gap-6">
       <section class="space-y-2.5">
-        <h3 class="text-[13px] font-medium text-muted-foreground">General</h3>
+        <h3 class="text-sm font-medium text-muted-foreground">General</h3>
         <div class="space-y-2.5 rounded-lg border p-3">
           <div class="flex items-center justify-between gap-4">
-            <span class="text-[13px] text-muted-foreground">Name</span>
-            <span class="text-[13px] font-medium text-foreground">{{ project.name }}</span>
+            <span class="text-sm text-muted-foreground">Name</span>
+            <span class="text-sm font-medium text-foreground">{{ project.name }}</span>
           </div>
           <div class="flex items-center justify-between gap-4">
-            <span class="text-[13px] text-muted-foreground">ID</span>
+            <span class="text-sm text-muted-foreground">ID</span>
             <span class="truncate font-mono text-xs text-foreground">{{ project.id }}</span>
           </div>
         </div>
@@ -75,7 +75,7 @@ async function handleDelete() {
 
       <div class="mt-auto flex items-center justify-between gap-4 rounded-lg border border-destructive/30 p-3">
         <div>
-          <p class="text-[13px] font-medium text-foreground">Delete project</p>
+          <p class="text-sm font-medium text-foreground">Delete project</p>
           <p class="text-xs text-muted-foreground">Permanently delete this project and all its data.</p>
         </div>
         <ConfirmDialog

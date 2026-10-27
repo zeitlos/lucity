@@ -271,8 +271,8 @@ const visibleEntries = computed(() => (showAll.value ? entries.value : entries.v
 
       <template v-else>
         <section class="space-y-4">
-          <div class="space-y-1 text-xs text-muted-foreground">
-            <h3 class="text-[13px] font-medium text-muted-foreground">Restore to a point in time</h3>
+          <div class="space-y-1 text-sm text-muted-foreground/80">
+            <h3 class="text-sm font-medium text-muted-foreground">Restore to a point in time</h3>
             <p v-if="hasWindow">
               Every write is archived as it happens, so you can restore to any moment in the last
               {{ backups.retentionDays }} days, not just when a backup ran.
@@ -369,8 +369,8 @@ const visibleEntries = computed(() => (showAll.value ? entries.value : entries.v
 
         <section class="space-y-4">
           <div class="flex items-start justify-between gap-4">
-            <div class="space-y-1 text-xs text-muted-foreground">
-              <h3 class="text-[13px] font-medium text-muted-foreground">Base backups</h3>
+            <div class="space-y-1 text-sm text-muted-foreground/80">
+              <h3 class="text-sm font-medium text-muted-foreground">Base backups</h3>
               <p>
                 A full copy runs every Sunday at 02:00 UTC, with every write in between archived
                 continuously. Copies older than {{ backups.retentionDays }} days are removed.

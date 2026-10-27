@@ -134,7 +134,7 @@ async function handleDelete() {
   <div class="space-y-6">
     <!-- Mount -->
     <section class="space-y-2">
-      <h3 class="text-[13px] font-medium text-muted-foreground">
+      <h3 class="text-sm font-medium text-muted-foreground">
         Mount
       </h3>
 
@@ -196,7 +196,7 @@ async function handleDelete() {
 
     <!-- Storage -->
     <section class="space-y-2">
-      <h3 class="text-[13px] font-medium text-muted-foreground">
+      <h3 class="text-sm font-medium text-muted-foreground">
         Storage
       </h3>
 
@@ -237,7 +237,7 @@ async function handleDelete() {
 
     <div class="flex items-center justify-between gap-4 rounded-lg border border-destructive/30 p-3">
       <div>
-        <p class="text-[13px] font-medium text-foreground">Delete volume</p>
+        <p class="text-sm font-medium text-foreground">Delete volume</p>
         <p class="text-xs text-muted-foreground">Permanently delete this volume and all its data.</p>
       </div>
       <ConfirmDialog

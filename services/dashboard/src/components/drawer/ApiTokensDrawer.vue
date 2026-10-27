@@ -127,7 +127,7 @@ function formatDate(dateStr: string): string {
   >
     <div class="space-y-5">
       <form class="space-y-2" @submit.prevent="handleCreate">
-        <Label for="apitoken-name" class="text-[13px] text-muted-foreground">New token</Label>
+        <Label for="apitoken-name" class="text-sm text-muted-foreground">New token</Label>
         <div class="flex items-center gap-2">
           <Input
             id="apitoken-name"
@@ -137,7 +137,7 @@ function formatDate(dateStr: string): string {
             :disabled="creating"
           />
           <Select v-model="newRole">
-            <SelectTrigger class="h-9 w-28 shrink-0 text-[13px]" aria-label="Role">
+            <SelectTrigger class="h-9 w-28 shrink-0" aria-label="Role">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -165,7 +165,7 @@ function formatDate(dateStr: string): string {
           class="flex items-center gap-3 py-3 pl-3.5 pr-2"
         >
           <div class="min-w-0 flex-1">
-            <p class="truncate font-mono text-[13px] text-foreground">{{ token.name }}</p>
+            <p class="truncate font-mono text-sm text-foreground">{{ token.name }}</p>
             <p class="text-xs text-muted-foreground">
               {{ token.role === WorkspaceRole.Admin ? 'Admin' : 'Member' }} · created {{ formatDate(token.createdAt) }}
             </p>
