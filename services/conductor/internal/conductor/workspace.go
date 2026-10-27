@@ -405,10 +405,6 @@ func (c *Client) CompleteWorkspaceCheckout(ctx context.Context, sessionID string
 
 	wsID := session.Metadata["workspace_id"]
 
-	if _, err := c.logto.OrganizationByName(ctx, wsID); err != nil {
-		return c.completeLegacyWorkspaceCheckout(ctx, wsID, session)
-	}
-
 	customerID, err := c.stripeCustomerID(ctx, wsID)
 
 	if err != nil {
@@ -435,20 +431,6 @@ func (c *Client) CompleteWorkspaceCheckout(ctx context.Context, sessionID string
 	}
 
 	return nil, usererror.Errorf("workspace ID %q is already taken", wsID)
-}
-
-func (c *Client) completeLegacyWorkspaceCheckout(ctx context.Context, wsID string, session *billing.Session) (*WorkspaceDetails, error) {
-	workspace, err := c.directory.CreateWorkspace(ctx, wsID, session.Metadata["workspace_name"], map[string]any{
-		"stripeCustomerId": session.CustomerID,
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to create workspace: %w", err)
-	}
-
-	slog.InfoContext(ctx, "workspace created from a checkout started before workspace-first signup", "workspace", wsID, "customer_id", session.CustomerID)
-
-	return workspace, nil
 }
 
 func (c *Client) orgID(ctx context.Context, workspaceID string) (string, error) {
