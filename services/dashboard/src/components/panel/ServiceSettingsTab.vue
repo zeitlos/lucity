@@ -1140,6 +1140,7 @@ async function handleRemoveService() {
               </p>
               <p class="text-xs text-muted-foreground">Deploy on every push to the tracked branch</p>
             </div>
+            <Spinner v-if="autoDeploySaving" :size="14" class="text-muted-foreground" />
             <Switch
               :model-value="service.autoDeploy"
               :disabled="autoDeploySaving"
@@ -1163,6 +1164,7 @@ async function handleRemoveService() {
                 Let GitHub Actions from this repo deploy this service, keyless. No stored token.
               </p>
             </div>
+            <Spinner v-if="ciDeploySaving" :size="14" class="text-muted-foreground" />
             <Switch
               :model-value="service.ciDeploy"
               :disabled="ciDeploySaving"
@@ -1210,17 +1212,19 @@ async function handleRemoveService() {
             />
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <div class="space-y-3 border-t px-4 py-3">
-              <p class="text-xs text-muted-foreground">
-                Command that will be run to start new deployments. Overrides the default command.
-              </p>
-              <Input
-                v-model="customStartCommand"
-                :placeholder="service.defaultCommand || 'npm run start'"
-                class="font-mono text-sm"
-                @keyup.enter="commandChanged && handleSaveCommand()"
-              />
-            </div>
+            <fieldset :disabled="commandSaving" class="min-w-0">
+              <div class="space-y-3 border-t px-4 py-3">
+                <p class="text-xs text-muted-foreground">
+                  Command that will be run to start new deployments. Overrides the default command.
+                </p>
+                <Input
+                  v-model="customStartCommand"
+                  :placeholder="service.defaultCommand || 'npm run start'"
+                  class="font-mono text-sm"
+                  @keyup.enter="commandChanged && handleSaveCommand()"
+                />
+              </div>
+            </fieldset>
             <FormFooter
               :dirty="commandChanged"
               :saving="commandSaving"
@@ -1256,18 +1260,20 @@ async function handleRemoveService() {
             />
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <div class="space-y-3 border-t px-4 py-3">
-              <p class="text-xs text-muted-foreground">
-                The port your app listens on. Domains route to it. Leave empty if this service doesn't serve traffic.
-              </p>
-              <Input
-                v-model.number="portInput"
-                type="number"
-                placeholder="3000"
-                class="font-mono text-sm"
-                @keyup.enter="portChanged && handleSavePort()"
-              />
-            </div>
+            <fieldset :disabled="portSaving" class="min-w-0">
+              <div class="space-y-3 border-t px-4 py-3">
+                <p class="text-xs text-muted-foreground">
+                  The port your app listens on. Domains route to it. Leave empty if this service doesn't serve traffic.
+                </p>
+                <Input
+                  v-model.number="portInput"
+                  type="number"
+                  placeholder="3000"
+                  class="font-mono text-sm"
+                  @keyup.enter="portChanged && handleSavePort()"
+                />
+              </div>
+            </fieldset>
             <FormFooter
               :dirty="portChanged"
               :saving="portSaving"
@@ -1294,120 +1300,122 @@ async function handleRemoveService() {
             />
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <div class="space-y-4 border-t px-4 py-3">
-              <p class="text-xs text-muted-foreground">
-                How the platform decides an instance is ready to receive traffic. By default it
-                checks that the port accepts connections. Switch to an HTTP check for apps that
-                need to warm up before they can serve requests.
-              </p>
-
-              <!-- Enable HTTP check -->
-              <div class="flex items-center justify-between">
-                <div>
-                  <Label class="text-sm font-medium">HTTP health check</Label>
-                  <p class="text-xs text-muted-foreground">Probe an HTTP endpoint instead of the raw port.</p>
-                </div>
-                <Switch v-model="healthCheckEnabled" class="data-[state=unchecked]:bg-border" />
-              </div>
-
-              <template v-if="healthCheckEnabled">
-                <!-- Path + port -->
-                <div class="grid grid-cols-3 gap-3">
-                  <div class="col-span-2 space-y-1.5">
-                    <Label class="text-xs font-medium">Path</Label>
-                    <Input
-                      v-model="hcPath"
-                      placeholder="/health/ready"
-                      class="h-8 font-mono text-sm"
-                      :class="{ 'border-destructive': healthCheckPathError }"
-                    />
-                  </div>
-                  <div class="space-y-1.5">
-                    <Label class="text-xs font-medium">Port</Label>
-                    <Input
-                      v-model.number="hcPort"
-                      type="number"
-                      :placeholder="String(currentPort)"
-                      class="h-8 font-mono text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                    />
-                  </div>
-                </div>
-                <div class="-mt-2 space-y-0.5 px-1">
-                  <p v-if="healthCheckPathError" class="text-xs text-destructive">
-                    {{ healthCheckPathError }}
-                  </p>
-                  <p class="text-[11px] text-muted-foreground">
-                    Leave the port blank to use the service port ({{ currentPort }}).
-                  </p>
-                </div>
-
-                <!-- Steady-state timing -->
-                <div class="grid grid-cols-4 gap-2">
-                  <div class="space-y-1.5">
-                    <Label class="text-xs font-medium">Delay</Label>
-                    <Input
-                      v-model.number="hcInitialDelay"
-                      type="number"
-                      placeholder="0"
-                      class="h-8 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                    />
-                  </div>
-                  <div class="space-y-1.5">
-                    <Label class="text-xs font-medium">Period</Label>
-                    <Input
-                      v-model.number="hcPeriod"
-                      type="number"
-                      placeholder="5"
-                      class="h-8 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                    />
-                  </div>
-                  <div class="space-y-1.5">
-                    <Label class="text-xs font-medium">Timeout</Label>
-                    <Input
-                      v-model.number="hcTimeout"
-                      type="number"
-                      placeholder="3"
-                      class="h-8 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                    />
-                  </div>
-                  <div class="space-y-1.5">
-                    <Label class="text-xs font-medium">Failures</Label>
-                    <Input
-                      v-model.number="hcFailureThreshold"
-                      type="number"
-                      placeholder="3"
-                      class="h-8 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                    />
-                  </div>
-                </div>
-                <p class="-mt-2 px-1 text-[11px] text-muted-foreground">
-                  All values in seconds, except failures. Left blank, sensible defaults apply.
+            <fieldset :disabled="healthCheckSaving" class="min-w-0">
+              <div class="space-y-4 border-t px-4 py-3">
+                <p class="text-xs text-muted-foreground">
+                  How the platform decides an instance is ready to receive traffic. By default it
+                  checks that the port accepts connections. Switch to an HTTP check for apps that
+                  need to warm up before they can serve requests.
                 </p>
 
-                <!-- Startup budget -->
-                <div class="space-y-1.5">
-                  <div class="flex items-center justify-between">
-                    <Label class="text-xs font-medium">Startup budget</Label>
-                    <span v-if="startupBudgetLabel" class="text-[11px] text-muted-foreground">
-                      {{ startupBudgetLabel }} before traffic
-                    </span>
+                <!-- Enable HTTP check -->
+                <div class="flex items-center justify-between">
+                  <div>
+                    <Label class="text-sm font-medium">HTTP health check</Label>
+                    <p class="text-xs text-muted-foreground">Probe an HTTP endpoint instead of the raw port.</p>
                   </div>
-                  <div class="flex items-center gap-2">
-                    <Input
-                      v-model.number="hcStartupFailureThreshold"
-                      type="number"
-                      placeholder="0"
-                      class="h-8 w-24 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                    />
+                  <Switch v-model="healthCheckEnabled" class="data-[state=unchecked]:bg-border" />
+                </div>
+
+                <template v-if="healthCheckEnabled">
+                  <!-- Path + port -->
+                  <div class="grid grid-cols-3 gap-3">
+                    <div class="col-span-2 space-y-1.5">
+                      <Label class="text-xs font-medium">Path</Label>
+                      <Input
+                        v-model="hcPath"
+                        placeholder="/health/ready"
+                        class="h-8 font-mono text-sm"
+                        :class="{ 'border-destructive': healthCheckPathError }"
+                      />
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label class="text-xs font-medium">Port</Label>
+                      <Input
+                        v-model.number="hcPort"
+                        type="number"
+                        :placeholder="String(currentPort)"
+                        class="h-8 font-mono text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      />
+                    </div>
+                  </div>
+                  <div class="-mt-2 space-y-0.5 px-1">
+                    <p v-if="healthCheckPathError" class="text-xs text-destructive">
+                      {{ healthCheckPathError }}
+                    </p>
                     <p class="text-[11px] text-muted-foreground">
-                      Extra failed checks tolerated only while the instance is starting. Lets a slow
-                      warm-up finish without failing the steady-state check.
+                      Leave the port blank to use the service port ({{ currentPort }}).
                     </p>
                   </div>
-                </div>
-              </template>
 
-            </div>
+                  <!-- Steady-state timing -->
+                  <div class="grid grid-cols-4 gap-2">
+                    <div class="space-y-1.5">
+                      <Label class="text-xs font-medium">Delay</Label>
+                      <Input
+                        v-model.number="hcInitialDelay"
+                        type="number"
+                        placeholder="0"
+                        class="h-8 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      />
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label class="text-xs font-medium">Period</Label>
+                      <Input
+                        v-model.number="hcPeriod"
+                        type="number"
+                        placeholder="5"
+                        class="h-8 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      />
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label class="text-xs font-medium">Timeout</Label>
+                      <Input
+                        v-model.number="hcTimeout"
+                        type="number"
+                        placeholder="3"
+                        class="h-8 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      />
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label class="text-xs font-medium">Failures</Label>
+                      <Input
+                        v-model.number="hcFailureThreshold"
+                        type="number"
+                        placeholder="3"
+                        class="h-8 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      />
+                    </div>
+                  </div>
+                  <p class="-mt-2 px-1 text-[11px] text-muted-foreground">
+                    All values in seconds, except failures. Left blank, sensible defaults apply.
+                  </p>
+
+                  <!-- Startup budget -->
+                  <div class="space-y-1.5">
+                    <div class="flex items-center justify-between">
+                      <Label class="text-xs font-medium">Startup budget</Label>
+                      <span v-if="startupBudgetLabel" class="text-[11px] text-muted-foreground">
+                        {{ startupBudgetLabel }} before traffic
+                      </span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <Input
+                        v-model.number="hcStartupFailureThreshold"
+                        type="number"
+                        placeholder="0"
+                        class="h-8 w-24 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      />
+                      <p class="text-[11px] text-muted-foreground">
+                        Extra failed checks tolerated only while the instance is starting. Lets a slow
+                        warm-up finish without failing the steady-state check.
+                      </p>
+                    </div>
+                  </div>
+                </template>
+
+              </div>
+            </fieldset>
             <FormFooter
               :dirty="healthCheckChanged"
               :saving="healthCheckSaving"
@@ -1444,11 +1452,11 @@ async function handleRemoveService() {
                 </p>
                 <Button
                   variant="outline"
-                  :disabled="generatingDomain"
+                  :pending="generatingDomain"
                   @click="handleGenerateDomain"
                 >
                   <Plus />
-                  {{ generatingDomain ? 'Generating...' : 'Generate domain' }}
+                  {{ generatingDomain ? 'Generating…' : 'Generate domain' }}
                 </Button>
               </div>
 
@@ -1607,8 +1615,8 @@ async function handleRemoveService() {
                 </p>
                 <div class="flex justify-end gap-2">
                   <Button variant="ghost" @click="closeAddDomain">Cancel</Button>
-                  <Button :disabled="!canAddDomain" @click="handleAddCustomDomain">
-                    {{ addingCustomDomain ? 'Saving...' : isDomainUpdate ? 'Update domain' : 'Add domain' }}
+                  <Button :pending="addingCustomDomain" :disabled="!canAddDomain" @click="handleAddCustomDomain">
+                    {{ addingCustomDomain ? 'Saving…' : isDomainUpdate ? 'Update domain' : 'Add domain' }}
                   </Button>
                 </div>
               </div>
@@ -1767,156 +1775,158 @@ async function handleRemoveService() {
             />
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <div class="space-y-4 border-t px-4 py-3">
-              <!-- Replicas -->
-              <div class="space-y-1.5">
-                <Label class="text-xs font-medium">Replicas</Label>
-                <div class="flex items-center gap-1">
-                  <IconButton
-                    label="Fewer replicas"
-                    variant="outline"
-                    class="shrink-0"
-                    :disabled="autoscalingEnabled || scalingReplicas <= 1"
-                    @click="scalingReplicas = clamp(scalingReplicas - 1, 1, 20)"
-                  >
-                    <Minus />
-                  </IconButton>
-                  <Input
-                    v-model.number="scalingReplicas"
-                    type="number"
-                    class="h-8 w-16 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                    :min="1"
-                    :max="20"
-                    :disabled="autoscalingEnabled"
-                    @blur="scalingReplicas = clamp(scalingReplicas, 1, 20)"
-                  />
-                  <IconButton
-                    label="More replicas"
-                    variant="outline"
-                    class="shrink-0"
-                    :disabled="autoscalingEnabled || scalingReplicas >= 20"
-                    @click="scalingReplicas = clamp(scalingReplicas + 1, 1, 20)"
-                  >
-                    <Plus />
-                  </IconButton>
-                </div>
-                <p v-if="autoscalingEnabled" class="text-[11px] text-muted-foreground">
-                  Managed by autoscaler.
-                </p>
-              </div>
-
-              <!-- Autoscaling toggle -->
-              <div class="flex items-center justify-between">
-                <div>
-                  <Label class="text-sm font-medium">Autoscaling</Label>
-                  <p class="text-xs text-muted-foreground">Scale replicas based on CPU usage.</p>
-                </div>
-                <Switch v-model="autoscalingEnabled" class="data-[state=unchecked]:bg-border" />
-              </div>
-
-              <!-- Autoscaling settings -->
-              <div v-if="autoscalingEnabled" class="grid grid-cols-3 gap-3">
+            <fieldset :disabled="scalingSaving" class="min-w-0">
+              <div class="space-y-4 border-t px-4 py-3">
+                <!-- Replicas -->
                 <div class="space-y-1.5">
-                  <Label class="text-xs font-medium">Min</Label>
-                  <div class="flex items-center gap-0.5">
+                  <Label class="text-xs font-medium">Replicas</Label>
+                  <div class="flex items-center gap-1">
                     <IconButton
-                      label="Lower minimum"
+                      label="Fewer replicas"
                       variant="outline"
                       class="shrink-0"
-                      :disabled="scalingMinReplicas <= 1"
-                      @click="scalingMinReplicas = clamp(scalingMinReplicas - 1, 1, 20)"
+                      :disabled="autoscalingEnabled || scalingReplicas <= 1"
+                      @click="scalingReplicas = clamp(scalingReplicas - 1, 1, 20)"
                     >
                       <Minus />
                     </IconButton>
                     <Input
-                      v-model.number="scalingMinReplicas"
+                      v-model.number="scalingReplicas"
                       type="number"
-                      class="h-8 w-full min-w-0 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      class="h-8 w-16 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                       :min="1"
                       :max="20"
-                      @blur="scalingMinReplicas = clamp(scalingMinReplicas, 1, 20)"
+                      :disabled="autoscalingEnabled"
+                      @blur="scalingReplicas = clamp(scalingReplicas, 1, 20)"
                     />
                     <IconButton
-                      label="Raise minimum"
+                      label="More replicas"
                       variant="outline"
                       class="shrink-0"
-                      :disabled="scalingMinReplicas >= 20"
-                      @click="scalingMinReplicas = clamp(scalingMinReplicas + 1, 1, 20)"
+                      :disabled="autoscalingEnabled || scalingReplicas >= 20"
+                      @click="scalingReplicas = clamp(scalingReplicas + 1, 1, 20)"
                     >
                       <Plus />
                     </IconButton>
                   </div>
+                  <p v-if="autoscalingEnabled" class="text-[11px] text-muted-foreground">
+                    Managed by autoscaler.
+                  </p>
                 </div>
 
-                <div class="space-y-1.5">
-                  <Label class="text-xs font-medium">Max</Label>
-                  <div class="flex items-center gap-0.5">
-                    <IconButton
-                      label="Lower maximum"
-                      variant="outline"
-                      class="shrink-0"
-                      :disabled="scalingMaxReplicas <= 1"
-                      @click="scalingMaxReplicas = clamp(scalingMaxReplicas - 1, 1, 20)"
-                    >
-                      <Minus />
-                    </IconButton>
-                    <Input
-                      v-model.number="scalingMaxReplicas"
-                      type="number"
-                      class="h-8 w-full min-w-0 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                      :min="1"
-                      :max="20"
-                      @blur="scalingMaxReplicas = clamp(scalingMaxReplicas, 1, 20)"
-                    />
-                    <IconButton
-                      label="Raise maximum"
-                      variant="outline"
-                      class="shrink-0"
-                      :disabled="scalingMaxReplicas >= 20"
-                      @click="scalingMaxReplicas = clamp(scalingMaxReplicas + 1, 1, 20)"
-                    >
-                      <Plus />
-                    </IconButton>
+                <!-- Autoscaling toggle -->
+                <div class="flex items-center justify-between">
+                  <div>
+                    <Label class="text-sm font-medium">Autoscaling</Label>
+                    <p class="text-xs text-muted-foreground">Scale replicas based on CPU usage.</p>
                   </div>
+                  <Switch v-model="autoscalingEnabled" class="data-[state=unchecked]:bg-border" />
                 </div>
 
-                <div class="space-y-1.5">
-                  <Label class="text-xs font-medium">CPU target</Label>
-                  <div class="flex items-center gap-0.5">
-                    <IconButton
-                      label="Lower CPU target"
-                      variant="outline"
-                      class="shrink-0"
-                      :disabled="scalingTargetCPU <= 10"
-                      @click="scalingTargetCPU = clamp(scalingTargetCPU - 5, 10, 95)"
-                    >
-                      <Minus />
-                    </IconButton>
-                    <div class="relative flex-1">
+                <!-- Autoscaling settings -->
+                <div v-if="autoscalingEnabled" class="grid grid-cols-3 gap-3">
+                  <div class="space-y-1.5">
+                    <Label class="text-xs font-medium">Min</Label>
+                    <div class="flex items-center gap-0.5">
+                      <IconButton
+                        label="Lower minimum"
+                        variant="outline"
+                        class="shrink-0"
+                        :disabled="scalingMinReplicas <= 1"
+                        @click="scalingMinReplicas = clamp(scalingMinReplicas - 1, 1, 20)"
+                      >
+                        <Minus />
+                      </IconButton>
                       <Input
-                        v-model.number="scalingTargetCPU"
+                        v-model.number="scalingMinReplicas"
                         type="number"
-                        class="h-8 w-full min-w-0 pr-6 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                        :min="10"
-                        :max="95"
-                        @blur="scalingTargetCPU = clamp(scalingTargetCPU, 10, 95)"
+                        class="h-8 w-full min-w-0 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        :min="1"
+                        :max="20"
+                        @blur="scalingMinReplicas = clamp(scalingMinReplicas, 1, 20)"
                       />
-                      <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+                      <IconButton
+                        label="Raise minimum"
+                        variant="outline"
+                        class="shrink-0"
+                        :disabled="scalingMinReplicas >= 20"
+                        @click="scalingMinReplicas = clamp(scalingMinReplicas + 1, 1, 20)"
+                      >
+                        <Plus />
+                      </IconButton>
                     </div>
-                    <IconButton
-                      label="Raise CPU target"
-                      variant="outline"
-                      class="shrink-0"
-                      :disabled="scalingTargetCPU >= 95"
-                      @click="scalingTargetCPU = clamp(scalingTargetCPU + 5, 10, 95)"
-                    >
-                      <Plus />
-                    </IconButton>
+                  </div>
+
+                  <div class="space-y-1.5">
+                    <Label class="text-xs font-medium">Max</Label>
+                    <div class="flex items-center gap-0.5">
+                      <IconButton
+                        label="Lower maximum"
+                        variant="outline"
+                        class="shrink-0"
+                        :disabled="scalingMaxReplicas <= 1"
+                        @click="scalingMaxReplicas = clamp(scalingMaxReplicas - 1, 1, 20)"
+                      >
+                        <Minus />
+                      </IconButton>
+                      <Input
+                        v-model.number="scalingMaxReplicas"
+                        type="number"
+                        class="h-8 w-full min-w-0 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        :min="1"
+                        :max="20"
+                        @blur="scalingMaxReplicas = clamp(scalingMaxReplicas, 1, 20)"
+                      />
+                      <IconButton
+                        label="Raise maximum"
+                        variant="outline"
+                        class="shrink-0"
+                        :disabled="scalingMaxReplicas >= 20"
+                        @click="scalingMaxReplicas = clamp(scalingMaxReplicas + 1, 1, 20)"
+                      >
+                        <Plus />
+                      </IconButton>
+                    </div>
+                  </div>
+
+                  <div class="space-y-1.5">
+                    <Label class="text-xs font-medium">CPU target</Label>
+                    <div class="flex items-center gap-0.5">
+                      <IconButton
+                        label="Lower CPU target"
+                        variant="outline"
+                        class="shrink-0"
+                        :disabled="scalingTargetCPU <= 10"
+                        @click="scalingTargetCPU = clamp(scalingTargetCPU - 5, 10, 95)"
+                      >
+                        <Minus />
+                      </IconButton>
+                      <div class="relative flex-1">
+                        <Input
+                          v-model.number="scalingTargetCPU"
+                          type="number"
+                          class="h-8 w-full min-w-0 pr-6 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                          :min="10"
+                          :max="95"
+                          @blur="scalingTargetCPU = clamp(scalingTargetCPU, 10, 95)"
+                        />
+                        <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+                      </div>
+                      <IconButton
+                        label="Raise CPU target"
+                        variant="outline"
+                        class="shrink-0"
+                        :disabled="scalingTargetCPU >= 95"
+                        @click="scalingTargetCPU = clamp(scalingTargetCPU + 5, 10, 95)"
+                      >
+                        <Plus />
+                      </IconButton>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-            </div>
+              </div>
+            </fieldset>
             <FormFooter
               :dirty="scalingChanged"
               :saving="scalingSaving"
@@ -1936,62 +1946,64 @@ async function handleRemoveService() {
 
       <div class="overflow-hidden rounded-lg border">
         <div class="divide-y">
-          <div class="flex items-center gap-3 px-4 py-3">
-            <Cpu :size="16" class="shrink-0 text-muted-foreground" />
-            <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium text-foreground">CPU</p>
-              <p class="text-xs text-muted-foreground">Limit per instance</p>
+          <fieldset :disabled="resourcesSaving" class="min-w-0 divide-y">
+            <div class="flex items-center gap-3 px-4 py-3">
+              <Cpu :size="16" class="shrink-0 text-muted-foreground" />
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium text-foreground">CPU</p>
+                <p class="text-xs text-muted-foreground">Limit per instance</p>
+              </div>
+              <Select v-model="selectedCpu">
+                <SelectTrigger class="h-8 w-36">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem
+                    v-for="option in cpuOptions"
+                    :key="option.value"
+                    :value="option.value"
+                  >
+                    {{ option.label }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Select v-model="selectedCpu">
-              <SelectTrigger class="h-8 w-36">
-                <SelectValue placeholder="Select" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem
-                  v-for="option in cpuOptions"
-                  :key="option.value"
-                  :value="option.value"
-                >
-                  {{ option.label }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div class="flex items-center gap-3 px-4 py-3">
-            <MemoryStick :size="16" class="shrink-0 text-muted-foreground" />
-            <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium text-foreground">Memory</p>
-              <p class="text-xs text-muted-foreground">Limit per instance</p>
+            <div class="flex items-center gap-3 px-4 py-3">
+              <MemoryStick :size="16" class="shrink-0 text-muted-foreground" />
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium text-foreground">Memory</p>
+                <p class="text-xs text-muted-foreground">Limit per instance</p>
+              </div>
+              <Select v-model="selectedMemory">
+                <SelectTrigger class="h-8 w-36">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem
+                    v-for="option in memoryOptions"
+                    :key="option.value"
+                    :value="option.value"
+                  >
+                    {{ option.label }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Select v-model="selectedMemory">
-              <SelectTrigger class="h-8 w-36">
-                <SelectValue placeholder="Select" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem
-                  v-for="option in memoryOptions"
-                  :key="option.value"
-                  :value="option.value"
-                >
-                  {{ option.label }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div v-if="resourceTier === ResourceTier.Eco" class="flex items-center gap-3 px-4 py-3">
-            <Leaf :size="16" class="shrink-0 text-emerald-500" />
-            <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium text-foreground">Eco</p>
-              <p class="text-xs text-muted-foreground">Burstable compute, shared resources</p>
+            <div v-if="resourceTier === ResourceTier.Eco" class="flex items-center gap-3 px-4 py-3">
+              <Leaf :size="16" class="shrink-0 text-emerald-500" />
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium text-foreground">Eco</p>
+                <p class="text-xs text-muted-foreground">Burstable compute, shared resources</p>
+              </div>
             </div>
-          </div>
-          <div v-else-if="resourceTier === ResourceTier.Production" class="flex items-center gap-3 px-4 py-3">
-            <ShieldCheck :size="16" class="shrink-0 text-violet-500" />
-            <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium text-foreground">Production</p>
-              <p class="text-xs text-muted-foreground">Guaranteed performance, dedicated resources</p>
+            <div v-else-if="resourceTier === ResourceTier.Production" class="flex items-center gap-3 px-4 py-3">
+              <ShieldCheck :size="16" class="shrink-0 text-violet-500" />
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium text-foreground">Production</p>
+                <p class="text-xs text-muted-foreground">Guaranteed performance, dedicated resources</p>
+              </div>
             </div>
-          </div>
+          </fieldset>
           <FormFooter
             :dirty="resourcesChanged"
             :saving="resourcesSaving"
@@ -2011,17 +2023,19 @@ async function handleRemoveService() {
 
       <div class="overflow-hidden rounded-lg border">
         <div class="divide-y">
-          <div class="flex items-center gap-3 px-4 py-3">
-            <UserCog :size="16" class="shrink-0 text-muted-foreground" />
-            <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium text-foreground">User id</p>
-              <p class="text-xs text-muted-foreground">
-                Runs the container as this user. Mounted volumes are owned by the same id. Leave empty to use the image
-                default.
-              </p>
+          <fieldset :disabled="userSaving" class="min-w-0 divide-y">
+            <div class="flex items-center gap-3 px-4 py-3">
+              <UserCog :size="16" class="shrink-0 text-muted-foreground" />
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium text-foreground">User id</p>
+                <p class="text-xs text-muted-foreground">
+                  Runs the container as this user. Mounted volumes are owned by the same id. Leave empty to use the image
+                  default.
+                </p>
+              </div>
+              <Input v-model="userInput" type="number" min="0" max="65535" placeholder="image default" class="h-8 w-36" />
             </div>
-            <Input v-model="userInput" type="number" min="0" max="65535" placeholder="image default" class="h-8 w-36" />
-          </div>
+          </fieldset>
           <FormFooter
             :dirty="userChanged"
             :saving="userSaving"

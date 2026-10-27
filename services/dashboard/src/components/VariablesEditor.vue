@@ -25,9 +25,11 @@ const rows = defineModel<VariableRow[]>('rows', { required: true });
 const props = withDefaults(defineProps<{
   references?: VariableReference[];
   loading?: boolean;
+  disabled?: boolean;
 }>(), {
   references: undefined,
   loading: false,
+  disabled: false,
 });
 
 const emit = defineEmits<{
@@ -49,7 +51,7 @@ interface ReferenceGroup {
 }
 
 const openPopoverIndex = ref<number | null>(null);
-const root = ref<HTMLElement | null>(null);
+const root = ref<HTMLFieldSetElement | null>(null);
 
 const linkable = computed(() => props.references !== undefined);
 
@@ -134,7 +136,7 @@ function referenceInfo(row: VariableRow) {
     <Skeleton class="h-9 w-full" />
   </div>
 
-  <div v-else ref="root" class="space-y-2">
+  <fieldset v-else ref="root" :disabled="disabled" class="min-w-0 space-y-2">
     <div
       v-for="(row, index) in rows"
       :key="index"
@@ -275,7 +277,7 @@ function referenceInfo(row: VariableRow) {
         Add variable
       </Button>
     </div>
-  </div>
+  </fieldset>
 </template>
 
 <style scoped>

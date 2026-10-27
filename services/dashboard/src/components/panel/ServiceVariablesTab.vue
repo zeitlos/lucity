@@ -123,6 +123,7 @@ async function handleSave() {
       v-model:rows="rows"
       :references="references"
       :loading="loading"
+      :disabled="saving"
       @change="hasChanges = true"
     >
       <template #empty>

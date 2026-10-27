@@ -162,22 +162,24 @@ async function remove(range: string) {
     </div>
 
     <form class="flex gap-1.5" @submit.prevent="allowEntered">
-      <Input
-        v-model="newRange"
-        placeholder="203.0.113.7 or 203.0.113.0/24"
-        class="flex-1 font-mono text-xs"
-        aria-label="Address or range"
-      />
-      <Input
-        v-model="newDescription"
-        placeholder="Description (optional)"
-        maxlength="64"
-        class="flex-1 text-xs"
-        aria-label="Description"
-      />
-      <Button type="submit" :disabled="adding || !newRange.trim()">
+      <fieldset :disabled="adding" class="flex min-w-0 flex-1 gap-1.5">
+        <Input
+          v-model="newRange"
+          placeholder="203.0.113.7 or 203.0.113.0/24"
+          class="flex-1 font-mono text-xs"
+          aria-label="Address or range"
+        />
+        <Input
+          v-model="newDescription"
+          placeholder="Description (optional)"
+          maxlength="64"
+          class="flex-1 text-xs"
+          aria-label="Description"
+        />
+      </fieldset>
+      <Button type="submit" :pending="adding" :disabled="!newRange.trim()">
         <Plus />
-        Allow
+        {{ adding ? 'Allowing…' : 'Allow' }}
       </Button>
     </form>
 

@@ -36,11 +36,14 @@ export type ButtonVariants = VariantProps<typeof buttonVariants>;
 import type { HTMLAttributes } from 'vue';
 import { Primitive, type PrimitiveProps } from 'reka-ui';
 import { cn } from '@/lib/utils';
+import Spinner from '@/components/LoadingSpinner.vue';
 
 interface Props extends PrimitiveProps {
   variant?: ButtonVariants['variant'];
   size?: ButtonVariants['size'];
   class?: HTMLAttributes['class'];
+  disabled?: boolean;
+  pending?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -49,7 +52,14 @@ const props = withDefaults(defineProps<Props>(), {
 </script>
 
 <template>
-  <Primitive :as="as" :as-child="asChild" :class="cn(buttonVariants({ variant, size }), props.class)">
+  <Primitive
+    :as="as"
+    :as-child="asChild"
+    :class="cn(buttonVariants({ variant, size }), pending && '[&>svg]:hidden', props.class)"
+    :disabled="disabled || pending || undefined"
+    :aria-busy="pending || undefined"
+  >
+    <Spinner v-if="pending" :size="size === 'xs' || size === 'icon-xs' ? 14 : 16" />
     <slot />
   </Primitive>
 </template>

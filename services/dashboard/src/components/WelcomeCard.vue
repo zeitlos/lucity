@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@/components/ui/button';
 import { ref } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
 import { ArrowRight, FolderPlus } from '@lucide/vue';
@@ -73,14 +74,14 @@ const firstName = ref(
 
         <!-- Continue CTA -->
         <div class="max-w-lg">
-          <button
-            class="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-            :disabled="checkingOut"
+          <Button
+            class="w-full"
+            :pending="checkingOut"
             @click="continueWithPlan"
           >
-            {{ checkingOut ? 'Redirecting...' : `Continue with ${selectedPlan === Plan.Pro ? 'Pro' : 'Hobby'}` }}
-            <ArrowRight v-if="!checkingOut" :size="16" />
-          </button>
+            {{ checkingOut ? 'Redirecting…' : `Continue with ${selectedPlan === Plan.Pro ? 'Pro' : 'Hobby'}` }}
+            <ArrowRight />
+          </Button>
         </div>
 
         <!-- Action cards -->

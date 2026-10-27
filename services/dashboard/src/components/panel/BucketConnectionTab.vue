@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Spinner from '@/components/LoadingSpinner.vue';
 import { reactive, computed, ref } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
 import { Copy, Eye, EyeOff, Globe } from '@lucide/vue';
@@ -176,6 +177,7 @@ function copyToClipboard(text: string) {
             Serve this bucket's objects read-only over a public edge URL.
           </p>
         </div>
+        <Spinner v-if="publicSaving" :size="14" class="text-muted-foreground" />
         <Switch
           :model-value="props.public"
           :disabled="publicSaving"

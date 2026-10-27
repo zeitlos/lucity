@@ -117,24 +117,26 @@ async function handleDelete() {
       <section class="space-y-2.5">
         <h3 class="text-sm font-medium text-muted-foreground">General</h3>
         <div class="overflow-hidden rounded-lg border">
-          <div class="space-y-3.5 p-3">
-            <form class="space-y-1.5" @submit.prevent="nameChanged && handleUpdateName()">
-              <Label for="workspace-name" class="text-xs text-muted-foreground">Name</Label>
-              <Input
-                id="workspace-name"
-                v-model="editName"
-                class="h-9 min-w-0"
-                :disabled="!isAdmin || updating"
-              />
-            </form>
-            <div class="flex items-center justify-between gap-4">
-              <span class="text-xs text-muted-foreground">ID</span>
-              <span class="flex items-center gap-2">
-                <span v-if="workspace.personal" class="rounded-full bg-muted px-2 py-px text-[11px] text-muted-foreground">Personal</span>
-                <span class="truncate font-mono text-xs text-foreground">{{ workspace.id }}</span>
-              </span>
+          <fieldset :disabled="updating" class="min-w-0">
+            <div class="space-y-3.5 p-3">
+              <form class="space-y-1.5" @submit.prevent="nameChanged && handleUpdateName()">
+                <Label for="workspace-name" class="text-xs text-muted-foreground">Name</Label>
+                <Input
+                  id="workspace-name"
+                  v-model="editName"
+                  class="h-9 min-w-0"
+                  :disabled="!isAdmin || updating"
+                />
+              </form>
+              <div class="flex items-center justify-between gap-4">
+                <span class="text-xs text-muted-foreground">ID</span>
+                <span class="flex items-center gap-2">
+                  <span v-if="workspace.personal" class="rounded-full bg-muted px-2 py-px text-[11px] text-muted-foreground">Personal</span>
+                  <span class="truncate font-mono text-xs text-foreground">{{ workspace.id }}</span>
+                </span>
+              </div>
             </div>
-          </div>
+          </fieldset>
           <FormFooter
             v-if="isAdmin"
             :dirty="nameChanged"

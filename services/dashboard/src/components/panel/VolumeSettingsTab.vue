@@ -175,10 +175,10 @@ async function handleDelete() {
           <template #trigger>
             <Button
               variant="outline"
-              :disabled="unmounting"
+              :pending="unmounting"
             >
               <Unplug />
-              {{ unmounting ? 'Unmounting...' : 'Unmount' }}
+              {{ unmounting ? 'Unmounting…' : 'Unmount' }}
             </Button>
           </template>
         </ConfirmDialog>
@@ -210,24 +210,26 @@ async function handleDelete() {
 
       <div class="overflow-hidden rounded-lg border">
         <div class="divide-y">
-          <div class="space-y-3 px-4 py-3">
-            <div class="flex items-center gap-3">
-              <HardDrive :size="16" class="shrink-0 text-muted-foreground" />
-              <span class="flex-1 text-sm text-muted-foreground">Size</span>
-              <span class="font-mono text-sm font-semibold text-foreground">{{ selectedSize }}</span>
+          <fieldset :disabled="storageSaving" class="min-w-0 divide-y">
+            <div class="space-y-3 px-4 py-3">
+              <div class="flex items-center gap-3">
+                <HardDrive :size="16" class="shrink-0 text-muted-foreground" />
+                <span class="flex-1 text-sm text-muted-foreground">Size</span>
+                <span class="font-mono text-sm font-semibold text-foreground">{{ selectedSize }}</span>
+              </div>
+              <Slider
+                :model-value="[volumeSizes.indexOf(selectedSize)]"
+                :min="minIndex"
+                :max="volumeSizes.length - 1"
+                :step="1"
+                @update:model-value="selectedSize = volumeSizes[$event?.[0] ?? minIndex]!"
+              />
+              <div class="flex justify-between text-[10px] text-muted-foreground">
+                <span>{{ volume.size }}</span>
+                <span>{{ volumeSizes[volumeSizes.length - 1] }}</span>
+              </div>
             </div>
-            <Slider
-              :model-value="[volumeSizes.indexOf(selectedSize)]"
-              :min="minIndex"
-              :max="volumeSizes.length - 1"
-              :step="1"
-              @update:model-value="selectedSize = volumeSizes[$event?.[0] ?? minIndex]!"
-            />
-            <div class="flex justify-between text-[10px] text-muted-foreground">
-              <span>{{ volume.size }}</span>
-              <span>{{ volumeSizes[volumeSizes.length - 1] }}</span>
-            </div>
-          </div>
+          </fieldset>
           <FormFooter
             :dirty="storageChanged"
             :saving="storageSaving"

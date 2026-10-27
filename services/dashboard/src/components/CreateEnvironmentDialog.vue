@@ -212,9 +212,10 @@ async function handleCreate() {
         <DialogFooter>
           <Button
             type="submit"
-            :disabled="!name.trim() || loading"
+            :pending="loading"
+            :disabled="!name.trim()"
           >
-            {{ loading ? 'Creating...' : 'Create Environment' }}
+            {{ loading ? 'Creating…' : 'Create Environment' }}
           </Button>
         </DialogFooter>
       </form>

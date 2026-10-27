@@ -13,7 +13,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import Spinner from '@/components/LoadingSpinner.vue';
 import DialogIcon from '@/components/DialogIcon.vue';
 
 const open = defineModel<boolean>('open', { default: false });
@@ -90,10 +89,10 @@ function confirm() {
         <AlertDialogCancel :disabled="pending">{{ cancelLabel }}</AlertDialogCancel>
         <Button
           :variant="destructive ? 'destructive' : 'default'"
+          :pending="pending"
           :disabled="!canConfirm"
           @click="confirm"
         >
-          <Spinner v-if="pending" :size="16" />
           {{ pending && pendingLabel ? pendingLabel : confirmLabel }}
         </Button>
       </AlertDialogFooter>

@@ -37,7 +37,8 @@ const emit = defineEmits<{
     </Button>
     <Button
       class="shrink-0"
-      :disabled="!dirty || saving || disabled"
+      :pending="saving"
+      :disabled="!dirty || disabled"
       @click="emit('save')"
     >
       {{ saving ? 'Saving…' : 'Save' }}

@@ -116,24 +116,26 @@ async function handleDelete() {
       <section class="space-y-2.5">
         <h3 class="text-sm font-medium text-muted-foreground">Resource tier</h3>
         <div class="overflow-hidden rounded-lg border">
-          <RadioGroup
-            :model-value="tier"
-            class="gap-0 divide-y"
-            @update:model-value="tier = $event as ResourceTier"
-          >
-            <label
-              v-for="option in tierOptions"
-              :key="option.value"
-              class="flex cursor-pointer items-start gap-3 p-3 transition-colors"
-              :class="{ 'bg-primary/5': tier === option.value }"
+          <fieldset :disabled="savingTier" class="min-w-0">
+            <RadioGroup
+              :model-value="tier"
+              class="gap-0 divide-y"
+              @update:model-value="tier = $event as ResourceTier"
             >
-              <RadioGroupItem :value="option.value" class="mt-0.5" />
-              <span class="space-y-0.5">
-                <span class="block text-sm font-medium">{{ option.label }}</span>
-                <span class="block text-xs text-muted-foreground">{{ option.description }}</span>
-              </span>
-            </label>
-          </RadioGroup>
+              <label
+                v-for="option in tierOptions"
+                :key="option.value"
+                class="flex cursor-pointer items-start gap-3 p-3 transition-colors"
+                :class="{ 'bg-primary/5': tier === option.value }"
+              >
+                <RadioGroupItem :value="option.value" class="mt-0.5" />
+                <span class="space-y-0.5">
+                  <span class="block text-sm font-medium">{{ option.label }}</span>
+                  <span class="block text-xs text-muted-foreground">{{ option.description }}</span>
+                </span>
+              </label>
+            </RadioGroup>
+          </fieldset>
           <FormFooter
             :dirty="tierChanged"
             :saving="savingTier"

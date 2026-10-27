@@ -8,7 +8,6 @@ import {
   GitBranch,
   Shield,
 } from '@lucide/vue';
-import Spinner from '@/components/LoadingSpinner.vue';
 import { graphql } from '@/gql';
 import { toast, errorToast } from '@/components/ui/sonner';
 import {
@@ -154,17 +153,11 @@ async function handleEject() {
           </Button>
           <Button
             class="flex-1"
-            :disabled="ejecting"
+            :pending="ejecting"
             @click="handleEject"
           >
-            <Spinner
-              v-if="ejecting"
-              :size="14" class="animate-spin"
-            />
-            <Download
-              v-else
-            />
-            {{ ejecting ? 'Exporting...' : 'Download .zip' }}
+            <Download />
+            {{ ejecting ? 'Exporting…' : 'Download .zip' }}
           </Button>
         </div>
       </div>

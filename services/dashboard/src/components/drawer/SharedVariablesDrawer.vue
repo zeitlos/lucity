@@ -89,6 +89,7 @@ async function handleSave() {
     <VariablesEditor
       v-model:rows="rows"
       :loading="loading"
+      :disabled="saving"
       @change="hasChanges = true"
     >
       <template #empty>

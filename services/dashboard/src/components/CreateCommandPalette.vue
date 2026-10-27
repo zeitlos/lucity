@@ -1318,13 +1318,14 @@ void activeEnvironment;
                 />
                 <p class="text-xs text-muted-foreground">Redis 8 &middot; powered by Valkey &middot; 1Gi storage</p>
               </div>
-              <button
-                class="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-                :disabled="creatingKeyValueStore || !newKeyValueStoreName"
+              <Button
+                class="w-full"
+                :pending="creatingKeyValueStore"
+                :disabled="!newKeyValueStoreName"
                 @click="handleCreateKeyValueStore"
               >
-                {{ creatingKeyValueStore ? 'Creating...' : 'Create Redis' }}
-              </button>
+                {{ creatingKeyValueStore ? 'Creating…' : 'Create Redis' }}
+              </Button>
             </div>
           </template>
 
@@ -1351,13 +1352,14 @@ void activeEnvironment;
                 />
                 <p class="text-xs text-muted-foreground">S3-compatible &middot; works with any S3 SDK or the AWS CLI</p>
               </div>
-              <button
-                class="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-                :disabled="creatingBucket || !newBucketName"
+              <Button
+                class="w-full"
+                :pending="creatingBucket"
+                :disabled="!newBucketName"
                 @click="handleCreateBucket"
               >
-                {{ creatingBucket ? 'Creating...' : 'Create Bucket' }}
-              </button>
+                {{ creatingBucket ? 'Creating…' : 'Create Bucket' }}
+              </Button>
             </div>
           </template>
 
@@ -1416,13 +1418,14 @@ void activeEnvironment;
                 </div>
                 <p class="text-xs text-muted-foreground">Volumes can be grown later, but not shrunk.</p>
               </div>
-              <button
-                class="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-                :disabled="creatingVolume || !newVolumeSize"
+              <Button
+                class="w-full"
+                :pending="creatingVolume"
+                :disabled="!newVolumeSize"
                 @click="handleCreateVolume"
               >
-                {{ creatingVolume ? 'Creating...' : 'Create Volume' }}
-              </button>
+                {{ creatingVolume ? 'Creating…' : 'Create Volume' }}
+              </Button>
             </div>
           </template>
 
@@ -1471,18 +1474,19 @@ void activeEnvironment;
                 :disabled="creating"
                 name-placeholder="e.g. My API"
               />
-              <button
+              <Button
                 type="submit"
-                class="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-                :disabled="!isProjectValid || creating || detectingServices"
+                class="w-full"
+                :pending="creating || detectingServices"
+                :disabled="!isProjectValid"
               >
                 <template v-if="pendingRepo">
-                  {{ detectingServices ? 'Detecting services...' : 'Continue' }}
+                  {{ detectingServices ? 'Detecting services…' : 'Continue' }}
                 </template>
                 <template v-else>
-                  {{ creating ? 'Creating...' : 'Create Project' }}
+                  {{ creating ? 'Creating…' : 'Create Project' }}
                 </template>
-              </button>
+              </Button>
             </form>
           </template>
 

@@ -369,8 +369,8 @@ async function confirmDelete() {
             @keyup.enter="createFolder"
             @keyup.esc="creatingFolder = false"
           />
-          <Button variant="ghost" size="xs" :disabled="savingFolder" @click="createFolder">
-            {{ savingFolder ? 'Creating...' : 'Create' }}
+          <Button variant="ghost" size="xs" :pending="savingFolder" @click="createFolder">
+            {{ savingFolder ? 'Creating…' : 'Create' }}
           </Button>
           <Button variant="ghost" size="xs" :disabled="savingFolder" @click="creatingFolder = false">Cancel</Button>
         </div>

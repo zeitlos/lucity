@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@/components/ui/button';
 import IconButton from '@/components/IconButton.vue';
 import { ref, computed, watch, nextTick } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
@@ -255,14 +256,15 @@ async function handleMount() {
               <p v-else class="text-xs text-muted-foreground">
                 Mounting attaches the volume and restarts the service.
               </p>
-              <button
-                class="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-                :disabled="mounting || !!pathError"
+              <Button
+                class="w-full"
+                :pending="mounting"
+                :disabled="!!pathError"
                 @click="handleMount"
               >
-                <Plug :size="14" class="mr-1.5" />
-                {{ mounting ? 'Mounting...' : 'Mount Volume' }}
-              </button>
+                <Plug />
+                {{ mounting ? 'Mounting…' : 'Mount Volume' }}
+              </Button>
             </div>
           </template>
         </div>

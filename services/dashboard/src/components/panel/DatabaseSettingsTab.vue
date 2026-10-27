@@ -243,48 +243,50 @@ async function handleDelete() {
 
       <div class="overflow-hidden rounded-lg border">
         <div class="divide-y">
-          <div class="flex items-center gap-3 px-4 py-3">
-            <Cpu :size="16" class="shrink-0 text-muted-foreground" />
-            <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium text-foreground">CPU</p>
-              <p class="text-xs text-muted-foreground">Limit per instance</p>
+          <fieldset :disabled="resourcesSaving" class="min-w-0 divide-y">
+            <div class="flex items-center gap-3 px-4 py-3">
+              <Cpu :size="16" class="shrink-0 text-muted-foreground" />
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium text-foreground">CPU</p>
+                <p class="text-xs text-muted-foreground">Limit per instance</p>
+              </div>
+              <Select v-model="selectedCpu">
+                <SelectTrigger class="h-8 w-36">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem
+                    v-for="option in cpuOptions"
+                    :key="option.value"
+                    :value="option.value"
+                  >
+                    {{ option.label }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Select v-model="selectedCpu">
-              <SelectTrigger class="h-8 w-36">
-                <SelectValue placeholder="Select" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem
-                  v-for="option in cpuOptions"
-                  :key="option.value"
-                  :value="option.value"
-                >
-                  {{ option.label }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div class="flex items-center gap-3 px-4 py-3">
-            <MemoryStick :size="16" class="shrink-0 text-muted-foreground" />
-            <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium text-foreground">Memory</p>
-              <p class="text-xs text-muted-foreground">Limit per instance</p>
+            <div class="flex items-center gap-3 px-4 py-3">
+              <MemoryStick :size="16" class="shrink-0 text-muted-foreground" />
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium text-foreground">Memory</p>
+                <p class="text-xs text-muted-foreground">Limit per instance</p>
+              </div>
+              <Select v-model="selectedMemory">
+                <SelectTrigger class="h-8 w-36">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem
+                    v-for="option in memoryOptions"
+                    :key="option.value"
+                    :value="option.value"
+                  >
+                    {{ option.label }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Select v-model="selectedMemory">
-              <SelectTrigger class="h-8 w-36">
-                <SelectValue placeholder="Select" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem
-                  v-for="option in memoryOptions"
-                  :key="option.value"
-                  :value="option.value"
-                >
-                  {{ option.label }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          </fieldset>
           <FormFooter
             :dirty="resourcesChanged"
             :saving="resourcesSaving"
@@ -304,27 +306,29 @@ async function handleDelete() {
 
       <div class="overflow-hidden rounded-lg border">
         <div class="divide-y">
-          <div class="flex items-center gap-3 px-4 py-3">
-            <HardDrive :size="16" class="shrink-0 text-muted-foreground" />
-            <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium text-foreground">Disk</p>
-              <p class="text-xs text-muted-foreground">Volume per instance</p>
+          <fieldset :disabled="storageSaving" class="min-w-0 divide-y">
+            <div class="flex items-center gap-3 px-4 py-3">
+              <HardDrive :size="16" class="shrink-0 text-muted-foreground" />
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium text-foreground">Disk</p>
+                <p class="text-xs text-muted-foreground">Volume per instance</p>
+              </div>
+              <Select v-model="selectedStorage">
+                <SelectTrigger class="h-8 w-36">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem
+                    v-for="option in availableStorageOptions"
+                    :key="option.value"
+                    :value="option.value"
+                  >
+                    {{ option.label }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Select v-model="selectedStorage">
-              <SelectTrigger class="h-8 w-36">
-                <SelectValue placeholder="Select" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem
-                  v-for="option in availableStorageOptions"
-                  :key="option.value"
-                  :value="option.value"
-                >
-                  {{ option.label }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          </fieldset>
           <FormFooter
             :dirty="storageChanged"
             :saving="storageSaving"

@@ -145,8 +145,8 @@ function formatDate(dateStr: string): string {
               <SelectItem :value="WorkspaceRole.Admin">Admin</SelectItem>
             </SelectContent>
           </Select>
-          <Button type="submit" class="shrink-0" :disabled="!newName.trim() || creating">
-            {{ creating ? 'Creating...' : 'Create' }}
+          <Button type="submit" class="shrink-0" :pending="creating" :disabled="!newName.trim()">
+            {{ creating ? 'Creating…' : 'Create' }}
           </Button>
         </div>
         <p class="text-xs text-muted-foreground">

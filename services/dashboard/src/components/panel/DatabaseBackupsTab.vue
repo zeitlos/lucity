@@ -59,7 +59,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 import EmptyState from '@/components/EmptyState.vue';
-import Spinner from '@/components/LoadingSpinner.vue';
 import RecoveryTimeline from './RecoveryTimeline.vue';
 
 const props = defineProps<{
@@ -358,9 +357,8 @@ const visibleEntries = computed(() => (showAll.value ? entries.value : entries.v
             </div>
 
             <div class="flex justify-end">
-              <Button :disabled="!canRestore" @click="handleRestore">
-                <Spinner v-if="restoring" :size="14" />
-                {{ restoring ? 'Restoring...' : 'Restore' }}
+              <Button :pending="restoring" :disabled="!canRestore" @click="handleRestore">
+                {{ restoring ? 'Restoring…' : 'Restore' }}
               </Button>
             </div>
           </div>
@@ -379,11 +377,10 @@ const visibleEntries = computed(() => (showAll.value ? entries.value : entries.v
             <Button
               variant="outline"
               class="shrink-0"
-              :disabled="backingUp"
+              :pending="backingUp"
               @click="handleBackupNow"
             >
-              <Spinner v-if="backingUp" :size="12" />
-              {{ backingUp ? 'Starting...' : 'Back up now' }}
+              {{ backingUp ? 'Starting…' : 'Back up now' }}
             </Button>
           </div>
 

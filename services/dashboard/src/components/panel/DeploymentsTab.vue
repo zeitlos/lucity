@@ -392,15 +392,11 @@ watch(
         {{ service.autoDeploy ? 'Every push deploys.' : 'Auto-deploy is off.' }}
       </p>
       <Button
-        :disabled="deploy.isDeploying"
+        :pending="deploy.isDeploying"
         @click="handleDeploy"
       >
-        <Spinner
-          v-if="deploy.isDeploying"
-          :size="14" class="animate-spin"
-        />
-        <Rocket v-else />
-        {{ deploy.isDeploying ? 'Building...' : 'Deploy' }}
+        <Rocket />
+        {{ deploy.isDeploying ? 'Building…' : 'Deploy' }}
       </Button>
     </div>
 

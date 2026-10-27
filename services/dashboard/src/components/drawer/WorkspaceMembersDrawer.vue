@@ -154,8 +154,8 @@ function initial(member: { email: string; name?: string | null }) {
               <SelectItem :value="WorkspaceRole.Admin">Admin</SelectItem>
             </SelectContent>
           </Select>
-          <Button type="submit" class="shrink-0" :disabled="!inviteEmail.trim() || inviting">
-            {{ inviting ? 'Inviting...' : 'Invite' }}
+          <Button type="submit" class="shrink-0" :pending="inviting" :disabled="!inviteEmail.trim()">
+            {{ inviting ? 'Inviting…' : 'Invite' }}
           </Button>
         </div>
       </form>

@@ -53,7 +53,7 @@ const rows = computed<Row[]>(() => {
   }
   return [{
     id: 'submit',
-    label: submitting.value ? 'Creating...' : (props.flow.submitLabel ?? 'Create'),
+    label: submitting.value ? 'Creating…' : (props.flow.submitLabel ?? 'Create'),
     icon: Check,
     actionLabel: 'create',
     disabled: !stepValid.value || submitting.value,

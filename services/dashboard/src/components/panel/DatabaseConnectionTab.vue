@@ -206,6 +206,7 @@ const privateGroups = computed(() => groups.value.filter(g => g.type !== 'PLATFO
               : 'Reachable only from your other services over the private network.' }}
           </p>
         </div>
+        <Spinner v-if="toggling" :size="14" class="text-muted-foreground" />
         <Switch
           :model-value="isPublic"
           :disabled="toggling"

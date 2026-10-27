@@ -107,9 +107,10 @@ async function handleCheckout() {
         <DialogFooter>
           <Button
             type="submit"
-            :disabled="!isValid || loading"
+            :pending="loading"
+            :disabled="!isValid"
           >
-            {{ loading ? 'Redirecting...' : 'Subscribe' }}
+            {{ loading ? 'Redirecting…' : 'Subscribe' }}
           </Button>
         </DialogFooter>
       </form>
