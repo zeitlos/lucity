@@ -1,20 +1,3 @@
-/* Dots */
-.pattern-dots {
-  background-image: var(--pattern-dots);
-  background-size: 20px 20px;
-}
-
-/* Diagonal lines (hatching) */
-.pattern-diagonal {
-  background-image: repeating-linear-gradient(
-    45deg,
-    transparent,
-    transparent 14px,
-    oklch(from var(--border) l c h / 0.5) 14px,
-    oklch(from var(--border) l c h / 0.5) 14.5px
-  );
-}
-
 /* Crosshatch */
 .pattern-crosshatch {
   background-image:
@@ -32,24 +15,6 @@
       oklch(from var(--border) l c h / 0.5) 14px,
       oklch(from var(--border) l c h / 0.5) 14.5px
     );
-}
-
-/* Isometric dots (offset rows) */
-.pattern-iso-dots {
-  background-image:
-    radial-gradient(circle 1px, var(--border) 1px, transparent 1px),
-    radial-gradient(circle 1px, var(--border) 1px, transparent 1px);
-  background-size: 18px 18px;
-  background-position: 0 0, 9px 9px;
-}
-
-/* Plus signs / crosses */
-.pattern-plus {
-  background-image:
-    linear-gradient(oklch(from var(--border) l c h / 0.5) 0.5px, transparent 0.5px),
-    linear-gradient(90deg, oklch(from var(--border) l c h / 0.5) 0.5px, transparent 0.5px);
-  background-size: 5px 22px, 22px 5px;
-  background-position: 11px 8.5px, 8.5px 11px;
 }
 
 /* Concentric circles / radar rings */

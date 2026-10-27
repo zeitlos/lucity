@@ -2,7 +2,7 @@
 import QueryError from '@/components/QueryError.vue';
 import { computed, ref } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
-import { ShieldCheck, TriangleAlert, ExternalLink, ChevronDown, ChevronRight } from '@lucide/vue';
+import { ShieldCheck, TriangleAlert, ExternalLink, ChevronDown, ChevronRight, ScanSearch } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -127,6 +127,7 @@ function formatRelativeTime(timestamp: string): string {
       <EmptyState
         v-else-if="!vulnerabilityReport"
         size="compact"
+        :icon="ScanSearch"
         title="No scan yet"
         description="Vulnerabilities in the image show up here once this service has been deployed and scanned."
       />
@@ -189,6 +190,7 @@ function formatRelativeTime(timestamp: string): string {
       <EmptyState
         v-else-if="!report"
         size="compact"
+        :icon="ScanSearch"
         title="No scans yet"
         description="The report for the latest scanned commit shows up here after the first deployment."
       />

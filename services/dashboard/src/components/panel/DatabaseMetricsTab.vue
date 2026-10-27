@@ -6,7 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import IconButton from '@/components/IconButton.vue';
 import { computed, ref } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
-import { ChevronDown, ChevronUp } from '@lucide/vue';
+import { ChevronDown, ChevronUp, ChartLine } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { DatabaseInstanceRole, DatabaseMetric, MetricGrouping, MetricWindow } from '@/gql/graphql';
 import { formatBytes, parseCpu, parseStorageSize, cn } from '@/lib/utils';
@@ -510,6 +510,7 @@ function toggleQuery(index: number) {
     <EmptyState
       v-else
       size="compact"
+      :icon="ChartLine"
       title="No metrics yet"
       description="They appear within a minute or two of the database running."
     />

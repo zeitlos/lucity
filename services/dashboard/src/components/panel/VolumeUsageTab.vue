@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { HardDrive } from '@lucide/vue';
 import QueryError from '@/components/QueryError.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -129,6 +130,7 @@ const unit = computed(() => {
     <EmptyState
       v-else
       size="compact"
+      :icon="HardDrive"
       title="No usage data yet"
       :description="volume.mount ? 'Usage appears within a minute or two.' : 'Mount this volume to a service to start collecting usage.'"
     />

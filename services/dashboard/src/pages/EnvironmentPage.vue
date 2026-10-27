@@ -754,11 +754,10 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
               />
             </template>
             <template v-else>
-              <div class="flex h-full items-center justify-center">
+              <div class="p-4">
                 <EmptyState
                   title="No resources yet"
                   description="Create a service or database to get started."
-                  pattern="crosshatch"
                 >
                   <template #action>
                     <Button @click="paletteOpen = true">

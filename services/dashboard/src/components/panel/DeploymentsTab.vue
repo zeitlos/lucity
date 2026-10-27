@@ -634,6 +634,7 @@ watch(
     <EmptyState
       v-else-if="!deploy.isDeploying && !activeDeployment"
       size="compact"
+      :icon="Rocket"
       title="No deployments yet"
       description="Deploy builds the latest commit and rolls it out."
     />

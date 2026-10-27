@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ChartLine } from '@lucide/vue';
 import QueryError from '@/components/QueryError.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -192,6 +193,7 @@ const hasData = computed(() => allPoints.value.some(p => p.value != null));
     <EmptyState
       v-else
       size="compact"
+      :icon="ChartLine"
       title="No metrics yet"
       description="They appear within a minute or two of the service running."
     />

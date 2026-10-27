@@ -295,7 +295,6 @@ onKeyStroke('/', (event) => {
                   v-if="!githubConnected"
                   title="Connect GitHub"
                   description="Connect your GitHub account to import repositories and deploy your first project."
-                  pattern="dots"
                 >
                   <template #action>
                     <Button @click="openInstallPopup()">
@@ -309,7 +308,6 @@ onKeyStroke('/', (event) => {
                   v-else
                   title="No projects yet"
                   description="Get started by connecting a GitHub repository."
-                  pattern="dots"
                 >
                   <template #action>
                     <Button @click="paletteOpen = true">

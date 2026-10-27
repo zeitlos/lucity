@@ -3,7 +3,7 @@ import QueryError from '@/components/QueryError.vue';
 import { ref, computed, watch } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
 import { useIntervalFn, useNow } from '@vueuse/core';
-import { CalendarClock, MousePointerClick, Timer } from '@lucide/vue';
+import { CalendarClock, MousePointerClick, Timer, DatabaseBackup } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { BackupStatus, BackupTrigger } from '@/gql/graphql';
 
@@ -261,6 +261,7 @@ const visibleEntries = computed(() => (showAll.value ? entries.value : entries.v
       <EmptyState
         v-if="!backups.enabled"
         size="compact"
+        :icon="DatabaseBackup"
         title="Backups are not switched on yet"
         description="Continuous backups are rolling out across the platform. This database picks them up automatically."
       />
@@ -384,6 +385,7 @@ const visibleEntries = computed(() => (showAll.value ? entries.value : entries.v
           <EmptyState
             v-if="entries.length === 0"
             size="compact"
+            :icon="DatabaseBackup"
             title="No backups yet"
             description="The first one runs as soon as the database is ready."
           />

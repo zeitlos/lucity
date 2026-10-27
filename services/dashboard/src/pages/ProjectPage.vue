@@ -177,7 +177,6 @@ function handleEnvironmentCreated(environmentId: string) {
               v-else
               title="No environments yet"
               description="Create an environment to start deploying services."
-              pattern="crosshatch"
             >
               <template #action>
                 <Button @click="envDialogOpen = true">

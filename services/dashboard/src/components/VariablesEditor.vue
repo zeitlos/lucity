@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue';
-import { Eye, EyeOff, Link, Plus, Trash2, Unlink } from '@lucide/vue';
+import { Eye, EyeOff, Link, Plus, Trash2, Unlink, Braces } from '@lucide/vue';
 import EmptyState from '@/components/EmptyState.vue';
 import IconButton from '@/components/IconButton.vue';
 import SourceIcon from '@/components/SourceIcon.vue';
@@ -264,6 +264,7 @@ function referenceInfo(row: VariableRow) {
     <EmptyState
       v-if="rows.length === 0"
       size="compact"
+      :icon="Braces"
       :title="emptyTitle"
       :description="emptyDescription"
     />
