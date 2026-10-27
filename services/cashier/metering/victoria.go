@@ -40,23 +40,24 @@ func (c *VMClient) CPUByNamespace(ctx context.Context, start, end time.Time) (ma
 	return c.queryByLabel(ctx, q, end, "k8s_namespace_name")
 }
 
-// MemoryByNamespace returns total memory working_set bytes per namespace, computed as
-// the sum across containers of each container's per-window average. This correctly
-// reflects the bytes-resident the namespace consumed (multi-container pods sum, not avg).
+// MemoryByNamespace returns the memory working_set bytes per namespace, summed across
+// its containers every minute and averaged over the window, so a replaced pod counts
+// only for the minutes it ran.
 func (c *VMClient) MemoryByNamespace(ctx context.Context, start, end time.Time) (map[string]float64, error) {
 	q := fmt.Sprintf(
-		`sum by (k8s_namespace_name) (avg_over_time(container_memory_working_set_bytes[%s]))`,
+		`avg_over_time((sum by (k8s_namespace_name) (container_memory_working_set_bytes))[%s:1m])`,
 		promDuration(end.Sub(start)),
 	)
 	return c.queryByLabel(ctx, q, end, "k8s_namespace_name")
 }
 
-// DiskByNamespace returns the persistent volume capacity (bytes) per namespace,
-// averaged over the window. Sourced from kube-state-metrics (PVCs only) — emptyDir,
-// configMap, secret, and projected volumes are correctly excluded.
+// DiskByNamespace returns the persistent volume capacity (bytes) per namespace, summed
+// every minute and averaged over the window. Sourced from kube-state-metrics (PVCs only),
+// with each PVC counted once across kube-state-metrics restarts — emptyDir, configMap,
+// secret, and projected volumes are correctly excluded.
 func (c *VMClient) DiskByNamespace(ctx context.Context, start, end time.Time) (map[string]float64, error) {
 	q := fmt.Sprintf(
-		`sum by (namespace) (avg_over_time(kube_persistentvolumeclaim_resource_requests_storage_bytes[%s]))`,
+		`avg_over_time((sum by (namespace) (max by (namespace, persistentvolumeclaim) (kube_persistentvolumeclaim_resource_requests_storage_bytes)))[%s:1m])`,
 		promDuration(end.Sub(start)),
 	)
 	return c.queryByLabel(ctx, q, end, "namespace")
