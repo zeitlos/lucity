@@ -8,12 +8,13 @@ interface BugReportOptions {
   error?: string;
 }
 
-function buildContext(extra?: { route?: string; workspace?: string }) {
+function buildContext(route?: string) {
+  const { activeWorkspace } = useAuth();
   const lines = [
     '## Context',
     '',
-    `- **Page**: \`${extra?.route ?? window.location.pathname}\``,
-    `- **Workspace**: ${extra?.workspace || 'unknown'}`,
+    `- **Page**: \`${route ?? window.location.pathname}\``,
+    `- **Workspace**: ${activeWorkspace.value || 'unknown'}`,
     `- **Browser**: ${navigator.userAgent}`,
     `- **Version**: ${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'}`,
     `- **Time**: ${new Date().toISOString()}`,
@@ -30,8 +31,8 @@ function openGitHubIssue(params: { title: string; body: string; labels: string }
 }
 
 /**
- * Standalone bug report opener for use outside Vue components (e.g. Apollo error link).
- * Does not access route or workspace context.
+ * Standalone bug report opener for use outside Vue components (e.g. toasts).
+ * Reads the page from the current location instead of the router.
  */
 export function openBugReport(opts?: BugReportOptions) {
   const sections = ['## Description\n\n<!-- What happened? -->'];
@@ -51,7 +52,6 @@ export function openBugReport(opts?: BugReportOptions) {
 
 export function useReportBug() {
   const route = useRoute();
-  const { activeWorkspace } = useAuth();
 
   function report(opts?: BugReportOptions) {
     const sections = ['## Description\n\n<!-- What happened? -->'];
@@ -60,10 +60,7 @@ export function useReportBug() {
       sections.push(`## Error\n\n\`\`\`\n${opts.error}\n\`\`\``);
     }
 
-    sections.push(buildContext({
-      route: route.fullPath,
-      workspace: activeWorkspace.value || undefined,
-    }));
+    sections.push(buildContext(route.fullPath));
 
     openGitHubIssue({
       title: opts?.title ? `[bug] ${opts.title}` : '[bug] ',
@@ -76,10 +73,7 @@ export function useReportBug() {
     const body = [
       '## Problem\n\n<!-- What problem does this solve? -->',
       '## Proposed Solution\n\n<!-- How should it work? -->',
-      buildContext({
-        route: route.fullPath,
-        workspace: activeWorkspace.value || undefined,
-      }),
+      buildContext(route.fullPath),
     ].join('\n\n');
 
     openGitHubIssue({
