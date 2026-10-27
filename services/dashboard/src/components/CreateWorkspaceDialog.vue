@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import DialogIcon from '@/components/DialogIcon.vue';
+import { Building2 } from '@lucide/vue';
 import { ref, computed } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
 import { graphql } from '@/gql';
@@ -75,6 +77,7 @@ async function handleCheckout() {
   >
     <DialogContent class="sm:max-w-xl">
       <DialogHeader>
+        <DialogIcon :icon="Building2" />
         <DialogTitle>New Workspace</DialogTitle>
         <DialogDescription>
           Create a workspace to collaborate with your team.

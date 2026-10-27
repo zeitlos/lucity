@@ -1,24 +1,15 @@
 <script setup lang="ts">
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { reactive, computed, ref } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
 import { Copy, Eye, EyeOff, DatabaseZap, Globe, Lock, ShieldAlert } from '@lucide/vue';
 import Spinner from '@/components/LoadingSpinner.vue';
 import { graphql } from '@/gql';
-import { Button } from '@/components/ui/button';
 import IconButton from '@/components/IconButton.vue';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import DatabaseAllowRules from '@/components/panel/DatabaseAllowRules.vue';
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 
@@ -330,19 +321,16 @@ const privateGroups = computed(() => groups.value.filter(g => g.type !== 'PLATFO
     </template>
 
     <!-- Expose confirmation -->
-    <AlertDialog v-model:open="exposeDialogOpen">
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle class="flex items-center gap-2">
-            <ShieldAlert :size="18" class="text-destructive" />
-            Expose "{{ databaseName }}" to the internet?
-          </AlertDialogTitle>
-          <AlertDialogDescription>
-            This database gets a public hostname on port 5432, and only the addresses you
-            allow can connect. Connections stay encrypted end-to-end (TLS terminates at the
-            database). You can change who is allowed at any time.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
+    <ConfirmDialog
+      v-model:open="exposeDialogOpen"
+      :title="`Expose &quot;${databaseName}&quot; to the internet?`"
+      description="It gets a public hostname on port 5432, and only the addresses you allow can connect. Connections stay encrypted end to end. You can change who is allowed at any time."
+      confirm-label="Expose database"
+      pending-label="Exposing…"
+      :pending="toggling"
+      :icon="ShieldAlert"
+      @confirm="setExposed(true)"
+    >
         <RadioGroup v-model="exposeAccess" class="space-y-2">
           <label
             v-if="clientAddress"
@@ -376,13 +364,6 @@ const privateGroups = computed(() => groups.value.filter(g => g.type !== 'PLATFO
             </div>
           </label>
         </RadioGroup>
-        <AlertDialogFooter>
-          <AlertDialogCancel :disabled="toggling">Cancel</AlertDialogCancel>
-          <Button :disabled="toggling" @click="setExposed(true)">
-            {{ toggling ? 'Exposing...' : 'Expose database' }}
-          </Button>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    </ConfirmDialog>
   </div>
 </template>

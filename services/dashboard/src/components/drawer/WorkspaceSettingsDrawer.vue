@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useMutation } from '@vue/apollo-composable';
@@ -34,16 +35,6 @@ import ContextDrawer from '@/components/drawer/ContextDrawer.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 import { useAuth } from '@/composables/useAuth';
@@ -160,28 +151,22 @@ async function handleDelete() {
             Removes the workspace and its members. All projects have to be deleted first.
           </p>
         </div>
-        <AlertDialog>
-          <AlertDialogTrigger as-child>
+        <ConfirmDialog
+          :title="`Delete workspace &quot;${workspace.name}&quot;?`"
+          description="Every member loses access. Its projects have to be deleted first. This can't be undone."
+          confirm-label="Delete workspace"
+          pending-label="Deleting…"
+          :pending="deleting"
+          destructive
+          @confirm="handleDelete"
+        >
+          <template #trigger>
             <Button variant="destructive" class="shrink-0" :disabled="deleting">
               <Trash2 />
               Delete
             </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete workspace "{{ workspace.name }}"?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will permanently delete the workspace and remove all members. All projects must be deleted first.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel :disabled="deleting">Cancel</AlertDialogCancel>
-              <Button variant="destructive" :disabled="deleting" @click="handleDelete">
-                {{ deleting ? 'Deleting...' : 'Delete workspace' }}
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+          </template>
+        </ConfirmDialog>
       </div>
     </div>
   </ContextDrawer>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { ref, computed, useTemplateRef } from 'vue';
 import { useQuery, useMutation, useApolloClient } from '@vue/apollo-composable';
 import { useDropZone } from '@vueuse/core';
@@ -17,15 +18,6 @@ import IconButton from '@/components/IconButton.vue';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { errorToast } from '@/components/ui/sonner';
 import { errorMessage, formatBytes } from '@/lib/utils';
 
@@ -452,22 +444,15 @@ async function confirmDelete() {
     </div>
 
     <!-- Delete confirmation -->
-    <AlertDialog v-model:open="deleteOpen">
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Delete file?</AlertDialogTitle>
-          <AlertDialogDescription>
-            <span class="font-mono">{{ deleteKey ? baseName(deleteKey) : '' }}</span> will be permanently
-            deleted. This action cannot be undone.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel :disabled="deleting">Cancel</AlertDialogCancel>
-          <Button variant="destructive" :disabled="deleting" @click="confirmDelete">
-            {{ deleting ? 'Deleting...' : 'Delete' }}
-          </Button>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <ConfirmDialog
+      v-model:open="deleteOpen"
+      :title="`Delete file &quot;${deleteKey ? baseName(deleteKey) : ''}&quot;?`"
+      description="This can't be undone."
+      confirm-label="Delete file"
+      pending-label="Deleting…"
+      :pending="deleting"
+      destructive
+      @confirm="confirmDelete"
+    />
   </div>
 </template>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { ref, computed } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
 import { CreditCard, ExternalLink } from '@lucide/vue';
@@ -56,15 +57,6 @@ import PlanPicker from '@/components/PlanPicker.vue';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Status } from '@/components/ui/status';
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 
@@ -281,24 +273,16 @@ async function handleOpenPortal() {
       </div>
     </template>
 
-    <AlertDialog :open="!!confirmPlan">
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>
-            Switch to {{ confirmPlan === Plan.Pro ? 'Pro' : 'Hobby' }}?
-          </AlertDialogTitle>
-          <AlertDialogDescription>
-            Your plan will be changed to {{ confirmPlan === Plan.Pro ? 'Pro (&euro;25/mo)' : 'Hobby (&euro;5/mo)' }}.
-            The change takes effect immediately with prorated billing.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel :disabled="selectingPlan" @click="confirmPlan = null">Cancel</AlertDialogCancel>
-          <Button :disabled="selectingPlan" @click="handleChangePlan">
-            {{ selectingPlan ? 'Switching...' : 'Confirm' }}
-          </Button>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <ConfirmDialog
+      :open="!!confirmPlan"
+      :title="`Switch to ${confirmPlan === Plan.Pro ? 'Pro' : 'Hobby'}?`"
+      :description="`Your plan changes to ${confirmPlan === Plan.Pro ? 'Pro (€25/mo)' : 'Hobby (€5/mo)'} right away, with prorated billing.`"
+      confirm-label="Switch plan"
+      :icon="CreditCard"
+      pending-label="Switching…"
+      :pending="selectingPlan"
+      @update:open="(value) => { if (!value) confirmPlan = null }"
+      @confirm="handleChangePlan"
+    />
   </ContextDrawer>
 </template>

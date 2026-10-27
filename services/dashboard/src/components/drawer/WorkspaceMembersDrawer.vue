@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { ref } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
 import { Shield, User as UserIcon, Trash2 } from '@lucide/vue';
@@ -45,15 +46,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 import { useAuth } from '@/composables/useAuth';
@@ -232,21 +224,16 @@ function initial(member: { email: string; name?: string | null }) {
       </div>
     </div>
 
-    <AlertDialog :open="!!memberToRemove">
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Remove member?</AlertDialogTitle>
-          <AlertDialogDescription>
-            {{ memberToRemove?.label }} will lose access to this workspace.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel :disabled="removingMember" @click="memberToRemove = null">Cancel</AlertDialogCancel>
-          <Button variant="destructive" :disabled="removingMember" @click="handleRemoveMember">
-            {{ removingMember ? 'Removing...' : 'Remove' }}
-          </Button>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <ConfirmDialog
+      :open="!!memberToRemove"
+      :title="`Remove member &quot;${memberToRemove?.label}&quot;?`"
+      description="They lose access to this workspace right away. You can invite them again later."
+      confirm-label="Remove member"
+      pending-label="Removing…"
+      :pending="removingMember"
+      destructive
+      @update:open="(value) => { if (!value) memberToRemove = null }"
+      @confirm="handleRemoveMember"
+    />
   </ContextDrawer>
 </template>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { useRouter } from 'vue-router';
 import { useMutation } from '@vue/apollo-composable';
 import { Trash2 } from '@lucide/vue';
@@ -12,16 +13,6 @@ const DeleteProjectDocument = graphql(`
 import { apolloClient } from '@/lib/apollo';
 import ContextDrawer from '@/components/drawer/ContextDrawer.vue';
 import { Button } from '@/components/ui/button';
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 
@@ -87,34 +78,23 @@ async function handleDelete() {
           <p class="text-[13px] font-medium text-foreground">Delete project</p>
           <p class="text-xs text-muted-foreground">Permanently delete this project and all its data.</p>
         </div>
-        <AlertDialog>
-          <AlertDialogTrigger as-child>
+        <ConfirmDialog
+          :title="`Delete project &quot;${project.name}&quot;?`"
+          description="Every environment, service and resource in it is deleted too. This can't be undone."
+          confirm-label="Delete project"
+          pending-label="Deleting…"
+          :pending="deleting"
+          :confirm-text="project.name"
+          destructive
+          @confirm="handleDelete"
+        >
+          <template #trigger>
             <Button variant="destructive" class="shrink-0">
               <Trash2 />
               Delete
             </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete project</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will permanently delete <strong>{{ project.name }}</strong>.
-                All environments, services, and deployments will be permanently deleted.
-                This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel :disabled="deleting">Cancel</AlertDialogCancel>
-              <Button
-                variant="destructive"
-                :disabled="deleting"
-                @click="handleDelete"
-              >
-                {{ deleting ? 'Deleting...' : 'Delete' }}
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+          </template>
+        </ConfirmDialog>
       </div>
     </div>
   </ContextDrawer>

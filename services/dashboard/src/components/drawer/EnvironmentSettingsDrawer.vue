@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useMutation } from '@vue/apollo-composable';
@@ -24,16 +25,6 @@ import { apolloClient } from '@/lib/apollo';
 import ContextDrawer from '@/components/drawer/ContextDrawer.vue';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 
@@ -179,33 +170,23 @@ async function handleDelete() {
             It has to be empty, and the last environment of a project can't be deleted.
           </p>
         </div>
-        <AlertDialog v-model:open="confirmOpen">
-          <AlertDialogTrigger as-child>
+        <ConfirmDialog
+          v-model:open="confirmOpen"
+          :title="`Delete environment &quot;${environment.name}&quot;?`"
+          description="Its deployment history goes with it. This can't be undone."
+          confirm-label="Delete environment"
+          pending-label="Deleting…"
+          :pending="deleting"
+          destructive
+          @confirm="handleDelete"
+        >
+          <template #trigger>
             <Button variant="destructive" class="shrink-0">
               <Trash2 />
               Delete
             </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete environment "{{ environment.name }}"?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will permanently delete the environment and all its deployments.
-                This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel :disabled="deleting">Cancel</AlertDialogCancel>
-              <Button
-                variant="destructive"
-                :disabled="deleting"
-                @click="handleDelete"
-              >
-                {{ deleting ? 'Deleting...' : 'Delete' }}
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+          </template>
+        </ConfirmDialog>
       </div>
     </div>
   </ContextDrawer>

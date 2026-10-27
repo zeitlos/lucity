@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import DialogIcon from '@/components/DialogIcon.vue';
+import { Layers } from '@lucide/vue';
 import { ref, computed, watch } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
 import { graphql } from '@/gql';
@@ -111,6 +113,7 @@ async function handleCreate() {
   >
     <DialogContent class="sm:max-w-md">
       <DialogHeader>
+        <DialogIcon :icon="Layers" />
         <DialogTitle>New Environment</DialogTitle>
         <DialogDescription>
           All changes will be isolated from other environments.

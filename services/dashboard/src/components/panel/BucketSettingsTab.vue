@@ -1,19 +1,10 @@
 <script setup lang="ts">
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { ref } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
 import { Trash2, MapPin, HardDrive, Files } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { Button } from '@/components/ui/button';
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage, formatBytes } from '@/lib/utils';
 
@@ -43,11 +34,11 @@ const deleteDialogOpen = ref(false);
 async function handleDelete() {
   try {
     await deleteBucket({ bucket: props.bucketId });
-    toast.success('Bucket removed');
+    toast.success('Bucket deleted');
     deleteDialogOpen.value = false;
     emit('bucket-removed');
   } catch (e: unknown) {
-    errorToast('Failed to remove bucket', { description: errorMessage(e) });
+    errorToast('Failed to delete bucket', { description: errorMessage(e) });
   }
 }
 </script>
@@ -98,33 +89,24 @@ async function handleDelete() {
                 Permanently delete this bucket and all its objects.
               </p>
             </div>
-            <AlertDialog v-model:open="deleteDialogOpen">
-              <AlertDialogTrigger as-child>
+            <ConfirmDialog
+              v-model:open="deleteDialogOpen"
+              :title="`Delete bucket &quot;${bucket.name}&quot;?`"
+              description="Every object in it is deleted with it. This can't be undone."
+              confirm-label="Delete bucket"
+              pending-label="Deleting…"
+              :pending="deleting"
+              :confirm-text="bucket.name"
+              destructive
+              @confirm="handleDelete"
+            >
+              <template #trigger>
                 <Button variant="destructive">
                   <Trash2 />
                   Delete
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete bucket "{{ bucket.name }}"?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will permanently delete the bucket and every object in it.
-                    This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel :disabled="deleting">Cancel</AlertDialogCancel>
-                  <Button
-                    variant="destructive"
-                    :disabled="deleting"
-                    @click="handleDelete"
-                  >
-                    {{ deleting ? 'Deleting...' : 'Delete Bucket' }}
-                  </Button>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+              </template>
+            </ConfirmDialog>
           </div>
         </div>
       </div>

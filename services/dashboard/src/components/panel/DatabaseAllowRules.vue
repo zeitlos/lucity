@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { computed, ref } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
 import { Earth, Laptop, Plus, ShieldAlert, Trash2 } from '@lucide/vue';
@@ -6,15 +7,6 @@ import { graphql } from '@/gql';
 import { Button } from '@/components/ui/button';
 import IconButton from '@/components/IconButton.vue';
 import { Input } from '@/components/ui/input';
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 
@@ -189,25 +181,15 @@ async function remove(range: string) {
       </Button>
     </form>
 
-    <AlertDialog v-model:open="anyAddressDialogOpen">
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle class="flex items-center gap-2">
-            <ShieldAlert :size="18" class="text-destructive" />
-            Allow connections from anywhere?
-          </AlertDialogTitle>
-          <AlertDialogDescription>
-            Anyone on the internet will be able to try to connect, and only the database
-            password keeps them out. Prefer allowing just the addresses you connect from.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel :disabled="adding">Cancel</AlertDialogCancel>
-          <Button :disabled="adding" @click="allowAnyAddress">
-            {{ adding ? 'Allowing...' : 'Allow any address' }}
-          </Button>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <ConfirmDialog
+      v-model:open="anyAddressDialogOpen"
+      title="Allow connections from anywhere?"
+      description="Anyone on the internet can try to connect, and only the database password keeps them out. Prefer allowing just the addresses you connect from."
+      confirm-label="Allow any address"
+      pending-label="Allowing…"
+      :pending="adding"
+      :icon="ShieldAlert"
+      @confirm="allowAnyAddress"
+    />
   </div>
 </template>

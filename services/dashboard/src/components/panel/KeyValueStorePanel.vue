@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import PanelShell from '@/components/PanelShell.vue';
 import { devicon } from '@/lib/devicons';
 import { reactive, computed, ref } from 'vue';
@@ -10,16 +11,6 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 
@@ -111,11 +102,11 @@ const deleteDialogOpen = ref(false);
 async function handleDelete() {
   try {
     await deleteStore({ keyValueStore: props.store.id });
-    toast.success('Redis store removed');
+    toast.success('Redis store deleted');
     deleteDialogOpen.value = false;
     emit('store-removed');
   } catch (e: unknown) {
-    errorToast('Failed to remove Redis store', { description: errorMessage(e) });
+    errorToast('Failed to delete Redis store', { description: errorMessage(e) });
   }
 }
 </script>
@@ -254,33 +245,24 @@ async function handleDelete() {
                         Permanently delete this store and all its data.
                       </p>
                     </div>
-                    <AlertDialog v-model:open="deleteDialogOpen">
-                      <AlertDialogTrigger as-child>
+                    <ConfirmDialog
+                      v-model:open="deleteDialogOpen"
+                      :title="`Delete Redis store &quot;${store.name}&quot;?`"
+                      description="All its data is deleted with it. This can't be undone."
+                      confirm-label="Delete Redis store"
+                      pending-label="Deleting…"
+                      :pending="deleting"
+                      :confirm-text="store.name"
+                      destructive
+                      @confirm="handleDelete"
+                    >
+                      <template #trigger>
                         <Button variant="destructive">
                           <Trash2 />
                           Delete
                         </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Redis store "{{ store.name }}"?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will permanently delete the store and all its data.
-                            This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel :disabled="deleting">Cancel</AlertDialogCancel>
-                          <Button
-                            variant="destructive"
-                            :disabled="deleting"
-                            @click="handleDelete"
-                          >
-                            {{ deleting ? 'Deleting...' : 'Delete Redis' }}
-                          </Button>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                      </template>
+                    </ConfirmDialog>
                   </div>
                 </div>
               </div>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { ref, computed, watch } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
 import { Trash2, Database, Server, HardDrive, Cpu, MemoryStick } from '@lucide/vue';
@@ -54,16 +55,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 
@@ -210,11 +201,11 @@ const deleteDialogOpen = ref(false);
 async function handleDelete() {
   try {
     await deleteDatabase({ database: props.databaseId });
-    toast.success('Database removed');
+    toast.success('Database deleted');
     deleteDialogOpen.value = false;
     emit('database-removed');
   } catch (e: unknown) {
-    errorToast('Failed to remove database', { description: errorMessage(e) });
+    errorToast('Failed to delete database', { description: errorMessage(e) });
   }
 }
 </script>
@@ -369,33 +360,24 @@ async function handleDelete() {
                 Permanently delete this database and all its data.
               </p>
             </div>
-            <AlertDialog v-model:open="deleteDialogOpen">
-              <AlertDialogTrigger as-child>
+            <ConfirmDialog
+              v-model:open="deleteDialogOpen"
+              :title="`Delete database &quot;${database.name}&quot;?`"
+              description="All its data is deleted with it. This can't be undone."
+              confirm-label="Delete database"
+              pending-label="Deleting…"
+              :pending="deleting"
+              :confirm-text="database.name"
+              destructive
+              @confirm="handleDelete"
+            >
+              <template #trigger>
                 <Button variant="destructive">
                   <Trash2 />
                   Delete
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete database "{{ database.name }}"?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will permanently delete the database and all its data.
-                    This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel :disabled="deleting">Cancel</AlertDialogCancel>
-                  <Button
-                    variant="destructive"
-                    :disabled="deleting"
-                    @click="handleDelete"
-                  >
-                    {{ deleting ? 'Deleting...' : 'Delete Database' }}
-                  </Button>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+              </template>
+            </ConfirmDialog>
           </div>
         </div>
       </div>

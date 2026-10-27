@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import DialogIcon from '@/components/DialogIcon.vue';
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { ref, computed, watch, nextTick, type ComponentPublicInstance } from 'vue';
 import { useMutation, useApolloClient } from '@vue/apollo-composable';
 import { Trash2, Copy, Globe, Plus, Minus, RefreshCw, ChevronDown, Network, ExternalLink, Scaling, GitBranch, Play, Zap, ArrowRight, Cpu, MemoryStick, Leaf, ShieldCheck, Check, ChevronsUpDown, Activity, UserCog, ClipboardList } from '@lucide/vue';
@@ -235,16 +237,6 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import { errorMessage } from '@/lib/utils';
 
 const props = defineProps<{
@@ -984,16 +976,16 @@ async function handleRemoveService() {
     const res = await removeServiceMutate({ service: props.service.id });
 
     if (res?.errors?.length) {
-      errorToast('Failed to remove service', {
+      errorToast('Failed to delete service', {
         description: res.errors.map(e => e.message).join(', '),
       });
       return;
     }
 
-    toast.success('Service removed');
+    toast.success('Service deleted');
     emit('removed');
   } catch (e: unknown) {
-    errorToast('Failed to remove service', { description: errorMessage(e) });
+    errorToast('Failed to delete service', { description: errorMessage(e) });
   }
 }
 </script>
@@ -1434,7 +1426,7 @@ async function handleRemoveService() {
                   label="Remove domain"
                   class="shrink-0 text-destructive"
                   :disabled="removingHostname === platformEndpoint!.host"
-                  @click="handleRemoveDomain(platformEndpoint!.host)"
+                  @click="domainToRemove = platformEndpoint!.host"
                 >
                   <Spinner v-if="removingHostname === platformEndpoint!.host" :size="14" />
                   <Trash2 v-else />
@@ -1579,6 +1571,7 @@ async function handleRemoveService() {
       <Dialog :open="!!recordsHost" @update:open="(open) => { if (!open) recordsHost = null; }">
         <DialogContent class="sm:max-w-xl">
           <DialogHeader>
+            <DialogIcon :icon="Globe" />
             <DialogTitle class="font-mono">{{ recordsHost }}</DialogTitle>
             <DialogDescription>
               <template v-if="recordsEndpoint && isEndpointVerified(recordsEndpoint)">
@@ -1642,29 +1635,28 @@ async function handleRemoveService() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog :open="!!domainToRemove">
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove domain</AlertDialogTitle>
-            <AlertDialogDescription>
-              Remove <strong class="font-mono">{{ domainToRemove }}</strong> from this service? This will also delete the TLS certificate.
-              <template v-if="endpointToRemove?.redirectTo">
-                It will no longer redirect to <strong class="font-mono">{{ endpointToRemove.redirectTo }}</strong>, which stays.
-              </template>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel :disabled="!!removingHostname" @click="domainToRemove = null">Cancel</AlertDialogCancel>
-            <Button
-              variant="destructive"
-              :disabled="!!removingHostname"
-              @click="handleRemoveDomain(domainToRemove!)"
-            >
-              {{ removingHostname ? 'Removing...' : 'Remove' }}
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        :open="!!domainToRemove"
+        :title="`Remove domain &quot;${domainToRemove}&quot;?`"
+        confirm-label="Remove domain"
+        pending-label="Removing…"
+        :pending="!!removingHostname"
+        destructive
+        @update:open="(value) => { if (!value) domainToRemove = null }"
+        @confirm="handleRemoveDomain(domainToRemove!)"
+      >
+        <template #description>
+          <template v-if="domainToRemove === platformEndpoint?.host">
+            You can generate a new one later.
+          </template>
+          <template v-else>
+            Its TLS certificate is deleted too.
+          </template>
+          <template v-if="endpointToRemove?.redirectTo">
+            It stops redirecting to "{{ endpointToRemove.redirectTo }}", which stays.
+          </template>
+        </template>
+      </ConfirmDialog>
 
       <!-- Private Networking -->
       <Collapsible>
@@ -2019,33 +2011,22 @@ async function handleRemoveService() {
                 Permanently remove this service from the project.
               </p>
             </div>
-            <AlertDialog>
-              <AlertDialogTrigger as-child>
+            <ConfirmDialog
+              :title="`Delete service &quot;${service.name}&quot;?`"
+              description="This can't be undone."
+              confirm-label="Delete service"
+              pending-label="Deleting…"
+              :pending="removing"
+              destructive
+              @confirm="handleRemoveService"
+            >
+              <template #trigger>
                 <Button variant="destructive">
                   <Trash2 />
                   Delete
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Remove service</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will remove <strong>{{ service.name }}</strong> from the project
-                    configuration. This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel :disabled="removing">Cancel</AlertDialogCancel>
-                  <Button
-                    variant="destructive"
-                    :disabled="removing"
-                    @click="handleRemoveService"
-                  >
-                    {{ removing ? 'Removing...' : 'Remove' }}
-                  </Button>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+              </template>
+            </ConfirmDialog>
           </div>
         </div>
       </div>

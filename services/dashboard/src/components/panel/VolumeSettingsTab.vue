@@ -1,20 +1,11 @@
 <script setup lang="ts">
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { computed, ref, watch } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
 import { Trash2, HardDrive, Server, Plug, Unplug } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 import type { Service } from '@/composables/useEnvironment';
@@ -163,8 +154,17 @@ async function handleDelete() {
         <p class="text-xs text-muted-foreground">
           Unmounting detaches the volume and restarts the service.
         </p>
-        <AlertDialog v-model:open="unmountDialogOpen">
-          <AlertDialogTrigger as-child>
+        <ConfirmDialog
+          v-model:open="unmountDialogOpen"
+          :title="`Unmount &quot;${volume.name}&quot; from ${mountedServiceName}?`"
+          description="The service restarts without it. Your data stays on the volume, and you can mount it again later."
+          confirm-label="Unmount"
+          pending-label="Unmounting…"
+          :pending="unmounting"
+          :icon="Unplug"
+          @confirm="handleUnmount"
+        >
+          <template #trigger>
             <Button
               variant="outline"
               :disabled="unmounting"
@@ -172,26 +172,8 @@ async function handleDelete() {
               <Unplug />
               {{ unmounting ? 'Unmounting...' : 'Unmount' }}
             </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Unmount "{{ volume.name }}" from {{ mountedServiceName }}?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This detaches the volume and restarts the service. Your data is kept,
-                and you can remount the volume later.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel :disabled="unmounting">Cancel</AlertDialogCancel>
-              <Button
-                :disabled="unmounting"
-                @click="handleUnmount"
-              >
-                {{ unmounting ? 'Unmounting...' : 'Unmount' }}
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+          </template>
+        </ConfirmDialog>
       </div>
 
       <!-- Unmounted -->
@@ -270,36 +252,26 @@ async function handleDelete() {
                 Permanently delete this volume and all its data.
               </p>
             </div>
-            <AlertDialog v-model:open="deleteDialogOpen">
-              <AlertDialogTrigger as-child>
+            <ConfirmDialog
+              v-model:open="deleteDialogOpen"
+              :title="`Delete volume &quot;${volume.name}&quot;?`"
+              :description="volume.mount
+                ? 'All data on it is deleted with it. To keep the data, unmount it instead. This can\'t be undone.'
+                : 'All data on it is deleted with it. This can\'t be undone.'"
+              confirm-label="Delete volume"
+              pending-label="Deleting…"
+              :pending="deleting"
+              :confirm-text="volume.name"
+              destructive
+              @confirm="handleDelete"
+            >
+              <template #trigger>
                 <Button variant="destructive">
                   <Trash2 />
                   Delete
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete volume "{{ volume.name }}"?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will permanently delete the volume and all the data stored on it.
-                    <template v-if="volume.mount">
-                      The volume is still mounted; unmount it first if you only want to detach it.
-                    </template>
-                    This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel :disabled="deleting">Cancel</AlertDialogCancel>
-                  <Button
-                    variant="destructive"
-                    :disabled="deleting"
-                    @click="handleDelete"
-                  >
-                    {{ deleting ? 'Deleting...' : 'Delete Volume' }}
-                  </Button>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+              </template>
+            </ConfirmDialog>
           </div>
         </div>
       </div>

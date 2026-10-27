@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import DialogIcon from '@/components/DialogIcon.vue';
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { ref, computed } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
 import { Copy, KeyRound } from '@lucide/vue';
@@ -48,15 +50,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import {
   Dialog,
   DialogContent,
@@ -195,26 +188,22 @@ function formatDate(dateStr: string): string {
       </div>
     </div>
 
-    <AlertDialog :open="!!tokenToRevoke">
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Revoke API token?</AlertDialogTitle>
-          <AlertDialogDescription>
-            "{{ tokenToRevoke?.name }}" will stop working immediately. This cannot be undone.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel :disabled="revoking" @click="tokenToRevoke = null">Cancel</AlertDialogCancel>
-          <Button variant="destructive" :disabled="revoking" @click="handleRevoke">
-            {{ revoking ? 'Revoking...' : 'Revoke' }}
-          </Button>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <ConfirmDialog
+      :open="!!tokenToRevoke"
+      :title="`Revoke API token &quot;${tokenToRevoke?.name}&quot;?`"
+      description="It stops working right away. This can't be undone."
+      confirm-label="Revoke token"
+      pending-label="Revoking…"
+      :pending="revoking"
+      destructive
+      @update:open="(value) => { if (!value) tokenToRevoke = null }"
+      @confirm="handleRevoke"
+    />
 
     <Dialog v-model:open="showTokenDialog">
       <DialogContent>
         <DialogHeader>
+          <DialogIcon :icon="KeyRound" />
           <DialogTitle>API token created</DialogTitle>
           <DialogDescription>Copy it now. You won't be able to see it again.</DialogDescription>
         </DialogHeader>
