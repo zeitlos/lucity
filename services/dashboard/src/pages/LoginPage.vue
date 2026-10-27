@@ -5,7 +5,6 @@ import GithubIcon from '@/components/GithubIcon.vue';
 import { useAuth } from '@/composables/useAuth';
 import { toast } from '@/components/ui/sonner';
 import { Button } from '@/components/ui/button';
-import { Chip } from '@/components/ui/chip';
 import { Separator } from '@/components/ui/separator';
 import BaseLogo from '@/components/BaseLogo.vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
@@ -123,11 +122,6 @@ onUnmounted(() => {
         <div class="pattern-crosshatch pointer-events-none absolute inset-0 opacity-[0.03]" />
 
         <div class="relative z-10 space-y-6">
-          <!-- Badge -->
-          <div class="flex justify-center">
-            <Chip>Fully Ejectable</Chip>
-          </div>
-
           <!-- Logo -->
           <div class="flex justify-center">
             <BaseLogo
