@@ -87,11 +87,13 @@ async function handleLogout() {
 
           <ThemeToggle />
 
+          <div v-if="user" class="mx-1 h-4 w-px bg-border" />
+
           <DropdownMenu v-if="user">
             <DropdownMenuTrigger as-child>
               <button
                 aria-label="Account"
-                class="rounded-full ring-offset-2 ring-offset-card transition-shadow hover:opacity-90 data-[state=open]:ring-2 data-[state=open]:ring-primary/50"
+                class="rounded-full ring-2 ring-border ring-offset-2 ring-offset-card transition-shadow hover:ring-muted-foreground/40 focus-visible:outline-none focus-visible:ring-ring data-[state=open]:ring-primary/50"
               >
                 <Avatar class="h-8 w-8">
                   <AvatarImage :src="user.avatarUrl" :alt="user.name || user.email || ''" />
