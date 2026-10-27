@@ -49,7 +49,7 @@ cloudnative-pg:
       cpu: 50m
       memory: 384Mi
     limits:
-      memory: 1Gi
+      memory: 2Gi
   config:
     data:
       # -- Swap the instance manager inside running Postgres pods on operator
@@ -961,7 +961,7 @@ otelCollector:
         cpu: 50m
         memory: 128Mi
       limits:
-        memory: 2Gi
+        memory: 4Gi
   deployment:
     enabled: false
     replicas: 2
@@ -1010,9 +1010,9 @@ vertical-pod-autoscaler:
     resources:
       requests:
         cpu: 50m
-        memory: 128Mi
+        memory: 512Mi
       limits:
-        memory: 1Gi
+        memory: 2Gi
   updater:
     replicas: 1
     logLevel: 2
@@ -1023,9 +1023,9 @@ vertical-pod-autoscaler:
     resources:
       requests:
         cpu: 25m
-        memory: 64Mi
-      limits:
         memory: 256Mi
+      limits:
+        memory: 1Gi
   admissionController:
     logLevel: 2
     certGen:
@@ -1042,9 +1042,9 @@ vertical-pod-autoscaler:
     resources:
       requests:
         cpu: 25m
-        memory: 64Mi
-      limits:
         memory: 256Mi
+      limits:
+        memory: 1Gi
 
 # -- Grafana — UI for VictoriaMetrics + VictoriaLogs
 grafana:

@@ -187,7 +187,7 @@ stagehand:
   envSecret: {}
   resources:
     requests:
-      cpu: 20m
+      cpu: 750m
       memory: 256Mi
     limits:
       memory: 1Gi

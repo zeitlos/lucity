@@ -318,7 +318,7 @@ victoria-metrics-single:
         cpu: 200m
         memory: 3Gi
       limits:
-        memory: 4Gi
+        memory: 8Gi
     nodeSelector: *platform-nodes
     tolerations: *platform-taint
 
@@ -333,7 +333,7 @@ victoria-logs-single:
         cpu: 200m
         memory: 512Mi
       limits:
-        memory: 1Gi
+        memory: 2Gi
     nodeSelector: *platform-nodes
     tolerations: *platform-taint
 
@@ -356,6 +356,9 @@ victoria-metrics-alert:
 otelCollector:
   daemonset:
     enabled: true
+    resources:
+      limits:
+        memory: 4Gi
   deployment:
     enabled: true
     nodeSelector: *platform-nodes
@@ -368,6 +371,9 @@ hcloud-exporter:
   tolerations: *platform-taint
 
 cloudnative-pg:
+  resources:
+    limits:
+      memory: 2Gi
   nodeSelector: *platform-nodes
   tolerations: *platform-taint
 
@@ -377,15 +383,27 @@ plugin-barman-cloud:
 
 vertical-pod-autoscaler:
   admissionController:
-    nodeSelector: *platform-nodes
-    tolerations: *platform-taint
-  recommender:
     resources:
+      requests:
+        memory: 256Mi
       limits:
         memory: 1Gi
     nodeSelector: *platform-nodes
     tolerations: *platform-taint
+  recommender:
+    resources:
+      requests:
+        memory: 512Mi
+      limits:
+        memory: 2Gi
+    nodeSelector: *platform-nodes
+    tolerations: *platform-taint
   updater:
+    resources:
+      requests:
+        memory: 256Mi
+      limits:
+        memory: 1Gi
     nodeSelector: *platform-nodes
     tolerations: *platform-taint
 

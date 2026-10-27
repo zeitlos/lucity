@@ -151,6 +151,9 @@ workloadPlacement:
 stagehand:
   enabled: true
   dryRun: false
+  resources:
+    requests:
+      cpu: 750m
   nodeSelector: *platform-nodes
   tolerations: *platform-taint
   env:
