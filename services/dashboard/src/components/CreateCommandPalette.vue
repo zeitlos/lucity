@@ -160,7 +160,7 @@ const { resolveClient } = useApolloClient();
 const { activeEnvironment } = useEnvironment();
 
 // Drill-down state
-type PaletteView = 'main' | 'github-repos' | 'select-services' | 'service-wizard' | 'manual-service' | 'database' | 'keyValueStore' | 'bucket' | 'volume' | 'container-image' | 'name-project';
+type PaletteView = 'main' | 'github-repos' | 'select-services' | 'service-wizard' | 'database' | 'keyValueStore' | 'bucket' | 'volume' | 'container-image' | 'name-project';
 const view = ref<PaletteView>('main');
 const search = ref('');
 const inputRef = ref<HTMLInputElement>();
@@ -652,9 +652,6 @@ async function handleCreateService() {
 // Add service (within environment context)
 const { mutate: addServiceMutate, loading: addingService } = useMutation(AddServiceDocument);
 
-const newServiceName = ref('');
-const newServicePort = ref<number | null>(null);
-
 // Create database (within environment context)
 const databaseFlow = computed<CommandFlowConfig>(() => ({
   title: 'Database',
@@ -766,31 +763,6 @@ async function handleCreateVolume() {
   }
 }
 
-async function handleAddManualService() {
-  if (!props.environmentId) return;
-
-  try {
-    const res = await addServiceMutate({
-      environmentId: props.environmentId,
-      input: {
-        name: newServiceName.value,
-      },
-    });
-
-    if (res?.errors?.length) {
-      errorToast('Failed to add service', {
-        description: res.errors.map(e => e.message).join(', '),
-      });
-      return;
-    }
-
-    close();
-    emit('created');
-  } catch (e: unknown) {
-    errorToast('Failed to add service', { description: errorMessage(e) });
-  }
-}
-
 // Open GitHub App install in a popup, refetch sources on completion
 const { openInstallPopup } = useGitHubInstall(() => {
   const client = resolveClient();
@@ -893,7 +865,7 @@ function scrollFocusedIntoView() {
 
 onKeyStroke('ArrowDown', (e) => {
   if (!props.open) return;
-  if (view.value === 'manual-service' || view.value === 'database' || view.value === 'keyValueStore' || view.value === 'volume') return;
+  if (view.value === 'database' || view.value === 'keyValueStore' || view.value === 'volume') return;
   if (currentItemCount.value === 0) return;
   e.preventDefault();
   focusedIndex.value = (focusedIndex.value + 1) % currentItemCount.value;
@@ -902,7 +874,7 @@ onKeyStroke('ArrowDown', (e) => {
 
 onKeyStroke('ArrowUp', (e) => {
   if (!props.open) return;
-  if (view.value === 'manual-service' || view.value === 'database' || view.value === 'keyValueStore' || view.value === 'volume') return;
+  if (view.value === 'database' || view.value === 'keyValueStore' || view.value === 'volume') return;
   if (currentItemCount.value === 0) return;
   e.preventDefault();
   focusedIndex.value = (focusedIndex.value - 1 + currentItemCount.value) % currentItemCount.value;
@@ -956,12 +928,6 @@ onKeyStroke('Enter', (e) => {
         handleSelectImage(imageResults.value[focusedIndex.value]!.name);
       } else {
         handleSelectImage(containerImageRef.value);
-      }
-      break;
-    case 'manual-service':
-      if (!addingService.value && newServiceName.value) {
-        e.preventDefault();
-        handleAddManualService();
       }
       break;
     case 'keyValueStore':
@@ -1022,7 +988,6 @@ const mainItems = computed(() => {
         { id: 'keyValueStore', label: 'Redis', iconSrc: devicon('redis'), action: () => { view.value = 'keyValueStore'; } },
         { id: 'bucket', label: 'Bucket', icon: BucketIcon, action: () => { view.value = 'bucket'; } },
         { id: 'volume', label: 'Volume', icon: HardDrive, action: () => { volumeStep.value = 'name'; view.value = 'volume'; } },
-        { id: 'manual-service', label: 'Empty Service', icon: Plus, action: () => { view.value = 'manual-service'; } },
       ];
 
   if (!search.value) return items;
@@ -1311,48 +1276,6 @@ void activeEnvironment;
               class="px-4 py-6 text-center text-sm text-muted-foreground"
             >
               Press Enter to deploy <span class="font-medium text-foreground">{{ containerImageRef }}</span>
-            </div>
-          </template>
-
-          <!-- Manual service view -->
-          <template v-if="view === 'manual-service'">
-            <div class="flex h-12 items-center border-b px-3">
-              <button
-                class="mr-1 shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
-                @click="view = 'main'"
-              >
-                <ArrowLeft :size="16" />
-              </button>
-              <span class="ml-1 text-sm font-medium text-foreground">Empty Service</span>
-              <div class="flex-1" />            </div>
-            <div class="space-y-4 p-4">
-              <div class="space-y-2">
-                <label class="text-sm font-medium text-foreground">Service Name</label>
-                <input
-                  v-model="newServiceName"
-                  class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  placeholder="web"
-                />
-              </div>
-              <div class="space-y-2">
-                <label class="text-sm font-medium text-foreground">Port (optional)</label>
-                <input
-                  v-model.number="newServicePort"
-                  type="number"
-                  class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  placeholder="3000"
-                />
-                <p class="text-xs text-muted-foreground">
-                  The port your app listens on. Leave empty if it doesn't serve traffic.
-                </p>
-              </div>
-              <button
-                class="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-                :disabled="addingService || !newServiceName"
-                @click="handleAddManualService"
-              >
-                {{ addingService ? 'Adding...' : 'Add Service' }}
-              </button>
             </div>
           </template>
 

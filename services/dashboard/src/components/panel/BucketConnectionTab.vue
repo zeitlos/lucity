@@ -86,7 +86,7 @@ type SnippetKey = (typeof SNIPPETS)[number]['key'];
 
 const selectedSnippet = ref<SnippetKey>('env');
 
-const snippets = computed<Record<SnippetKey, string>>(() => {
+function buildSnippets(secretAccessKey: string): Record<SnippetKey, string> {
   const c = credentials.value;
   if (!c) return { env: '', cli: '', rclone: '', node: '', python: '' };
   return {
@@ -95,7 +95,7 @@ const snippets = computed<Record<SnippetKey, string>>(() => {
       `S3_REGION=${c.region}`,
       `S3_BUCKET=${c.bucket}`,
       `S3_ACCESS_KEY_ID=${c.accessKeyId}`,
-      `S3_SECRET_ACCESS_KEY=${c.secretAccessKey}`,
+      `S3_SECRET_ACCESS_KEY=${secretAccessKey}`,
       'S3_FORCE_PATH_STYLE=true',
     ].join('\n'),
     cli: `aws s3 --endpoint-url ${c.endpoint} ls s3://${c.bucket}`,
@@ -105,7 +105,7 @@ const snippets = computed<Record<SnippetKey, string>>(() => {
       `  endpoint=${c.endpoint} \\`,
       `  region=${c.region} \\`,
       `  access_key_id=${c.accessKeyId} \\`,
-      `  secret_access_key=${c.secretAccessKey}`,
+      `  secret_access_key=${secretAccessKey}`,
       '',
       `rclone ls lucity:${c.bucket}`,
     ].join('\n'),
@@ -118,7 +118,7 @@ const snippets = computed<Record<SnippetKey, string>>(() => {
       '  forcePathStyle: true,',
       '  credentials: {',
       `    accessKeyId: '${c.accessKeyId}',`,
-      `    secretAccessKey: '${c.secretAccessKey}',`,
+      `    secretAccessKey: '${secretAccessKey}',`,
       '  },',
       '});',
       '',
@@ -132,17 +132,22 @@ const snippets = computed<Record<SnippetKey, string>>(() => {
       `    endpoint_url='${c.endpoint}',`,
       `    region_name='${c.region}',`,
       `    aws_access_key_id='${c.accessKeyId}',`,
-      `    aws_secret_access_key='${c.secretAccessKey}',`,
+      `    aws_secret_access_key='${secretAccessKey}',`,
       ')',
       '',
       `s3.list_objects_v2(Bucket='${c.bucket}')`,
     ].join('\n'),
   };
-});
+}
 
-const currentSnippet = computed(() => snippets.value[selectedSnippet.value]);
+const currentSnippet = computed(() => buildSnippets(credentials.value?.secretAccessKey ?? '')[selectedSnippet.value]);
 
 const revealed = reactive<Record<string, boolean>>({});
+
+const displayedSnippet = computed(() => {
+  const secretAccessKey = credentials.value?.secretAccessKey ?? '';
+  return buildSnippets(revealed.secretAccessKey ? secretAccessKey : mask(secretAccessKey))[selectedSnippet.value];
+});
 
 function toggleReveal(key: string) {
   revealed[key] = !revealed[key];
@@ -263,7 +268,7 @@ function copyToClipboard(text: string) {
             <Copy :size="12" />
           </Button>
         </div>
-        <pre class="overflow-x-auto rounded-md bg-muted/40 px-3 py-2 font-mono text-xs text-foreground">{{ currentSnippet }}</pre>
+        <pre class="overflow-x-auto rounded-md bg-muted/40 px-3 py-2 font-mono text-xs text-foreground">{{ displayedSnippet }}</pre>
       </div>
 
       <p class="text-sm text-muted-foreground">
