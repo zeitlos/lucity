@@ -151,51 +151,52 @@ function referenceInfo(row: VariableRow) {
 
       <div class="flex min-w-0 flex-1">
         <template v-if="linkable">
-          <Popover
-            v-if="!row.ref"
-            :open="openPopoverIndex === index"
-            @update:open="(open: boolean) => openPopoverIndex = open ? index : null"
-          >
-            <Tooltip>
-              <PopoverTrigger as-child>
-                <TooltipTrigger as-child>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    class="shrink-0 rounded-r-none border-r-0"
-                    :disabled="!references?.length"
-                    aria-label="Link to a dynamic value"
-                  >
-                    <Link class="opacity-50" />
-                  </Button>
-                </TooltipTrigger>
-              </PopoverTrigger>
-              <TooltipContent :class="darkTooltipClass">Link to a dynamic value</TooltipContent>
-            </Tooltip>
-            <PopoverContent class="w-80 p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Search references..." />
-                <CommandList>
-                  <CommandEmpty>No references found.</CommandEmpty>
-                  <CommandGroup v-for="group in referenceGroups" :key="group.key">
-                    <div class="flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium text-muted-foreground">
-                      <SourceIcon :typename="group.typename" />
-                      {{ group.label }}
-                    </div>
-                    <CommandItem
-                      v-for="reference in group.items"
-                      :key="reference.id"
-                      :value="reference.id"
-                      class="font-mono text-xs"
-                      @select="selectReference(index, reference)"
+          <Tooltip v-if="!row.ref">
+            <TooltipTrigger as-child>
+              <span class="inline-flex shrink-0">
+                <Popover
+                  :open="openPopoverIndex === index"
+                  @update:open="(open: boolean) => openPopoverIndex = open ? index : null"
+                >
+                  <PopoverTrigger as-child>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      class="rounded-r-none border-r-0"
+                      :disabled="!references?.length"
+                      aria-label="Link to a dynamic value"
                     >
-                      {{ reference.key }}
-                    </CommandItem>
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+                      <Link class="opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent class="w-80 p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Search references..." />
+                      <CommandList>
+                        <CommandEmpty>No references found.</CommandEmpty>
+                        <CommandGroup v-for="group in referenceGroups" :key="group.key">
+                          <div class="flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                            <SourceIcon :typename="group.typename" />
+                            {{ group.label }}
+                          </div>
+                          <CommandItem
+                            v-for="reference in group.items"
+                            :key="reference.id"
+                            :value="reference.id"
+                            class="font-mono text-xs"
+                            @select="selectReference(index, reference)"
+                          >
+                            {{ reference.key }}
+                          </CommandItem>
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent :class="darkTooltipClass">Link to a dynamic value</TooltipContent>
+          </Tooltip>
 
           <IconButton
             v-else

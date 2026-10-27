@@ -442,40 +442,42 @@ watch(
           />
         </CollapsibleTrigger>
 
-        <DropdownMenu>
-          <Tooltip>
-            <DropdownMenuTrigger as-child>
-              <TooltipTrigger as-child>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  class="shrink-0"
-                  aria-label="More actions"
-                >
-                  <MoreVertical />
-                </Button>
-              </TooltipTrigger>
-            </DropdownMenuTrigger>
-            <TooltipContent :class="darkTooltipClass">More actions</TooltipContent>
-          </Tooltip>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem :disabled="deploy.isDeploying" @click="handleRedeploy">
-              <RefreshCw :size="14" class="mr-2" />
-              Redeploy
-            </DropdownMenuItem>
-            <DropdownMenuSeparator v-if="service.sourceUrl" />
-            <DropdownMenuItem v-if="service.sourceUrl" as-child>
-              <a
-                :href="service.sourceUrl"
-                target="_blank"
-                rel="noopener"
-              >
-                <ExternalLink :size="14" class="mr-2" />
-                View on GitHub
-              </a>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <span class="inline-flex shrink-0">
+              <DropdownMenu>
+                <DropdownMenuTrigger as-child>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    class="shrink-0"
+                    aria-label="More actions"
+                  >
+                    <MoreVertical />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem :disabled="deploy.isDeploying" @click="handleRedeploy">
+                    <RefreshCw :size="14" class="mr-2" />
+                    Redeploy
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator v-if="service.sourceUrl" />
+                  <DropdownMenuItem v-if="service.sourceUrl" as-child>
+                    <a
+                      :href="service.sourceUrl"
+                      target="_blank"
+                      rel="noopener"
+                    >
+                      <ExternalLink :size="14" class="mr-2" />
+                      View on GitHub
+                    </a>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent :class="darkTooltipClass">More actions</TooltipContent>
+        </Tooltip>
       </div>
 
       <CollapsibleContent>
@@ -559,35 +561,37 @@ watch(
               />
             </CollapsibleTrigger>
 
-            <DropdownMenu v-if="releaseGitHubURL(release)">
-              <Tooltip>
-                <DropdownMenuTrigger as-child>
-                  <TooltipTrigger as-child>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      class="shrink-0"
-                      aria-label="More actions"
-                    >
-                      <MoreVertical />
-                    </Button>
-                  </TooltipTrigger>
-                </DropdownMenuTrigger>
-                <TooltipContent :class="darkTooltipClass">More actions</TooltipContent>
-              </Tooltip>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem as-child>
-                  <a
-                    :href="releaseGitHubURL(release)!"
-                    target="_blank"
-                    rel="noopener"
-                  >
-                    <ExternalLink :size="14" class="mr-2" />
-                    View on GitHub
-                  </a>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Tooltip v-if="releaseGitHubURL(release)">
+              <TooltipTrigger as-child>
+                <span class="inline-flex shrink-0">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger as-child>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        class="shrink-0"
+                        aria-label="More actions"
+                      >
+                        <MoreVertical />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem as-child>
+                        <a
+                          :href="releaseGitHubURL(release)!"
+                          target="_blank"
+                          rel="noopener"
+                        >
+                          <ExternalLink :size="14" class="mr-2" />
+                          View on GitHub
+                        </a>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent :class="darkTooltipClass">More actions</TooltipContent>
+            </Tooltip>
           </div>
 
           <CollapsibleContent>
