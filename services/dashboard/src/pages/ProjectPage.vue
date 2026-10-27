@@ -2,9 +2,8 @@
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
-import { ArrowRight, Layers, Plus, SlidersHorizontal } from '@lucide/vue';
+import { Layers, Plus, SlidersHorizontal } from '@lucide/vue';
 import { graphql } from '@/gql';
-import { ResourceTier } from '@/gql/graphql';
 
 const ProjectDocument = graphql(`
   query ProjectPage($id: ProjectID!) {
@@ -15,14 +14,41 @@ const ProjectDocument = graphql(`
         id
         name
         resourceTier
+        services {
+          id
+          name
+          status
+          sourceUrl
+        }
+        databases {
+          id
+          name
+          status
+        }
+        keyValueStores {
+          id
+          name
+          status
+        }
+        buckets {
+          id
+          name
+          status
+        }
+        volumes {
+          id
+          name
+        }
       }
     }
   }
 `);
 import ContextRail from '@/components/ContextRail.vue';
+import PageToolbar from '@/components/PageToolbar.vue';
 import ProjectSettingsDrawer from '@/components/drawer/ProjectSettingsDrawer.vue';
 import CreateEnvironmentDialog from '@/components/CreateEnvironmentDialog.vue';
 import EmptyState from '@/components/EmptyState.vue';
+import EnvironmentCard from '@/components/EnvironmentCard.vue';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEnvironment, type Environment } from '@/composables/useEnvironment';
@@ -119,42 +145,25 @@ watch(error, (err) => {
       />
 
       <div class="relative min-w-0 flex-1">
-        <div class="h-full overflow-y-auto rounded-lg border bg-card shadow-sm">
-          <div class="max-w-5xl space-y-6 px-10 py-8">
-            <div class="flex items-start justify-between gap-6">
-              <div>
-                <h1 class="text-xl font-semibold text-foreground">Environments</h1>
-                <p class="mt-1.5 text-sm text-muted-foreground">
-                  Each environment runs its own copy of {{ project.name }}, with its own variables, resources and domains.
-                </p>
-              </div>
-              <Button variant="outline" size="sm" class="shrink-0" @click="envDialogOpen = true">
-                <Plus :size="14" class="mr-1" />
-                New environment
-              </Button>
-            </div>
+        <div class="flex h-full flex-col overflow-hidden rounded-lg border bg-card shadow-sm">
+          <PageToolbar title="Environments" :count="project.environments.length">
+            <Button size="sm" class="h-8" @click="envDialogOpen = true">
+              <Plus :size="14" />
+              New environment
+            </Button>
+          </PageToolbar>
 
+          <div class="flex-1 overflow-y-auto p-4">
             <div
               v-if="project.environments.length > 0"
               class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
             >
-              <RouterLink
+              <EnvironmentCard
                 v-for="env in project.environments"
                 :key="env.id"
+                :environment="env"
                 :to="{ name: 'environment', params: { projectId: project.id, environmentId: env.id } }"
-                class="flex flex-col gap-3 rounded-lg border bg-card p-5 shadow-sm transition-colors hover:border-primary/50"
-              >
-                <div class="flex items-center justify-between gap-3">
-                  <span class="truncate text-base font-semibold text-foreground">{{ env.name }}</span>
-                  <span class="shrink-0 rounded-full border px-2 py-px text-[11px] text-muted-foreground">
-                    {{ env.resourceTier === ResourceTier.Production ? 'Production' : 'Eco' }}
-                  </span>
-                </div>
-                <div class="flex items-center gap-1.5 border-t border-border/50 pt-3 text-[13px] font-medium text-foreground">
-                  Open canvas
-                  <ArrowRight :size="14" />
-                </div>
-              </RouterLink>
+              />
             </div>
 
             <div v-else class="rounded-lg border border-dashed">

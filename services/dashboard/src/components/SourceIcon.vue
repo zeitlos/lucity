@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { devicon } from '@/lib/devicons';
 import { Braces } from '@lucide/vue';
 import BucketIcon from '@/components/BucketIcon.vue';
 
@@ -14,7 +15,7 @@ withDefaults(
 <template>
   <img
     v-if="typename === 'DatabaseSource'"
-    src="https://devicons.railway.com/i/postgresql.svg"
+    :src="devicon('postgresql')"
     :width="size"
     :height="size"
     alt=""
@@ -22,7 +23,7 @@ withDefaults(
   />
   <img
     v-else-if="typename === 'KeyValueStoreSource'"
-    src="https://devicons.railway.com/i/redis.svg"
+    :src="devicon('redis')"
     :width="size"
     :height="size"
     alt=""

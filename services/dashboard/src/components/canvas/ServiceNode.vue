@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { devicon } from '@/lib/devicons';
 import { computed, ref, watch, onUnmounted } from 'vue';
 import { Handle, Position } from '@vue-flow/core';
 import { ExternalLink, Globe, Container, HardDrive } from '@lucide/vue';
@@ -199,8 +200,8 @@ const hostUrl = computed(() => {
               width: '12px',
               height: '12px',
               backgroundColor: 'currentColor',
-              maskImage: 'url(https://devicons.railway.com/i/git.svg)',
-              WebkitMaskImage: 'url(https://devicons.railway.com/i/git.svg)',
+              maskImage: `url(${devicon('git')})`,
+              WebkitMaskImage: `url(${devicon('git')})`,
               maskSize: 'contain',
               WebkitMaskSize: 'contain',
               maskRepeat: 'no-repeat',

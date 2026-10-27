@@ -25,7 +25,7 @@ const { result: subResult } = useQuery(SubscriptionDocument, null, { fetchPolicy
 const isTrial = computed(() => subResult.value?.subscription?.status === SubscriptionStatus.Trialing);
 
 function goToBilling() {
-  router.push({ name: 'workspace-settings', query: { tab: 'billing' } });
+  router.push({ name: 'workspace', params: { drawer: 'billing' } });
 }
 </script>
 

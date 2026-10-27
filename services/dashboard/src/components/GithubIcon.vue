@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useTheme } from '@/composables/useTheme';
+import { devicon } from '@/lib/devicons';
 
 const props = withDefaults(defineProps<{ size?: number; primary?: boolean }>(), {
   size: 24,
@@ -12,8 +13,8 @@ const { theme } = useTheme();
 const src = computed(() => {
   const wantWhite = props.primary ? theme.value === 'light' : theme.value === 'dark';
   return wantWhite
-    ? 'https://devicons.railway.com/i/github-light.svg'
-    : 'https://devicons.railway.com/i/github-dark.svg';
+    ? devicon('github-light')
+    : devicon('github-dark');
 });
 </script>
 

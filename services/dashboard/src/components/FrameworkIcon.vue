@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue';
 import { Container } from '@lucide/vue';
 import { frameworkIconUrl } from '@/lib/frameworkIcon';
+import { useTheme } from '@/composables/useTheme';
 
 const props = withDefaults(
   defineProps<{
@@ -13,7 +14,8 @@ const props = withDefaults(
 );
 
 const failed = ref(false);
-const src = computed(() => frameworkIconUrl(props.framework ?? '', props.language ?? ''));
+const { theme } = useTheme();
+const src = computed(() => frameworkIconUrl(props.framework ?? '', props.language ?? '', theme.value));
 
 watch(src, () => {
   failed.value = false;

@@ -62,7 +62,7 @@ onMounted(async () => {
 
     // Refetch subscription data so the billing page reflects the new plan.
     await apolloClient.refetchQueries({ include: [SubscriptionDocument] });
-    router.push({ name: 'workspace-settings' });
+    router.push({ name: 'workspace', params: { drawer: 'billing' } });
   } catch (e: unknown) {
     error.value = errorMessage(e);
   }
@@ -81,8 +81,8 @@ onMounted(async () => {
       />
       <h1 class="text-lg font-medium">Something went wrong</h1>
       <p class="text-sm text-muted-foreground">{{ error }}</p>
-      <Button @click="router.push({ name: 'workspace-settings' })">
-        Back to settings
+      <Button @click="router.push({ name: 'workspace', params: { drawer: 'billing' } })">
+        Back to billing
       </Button>
     </div>
     <div

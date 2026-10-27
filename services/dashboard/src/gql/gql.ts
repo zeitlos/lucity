@@ -14,9 +14,6 @@ import type { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-
  * Learn more about it here: https://the-guild.dev/graphql/codegen/plugins/presets/preset-client#reducing-bundle-size
  */
 type Documents = {
-    "\n  query ApiTokens {\n    apiTokens {\n      id\n      name\n      role\n      createdAt\n    }\n  }\n": typeof types.ApiTokensDocument,
-    "\n  mutation CreateApiToken($input: CreateApiTokenInput!) {\n    createApiToken(input: $input) {\n      apiToken {\n        id\n        name\n        role\n        createdAt\n      }\n      token\n    }\n  }\n": typeof types.CreateApiTokenDocument,
-    "\n  mutation RevokeApiToken($id: ID!) {\n    revokeApiToken(id: $id)\n  }\n": typeof types.RevokeApiTokenDocument,
     "\n  query Workspaces {\n    workspaces {\n      id\n      name\n      personal\n    }\n  }\n": typeof types.WorkspacesDocument,
     "\n  query ProjectsForNav {\n    projects {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n      }\n    }\n  }\n": typeof types.ProjectsForNavDocument,
     "\n  query GitHubConnected {\n    githubConnected\n  }\n": typeof types.GitHubConnectedDocument,
@@ -37,11 +34,21 @@ type Documents = {
     "\n  query Subscription {\n    subscription {\n      plan\n      status\n      currentPeriodEnd\n      creditAmountCents\n      creditExpiry\n      hasPaymentMethod\n    }\n  }\n": typeof types.SubscriptionDocument,
     "\n  query UsageSummary {\n    usageSummary {\n      resourceCostCents\n      creditsCents\n      estimatedTotalCents\n    }\n  }\n": typeof types.UsageSummaryDocument,
     "\n  mutation WelcomeSelectPlan($plan: Plan!) {\n    selectPlan(plan: $plan) {\n      checkoutUrl\n    }\n  }\n": typeof types.WelcomeSelectPlanDocument,
+    "\n  query ApiTokens {\n    apiTokens {\n      id\n      name\n      role\n      createdAt\n    }\n  }\n": typeof types.ApiTokensDocument,
+    "\n  mutation CreateApiToken($input: CreateApiTokenInput!) {\n    createApiToken(input: $input) {\n      apiToken {\n        id\n        name\n        role\n        createdAt\n      }\n      token\n    }\n  }\n": typeof types.CreateApiTokenDocument,
+    "\n  mutation RevokeApiToken($id: ID!) {\n    revokeApiToken(id: $id)\n  }\n": typeof types.RevokeApiTokenDocument,
     "\n  mutation SetEnvironmentResources($input: SetEnvironmentResourcesInput!) {\n    setEnvironmentResources(input: $input) {\n      id\n      resourceTier\n    }\n  }\n": typeof types.SetEnvironmentResourcesDocument,
     "\n  mutation DeleteEnvironment($environment: EnvironmentID!) {\n    deleteEnvironment(environment: $environment)\n  }\n": typeof types.DeleteEnvironmentDocument,
     "\n  mutation DeleteProject($id: ProjectID!) {\n    deleteProject(id: $id)\n  }\n": typeof types.DeleteProjectDocument,
     "\n  query SharedVariables($environment: EnvironmentID!) {\n    sharedVariables(environment: $environment) {\n      key\n      value\n    }\n  }\n": typeof types.SharedVariablesDocument,
     "\n  mutation SetSharedVariables($environment: EnvironmentID!, $variables: [VariableInput!]!) {\n    setSharedVariables(environment: $environment, variables: $variables)\n  }\n": typeof types.SetSharedVariablesDocument,
+    "\n  mutation SelectPlan($plan: Plan!) {\n    selectPlan(plan: $plan) {\n      checkoutUrl\n      subscription {\n        plan\n        status\n        currentPeriodEnd\n        creditAmountCents\n        creditExpiry\n        hasPaymentMethod\n      }\n    }\n  }\n": typeof types.SelectPlanDocument,
+    "\n  mutation BillingPortalUrl {\n    billingPortalUrl {\n      url\n    }\n  }\n": typeof types.BillingPortalUrlDocument,
+    "\n  mutation InviteMember($input: InviteMemberInput!) {\n    inviteMember(input: $input) {\n      id\n      email\n      name\n      role\n    }\n  }\n": typeof types.InviteMemberDocument,
+    "\n  mutation RemoveMember($userId: ID!) {\n    removeMember(userId: $userId)\n  }\n": typeof types.RemoveMemberDocument,
+    "\n  mutation UpdateMemberRole($input: UpdateMemberRoleInput!) {\n    updateMemberRole(input: $input) {\n      id\n      email\n      name\n      role\n    }\n  }\n": typeof types.UpdateMemberRoleDocument,
+    "\n  mutation UpdateWorkspace($input: UpdateWorkspaceInput!) {\n    updateWorkspace(input: $input) {\n      id\n      name\n    }\n  }\n": typeof types.UpdateWorkspaceDocument,
+    "\n  mutation DeleteWorkspace {\n    deleteWorkspace\n  }\n": typeof types.DeleteWorkspaceDocument,
     "\n  query BucketCredentials($bucket: BucketID!) {\n    bucketCredentials(bucket: $bucket) {\n      endpoint\n      region\n      bucket\n      accessKeyId\n      secretAccessKey\n    }\n  }\n": typeof types.BucketCredentialsDocument,
     "\n  mutation SetBucketPublic($bucket: BucketID!, $public: Boolean!) {\n    setBucketPublic(bucket: $bucket, public: $public) {\n      id\n      public\n      publicEndpoint\n    }\n  }\n": typeof types.SetBucketPublicDocument,
     "\n  query BucketObjects($bucket: BucketID!, $prefix: String) {\n    bucketObjects(bucket: $bucket, prefix: $prefix) {\n      prefix\n      folders {\n        prefix\n      }\n      objects {\n        key\n        size\n        lastModified\n      }\n    }\n  }\n": typeof types.BucketObjectsDocument,
@@ -107,20 +114,10 @@ type Documents = {
     "\n  query EnvironmentDefaultCommands($environment: EnvironmentID!) {\n    environment(environment: $environment) {\n      id\n      services {\n        id\n        defaultCommand\n      }\n    }\n  }\n": typeof types.EnvironmentDefaultCommandsDocument,
     "\n  query ProjectEnvironments($id: ProjectID!) {\n    project(id: $id) {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n      }\n    }\n  }\n": typeof types.ProjectEnvironmentsDocument,
     "\n  mutation CompletePlanCheckout($sessionId: String!) {\n    completePlanCheckout(sessionId: $sessionId) {\n      plan\n      status\n      currentPeriodEnd\n      creditAmountCents\n      hasPaymentMethod\n    }\n  }\n": typeof types.CompletePlanCheckoutDocument,
-    "\n  query ProjectPage($id: ProjectID!) {\n    project(id: $id) {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n      }\n    }\n  }\n": typeof types.ProjectPageDocument,
-    "\n  query Projects {\n    projects {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n        services {\n          id\n          name\n          sourceUrl\n        }\n      }\n    }\n  }\n": typeof types.ProjectsDocument,
-    "\n  mutation UpdateWorkspace($input: UpdateWorkspaceInput!) {\n    updateWorkspace(input: $input) {\n      id\n      name\n    }\n  }\n": typeof types.UpdateWorkspaceDocument,
-    "\n  mutation DeleteWorkspace {\n    deleteWorkspace\n  }\n": typeof types.DeleteWorkspaceDocument,
-    "\n  mutation InviteMember($input: InviteMemberInput!) {\n    inviteMember(input: $input) {\n      id\n      email\n      name\n      role\n    }\n  }\n": typeof types.InviteMemberDocument,
-    "\n  mutation RemoveMember($userId: ID!) {\n    removeMember(userId: $userId)\n  }\n": typeof types.RemoveMemberDocument,
-    "\n  mutation UpdateMemberRole($input: UpdateMemberRoleInput!) {\n    updateMemberRole(input: $input) {\n      id\n      email\n      name\n      role\n    }\n  }\n": typeof types.UpdateMemberRoleDocument,
-    "\n  mutation SelectPlan($plan: Plan!) {\n    selectPlan(plan: $plan) {\n      checkoutUrl\n      subscription {\n        plan\n        status\n        currentPeriodEnd\n        creditAmountCents\n        creditExpiry\n        hasPaymentMethod\n      }\n    }\n  }\n": typeof types.SelectPlanDocument,
-    "\n  mutation BillingPortalUrl {\n    billingPortalUrl {\n      url\n    }\n  }\n": typeof types.BillingPortalUrlDocument,
+    "\n  query ProjectPage($id: ProjectID!) {\n    project(id: $id) {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n        services {\n          id\n          name\n          status\n          sourceUrl\n        }\n        databases {\n          id\n          name\n          status\n        }\n        keyValueStores {\n          id\n          name\n          status\n        }\n        buckets {\n          id\n          name\n          status\n        }\n        volumes {\n          id\n          name\n        }\n      }\n    }\n  }\n": typeof types.ProjectPageDocument,
+    "\n  query Projects {\n    projects {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n        services {\n          id\n          name\n          sourceUrl\n        }\n        databases {\n          id\n          name\n        }\n        keyValueStores {\n          id\n          name\n        }\n        buckets {\n          id\n          name\n        }\n        volumes {\n          id\n          name\n        }\n      }\n    }\n  }\n": typeof types.ProjectsDocument,
 };
 const documents: Documents = {
-    "\n  query ApiTokens {\n    apiTokens {\n      id\n      name\n      role\n      createdAt\n    }\n  }\n": types.ApiTokensDocument,
-    "\n  mutation CreateApiToken($input: CreateApiTokenInput!) {\n    createApiToken(input: $input) {\n      apiToken {\n        id\n        name\n        role\n        createdAt\n      }\n      token\n    }\n  }\n": types.CreateApiTokenDocument,
-    "\n  mutation RevokeApiToken($id: ID!) {\n    revokeApiToken(id: $id)\n  }\n": types.RevokeApiTokenDocument,
     "\n  query Workspaces {\n    workspaces {\n      id\n      name\n      personal\n    }\n  }\n": types.WorkspacesDocument,
     "\n  query ProjectsForNav {\n    projects {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n      }\n    }\n  }\n": types.ProjectsForNavDocument,
     "\n  query GitHubConnected {\n    githubConnected\n  }\n": types.GitHubConnectedDocument,
@@ -141,11 +138,21 @@ const documents: Documents = {
     "\n  query Subscription {\n    subscription {\n      plan\n      status\n      currentPeriodEnd\n      creditAmountCents\n      creditExpiry\n      hasPaymentMethod\n    }\n  }\n": types.SubscriptionDocument,
     "\n  query UsageSummary {\n    usageSummary {\n      resourceCostCents\n      creditsCents\n      estimatedTotalCents\n    }\n  }\n": types.UsageSummaryDocument,
     "\n  mutation WelcomeSelectPlan($plan: Plan!) {\n    selectPlan(plan: $plan) {\n      checkoutUrl\n    }\n  }\n": types.WelcomeSelectPlanDocument,
+    "\n  query ApiTokens {\n    apiTokens {\n      id\n      name\n      role\n      createdAt\n    }\n  }\n": types.ApiTokensDocument,
+    "\n  mutation CreateApiToken($input: CreateApiTokenInput!) {\n    createApiToken(input: $input) {\n      apiToken {\n        id\n        name\n        role\n        createdAt\n      }\n      token\n    }\n  }\n": types.CreateApiTokenDocument,
+    "\n  mutation RevokeApiToken($id: ID!) {\n    revokeApiToken(id: $id)\n  }\n": types.RevokeApiTokenDocument,
     "\n  mutation SetEnvironmentResources($input: SetEnvironmentResourcesInput!) {\n    setEnvironmentResources(input: $input) {\n      id\n      resourceTier\n    }\n  }\n": types.SetEnvironmentResourcesDocument,
     "\n  mutation DeleteEnvironment($environment: EnvironmentID!) {\n    deleteEnvironment(environment: $environment)\n  }\n": types.DeleteEnvironmentDocument,
     "\n  mutation DeleteProject($id: ProjectID!) {\n    deleteProject(id: $id)\n  }\n": types.DeleteProjectDocument,
     "\n  query SharedVariables($environment: EnvironmentID!) {\n    sharedVariables(environment: $environment) {\n      key\n      value\n    }\n  }\n": types.SharedVariablesDocument,
     "\n  mutation SetSharedVariables($environment: EnvironmentID!, $variables: [VariableInput!]!) {\n    setSharedVariables(environment: $environment, variables: $variables)\n  }\n": types.SetSharedVariablesDocument,
+    "\n  mutation SelectPlan($plan: Plan!) {\n    selectPlan(plan: $plan) {\n      checkoutUrl\n      subscription {\n        plan\n        status\n        currentPeriodEnd\n        creditAmountCents\n        creditExpiry\n        hasPaymentMethod\n      }\n    }\n  }\n": types.SelectPlanDocument,
+    "\n  mutation BillingPortalUrl {\n    billingPortalUrl {\n      url\n    }\n  }\n": types.BillingPortalUrlDocument,
+    "\n  mutation InviteMember($input: InviteMemberInput!) {\n    inviteMember(input: $input) {\n      id\n      email\n      name\n      role\n    }\n  }\n": types.InviteMemberDocument,
+    "\n  mutation RemoveMember($userId: ID!) {\n    removeMember(userId: $userId)\n  }\n": types.RemoveMemberDocument,
+    "\n  mutation UpdateMemberRole($input: UpdateMemberRoleInput!) {\n    updateMemberRole(input: $input) {\n      id\n      email\n      name\n      role\n    }\n  }\n": types.UpdateMemberRoleDocument,
+    "\n  mutation UpdateWorkspace($input: UpdateWorkspaceInput!) {\n    updateWorkspace(input: $input) {\n      id\n      name\n    }\n  }\n": types.UpdateWorkspaceDocument,
+    "\n  mutation DeleteWorkspace {\n    deleteWorkspace\n  }\n": types.DeleteWorkspaceDocument,
     "\n  query BucketCredentials($bucket: BucketID!) {\n    bucketCredentials(bucket: $bucket) {\n      endpoint\n      region\n      bucket\n      accessKeyId\n      secretAccessKey\n    }\n  }\n": types.BucketCredentialsDocument,
     "\n  mutation SetBucketPublic($bucket: BucketID!, $public: Boolean!) {\n    setBucketPublic(bucket: $bucket, public: $public) {\n      id\n      public\n      publicEndpoint\n    }\n  }\n": types.SetBucketPublicDocument,
     "\n  query BucketObjects($bucket: BucketID!, $prefix: String) {\n    bucketObjects(bucket: $bucket, prefix: $prefix) {\n      prefix\n      folders {\n        prefix\n      }\n      objects {\n        key\n        size\n        lastModified\n      }\n    }\n  }\n": types.BucketObjectsDocument,
@@ -211,15 +218,8 @@ const documents: Documents = {
     "\n  query EnvironmentDefaultCommands($environment: EnvironmentID!) {\n    environment(environment: $environment) {\n      id\n      services {\n        id\n        defaultCommand\n      }\n    }\n  }\n": types.EnvironmentDefaultCommandsDocument,
     "\n  query ProjectEnvironments($id: ProjectID!) {\n    project(id: $id) {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n      }\n    }\n  }\n": types.ProjectEnvironmentsDocument,
     "\n  mutation CompletePlanCheckout($sessionId: String!) {\n    completePlanCheckout(sessionId: $sessionId) {\n      plan\n      status\n      currentPeriodEnd\n      creditAmountCents\n      hasPaymentMethod\n    }\n  }\n": types.CompletePlanCheckoutDocument,
-    "\n  query ProjectPage($id: ProjectID!) {\n    project(id: $id) {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n      }\n    }\n  }\n": types.ProjectPageDocument,
-    "\n  query Projects {\n    projects {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n        services {\n          id\n          name\n          sourceUrl\n        }\n      }\n    }\n  }\n": types.ProjectsDocument,
-    "\n  mutation UpdateWorkspace($input: UpdateWorkspaceInput!) {\n    updateWorkspace(input: $input) {\n      id\n      name\n    }\n  }\n": types.UpdateWorkspaceDocument,
-    "\n  mutation DeleteWorkspace {\n    deleteWorkspace\n  }\n": types.DeleteWorkspaceDocument,
-    "\n  mutation InviteMember($input: InviteMemberInput!) {\n    inviteMember(input: $input) {\n      id\n      email\n      name\n      role\n    }\n  }\n": types.InviteMemberDocument,
-    "\n  mutation RemoveMember($userId: ID!) {\n    removeMember(userId: $userId)\n  }\n": types.RemoveMemberDocument,
-    "\n  mutation UpdateMemberRole($input: UpdateMemberRoleInput!) {\n    updateMemberRole(input: $input) {\n      id\n      email\n      name\n      role\n    }\n  }\n": types.UpdateMemberRoleDocument,
-    "\n  mutation SelectPlan($plan: Plan!) {\n    selectPlan(plan: $plan) {\n      checkoutUrl\n      subscription {\n        plan\n        status\n        currentPeriodEnd\n        creditAmountCents\n        creditExpiry\n        hasPaymentMethod\n      }\n    }\n  }\n": types.SelectPlanDocument,
-    "\n  mutation BillingPortalUrl {\n    billingPortalUrl {\n      url\n    }\n  }\n": types.BillingPortalUrlDocument,
+    "\n  query ProjectPage($id: ProjectID!) {\n    project(id: $id) {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n        services {\n          id\n          name\n          status\n          sourceUrl\n        }\n        databases {\n          id\n          name\n          status\n        }\n        keyValueStores {\n          id\n          name\n          status\n        }\n        buckets {\n          id\n          name\n          status\n        }\n        volumes {\n          id\n          name\n        }\n      }\n    }\n  }\n": types.ProjectPageDocument,
+    "\n  query Projects {\n    projects {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n        services {\n          id\n          name\n          sourceUrl\n        }\n        databases {\n          id\n          name\n        }\n        keyValueStores {\n          id\n          name\n        }\n        buckets {\n          id\n          name\n        }\n        volumes {\n          id\n          name\n        }\n      }\n    }\n  }\n": types.ProjectsDocument,
 };
 
 /**
@@ -236,18 +236,6 @@ const documents: Documents = {
  */
 export function graphql(source: string): unknown;
 
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  query ApiTokens {\n    apiTokens {\n      id\n      name\n      role\n      createdAt\n    }\n  }\n"): (typeof documents)["\n  query ApiTokens {\n    apiTokens {\n      id\n      name\n      role\n      createdAt\n    }\n  }\n"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation CreateApiToken($input: CreateApiTokenInput!) {\n    createApiToken(input: $input) {\n      apiToken {\n        id\n        name\n        role\n        createdAt\n      }\n      token\n    }\n  }\n"): (typeof documents)["\n  mutation CreateApiToken($input: CreateApiTokenInput!) {\n    createApiToken(input: $input) {\n      apiToken {\n        id\n        name\n        role\n        createdAt\n      }\n      token\n    }\n  }\n"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation RevokeApiToken($id: ID!) {\n    revokeApiToken(id: $id)\n  }\n"): (typeof documents)["\n  mutation RevokeApiToken($id: ID!) {\n    revokeApiToken(id: $id)\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -331,6 +319,18 @@ export function graphql(source: "\n  mutation WelcomeSelectPlan($plan: Plan!) {\
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
+export function graphql(source: "\n  query ApiTokens {\n    apiTokens {\n      id\n      name\n      role\n      createdAt\n    }\n  }\n"): (typeof documents)["\n  query ApiTokens {\n    apiTokens {\n      id\n      name\n      role\n      createdAt\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateApiToken($input: CreateApiTokenInput!) {\n    createApiToken(input: $input) {\n      apiToken {\n        id\n        name\n        role\n        createdAt\n      }\n      token\n    }\n  }\n"): (typeof documents)["\n  mutation CreateApiToken($input: CreateApiTokenInput!) {\n    createApiToken(input: $input) {\n      apiToken {\n        id\n        name\n        role\n        createdAt\n      }\n      token\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation RevokeApiToken($id: ID!) {\n    revokeApiToken(id: $id)\n  }\n"): (typeof documents)["\n  mutation RevokeApiToken($id: ID!) {\n    revokeApiToken(id: $id)\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
 export function graphql(source: "\n  mutation SetEnvironmentResources($input: SetEnvironmentResourcesInput!) {\n    setEnvironmentResources(input: $input) {\n      id\n      resourceTier\n    }\n  }\n"): (typeof documents)["\n  mutation SetEnvironmentResources($input: SetEnvironmentResourcesInput!) {\n    setEnvironmentResources(input: $input) {\n      id\n      resourceTier\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -348,6 +348,34 @@ export function graphql(source: "\n  query SharedVariables($environment: Environ
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation SetSharedVariables($environment: EnvironmentID!, $variables: [VariableInput!]!) {\n    setSharedVariables(environment: $environment, variables: $variables)\n  }\n"): (typeof documents)["\n  mutation SetSharedVariables($environment: EnvironmentID!, $variables: [VariableInput!]!) {\n    setSharedVariables(environment: $environment, variables: $variables)\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SelectPlan($plan: Plan!) {\n    selectPlan(plan: $plan) {\n      checkoutUrl\n      subscription {\n        plan\n        status\n        currentPeriodEnd\n        creditAmountCents\n        creditExpiry\n        hasPaymentMethod\n      }\n    }\n  }\n"): (typeof documents)["\n  mutation SelectPlan($plan: Plan!) {\n    selectPlan(plan: $plan) {\n      checkoutUrl\n      subscription {\n        plan\n        status\n        currentPeriodEnd\n        creditAmountCents\n        creditExpiry\n        hasPaymentMethod\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation BillingPortalUrl {\n    billingPortalUrl {\n      url\n    }\n  }\n"): (typeof documents)["\n  mutation BillingPortalUrl {\n    billingPortalUrl {\n      url\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation InviteMember($input: InviteMemberInput!) {\n    inviteMember(input: $input) {\n      id\n      email\n      name\n      role\n    }\n  }\n"): (typeof documents)["\n  mutation InviteMember($input: InviteMemberInput!) {\n    inviteMember(input: $input) {\n      id\n      email\n      name\n      role\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation RemoveMember($userId: ID!) {\n    removeMember(userId: $userId)\n  }\n"): (typeof documents)["\n  mutation RemoveMember($userId: ID!) {\n    removeMember(userId: $userId)\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateMemberRole($input: UpdateMemberRoleInput!) {\n    updateMemberRole(input: $input) {\n      id\n      email\n      name\n      role\n    }\n  }\n"): (typeof documents)["\n  mutation UpdateMemberRole($input: UpdateMemberRoleInput!) {\n    updateMemberRole(input: $input) {\n      id\n      email\n      name\n      role\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateWorkspace($input: UpdateWorkspaceInput!) {\n    updateWorkspace(input: $input) {\n      id\n      name\n    }\n  }\n"): (typeof documents)["\n  mutation UpdateWorkspace($input: UpdateWorkspaceInput!) {\n    updateWorkspace(input: $input) {\n      id\n      name\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteWorkspace {\n    deleteWorkspace\n  }\n"): (typeof documents)["\n  mutation DeleteWorkspace {\n    deleteWorkspace\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -611,39 +639,11 @@ export function graphql(source: "\n  mutation CompletePlanCheckout($sessionId: S
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query ProjectPage($id: ProjectID!) {\n    project(id: $id) {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n      }\n    }\n  }\n"): (typeof documents)["\n  query ProjectPage($id: ProjectID!) {\n    project(id: $id) {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n      }\n    }\n  }\n"];
+export function graphql(source: "\n  query ProjectPage($id: ProjectID!) {\n    project(id: $id) {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n        services {\n          id\n          name\n          status\n          sourceUrl\n        }\n        databases {\n          id\n          name\n          status\n        }\n        keyValueStores {\n          id\n          name\n          status\n        }\n        buckets {\n          id\n          name\n          status\n        }\n        volumes {\n          id\n          name\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query ProjectPage($id: ProjectID!) {\n    project(id: $id) {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n        services {\n          id\n          name\n          status\n          sourceUrl\n        }\n        databases {\n          id\n          name\n          status\n        }\n        keyValueStores {\n          id\n          name\n          status\n        }\n        buckets {\n          id\n          name\n          status\n        }\n        volumes {\n          id\n          name\n        }\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query Projects {\n    projects {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n        services {\n          id\n          name\n          sourceUrl\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query Projects {\n    projects {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n        services {\n          id\n          name\n          sourceUrl\n        }\n      }\n    }\n  }\n"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation UpdateWorkspace($input: UpdateWorkspaceInput!) {\n    updateWorkspace(input: $input) {\n      id\n      name\n    }\n  }\n"): (typeof documents)["\n  mutation UpdateWorkspace($input: UpdateWorkspaceInput!) {\n    updateWorkspace(input: $input) {\n      id\n      name\n    }\n  }\n"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation DeleteWorkspace {\n    deleteWorkspace\n  }\n"): (typeof documents)["\n  mutation DeleteWorkspace {\n    deleteWorkspace\n  }\n"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation InviteMember($input: InviteMemberInput!) {\n    inviteMember(input: $input) {\n      id\n      email\n      name\n      role\n    }\n  }\n"): (typeof documents)["\n  mutation InviteMember($input: InviteMemberInput!) {\n    inviteMember(input: $input) {\n      id\n      email\n      name\n      role\n    }\n  }\n"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation RemoveMember($userId: ID!) {\n    removeMember(userId: $userId)\n  }\n"): (typeof documents)["\n  mutation RemoveMember($userId: ID!) {\n    removeMember(userId: $userId)\n  }\n"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation UpdateMemberRole($input: UpdateMemberRoleInput!) {\n    updateMemberRole(input: $input) {\n      id\n      email\n      name\n      role\n    }\n  }\n"): (typeof documents)["\n  mutation UpdateMemberRole($input: UpdateMemberRoleInput!) {\n    updateMemberRole(input: $input) {\n      id\n      email\n      name\n      role\n    }\n  }\n"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation SelectPlan($plan: Plan!) {\n    selectPlan(plan: $plan) {\n      checkoutUrl\n      subscription {\n        plan\n        status\n        currentPeriodEnd\n        creditAmountCents\n        creditExpiry\n        hasPaymentMethod\n      }\n    }\n  }\n"): (typeof documents)["\n  mutation SelectPlan($plan: Plan!) {\n    selectPlan(plan: $plan) {\n      checkoutUrl\n      subscription {\n        plan\n        status\n        currentPeriodEnd\n        creditAmountCents\n        creditExpiry\n        hasPaymentMethod\n      }\n    }\n  }\n"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation BillingPortalUrl {\n    billingPortalUrl {\n      url\n    }\n  }\n"): (typeof documents)["\n  mutation BillingPortalUrl {\n    billingPortalUrl {\n      url\n    }\n  }\n"];
+export function graphql(source: "\n  query Projects {\n    projects {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n        services {\n          id\n          name\n          sourceUrl\n        }\n        databases {\n          id\n          name\n        }\n        keyValueStores {\n          id\n          name\n        }\n        buckets {\n          id\n          name\n        }\n        volumes {\n          id\n          name\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query Projects {\n    projects {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n        services {\n          id\n          name\n          sourceUrl\n        }\n        databases {\n          id\n          name\n        }\n        keyValueStores {\n          id\n          name\n        }\n        buckets {\n          id\n          name\n        }\n        volumes {\n          id\n          name\n        }\n      }\n    }\n  }\n"];
 
 export function graphql(source: string) {
   return (documents as any)[source] ?? {};

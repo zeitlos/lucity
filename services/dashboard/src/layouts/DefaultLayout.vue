@@ -2,8 +2,11 @@
 import { computed } from 'vue';
 import { RouterLink, RouterView, useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
-import { LogOut, Settings } from '@lucide/vue';
+import { BookOpen, Bug, Lightbulb, LogOut } from '@lucide/vue';
 import { useAuth } from '@/composables/useAuth';
+import { useWorkspaceColor } from '@/composables/useWorkspaceColor';
+import { useReportBug } from '@/composables/useReportBug';
+import { workspaceNavItems } from '@/lib/workspaceNav';
 import { graphql } from '@/gql';
 
 const WorkspaceDocument = graphql(`
@@ -24,8 +27,8 @@ const WorkspaceDocument = graphql(`
 `);
 import BaseLogo from '@/components/BaseLogo.vue';
 import ContextNav from '@/components/ContextNav.vue';
+import MenuIcon from '@/components/MenuIcon.vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
-import HelpMenu from '@/components/HelpMenu.vue';
 import SuspensionBanner from '@/components/SuspensionBanner.vue';
 import TrialIndicator from '@/components/TrialIndicator.vue';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -38,9 +41,18 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 const router = useRouter();
-const { user, logout } = useAuth();
+const { user, logout, isWorkspaceAdmin } = useAuth();
+const { workspaceColor } = useWorkspaceColor();
+const { report, requestFeature } = useReportBug();
 const { result: wsResult } = useQuery(WorkspaceDocument, null, { fetchPolicy: 'cache-and-network' });
-const suspended = computed(() => wsResult.value?.workspace?.suspended ?? false);
+const workspace = computed(() => wsResult.value?.workspace ?? null);
+const suspended = computed(() => workspace.value?.suspended ?? false);
+
+const menuWorkspaceItems = computed(() =>
+  workspaceNavItems(isWorkspaceAdmin.value).filter(item => item.key !== 'projects'),
+);
+
+const trayItemClass = 'h-[34px] gap-2 rounded-[9px] px-2.5 text-[12.5px] text-muted-foreground focus:text-foreground [&_svg]:size-3.5';
 
 async function handleLogout() {
   await logout();
@@ -69,43 +81,91 @@ async function handleLogout() {
           </template>
         </div>
 
-        <!-- Right: Theme + User menu -->
+        <!-- Right: User menu -->
         <div class="flex items-center gap-2">
           <TrialIndicator v-if="user && !suspended" />
 
           <ThemeToggle />
-          <HelpMenu />
 
           <DropdownMenu v-if="user">
             <DropdownMenuTrigger as-child>
-              <button class="rounded-full transition-opacity hover:opacity-80">
-                <Avatar class="h-7 w-7">
+              <button
+                aria-label="Account"
+                class="rounded-full ring-offset-2 ring-offset-card transition-shadow hover:opacity-90 data-[state=open]:ring-2 data-[state=open]:ring-primary/50"
+              >
+                <Avatar class="h-8 w-8">
                   <AvatarImage :src="user.avatarUrl" :alt="user.name || user.email || ''" />
                   <AvatarFallback>{{ (user.name || user.email || '?').charAt(0).toUpperCase() }}</AvatarFallback>
                 </Avatar>
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" class="min-w-56">
-              <div class="flex items-center gap-3 px-3 py-2.5">
-                <Avatar class="h-9 w-9 shrink-0">
-                  <AvatarImage :src="user.avatarUrl" :alt="user.name || user.email || ''" />
-                  <AvatarFallback>{{ (user.name || user.email || '?').charAt(0).toUpperCase() }}</AvatarFallback>
-                </Avatar>
-                <div class="min-w-0">
-                  <p class="truncate text-sm font-medium">{{ user.name || user.email }}</p>
-                  <p class="truncate text-xs text-muted-foreground">{{ user.email }}</p>
+            <DropdownMenuContent align="end" class="w-[304px] rounded-[17px] bg-background p-0 shadow-xl">
+              <div class="-m-px rounded-[17px] border bg-popover p-1.5 shadow-[0_6px_14px_-8px_oklch(0.35_0.03_55/0.25)]">
+                <div class="flex items-center gap-3 px-[5px] pb-3 pt-2">
+                  <Avatar class="size-[38px] shrink-0">
+                    <AvatarImage :src="user.avatarUrl" :alt="user.name || user.email || ''" />
+                    <AvatarFallback>{{ (user.name || user.email || '?').charAt(0).toUpperCase() }}</AvatarFallback>
+                  </Avatar>
+                  <div class="min-w-0 flex-1">
+                    <p class="truncate text-sm font-semibold">{{ user.name || user.email }}</p>
+                    <p v-if="user.name" class="truncate text-xs text-muted-foreground">{{ user.email }}</p>
+                  </div>
                 </div>
+
+                <template v-if="workspace">
+                  <DropdownMenuSeparator class="mx-1 mb-1.5 mt-0" />
+                  <div class="flex h-9 items-center gap-2.5 px-[5px]">
+                    <span class="flex size-[26px] shrink-0 items-center justify-center rounded-[6px] text-xs font-semibold" :style="workspaceColor(workspace.id)">
+                      {{ workspace.name.charAt(0).toUpperCase() }}
+                    </span>
+                    <span class="truncate text-[13.5px] font-semibold">{{ workspace.name }}</span>
+                    <span v-if="workspace.personal" class="ml-auto rounded-full bg-muted px-2 py-px text-[11px] text-muted-foreground">
+                      Personal
+                    </span>
+                  </div>
+                  <DropdownMenuItem
+                    v-for="item in menuWorkspaceItems"
+                    :key="item.key"
+                    class="h-9 gap-2.5 rounded-[11px] px-[5px] text-[13.5px]"
+                    @select="router.push(item.to)"
+                  >
+                    <MenuIcon :icon="item.icon" />
+                    {{ item.label }}
+                  </DropdownMenuItem>
+                </template>
               </div>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem @select="router.push({ name: 'workspace-settings' })">
-                <Settings :size="14" class="mr-2" />
-                Workspace settings
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem @select="handleLogout">
-                <LogOut :size="14" class="mr-2" />
-                Sign out
-              </DropdownMenuItem>
+
+              <div class="p-2">
+                <div class="grid grid-cols-2 gap-0.5">
+                  <DropdownMenuItem as-child :class="trayItemClass">
+                    <a href="https://lucity.cloud/docs/quickstart" target="_blank" rel="noopener">
+                      <BookOpen />
+                      Docs
+                    </a>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem as-child :class="trayItemClass">
+                    <a href="https://github.com/zeitlos/lucity" target="_blank" rel="noopener">
+                      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M12 .5C5.37.5 0 5.78 0 12.292c0 5.211 3.438 9.63 8.205 11.188.6.111.82-.254.82-.567 0-.28-.01-1.022-.015-2.005-3.338.711-4.042-1.582-4.042-1.582-.546-1.361-1.335-1.725-1.335-1.725-1.087-.731.084-.716.084-.716 1.205.082 1.838 1.215 1.838 1.215 1.07 1.803 2.809 1.282 3.495.981.108-.763.417-1.282.76-1.577-2.665-.295-5.466-1.309-5.466-5.827 0-1.287.465-2.339 1.235-3.164-.135-.298-.54-1.497.105-3.121 0 0 1.005-.316 3.3 1.209.96-.262 1.98-.392 3-.398 1.02.006 2.04.136 3 .398 2.28-1.525 3.285-1.209 3.285-1.209.645 1.624.24 2.823.12 3.121.765.825 1.23 1.877 1.23 3.164 0 4.53-2.805 5.527-5.475 5.817.42.354.81 1.077.81 2.182 0 1.578-.015 2.846-.015 3.229 0 .315.21.689.825.573C20.565 21.917 24 17.498 24 12.292 24 5.78 18.627.5 12 .5z" />
+                      </svg>
+                      GitHub
+                    </a>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem :class="trayItemClass" @select="report()">
+                    <Bug />
+                    Report a bug
+                  </DropdownMenuItem>
+                  <DropdownMenuItem :class="trayItemClass" @select="requestFeature()">
+                    <Lightbulb />
+                    Request a feature
+                  </DropdownMenuItem>
+                </div>
+                <DropdownMenuSeparator class="mx-1 my-1.5" />
+                <DropdownMenuItem :class="trayItemClass" @select="handleLogout">
+                  <LogOut />
+                  Sign out
+                </DropdownMenuItem>
+              </div>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

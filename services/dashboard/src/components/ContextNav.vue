@@ -2,10 +2,11 @@
 import { ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
-import { ChevronDown, Plus, Check, User, Users, Settings, SlidersHorizontal } from '@lucide/vue';
+import { Check, ChevronDown, Plus } from '@lucide/vue';
 import Spinner from '@/components/LoadingSpinner.vue';
 import { useAuth } from '@/composables/useAuth';
 import { useEnvironment } from '@/composables/useEnvironment';
+import { useWorkspaceColor } from '@/composables/useWorkspaceColor';
 import { graphql } from '@/gql';
 import { ResourceTier } from '@/gql/graphql';
 
@@ -46,34 +47,38 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { darkTooltipClass } from '@/lib/tooltip';
 
 const route = useRoute();
 const router = useRouter();
 const { activeWorkspace, setActiveWorkspace } = useAuth();
 const { activeEnvironment, environments } = useEnvironment();
+const { workspaceColor } = useWorkspaceColor();
 
 const { result: wsResult } = useQuery(WorkspacesDocument);
 const workspaces = computed(() => wsResult.value?.workspaces ?? []);
-const activeWs = computed(() => workspaces.value.find((w: { id: string }) => w.id === activeWorkspace.value));
+const activeWs = computed(() => workspaces.value.find(w => w.id === activeWorkspace.value));
 
 const { result: projResult } = useQuery(ProjectsForNavDocument);
 const projects = computed(() => projResult.value?.projects ?? []);
 
 const isEnvironmentRoute = computed(() => route.name === 'environment');
-const isWorkspaceSettingsRoute = computed(() => route.name === 'workspace-settings');
 
-// Resolve the current project ID from either route shape
 const activeProjectId = computed<string | undefined>(() => {
   const id = route.params.projectId;
   return Array.isArray(id) ? id[0] : (id as string | undefined);
 });
 
-const activeProject = computed(() =>
-  projects.value.find((p: { id: string }) => p.id === activeProjectId.value),
-);
+const activeProject = computed(() => projects.value.find(p => p.id === activeProjectId.value));
+const activeProjectName = computed(() => activeProject.value?.name ?? activeProjectId.value ?? '');
+
+const projectEnvironments = computed(() => {
+  if (environments.value.length > 0) return environments.value;
+  return activeProject.value?.environments ?? [];
+});
 
 const wsDialogOpen = ref(false);
 const envDialogOpen = ref(false);
@@ -82,7 +87,7 @@ const switchingWorkspaceName = ref('');
 
 async function handleWorkspaceSwitch(id: string) {
   if (id === activeWorkspace.value) return;
-  const ws = workspaces.value.find((w: { id: string; name: string }) => w.id === id);
+  const ws = workspaces.value.find(w => w.id === id);
   switchingWorkspaceName.value = ws?.name ?? id;
   switchingWorkspace.value = true;
   setActiveWorkspace(id);
@@ -93,7 +98,7 @@ async function handleWorkspaceSwitch(id: string) {
 
 function handleProjectSwitch(id: string) {
   if (id === activeProjectId.value) return;
-  const project = projects.value.find((p: { id: string }) => p.id === id);
+  const project = projects.value.find(p => p.id === id);
   const target = preferredEnvironment(id, project?.environments ?? []);
   if (target) {
     router.push({ name: 'environment', params: { projectId: id, environmentId: target.id } });
@@ -119,161 +124,149 @@ function handleEnvironmentCreated(environmentId: string) {
   });
 }
 
+function handleNewProject() {
+  router.push({ name: 'projects', query: { new: 'project' } });
+}
+
 function tierLabel(tier?: string | null) {
   if (tier === ResourceTier.Production) return 'Production';
   return 'Eco';
 }
 
-function handleEnvSettings(envId: string) {
-  if (!activeProjectId.value) return;
-  router.push({
-    name: 'environment',
-    params: { projectId: activeProjectId.value, environmentId: envId, drawer: 'settings' },
-  });
+function initial(name: string) {
+  return name.charAt(0).toUpperCase();
 }
 
-function handleProjectSettings() {
-  if (!activeProjectId.value) return;
-  router.push({ name: 'project', params: { projectId: activeProjectId.value, drawer: 'settings' } });
-}
-
-const projectEnvironments = computed(() => {
-  if (environments.value.length > 0) return environments.value;
-  return activeProject.value?.environments ?? [];
-});
+const titleClass = 'inline-flex h-7 items-center gap-1.5 rounded-l-[6px] px-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted';
+const arrowClass = 'flex h-7 w-5 items-center justify-center rounded-r-[6px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground data-[state=open]:bg-muted data-[state=open]:text-foreground';
+const contentClass = 'w-[260px] rounded-[12px] p-1';
+const rowClass = 'h-8 gap-2 rounded-[8px] px-1 text-[13px]';
+const letterClass = 'flex size-6 shrink-0 items-center justify-center rounded-[4px] bg-background text-xs font-semibold text-foreground ring-1 ring-inset ring-border';
+const workspaceLetterClass = 'flex size-6 shrink-0 items-center justify-center rounded-[4px] text-xs font-semibold';
+const plainRowClass = 'h-8 gap-2 rounded-[8px] px-2 text-[13px]';
+const newBoxClass = 'flex size-6 shrink-0 items-center justify-center rounded-[4px] border border-dashed border-border text-muted-foreground';
 </script>
 
 <template>
-  <nav class="flex items-center gap-1.5">
-    <!-- Workspace Dropdown -->
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        class="inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-      >
-        <component
-          :is="activeWs?.personal ? User : Users"
-          :size="14"
-          class="text-muted-foreground"
-        />
-        <span class="max-w-[140px] truncate">{{ activeWs?.name ?? activeWorkspace }}</span>
-        <ChevronDown :size="14" class="text-muted-foreground" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" class="w-56">
-        <DropdownMenuItem
-          v-for="ws in workspaces"
-          :key="ws.id"
-          @select="handleWorkspaceSwitch(ws.id)"
-        >
-          <div class="flex w-full items-center gap-2">
-            <component
-              :is="ws.personal ? User : Users"
-              :size="14"
-              class="shrink-0 text-muted-foreground"
-            />
-            <span class="truncate">{{ ws.name }}</span>
-            <Check
-              v-if="ws.id === activeWorkspace"
-              :size="14"
-              class="ml-auto shrink-0"
-            />
-          </div>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem @select="wsDialogOpen = true">
-          <Plus :size="14" class="mr-2" />
-          New Workspace
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+  <TooltipProvider :delay-duration="300">
+    <nav class="flex items-center gap-1">
+      <span class="inline-flex items-center">
+        <RouterLink :to="{ name: 'projects' }" :class="titleClass">
+          <span class="flex size-4 items-center justify-center rounded-[5px] text-[10px] font-semibold" :style="workspaceColor(activeWorkspace)">
+            {{ initial(activeWs?.name ?? activeWorkspace) }}
+          </span>
+          <span class="max-w-[140px] truncate">{{ activeWs?.name ?? activeWorkspace }}</span>
+        </RouterLink>
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <span class="inline-flex">
+              <DropdownMenu>
+                <DropdownMenuTrigger :class="arrowClass" aria-label="Switch workspace">
+                  <ChevronDown :size="14" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" :class="contentClass">
+                  <DropdownMenuItem
+                    v-for="ws in workspaces"
+                    :key="ws.id"
+                    :class="[rowClass, ws.id === activeWorkspace ? 'bg-accent/60' : '']"
+                    @select="handleWorkspaceSwitch(ws.id)"
+                  >
+                    <span :class="workspaceLetterClass" :style="workspaceColor(ws.id)">{{ initial(ws.name) }}</span>
+                    <span class="truncate" :class="ws.id === activeWorkspace ? 'font-medium' : ''">{{ ws.name }}</span>
+                    <span v-if="ws.personal" class="text-xs text-muted-foreground">Personal</span>
+                    <Check v-if="ws.id === activeWorkspace" class="ml-auto" />
+                  </DropdownMenuItem>
+                  <DropdownMenuItem :class="[rowClass, 'text-muted-foreground']" @select="wsDialogOpen = true">
+                    <span :class="newBoxClass"><Plus class="!size-3.5" /></span>
+                    New workspace
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" :class="darkTooltipClass">Switch workspace</TooltipContent>
+        </Tooltip>
+      </span>
 
-    <!-- Project Dropdown -->
-    <template v-if="activeProjectId">
-      <span class="text-sm text-border">/</span>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-        >
-          <span class="max-w-[160px] truncate">{{ activeProject?.name ?? activeProjectId }}</span>
-          <ChevronDown :size="14" class="text-muted-foreground" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" class="w-56">
-          <DropdownMenuItem
-            v-for="project in projects"
-            :key="project.id"
-            @select="handleProjectSwitch(project.id)"
+      <template v-if="activeProjectId">
+        <span class="text-sm text-border">/</span>
+        <span class="inline-flex items-center">
+          <RouterLink :to="{ name: 'project', params: { projectId: activeProjectId } }" :class="titleClass">
+            <span class="max-w-[160px] truncate">{{ activeProjectName }}</span>
+          </RouterLink>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <span class="inline-flex">
+                <DropdownMenu>
+                  <DropdownMenuTrigger :class="arrowClass" aria-label="Switch project">
+                    <ChevronDown :size="14" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" :class="contentClass">
+                    <DropdownMenuItem
+                      v-for="project in projects"
+                      :key="project.id"
+                      :class="[rowClass, project.id === activeProjectId ? 'bg-accent/60' : '']"
+                      @select="handleProjectSwitch(project.id)"
+                    >
+                      <span :class="letterClass">{{ initial(project.name) }}</span>
+                      <span class="truncate" :class="project.id === activeProjectId ? 'font-medium' : ''">{{ project.name }}</span>
+                      <Check v-if="project.id === activeProjectId" class="ml-auto" />
+                    </DropdownMenuItem>
+                    <DropdownMenuItem :class="[rowClass, 'text-muted-foreground']" @select="handleNewProject">
+                      <span :class="newBoxClass"><Plus class="!size-3.5" /></span>
+                      New project
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" :class="darkTooltipClass">Switch project</TooltipContent>
+          </Tooltip>
+        </span>
+      </template>
+
+      <template v-if="isEnvironmentRoute && activeEnvironment && activeProjectId">
+        <span class="text-sm text-border">/</span>
+        <span class="inline-flex items-center">
+          <RouterLink
+            :to="{ name: 'environment', params: { projectId: activeProjectId, environmentId: activeEnvironment.id } }"
+            :class="titleClass"
           >
-            <div class="flex w-full items-center gap-2">
-              <span class="truncate">{{ project.name }}</span>
-              <Check
-                v-if="project.id === activeProjectId"
-                :size="14"
-                class="ml-auto shrink-0"
-              />
-            </div>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem @select="handleProjectSettings">
-            <SlidersHorizontal :size="14" class="mr-2" />
-            Settings
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </template>
+            {{ activeEnvironment.name }}
+          </RouterLink>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <span class="inline-flex">
+                <DropdownMenu>
+                  <DropdownMenuTrigger :class="arrowClass" aria-label="Switch environment">
+                    <ChevronDown :size="14" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" :class="contentClass">
+                    <DropdownMenuItem
+                      v-for="env in projectEnvironments"
+                      :key="env.id"
+                      :class="[plainRowClass, env.id === activeEnvironment.id ? 'bg-accent/60' : '']"
+                      @select="handleEnvironmentSwitch(env.id)"
+                    >
+                      <span class="truncate" :class="env.id === activeEnvironment.id ? 'font-medium' : ''">{{ env.name }}</span>
+                      <span class="text-xs text-muted-foreground">{{ tierLabel(env.resourceTier) }}</span>
+                      <Check v-if="env.id === activeEnvironment.id" class="ml-auto" />
+                    </DropdownMenuItem>
+                    <DropdownMenuItem :class="[plainRowClass, 'text-muted-foreground']" @select="envDialogOpen = true">
+                      <Plus class="!size-3.5" />
+                      New environment
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" :class="darkTooltipClass">Switch environment</TooltipContent>
+          </Tooltip>
+        </span>
+      </template>
 
-    <!-- Environment Dropdown (only on environment route) -->
-    <template v-if="isEnvironmentRoute && activeEnvironment">
-      <span class="text-sm text-border">/</span>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-        >
-          {{ activeEnvironment.name }}
-          <ChevronDown :size="14" class="text-muted-foreground" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" class="w-64">
-          <div
-            v-for="env in projectEnvironments"
-            :key="env.id"
-            class="flex items-center"
-          >
-            <DropdownMenuItem
-              class="flex-1"
-              @select="handleEnvironmentSwitch(env.id)"
-            >
-              <div class="flex items-center gap-2">
-                <Check
-                  v-if="env.id === activeEnvironment?.id"
-                  :size="14"
-                  class="shrink-0"
-                />
-                <div v-else class="w-3.5" />
-                <div class="flex flex-col">
-                  <span class="truncate text-sm">{{ env.name }}</span>
-                  <span class="text-[11px] text-muted-foreground">{{ tierLabel(env.resourceTier) }}</span>
-                </div>
-              </div>
-            </DropdownMenuItem>
-            <button
-              class="mr-1 rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              @click="handleEnvSettings(env.id)"
-            >
-              <Settings :size="13" />
-            </button>
-          </div>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem @select="envDialogOpen = true">
-            <Plus :size="14" class="mr-2" />
-            New Environment
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </template>
-
-    <template v-if="isWorkspaceSettingsRoute">
-      <span class="text-sm text-border">/</span>
-      <span class="px-1.5 py-0.5 text-sm text-muted-foreground">Settings</span>
-    </template>
-  </nav>
+    </nav>
+  </TooltipProvider>
 
   <CreateWorkspaceDialog v-model:open="wsDialogOpen" />
   <CreateEnvironmentDialog

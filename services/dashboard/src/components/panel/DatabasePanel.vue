@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { devicon } from '@/lib/devicons';
 import { ref } from 'vue';
 import { X } from '@lucide/vue';
 import { onKeyStroke } from '@vueuse/core';
@@ -41,7 +42,7 @@ onKeyStroke('Escape', () => {
     <div class="flex shrink-0 items-center justify-between border-b px-4 py-3">
       <div class="flex items-center gap-3">
         <img
-          src="https://devicons.railway.com/i/postgresql.svg"
+          :src="devicon('postgresql')"
           :width="24"
           :height="24"
           class="shrink-0"

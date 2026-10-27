@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { devicon } from '@/lib/devicons';
 import { reactive, computed, ref } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
 import { X, Copy, Eye, EyeOff, DatabaseZap, Trash2, Database, HardDrive } from '@lucide/vue';
@@ -128,7 +129,7 @@ async function handleDelete() {
     <div class="flex shrink-0 items-center justify-between border-b px-4 py-3">
       <div class="flex items-center gap-3">
         <img
-          src="https://devicons.railway.com/i/redis.svg"
+          :src="devicon('redis')"
           :width="24"
           :height="24"
           class="shrink-0"

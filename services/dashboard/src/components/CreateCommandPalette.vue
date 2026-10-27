@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { devicon } from '@/lib/devicons';
 import { ref, computed, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuery, useMutation, useApolloClient } from '@vue/apollo-composable';
@@ -657,7 +658,7 @@ const newServicePort = ref<number | null>(null);
 // Create database (within environment context)
 const databaseFlow = computed<CommandFlowConfig>(() => ({
   title: 'Database',
-  iconSrc: 'https://devicons.railway.com/i/postgresql.svg',
+  iconSrc: devicon('postgresql'),
   submitLabel: 'Create database',
   mutation: CreateDatabaseDocument,
   variables: (values) => ({ input: { environment: props.environmentId, name: values.name } }),
@@ -1004,7 +1005,7 @@ const mainItems = computed(() => {
   const items: PaletteItem[] = props.context === 'projects'
     ? [
         { id: 'github-repo', label: 'GitHub Repository', icon: GithubIcon, action: () => { view.value = 'github-repos'; } },
-        { id: 'container-image', label: 'Container Image', iconSrc: 'https://devicons.railway.com/i/docker.svg', action: () => { view.value = 'container-image'; } },
+        { id: 'container-image', label: 'Container Image', iconSrc: devicon('docker'), action: () => { view.value = 'container-image'; } },
         { id: 'empty-project', label: 'Empty Project', icon: FolderPlus, action: () => {
           pendingRepo.value = null;
           pendingImage.value = null;
@@ -1016,9 +1017,9 @@ const mainItems = computed(() => {
       ]
     : [
         { id: 'github-repo', label: 'GitHub Repository', icon: GithubIcon, action: () => { view.value = 'github-repos'; } },
-        { id: 'container-image', label: 'Container Image', iconSrc: 'https://devicons.railway.com/i/docker.svg', action: () => { view.value = 'container-image'; } },
-        { id: 'database', label: 'PostgreSQL', iconSrc: 'https://devicons.railway.com/i/postgresql.svg', action: () => { view.value = 'database'; } },
-        { id: 'keyValueStore', label: 'Redis', iconSrc: 'https://devicons.railway.com/i/redis.svg', action: () => { view.value = 'keyValueStore'; } },
+        { id: 'container-image', label: 'Container Image', iconSrc: devicon('docker'), action: () => { view.value = 'container-image'; } },
+        { id: 'database', label: 'PostgreSQL', iconSrc: devicon('postgresql'), action: () => { view.value = 'database'; } },
+        { id: 'keyValueStore', label: 'Redis', iconSrc: devicon('redis'), action: () => { view.value = 'keyValueStore'; } },
         { id: 'bucket', label: 'Bucket', icon: BucketIcon, action: () => { view.value = 'bucket'; } },
         { id: 'volume', label: 'Volume', icon: HardDrive, action: () => { volumeStep.value = 'name'; view.value = 'volume'; } },
         { id: 'manual-service', label: 'Empty Service', icon: Plus, action: () => { view.value = 'manual-service'; } },

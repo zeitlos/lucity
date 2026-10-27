@@ -734,7 +734,7 @@ watch(error, (err) => {
         <ContextRail
           :items="railItems"
           :active-key="activeKey"
-          :up-label="`Up to ${projectName}`"
+          up-label="Up to project"
           :up-to="{ name: 'project', params: { projectId } }"
           :project-id="projectId"
           :project-name="projectName"

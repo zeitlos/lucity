@@ -1,10 +1,10 @@
-const DEVICON_BASE = 'https://devicons.railway.com/i/';
+import { findDevicon } from '@/lib/devicons';
 
 const ICON_SLUGS: Record<string, string> = {
   node: 'nodejs',
   nodejs: 'nodejs',
   bun: 'bun',
-  deno: 'denojs',
+  deno: 'deno',
   python: 'python',
   go: 'go',
   golang: 'go',
@@ -14,8 +14,8 @@ const ICON_SLUGS: Record<string, string> = {
   java: 'java',
   kotlin: 'kotlin',
   elixir: 'elixir',
-  dotnet: 'dotnetcore',
-  csharp: 'dotnetcore',
+  dotnet: 'dot-net',
+  csharp: 'dot-net',
   next: 'nextjs',
   nextjs: 'nextjs',
   nuxt: 'nuxtjs',
@@ -36,9 +36,12 @@ const ICON_SLUGS: Record<string, string> = {
   spring: 'spring',
 };
 
-export function frameworkIconUrl(framework: string, language: string): string | null {
+const THEMED_SLUGS = new Set(['rust', 'nextjs', 'astro', 'flask']);
+
+export function frameworkIconUrl(framework: string, language: string, theme: 'light' | 'dark'): string | null {
   const key = (framework || language || '').toLowerCase();
   if (!key) return null;
   const slug = ICON_SLUGS[key] ?? key;
-  return `${DEVICON_BASE}${slug}.svg`;
+  const name = THEMED_SLUGS.has(slug) ? `${slug}-${theme === 'dark' ? 'light' : 'dark'}` : slug;
+  return findDevicon(name) ?? null;
 }

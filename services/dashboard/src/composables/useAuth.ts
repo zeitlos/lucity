@@ -55,6 +55,9 @@ function setActiveWorkspace(ws: string) {
 
 export function useAuth() {
   const isAuthenticated = computed(() => authed.value);
+  const isWorkspaceAdmin = computed(() =>
+    user.value?.workspaces.find(w => w.workspace === activeWorkspace.value)?.role === 'admin',
+  );
 
   async function fetchUser() {
     try {
@@ -103,6 +106,7 @@ export function useAuth() {
     loading,
     isAuthenticated,
     activeWorkspace,
+    isWorkspaceAdmin,
     fetchUser,
     refreshToken: fetchUser,
     logout,

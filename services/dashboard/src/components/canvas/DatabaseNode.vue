@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { devicon } from '@/lib/devicons';
 import { computed } from 'vue';
 import { Handle, Position } from '@vue-flow/core';
 import { DatabaseStatus } from '@/gql/graphql';
@@ -69,7 +70,7 @@ const statusLabel = computed(() => {
       <!-- Header: icon + name -->
       <div class="flex items-center gap-3">
         <img
-          src="https://devicons.railway.com/i/postgresql.svg"
+          :src="devicon('postgresql')"
           :width="28"
           :height="28"
           class="shrink-0"

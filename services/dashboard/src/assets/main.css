@@ -71,6 +71,27 @@
     --status-neutral: oklch(0.55 0.03 55);
     --status-progress: oklch(0.55 0.22 300);
 
+    --workspace-0-bg: oklch(0.88 0.062 25);
+    --workspace-0-fg: oklch(0.42 0.12 25);
+    --workspace-1-bg: oklch(0.88 0.072 55);
+    --workspace-1-fg: oklch(0.42 0.101 55);
+    --workspace-2-bg: oklch(0.88 0.075 85);
+    --workspace-2-fg: oklch(0.42 0.083 85);
+    --workspace-3-bg: oklch(0.88 0.075 125);
+    --workspace-3-fg: oklch(0.42 0.102 125);
+    --workspace-4-bg: oklch(0.88 0.075 155);
+    --workspace-4-fg: oklch(0.42 0.101 155);
+    --workspace-5-bg: oklch(0.88 0.075 190);
+    --workspace-5-fg: oklch(0.42 0.07 190);
+    --workspace-6-bg: oklch(0.88 0.075 225);
+    --workspace-6-fg: oklch(0.42 0.077 225);
+    --workspace-7-bg: oklch(0.88 0.057 260);
+    --workspace-7-fg: oklch(0.42 0.12 260);
+    --workspace-8-bg: oklch(0.88 0.064 295);
+    --workspace-8-fg: oklch(0.42 0.12 295);
+    --workspace-9-bg: oklch(0.88 0.075 340);
+    --workspace-9-fg: oklch(0.42 0.12 340);
+
     /* Gradient variables */
     --gradient-subtle: linear-gradient(135deg, oklch(0.95 0.02 80) 0%, oklch(0.93 0.03 70) 100%);
     --gradient-card: linear-gradient(180deg, oklch(0.97 0.015 80) 0%, oklch(0.96 0.02 75) 100%);
@@ -141,6 +162,27 @@
     --status-danger: oklch(0.68 0.22 25);
     --status-neutral: oklch(0.55 0.03 55);
     --status-progress: oklch(0.72 0.18 300);
+
+    --workspace-0-bg: oklch(0.38 0.085 25);
+    --workspace-0-fg: oklch(0.9 0.05 25);
+    --workspace-1-bg: oklch(0.38 0.085 55);
+    --workspace-1-fg: oklch(0.9 0.059 55);
+    --workspace-2-bg: oklch(0.38 0.076 85);
+    --workspace-2-fg: oklch(0.9 0.065 85);
+    --workspace-3-bg: oklch(0.38 0.085 125);
+    --workspace-3-fg: oklch(0.9 0.065 125);
+    --workspace-4-bg: oklch(0.38 0.085 155);
+    --workspace-4-fg: oklch(0.9 0.065 155);
+    --workspace-5-bg: oklch(0.38 0.064 190);
+    --workspace-5-fg: oklch(0.9 0.065 190);
+    --workspace-6-bg: oklch(0.38 0.07 225);
+    --workspace-6-fg: oklch(0.9 0.063 225);
+    --workspace-7-bg: oklch(0.38 0.085 260);
+    --workspace-7-fg: oklch(0.9 0.047 260);
+    --workspace-8-bg: oklch(0.38 0.085 295);
+    --workspace-8-fg: oklch(0.9 0.053 295);
+    --workspace-9-bg: oklch(0.38 0.085 340);
+    --workspace-9-fg: oklch(0.9 0.065 340);
 
     /* Dark gradients */
     --gradient-subtle: linear-gradient(135deg, oklch(0.20 0.03 55) 0%, oklch(0.22 0.035 45) 100%);

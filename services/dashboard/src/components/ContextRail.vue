@@ -4,6 +4,7 @@ import type { RouteLocationRaw } from 'vue-router';
 import { CornerLeftUp, Download } from '@lucide/vue';
 import ProjectEjectDialog from '@/components/ProjectEjectDialog.vue';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { darkTooltipClass } from '@/lib/tooltip';
 
 interface RailItem {
   key: string;
@@ -15,10 +16,10 @@ interface RailItem {
 const props = defineProps<{
   items: RailItem[];
   activeKey: string;
-  upLabel: string;
-  upTo: RouteLocationRaw;
-  projectId: string;
-  projectName: string;
+  upLabel?: string;
+  upTo?: RouteLocationRaw;
+  projectId?: string;
+  projectName?: string;
 }>();
 
 const ITEM_PITCH = 52;
@@ -27,6 +28,7 @@ const activeIndex = computed(() => props.items.findIndex(item => item.key === pr
 const tabTop = computed(() => `${activeIndex.value * ITEM_PITCH - 12}px`);
 
 const ejectOpen = ref(false);
+
 </script>
 
 <template>
@@ -83,30 +85,30 @@ const ejectOpen = ref(false);
               <component :is="item.icon" :size="18" />
             </RouterLink>
           </TooltipTrigger>
-          <TooltipContent side="right">{{ item.label }}</TooltipContent>
+          <TooltipContent side="right" :class="darkTooltipClass">{{ item.label }}</TooltipContent>
         </Tooltip>
 
-        <div class="flex h-3 items-center justify-center" aria-hidden="true">
+        <div v-if="projectId" class="flex h-3 items-center justify-center" aria-hidden="true">
           <div class="h-px w-6 bg-border" />
         </div>
 
-        <Tooltip>
+        <Tooltip v-if="projectId">
           <TooltipTrigger as-child>
             <button
               type="button"
-              :aria-label="`Eject ${projectName}`"
+              aria-label="Eject"
               class="flex size-12 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               @click="ejectOpen = true"
             >
               <Download :size="18" />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="right">Eject {{ projectName }}</TooltipContent>
+          <TooltipContent side="right" :class="darkTooltipClass">Eject</TooltipContent>
         </Tooltip>
 
         <div class="flex-1" />
 
-        <Tooltip>
+        <Tooltip v-if="upTo">
           <TooltipTrigger as-child>
             <RouterLink
               :to="upTo"
@@ -116,15 +118,16 @@ const ejectOpen = ref(false);
               <CornerLeftUp :size="18" />
             </RouterLink>
           </TooltipTrigger>
-          <TooltipContent side="right">{{ upLabel }}</TooltipContent>
+          <TooltipContent side="right" :class="darkTooltipClass">{{ upLabel }}</TooltipContent>
         </Tooltip>
       </nav>
     </TooltipProvider>
 
     <ProjectEjectDialog
+      v-if="projectId"
       v-model:open="ejectOpen"
       :project-id="projectId"
-      :project-name="projectName"
+      :project-name="projectName ?? projectId"
     />
   </div>
 </template>

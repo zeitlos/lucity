@@ -102,7 +102,7 @@ const barColor = computed(() => {
 
 function goToBilling() {
   popoverOpen.value = false;
-  router.push({ name: 'workspace-settings', query: { tab: 'billing' } });
+  router.push({ name: 'workspace', params: { drawer: 'billing' } });
 }
 </script>
 
