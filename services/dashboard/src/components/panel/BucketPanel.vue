@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useGuardedTab } from '@/composables/useUnsavedChanges';
 import PanelShell from '@/components/PanelShell.vue';
 
 import BucketIcon from '@/components/BucketIcon.vue';
@@ -25,6 +26,8 @@ const emit = defineEmits<{
   (e: 'bucket-removed'): void;
 }>();
 
+const { tab: activeTab, selectTab } = useGuardedTab('files');
+
 </script>
 
 <template>
@@ -35,7 +38,7 @@ const emit = defineEmits<{
 
     <!-- Tab Content -->
     <ScrollArea class="flex-1 [&>[data-reka-scroll-area-viewport]>div]:h-full">
-      <Tabs default-value="files" class="flex h-full flex-col">
+      <Tabs :model-value="activeTab" @update:model-value="selectTab" class="flex h-full flex-col">
         <div class="px-4 pt-2">
           <TabsList class="w-full">
             <TabsTrigger value="files">Files</TabsTrigger>

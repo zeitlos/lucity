@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import FormFooter from '@/components/FormFooter.vue';
+import { useUnsavedChanges } from '@/composables/useUnsavedChanges';
 import { ref, watch, computed } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
 import { Plus, Trash2, Eye, EyeOff } from '@lucide/vue';
@@ -49,16 +51,18 @@ interface VarRow {
 const rows = ref<VarRow[]>([]);
 const hasChanges = ref(false);
 
-watch(
-  () => result.value?.sharedVariables,
-  (vars) => {
-    if (vars) {
-      rows.value = vars.map(v => ({ key: v.key, value: v.value }));
-      hasChanges.value = false;
-    }
-  },
-  { immediate: true },
-);
+function resetRows() {
+  const vars = result.value?.sharedVariables;
+  if (!vars) return;
+  rows.value = vars.map(v => ({ key: v.key, value: v.value }));
+  hasChanges.value = false;
+}
+
+watch(() => result.value?.sharedVariables, () => {
+  if (!hasChanges.value) resetRows();
+}, { immediate: true });
+
+useUnsavedChanges(hasChanges);
 
 function addRow() {
   rows.value.push({ key: '', value: '', revealed: true });
@@ -139,7 +143,7 @@ async function handleSave() {
           v-model="row.key"
           placeholder="KEY"
           aria-label="Key"
-          class="h-9 w-[150px] shrink-0 font-mono text-xs uppercase"
+          class="w-36 shrink-0 font-mono text-xs"
           @input="markChanged"
           @paste="onPaste($event, index)"
         />
@@ -198,18 +202,17 @@ async function handleSave() {
     </div>
 
     <template #footer>
-      <div class="flex items-center justify-between gap-4">
-        <p class="text-xs leading-[18px] text-muted-foreground">
-          Paste <code class="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">KEY=value</code> lines into a key field to add several.
-        </p>
-        <Button
-          class="shrink-0"
-          :disabled="!hasChanges || saving"
-          @click="handleSave"
-        >
-          {{ saving ? 'Saving...' : 'Save' }}
-        </Button>
-      </div>
+      <FormFooter
+        class="border-t-0 p-0"
+        :dirty="hasChanges"
+        :saving="saving"
+        @save="handleSave"
+        @discard="resetRows"
+      >
+        <template #hint>
+          Paste <code class="rounded bg-muted px-1 py-0.5 font-mono">KEY=value</code> lines into a key field to add several.
+        </template>
+      </FormFooter>
     </template>
   </ContextDrawer>
 </template>

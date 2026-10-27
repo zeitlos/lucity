@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import FormFooter from '@/components/FormFooter.vue';
+import { useUnsavedChanges } from '@/composables/useUnsavedChanges';
 import { ref, watch, computed } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
 import { Plus, Trash2, Link, Unlink, Eye, EyeOff } from '@lucide/vue';
@@ -10,7 +12,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { darkTooltipClass } from '@/lib/tooltip';
 import IconButton from '@/components/IconButton.vue';
 import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import {
@@ -92,20 +93,22 @@ const { result: availableResult } = useQuery(
   () => ({ enabled: !!environmentId.value }),
 );
 
-watch(
-  () => result.value?.serviceVariables,
-  (vars) => {
-    if (vars) {
-      rows.value = vars.map((v) => ({
-        key: v.key,
-        value: v.value ?? '',
-        ref: v.ref ?? null,
-      }));
-      hasChanges.value = false;
-    }
-  },
-  { immediate: true },
-);
+function resetRows() {
+  const vars = result.value?.serviceVariables;
+  if (!vars) return;
+  rows.value = vars.map((v) => ({
+    key: v.key,
+    value: v.value ?? '',
+    ref: v.ref ?? null,
+  }));
+  hasChanges.value = false;
+}
+
+watch(() => result.value?.serviceVariables, () => {
+  if (!hasChanges.value) resetRows();
+}, { immediate: true });
+
+useUnsavedChanges(hasChanges);
 
 // ── Reference catalog ─────────────────────────────────────────────────
 
@@ -416,39 +419,35 @@ async function handleSave() {
       </div>
 
       <!-- Actions -->
-      <div class="flex items-center justify-between pt-2">
-        <div class="flex items-center gap-2">
-          <Button variant="outline" @click="addRow">
-            <Plus />
-            Add Variable
-          </Button>
-          <Button
-            v-if="valueRows.length > 0"
-            variant="ghost"
-            class="text-muted-foreground"
-            @click="toggleAll"
-          >
-            <EyeOff v-if="allRevealed" />
-            <Eye v-else />
-            {{ allRevealed ? 'Hide all' : 'Show all' }}
-          </Button>
-        </div>
-
+      <div class="flex items-center gap-2 pt-2">
+        <Button variant="outline" @click="addRow">
+          <Plus />
+          Add Variable
+        </Button>
         <Button
-          :disabled="!hasChanges || saving"
-          @click="handleSave"
+          v-if="valueRows.length > 0"
+          variant="ghost"
+          class="text-muted-foreground"
+          @click="toggleAll"
         >
-          {{ saving ? 'Saving...' : 'Save' }}
+          <EyeOff v-if="allRevealed" />
+          <Eye v-else />
+          {{ allRevealed ? 'Hide all' : 'Show all' }}
         </Button>
       </div>
     </div>
 
-    <Separator />
-
-    <div class="space-y-1 text-sm text-muted-foreground">
-      <p>These variables are available at both build time and runtime.</p>
-      <p>Paste <code class="rounded bg-muted px-1 py-0.5 font-mono text-xs">KEY=value</code> lines into a key field to add several at once.</p>
-    </div>
+    <FormFooter
+      class="sticky bottom-0 -mx-4 -mb-4 bg-card"
+      :dirty="hasChanges"
+      :saving="saving"
+      @save="handleSave"
+      @discard="resetRows"
+    >
+      <template #hint>
+        Available at build time and runtime. Paste <code class="rounded bg-muted px-1 py-0.5 font-mono">KEY=value</code> lines into a key field to add several.
+      </template>
+    </FormFooter>
   </div>
 </template>
 

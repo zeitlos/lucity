@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import FormFooter from '@/components/FormFooter.vue';
+import { useUnsavedChanges } from '@/composables/useUnsavedChanges';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { computed, ref, watch } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
@@ -75,9 +77,15 @@ const minIndex = computed(() => {
 
 const selectedSize = ref(props.volume.size);
 
-watch(currentSize, () => { selectedSize.value = volumeSizes[minIndex.value]!; }, { immediate: true });
+function discardStorage() {
+  selectedSize.value = volumeSizes[minIndex.value]!;
+}
+
+watch(currentSize, discardStorage, { immediate: true });
 
 const storageChanged = computed(() => parseGib(selectedSize.value) > parseGib(currentSize.value));
+
+useUnsavedChanges(storageChanged);
 const storageSaving = ref(false);
 
 const { mutate: expandVolume } = useMutation(ExpandVolumeDocument);
@@ -220,17 +228,13 @@ async function handleDelete() {
               <span>{{ volumeSizes[volumeSizes.length - 1] }}</span>
             </div>
           </div>
-          <div class="flex items-center justify-between gap-3 px-4 py-3">
-            <p class="text-xs text-muted-foreground">
-              You can add more space once a running service uses this volume, but storage can't be made smaller later.
-            </p>
-            <Button
-              :disabled="!storageChanged || storageSaving"
-              @click="handleExpand"
-            >
-              {{ storageSaving ? 'Saving...' : 'Save' }}
-            </Button>
-          </div>
+          <FormFooter
+            :dirty="storageChanged"
+            :saving="storageSaving"
+            hint="You can add more space once a running service uses this volume, but storage can't be made smaller later."
+            @save="handleExpand"
+            @discard="discardStorage"
+          />
         </div>
       </div>
     </section>

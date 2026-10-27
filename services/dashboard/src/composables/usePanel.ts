@@ -1,4 +1,5 @@
 import { ref, computed } from 'vue';
+import { confirmDiscard } from '@/composables/useUnsavedChanges';
 
 export interface PanelEntry {
   type: 'service' | 'database' | 'keyValueStore' | 'bucket' | 'volume';
@@ -17,7 +18,10 @@ export function usePanel() {
 
   const isOpen = computed(() => panelStack.value.length > 0);
 
-  function openPanel(entry: PanelEntry) {
+  async function openPanel(entry: PanelEntry) {
+    const current = currentPanel.value;
+    const switching = current && (current.type !== entry.type || current.id !== entry.id);
+    if (switching && !(await confirmDiscard())) return;
     panelStack.value = [entry];
   }
 

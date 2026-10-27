@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import FormFooter from '@/components/FormFooter.vue';
+import { useUnsavedChanges } from '@/composables/useUnsavedChanges';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { ref, computed, watch } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
@@ -111,14 +113,13 @@ const resourcesSaving = ref(false);
 
 const { mutate: setResourcesMutate } = useMutation(SetDatabaseResourcesDocument);
 
-watch(
-  resources,
-  value => {
-    selectedCpu.value = value && value.cpu !== '0' ? value.cpu : '';
-    selectedMemory.value = value && value.memory !== '0' ? value.memory : '';
-  },
-  { immediate: true },
-);
+function discardResources() {
+  const value = resources.value;
+  selectedCpu.value = value && value.cpu !== '0' ? value.cpu : '';
+  selectedMemory.value = value && value.memory !== '0' ? value.memory : '';
+}
+
+watch(resources, discardResources, { immediate: true });
 
 const resourcesChanged = computed(() =>
   !!selectedCpu.value
@@ -164,17 +165,17 @@ const storageSaving = ref(false);
 
 const { mutate: setStorageMutate } = useMutation(SetDatabaseStorageDocument);
 
-watch(
-  currentSize,
-  value => {
-    selectedStorage.value = value;
-  },
-  { immediate: true },
-);
+function discardStorage() {
+  selectedStorage.value = currentSize.value;
+}
+
+watch(currentSize, discardStorage, { immediate: true });
 
 const storageChanged = computed(() =>
   !!selectedStorage.value && selectedStorage.value !== currentSize.value,
 );
+
+useUnsavedChanges(() => resourcesChanged.value || storageChanged.value);
 
 async function handleSaveStorage() {
   storageSaving.value = true;
@@ -284,17 +285,13 @@ async function handleDelete() {
               </SelectContent>
             </Select>
           </div>
-          <div class="flex items-center justify-between gap-3 px-4 py-3">
-            <p class="text-xs text-muted-foreground">
-              Applied across all {{ database.instances }} instances. Saving triggers a rolling restart.
-            </p>
-            <Button
-              :disabled="!resourcesChanged || resourcesSaving"
-              @click="handleSaveResources"
-            >
-              {{ resourcesSaving ? 'Saving...' : 'Save' }}
-            </Button>
-          </div>
+          <FormFooter
+            :dirty="resourcesChanged"
+            :saving="resourcesSaving"
+            :hint="`Applied across all ${database.instances} instances. Saving triggers a rolling restart.`"
+            @save="handleSaveResources"
+            @discard="discardResources"
+          />
         </div>
       </div>
     </section>
@@ -328,17 +325,13 @@ async function handleDelete() {
               </SelectContent>
             </Select>
           </div>
-          <div class="flex items-center justify-between gap-3 px-4 py-3">
-            <p class="text-xs text-muted-foreground">
-              You can add more space anytime, but storage can't be made smaller later.
-            </p>
-            <Button
-              :disabled="!storageChanged || storageSaving"
-              @click="handleSaveStorage"
-            >
-              {{ storageSaving ? 'Saving...' : 'Save' }}
-            </Button>
-          </div>
+          <FormFooter
+            :dirty="storageChanged"
+            :saving="storageSaving"
+            hint="You can add more space anytime, but storage can't be made smaller later."
+            @save="handleSaveStorage"
+            @discard="discardStorage"
+          />
         </div>
       </div>
     </section>

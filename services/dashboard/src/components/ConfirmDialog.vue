@@ -27,6 +27,7 @@ const props = withDefaults(defineProps<{
   destructive?: boolean;
   icon?: Component;
   confirmText?: string;
+  cancelLabel?: string;
 }>(), {
   description: undefined,
   pendingLabel: undefined,
@@ -34,6 +35,7 @@ const props = withDefaults(defineProps<{
   destructive: false,
   icon: undefined,
   confirmText: undefined,
+  cancelLabel: 'Cancel',
 });
 
 const emit = defineEmits<{
@@ -85,7 +87,7 @@ function confirm() {
       </form>
 
       <AlertDialogFooter class="mt-auto">
-        <AlertDialogCancel :disabled="pending">Cancel</AlertDialogCancel>
+        <AlertDialogCancel :disabled="pending">{{ cancelLabel }}</AlertDialogCancel>
         <Button
           :variant="destructive ? 'destructive' : 'default'"
           :disabled="!canConfirm"

@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
+import { confirmDiscard } from '@/composables/useUnsavedChanges';
 import DefaultLayout from '@/layouts/DefaultLayout.vue';
 import { useAuth } from '@/composables/useAuth';
 
@@ -73,6 +74,8 @@ const router = createRouter({
     },
   ],
 });
+
+router.beforeEach(() => confirmDiscard());
 
 router.beforeEach(async (to) => {
   if (!to.meta.requiresAuth) return;

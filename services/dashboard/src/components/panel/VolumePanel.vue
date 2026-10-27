@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import { useGuardedTab } from '@/composables/useUnsavedChanges';
 import PanelShell from '@/components/PanelShell.vue';
-import { ref } from 'vue';
 import { HardDrive } from '@lucide/vue';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -25,7 +25,7 @@ const emit = defineEmits<{
   (e: 'refetch'): void;
 }>();
 
-const activeTab = ref('usage');
+const { tab: activeTab, selectTab } = useGuardedTab('usage');
 
 </script>
 
@@ -37,7 +37,7 @@ const activeTab = ref('usage');
 
     <!-- Tab Content -->
     <ScrollArea class="flex-1">
-      <Tabs v-model="activeTab" class="h-full">
+      <Tabs :model-value="activeTab" @update:model-value="selectTab" class="h-full">
         <div class="px-4 pt-2">
           <TabsList class="w-full">
             <TabsTrigger value="usage">Usage</TabsTrigger>

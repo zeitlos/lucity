@@ -203,6 +203,8 @@ import type { Endpoint, Service } from '@/composables/useEnvironment';
 import Spinner from '@/components/LoadingSpinner.vue';
 import { Button } from '@/components/ui/button';
 import IconButton from '@/components/IconButton.vue';
+import FormFooter from '@/components/FormFooter.vue';
+import { useUnsavedChanges } from '@/composables/useUnsavedChanges';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -429,6 +431,10 @@ const commandChanged = computed(() => {
   return customStartCommand.value !== current;
 });
 
+function discardCommand() {
+  customStartCommand.value = commandIsCustom.value ? props.service.command : '';
+}
+
 // Mutations
 const { mutate: removeServiceMutate, loading: removing } = useMutation(RemoveServiceDocument);
 const { mutate: generateDomainMutate, loading: generatingDomain } = useMutation(GenerateDomainDocument);
@@ -448,6 +454,10 @@ watch(currentPort, value => {
 });
 
 const portChanged = computed(() => (portInput.value || null) !== (currentPort.value || null));
+
+function discardPort() {
+  portInput.value = currentPort.value || undefined;
+}
 
 async function handleSavePort() {
   const port = portInput.value && portInput.value > 0 ? portInput.value : null;
@@ -489,7 +499,25 @@ function syncHealthCheckFromService() {
   hcTimeout.value = hc?.timeoutSeconds || undefined;
   hcFailureThreshold.value = hc?.failureThreshold || undefined;
   hcStartupFailureThreshold.value = hc?.startupFailureThreshold || undefined;
+  savedHealthCheck.value = healthCheckForm();
 }
+
+function healthCheckForm() {
+  const value = (n: number | string | undefined) => (n === '' ? undefined : n);
+  return JSON.stringify([
+    healthCheckEnabled.value,
+    hcPath.value,
+    value(hcPort.value),
+    value(hcInitialDelay.value),
+    value(hcPeriod.value),
+    value(hcTimeout.value),
+    value(hcFailureThreshold.value),
+    value(hcStartupFailureThreshold.value),
+  ]);
+}
+
+const savedHealthCheck = ref('');
+const healthCheckChanged = computed(() => healthCheckForm() !== savedHealthCheck.value);
 
 watch(() => props.service.healthCheck, syncHealthCheckFromService, { immediate: true });
 
@@ -807,7 +835,21 @@ function syncScalingFromService() {
     scalingMaxReplicas.value = 10;
     scalingTargetCPU.value = 70;
   }
+  savedScaling.value = scalingForm();
 }
+
+function scalingForm() {
+  return JSON.stringify([
+    autoscalingEnabled.value,
+    scalingReplicas.value,
+    scalingMinReplicas.value,
+    scalingMaxReplicas.value,
+    scalingTargetCPU.value,
+  ]);
+}
+
+const savedScaling = ref('');
+const scalingChanged = computed(() => scalingForm() !== savedScaling.value);
 
 watch(() => props.service, syncScalingFromService, { immediate: true });
 
@@ -884,14 +926,12 @@ const resourcesSaving = ref(false);
 
 const { mutate: setResourcesMutate } = useMutation(SetServiceResourcesDocument);
 
-watch(
-  resources,
-  value => {
-    selectedCpu.value = value?.cpu ?? '';
-    selectedMemory.value = value?.memory ?? '';
-  },
-  { immediate: true },
-);
+function discardResources() {
+  selectedCpu.value = resources.value?.cpu ?? '';
+  selectedMemory.value = resources.value?.memory ?? '';
+}
+
+watch(resources, discardResources, { immediate: true });
 
 const resourcesChanged = computed(() =>
   !!selectedCpu.value
@@ -941,6 +981,17 @@ const userChanged = computed(() => {
   const current = props.service.user != null ? String(props.service.user) : '';
   return userInput.value.trim() !== current;
 });
+
+function discardUser() {
+  userInput.value = props.service.user != null ? String(props.service.user) : '';
+}
+
+useUnsavedChanges(() => commandChanged.value
+  || portChanged.value
+  || healthCheckChanged.value
+  || scalingChanged.value
+  || resourcesChanged.value
+  || userChanged.value);
 
 async function handleSaveUser() {
   let user: number | null = null;
@@ -1169,15 +1220,14 @@ async function handleRemoveService() {
                 class="font-mono text-sm"
                 @keyup.enter="commandChanged && handleSaveCommand()"
               />
-              <div class="flex justify-end">
-                <Button
-                  :disabled="!commandChanged || commandSaving"
-                  @click="handleSaveCommand"
-                >
-                  {{ commandSaving ? 'Saving...' : 'Save' }}
-                </Button>
-              </div>
             </div>
+            <FormFooter
+              :dirty="commandChanged"
+              :saving="commandSaving"
+              hint="Saving restarts running instances."
+              @save="handleSaveCommand"
+              @discard="discardCommand"
+            />
           </CollapsibleContent>
         </div>
       </Collapsible>
@@ -1210,22 +1260,21 @@ async function handleRemoveService() {
               <p class="text-xs text-muted-foreground">
                 The port your app listens on. Domains route to it. Leave empty if this service doesn't serve traffic.
               </p>
-              <div class="flex items-center gap-2">
-                <Input
-                  v-model.number="portInput"
-                  type="number"
-                  placeholder="3000"
-                  class="font-mono text-sm"
-                  @keyup.enter="portChanged && handleSavePort()"
-                />
-                <Button
-                  :disabled="!portChanged || portSaving"
-                  @click="handleSavePort"
-                >
-                  {{ portSaving ? 'Saving...' : 'Save' }}
-                </Button>
-              </div>
+              <Input
+                v-model.number="portInput"
+                type="number"
+                placeholder="3000"
+                class="font-mono text-sm"
+                @keyup.enter="portChanged && handleSavePort()"
+              />
             </div>
+            <FormFooter
+              :dirty="portChanged"
+              :saving="portSaving"
+              hint="Saving restarts running instances."
+              @save="handleSavePort"
+              @discard="discardPort"
+            />
           </CollapsibleContent>
         </div>
       </Collapsible>
@@ -1358,15 +1407,15 @@ async function handleRemoveService() {
                 </div>
               </template>
 
-              <div class="flex justify-end">
-                <Button
-                  :disabled="!canSaveHealthCheck"
-                  @click="handleSaveHealthCheck"
-                >
-                  {{ healthCheckSaving ? 'Saving...' : 'Save' }}
-                </Button>
-              </div>
             </div>
+            <FormFooter
+              :dirty="healthCheckChanged"
+              :saving="healthCheckSaving"
+              :disabled="!canSaveHealthCheck"
+              hint="Saving restarts running instances."
+              @save="handleSaveHealthCheck"
+              @discard="syncHealthCheckFromService"
+            />
           </CollapsibleContent>
         </div>
       </Collapsible>
@@ -1867,15 +1916,13 @@ async function handleRemoveService() {
                 </div>
               </div>
 
-              <div class="flex justify-end">
-                <Button
-                  :disabled="scalingSaving"
-                  @click="handleSaveScaling"
-                >
-                  {{ scalingSaving ? 'Saving...' : 'Save' }}
-                </Button>
-              </div>
             </div>
+            <FormFooter
+              :dirty="scalingChanged"
+              :saving="scalingSaving"
+              @save="handleSaveScaling"
+              @discard="syncScalingFromService"
+            />
           </CollapsibleContent>
         </div>
       </Collapsible>
@@ -1945,17 +1992,13 @@ async function handleRemoveService() {
               <p class="text-xs text-muted-foreground">Guaranteed performance, dedicated resources</p>
             </div>
           </div>
-          <div class="flex items-center justify-between gap-3 px-4 py-3">
-            <p class="text-xs text-muted-foreground">
-              Saving restarts running instances.
-            </p>
-            <Button
-              :disabled="!resourcesChanged || resourcesSaving"
-              @click="handleSaveResources"
-            >
-              {{ resourcesSaving ? 'Saving...' : 'Save' }}
-            </Button>
-          </div>
+          <FormFooter
+            :dirty="resourcesChanged"
+            :saving="resourcesSaving"
+            hint="Saving restarts running instances."
+            @save="handleSaveResources"
+            @discard="discardResources"
+          />
         </div>
       </div>
     </section>
@@ -1979,17 +2022,13 @@ async function handleRemoveService() {
             </div>
             <Input v-model="userInput" type="number" min="0" max="65535" placeholder="image default" class="h-8 w-36" />
           </div>
-          <div class="flex items-center justify-between gap-3 px-4 py-3">
-            <p class="text-xs text-muted-foreground">
-              Saving restarts running instances.
-            </p>
-            <Button
-              :disabled="!userChanged || userSaving"
-              @click="handleSaveUser"
-            >
-              {{ userSaving ? 'Saving...' : 'Save' }}
-            </Button>
-          </div>
+          <FormFooter
+            :dirty="userChanged"
+            :saving="userSaving"
+            hint="Saving restarts running instances."
+            @save="handleSaveUser"
+            @discard="discardUser"
+          />
         </div>
       </div>
     </section>

@@ -2,19 +2,26 @@
 import { X } from '@lucide/vue';
 import IconButton from '@/components/IconButton.vue';
 import { useEscapeToClose } from '@/composables/useEscapeToClose';
+import { confirmDiscard } from '@/composables/useUnsavedChanges';
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   title: string;
   as?: 'section' | 'aside';
+  guard?: boolean;
 }>(), {
   as: 'section',
+  guard: true,
 });
 
 const emit = defineEmits<{
   (e: 'close'): void;
 }>();
 
-useEscapeToClose(() => emit('close'));
+async function close() {
+  if (!props.guard || await confirmDiscard()) emit('close');
+}
+
+useEscapeToClose(close);
 </script>
 
 <template>
@@ -35,7 +42,7 @@ useEscapeToClose(() => emit('close'));
         <IconButton
           label="Close"
           shortcut="Esc"
-          @click="emit('close')"
+          @click="close"
         >
           <X />
         </IconButton>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { useGuardedTab } from '@/composables/useUnsavedChanges';
 import PanelShell from '@/components/PanelShell.vue';
 import { devicon } from '@/lib/devicons';
-import { ref } from 'vue';
 
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -28,7 +28,7 @@ const emit = defineEmits<{
   (e: 'database-restored'): void;
 }>();
 
-const activeTab = ref('connect');
+const { tab: activeTab, selectTab } = useGuardedTab('connect');
 
 </script>
 
@@ -45,7 +45,7 @@ const activeTab = ref('connect');
 
     <!-- Tab Content -->
     <ScrollArea class="flex-1">
-      <Tabs v-model="activeTab" class="h-full">
+      <Tabs :model-value="activeTab" @update:model-value="selectTab" class="h-full">
         <div class="px-4 pt-2">
           <TabsList class="w-full">
             <TabsTrigger value="connect">Connect</TabsTrigger>

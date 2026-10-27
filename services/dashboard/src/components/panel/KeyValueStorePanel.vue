@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useGuardedTab } from '@/composables/useUnsavedChanges';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import PanelShell from '@/components/PanelShell.vue';
 import { devicon } from '@/lib/devicons';
@@ -45,6 +46,8 @@ const emit = defineEmits<{
   (e: 'close'): void;
   (e: 'store-removed'): void;
 }>();
+
+const { tab: activeTab, selectTab } = useGuardedTab('connect');
 
 
 const { result, loading, error } = useQuery(
@@ -124,7 +127,7 @@ async function handleDelete() {
 
     <!-- Tab Content -->
     <ScrollArea class="flex-1">
-      <Tabs default-value="connect" class="h-full">
+      <Tabs :model-value="activeTab" @update:model-value="selectTab" class="h-full">
         <div class="px-4 pt-2">
           <TabsList class="w-full">
             <TabsTrigger value="connect">Connect</TabsTrigger>

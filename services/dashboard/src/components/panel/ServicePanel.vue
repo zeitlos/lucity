@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import { useGuardedTab } from '@/composables/useUnsavedChanges';
 import PanelShell from '@/components/PanelShell.vue';
-import { ref } from 'vue';
 import { SquareArrowOutUpRight, Container } from '@lucide/vue';
 import GithubIcon from '@/components/GithubIcon.vue';
 import { useServiceLogsPanel } from '@/composables/useServiceLogsPanel';
@@ -23,7 +23,7 @@ const emit = defineEmits<{
   (e: 'refetch'): void;
 }>();
 
-const activeTab = ref('deployments');
+const { tab: activeTab, selectTab } = useGuardedTab('deployments');
 
 const serviceLogsPanel = useServiceLogsPanel();
 
@@ -42,7 +42,7 @@ function openLogs() {
 
     <!-- Tab Content -->
     <ScrollArea class="flex-1">
-      <Tabs v-model="activeTab" class="h-full">
+      <Tabs :model-value="activeTab" @update:model-value="selectTab" class="h-full">
         <div class="px-4 pt-2">
           <TabsList class="w-full">
             <TabsTrigger value="deployments">Deployments</TabsTrigger>

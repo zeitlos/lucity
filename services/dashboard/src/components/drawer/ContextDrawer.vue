@@ -14,6 +14,7 @@ const emit = defineEmits<{
   <PanelShell
     as="aside"
     :title="title"
+    :guard="false"
     @close="emit('close')"
   >
     <div class="min-h-0 flex-1 overflow-y-auto p-4">

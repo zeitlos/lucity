@@ -16,4 +16,5 @@ Design guidelines for every new or changed view, one per area.
   - The text says when it can't be undone.
 
   Deleting something that holds data asks for its name. Delete destroys, Remove detaches, and Revoke ends access. Names in copy are quoted.
+- **Actions.** A surface keeps its actions in one place, at the top right: in the page toolbar, or in a row above the content with a short line of context on the left. The green button goes to the action the surface exists for. Surfaces that people mainly browse keep their actions in outline. Creating something is "New" on the canvas and "New <thing>" everywhere else, empty states included.
 - **Sections.** A section heading is short, quiet and in sentence case. Its explanation is the same size, in a softer color. Space separates groups. Delete comes last, as a plain card with a red-tinted border.

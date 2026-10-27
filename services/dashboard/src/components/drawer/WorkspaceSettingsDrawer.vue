@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import FormFooter from '@/components/FormFooter.vue';
+import { useUnsavedChanges } from '@/composables/useUnsavedChanges';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useMutation } from '@vue/apollo-composable';
 import { Trash2 } from '@lucide/vue';
@@ -57,6 +59,9 @@ const router = useRouter();
 const { user, refreshToken, setActiveWorkspace } = useAuth();
 
 const editName = ref(props.workspace.name);
+const nameChanged = computed(() => editName.value.trim() !== props.workspace.name);
+
+useUnsavedChanges(nameChanged);
 
 watch(() => props.workspace.name, (name) => {
   editName.value = name;
@@ -111,33 +116,33 @@ async function handleDelete() {
     <div class="flex min-h-full flex-col gap-6">
       <section class="space-y-2.5">
         <h3 class="text-sm font-medium text-muted-foreground">General</h3>
-        <div class="space-y-3.5 rounded-lg border p-3">
-          <form class="space-y-1.5" @submit.prevent="handleUpdateName">
-            <Label for="workspace-name" class="text-xs text-muted-foreground">Name</Label>
-            <div class="flex gap-2">
+        <div class="overflow-hidden rounded-lg border">
+          <div class="space-y-3.5 p-3">
+            <form class="space-y-1.5" @submit.prevent="nameChanged && handleUpdateName()">
+              <Label for="workspace-name" class="text-xs text-muted-foreground">Name</Label>
               <Input
                 id="workspace-name"
                 v-model="editName"
-                class="h-9 min-w-0 flex-1"
+                class="h-9 min-w-0"
                 :disabled="!isAdmin || updating"
               />
-              <Button
-                v-if="isAdmin"
-                type="submit"
-                class="shrink-0"
-                :disabled="!editName.trim() || editName.trim() === workspace.name || updating"
-              >
-                {{ updating ? 'Saving...' : 'Save' }}
-              </Button>
+            </form>
+            <div class="flex items-center justify-between gap-4">
+              <span class="text-xs text-muted-foreground">ID</span>
+              <span class="flex items-center gap-2">
+                <span v-if="workspace.personal" class="rounded-full bg-muted px-2 py-px text-[11px] text-muted-foreground">Personal</span>
+                <span class="truncate font-mono text-xs text-foreground">{{ workspace.id }}</span>
+              </span>
             </div>
-          </form>
-          <div class="flex items-center justify-between gap-4">
-            <span class="text-xs text-muted-foreground">ID</span>
-            <span class="flex items-center gap-2">
-              <span v-if="workspace.personal" class="rounded-full bg-muted px-2 py-px text-[11px] text-muted-foreground">Personal</span>
-              <span class="truncate font-mono text-xs text-foreground">{{ workspace.id }}</span>
-            </span>
           </div>
+          <FormFooter
+            v-if="isAdmin"
+            :dirty="nameChanged"
+            :saving="updating"
+            :disabled="!editName.trim()"
+            @save="handleUpdateName"
+            @discard="editName = workspace.name"
+          />
         </div>
       </section>
 

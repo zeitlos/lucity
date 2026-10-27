@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import FormFooter from '@/components/FormFooter.vue';
+import { useUnsavedChanges } from '@/composables/useUnsavedChanges';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useMutation } from '@vue/apollo-composable';
 import { Trash2 } from '@lucide/vue';
@@ -54,6 +56,15 @@ watch(
 
 const { mutate: setResourcesMutate, loading: savingTier } = useMutation(SetEnvironmentResourcesDocument);
 
+const tierOptions = [
+  { value: ResourceTier.Eco, label: 'Eco', description: 'Pay for what you use. Best for development, staging, and side projects.' },
+  { value: ResourceTier.Production, label: 'Production', description: 'Reserved resources. Best for production workloads with predictable load.' },
+];
+
+const tierChanged = computed(() => tier.value !== props.environment.resourceTier);
+
+useUnsavedChanges(tierChanged);
+
 async function handleSaveTier() {
   try {
     await setResourcesMutate({
@@ -104,48 +115,32 @@ async function handleDelete() {
     <div class="flex min-h-full flex-col gap-6">
       <section class="space-y-2.5">
         <h3 class="text-sm font-medium text-muted-foreground">Resource tier</h3>
-        <RadioGroup
-          :model-value="tier"
-          class="grid gap-2.5"
-          @update:model-value="tier = $event as ResourceTier"
-        >
-          <label
-            class="flex cursor-pointer flex-col gap-1 rounded-lg border p-3 transition-colors"
-            :class="tier === ResourceTier.Eco ? 'border-primary bg-primary/5' : 'border-border'"
+        <div class="overflow-hidden rounded-lg border">
+          <RadioGroup
+            :model-value="tier"
+            class="gap-0 divide-y"
+            @update:model-value="tier = $event as ResourceTier"
           >
-            <div class="flex items-center gap-2">
-              <RadioGroupItem :value="ResourceTier.Eco" />
-              <span class="text-sm font-medium">Eco</span>
-            </div>
-            <p class="text-xs text-muted-foreground">
-              Pay for what you use. Best for development, staging, and side projects.
-            </p>
-          </label>
-          <label
-            class="flex cursor-pointer flex-col gap-1 rounded-lg border p-3 transition-colors"
-            :class="tier === ResourceTier.Production ? 'border-primary bg-primary/5' : 'border-border'"
-          >
-            <div class="flex items-center gap-2">
-              <RadioGroupItem :value="ResourceTier.Production" />
-              <span class="text-sm font-medium">Production</span>
-            </div>
-            <p class="text-xs text-muted-foreground">
-              Reserved resources. Best for production workloads with predictable load.
-            </p>
-          </label>
-        </RadioGroup>
-        <p class="text-xs text-muted-foreground">
-          {{ tier === ResourceTier.Eco
-            ? 'Services run burstable and are billed for what they actually consume. Performance can vary under load.'
-            : 'Services reserve their full CPU and memory limit and are billed for the reservation. Each service picks up the change on its next deploy.' }}
-        </p>
-        <div class="flex justify-end">
-          <Button
-            :disabled="savingTier || tier === environment.resourceTier"
-            @click="handleSaveTier"
-          >
-            {{ savingTier ? 'Saving...' : 'Save tier' }}
-          </Button>
+            <label
+              v-for="option in tierOptions"
+              :key="option.value"
+              class="flex cursor-pointer items-start gap-3 p-3 transition-colors"
+              :class="{ 'bg-primary/5': tier === option.value }"
+            >
+              <RadioGroupItem :value="option.value" class="mt-0.5" />
+              <span class="space-y-0.5">
+                <span class="block text-sm font-medium">{{ option.label }}</span>
+                <span class="block text-xs text-muted-foreground">{{ option.description }}</span>
+              </span>
+            </label>
+          </RadioGroup>
+          <FormFooter
+            :dirty="tierChanged"
+            :saving="savingTier"
+            hint="Each service picks up the change on its next deploy."
+            @save="handleSaveTier"
+            @discard="tier = environment.resourceTier"
+          />
         </div>
       </section>
 
