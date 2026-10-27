@@ -247,7 +247,7 @@ const ProjectEnvironmentsDocument = graphql(`
     }
   }
 `);
-import { Braces, SlidersHorizontal, Workflow } from '@lucide/vue';
+import { Braces, SlidersHorizontal, Workflow, Plus } from '@lucide/vue';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import ContextRail from '@/components/ContextRail.vue';
@@ -764,7 +764,8 @@ watch(error, (err) => {
                 >
                   <template #action>
                     <Button @click="paletteOpen = true">
-                      Create Resource
+                      <Plus />
+                      New resource
                     </Button>
                   </template>
                 </EmptyState>

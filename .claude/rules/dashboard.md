@@ -15,3 +15,4 @@ Design guidelines for every new or changed view, one per area.
   - The text says when it can't be undone.
 
   Deleting something that holds data asks you to type its name. Say Delete when something is destroyed, Remove when it's detached, and Revoke for access. Quote names in copy instead of setting them in monospace.
+- **Sections.** A section heading is short, quiet and in sentence case, and any explanation under it is smaller than the heading. Separate groups with space, never with capitals or divider lines. Delete sits last, as a plain card set apart only by its red-tinted border, with no "danger zone" banner.

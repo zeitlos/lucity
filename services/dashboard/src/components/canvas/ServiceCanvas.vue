@@ -311,7 +311,7 @@ watch(
         @click="emit('create')"
       >
         <Plus />
-        Create
+        New
       </Button>
     </div>
   </div>

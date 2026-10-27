@@ -298,7 +298,7 @@ onKeyStroke('/', (event) => {
                   <template #action>
                     <Button @click="paletteOpen = true">
                       <Plus />
-                      New Project
+                      New project
                     </Button>
                   </template>
                 </EmptyState>

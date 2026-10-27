@@ -107,7 +107,7 @@ function handleKeydown(event: KeyboardEvent) {
         >
           <Play v-if="!loading" />
           <Spinner v-else :size="14" class="animate-spin" />
-          Run Query
+          Run query
         </Button>
       </div>
     </div>

@@ -386,7 +386,11 @@ watch(
 <template>
   <div class="space-y-4">
     <!-- Deploy Action (source-based services only) -->
-    <div v-if="!isImageBased" class="flex items-center gap-3">
+    <div v-if="!isImageBased" class="flex items-center justify-between gap-3">
+      <p class="text-xs text-muted-foreground">
+        Tracks {{ service.branch ? `"${service.branch}"` : 'the default branch' }}.
+        {{ service.autoDeploy ? 'Every push deploys.' : 'Auto-deploy is off.' }}
+      </p>
       <Button
         :disabled="deploy.isDeploying"
         @click="handleDeploy"
