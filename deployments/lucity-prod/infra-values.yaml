@@ -380,6 +380,9 @@ vertical-pod-autoscaler:
     nodeSelector: *platform-nodes
     tolerations: *platform-taint
   recommender:
+    resources:
+      limits:
+        memory: 1Gi
     nodeSelector: *platform-nodes
     tolerations: *platform-taint
   updater:
