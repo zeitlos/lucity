@@ -676,8 +676,8 @@ async function handleDelete() {
                   <span>{{ formatDate(subscription!.currentPeriodEnd) }}</span>
                 </div>
                 <div class="flex items-center justify-between text-sm">
-                  <span class="text-muted-foreground">Plan credit</span>
-                  <span>{{ formatCents(subscription!.creditAmountCents) }}/mo</span>
+                  <span class="text-muted-foreground">Credit balance</span>
+                  <span>{{ formatCents(subscription!.creditAmountCents) }}</span>
                 </div>
               </div>
 
