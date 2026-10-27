@@ -3,7 +3,7 @@ import IconButton from '@/components/IconButton.vue';
 import { computed, watch, ref, onMounted, toRef } from 'vue';
 import { VueFlow, useVueFlow, PanOnScrollMode } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
-import { Plus, Maximize2, RotateCcw } from '@lucide/vue';
+import { Plus, Scan, WandSparkles } from '@lucide/vue';
 import { usePanel } from '@/composables/usePanel';
 import { useCanvasReleaseStatus } from '@/composables/useCanvasReleaseStatus';
 import { useCanvasLayout } from '@/composables/useCanvasLayout';
@@ -295,7 +295,7 @@ watch(
         class="text-muted-foreground"
         @click="handleFitView"
       >
-        <Maximize2 />
+        <Scan />
       </IconButton>
       <IconButton
         label="Reset layout"
@@ -304,7 +304,7 @@ watch(
         class="text-muted-foreground"
         @click="handleResetLayout"
       >
-        <RotateCcw />
+        <WandSparkles />
       </IconButton>
       <Button
         variant="outline"
