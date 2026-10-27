@@ -23,6 +23,8 @@ function onKeydown(event: KeyboardEvent) {
     event.target.blur();
     return;
   }
+  event.preventDefault();
+  event.stopPropagation();
   stack[stack.length - 1]!();
 }
 
