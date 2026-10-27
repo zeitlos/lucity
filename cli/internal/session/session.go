@@ -422,9 +422,13 @@ func (m *Manager) refreshGrant(ctx context.Context, resource, organizationID str
 	}
 	m.mu.Lock()
 	m.cfg.RefreshToken = stored.RefreshToken
+	loginURL := m.cfg.APIURL
 	m.mu.Unlock()
 	if stored.RefreshToken == "" {
 		return "", 0, ErrLoggedOut
+	}
+	if stored.APIURL != loginURL {
+		return "", 0, fmt.Errorf("you signed in to %s after this lucity process started on %s — restart it (reconnect the MCP server), or run `lucity login --api %s` to switch back", stored.APIURL, loginURL, loginURL)
 	}
 
 	provider, err := m.provider(ctx)
@@ -434,6 +438,9 @@ func (m *Manager) refreshGrant(ctx context.Context, resource, organizationID str
 
 	tokens, err := provider.Refresh(ctx, stored.RefreshToken, resource, organizationID, scopes)
 	if err != nil {
+		if strings.Contains(err.Error(), "invalid_grant") {
+			return "", 0, fmt.Errorf("your sign-in to %s expired or was revoked — run `lucity login`", loginURL)
+		}
 		return "", 0, err
 	}
 
