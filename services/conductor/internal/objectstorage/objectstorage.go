@@ -62,7 +62,7 @@ type Credentials struct {
 }
 
 type Interface interface {
-	Buckets(ctx context.Context, environment platform.EnvironmentID) ([]Bucket, error)
+	Buckets(ctx context.Context, environment platform.EnvironmentID, withStats bool) ([]Bucket, error)
 	Bucket(ctx context.Context, id platform.BucketID) (*Bucket, error)
 	Create(ctx context.Context, environment platform.EnvironmentID, name string) (*Bucket, error)
 	Delete(ctx context.Context, id platform.BucketID) error
@@ -238,7 +238,7 @@ func (m *Manager) Create(ctx context.Context, environment platform.EnvironmentID
 	}, nil
 }
 
-func (m *Manager) Buckets(ctx context.Context, environment platform.EnvironmentID) ([]Bucket, error) {
+func (m *Manager) Buckets(ctx context.Context, environment platform.EnvironmentID, withStats bool) ([]Bucket, error) {
 	list, err := m.kube.CoreV1().Secrets(environment.Namespace()).List(ctx, metav1.ListOptions{
 		LabelSelector: labels.ObjectStorageBucket,
 	})
@@ -247,10 +247,14 @@ func (m *Manager) Buckets(ctx context.Context, environment platform.EnvironmentI
 		return nil, fmt.Errorf("list bucket secrets: %w", err)
 	}
 
-	stats, statsErr := m.backend.Stats(ctx)
+	var stats map[string]BucketStats
 
-	if statsErr != nil {
-		slog.WarnContext(ctx, "object storage stats unavailable", "error", statsErr)
+	if withStats {
+		stats, err = m.backend.Stats(ctx)
+
+		if err != nil {
+			slog.WarnContext(ctx, "object storage stats unavailable", "error", err)
+		}
 	}
 
 	buckets := make([]Bucket, 0, len(list.Items))

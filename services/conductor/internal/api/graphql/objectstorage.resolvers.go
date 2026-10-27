@@ -8,6 +8,7 @@ package graphql
 import (
 	"context"
 
+	gqlgen "github.com/99designs/gqlgen/graphql"
 	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/to"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
@@ -15,7 +16,7 @@ import (
 
 // Buckets is the resolver for the buckets field.
 func (r *environmentResolver) Buckets(ctx context.Context, obj *model.Environment) ([]model.Bucket, error) {
-	buckets, err := r.Conductor.Buckets(ctx, obj.ID)
+	buckets, err := r.Conductor.Buckets(ctx, obj.ID, gqlgen.FieldRequested(ctx, "sizeBytes") || gqlgen.FieldRequested(ctx, "objectCount"))
 
 	if err != nil {
 		return nil, err

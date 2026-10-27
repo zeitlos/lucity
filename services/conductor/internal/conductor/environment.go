@@ -120,7 +120,7 @@ func (c *Client) checkEnvironmentEmpty(ctx context.Context, id platform.Environm
 		return usererror.Errorf("environment %q has %d volume(s); remove them first", id, len(volumes))
 	}
 
-	buckets, err := c.objectStorage.Buckets(ctx, id)
+	buckets, err := c.objectStorage.Buckets(ctx, id, false)
 
 	if err != nil {
 		return err

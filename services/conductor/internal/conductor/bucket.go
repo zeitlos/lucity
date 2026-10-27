@@ -16,8 +16,8 @@ type BucketObjectListing = objectstorage.ObjectListing
 
 const maxBucketsPerEnvironment = 10
 
-func (c *Client) Buckets(ctx context.Context, environment EnvironmentID) ([]Bucket, error) {
-	return c.objectStorage.Buckets(ctx, environment)
+func (c *Client) Buckets(ctx context.Context, environment EnvironmentID, withStats bool) ([]Bucket, error) {
+	return c.objectStorage.Buckets(ctx, environment, withStats)
 }
 
 func (c *Client) Bucket(ctx context.Context, id BucketID) (*Bucket, error) {
@@ -25,7 +25,7 @@ func (c *Client) Bucket(ctx context.Context, id BucketID) (*Bucket, error) {
 }
 
 func (c *Client) CreateBucket(ctx context.Context, environment platform.EnvironmentID, name string) (*Bucket, error) {
-	existing, err := c.objectStorage.Buckets(ctx, environment)
+	existing, err := c.objectStorage.Buckets(ctx, environment, false)
 
 	if err != nil {
 		return nil, fmt.Errorf("list buckets: %w", err)
