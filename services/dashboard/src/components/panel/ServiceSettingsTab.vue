@@ -1,11 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, type ComponentPublicInstance } from 'vue';
 import { useMutation, useApolloClient } from '@vue/apollo-composable';
-import {
-  Trash2, Copy, X, Globe, Plus, Minus, RefreshCw,
-  ChevronDown, Network, ExternalLink, Scaling, GitBranch, Play, Zap, ArrowRight,
-  Cpu, MemoryStick, Leaf, ShieldCheck, Check, ChevronsUpDown, Activity, UserCog, ClipboardList,
-} from '@lucide/vue';
+import { Trash2, Copy, Globe, Plus, Minus, RefreshCw, ChevronDown, Network, ExternalLink, Scaling, GitBranch, Play, Zap, ArrowRight, Cpu, MemoryStick, Leaf, ShieldCheck, Check, ChevronsUpDown, Activity, UserCog, ClipboardList } from '@lucide/vue';
 import GithubIcon from '@/components/GithubIcon.vue';
 import { getDomain } from 'tldts';
 import { graphql } from '@/gql';
@@ -204,6 +200,7 @@ import { useEnvironment } from '@/composables/useEnvironment';
 import type { Endpoint, Service } from '@/composables/useEnvironment';
 import Spinner from '@/components/LoadingSpinner.vue';
 import { Button } from '@/components/ui/button';
+import IconButton from '@/components/IconButton.vue';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -1042,12 +1039,11 @@ async function handleRemoveService() {
               <PopoverTrigger as-child>
                 <Button
                   variant="outline"
-                  size="sm"
+                  size="xs"
                   :disabled="branchSaving"
-                  class="h-8"
                 >
                   Change
-                  <ChevronsUpDown :size="14" class="ml-1.5 opacity-50" />
+                  <ChevronsUpDown class="opacity-50" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent class="w-64 p-0" align="end">
@@ -1138,7 +1134,7 @@ async function handleRemoveService() {
               <p class="text-xs font-medium text-muted-foreground">
                 Add to your workflow (needs <code class="font-mono">permissions: id-token: write</code>)
               </p>
-              <Button variant="ghost" size="sm" class="h-7 gap-1.5" @click="copyCISnippet">
+              <Button variant="ghost" size="xs" @click="copyCISnippet">
                 <component :is="ciSnippetCopied ? Check : Copy" :size="13" />
                 {{ ciSnippetCopied ? 'Copied' : 'Copy' }}
               </Button>
@@ -1183,7 +1179,6 @@ async function handleRemoveService() {
               />
               <div class="flex justify-end">
                 <Button
-                  size="sm"
                   :disabled="!commandChanged || commandSaving"
                   @click="handleSaveCommand"
                 >
@@ -1232,7 +1227,6 @@ async function handleRemoveService() {
                   @keyup.enter="portChanged && handleSavePort()"
                 />
                 <Button
-                  size="sm"
                   :disabled="!portChanged || portSaving"
                   @click="handleSavePort"
                 >
@@ -1374,7 +1368,6 @@ async function handleRemoveService() {
 
               <div class="flex justify-end">
                 <Button
-                  size="sm"
                   :disabled="!canSaveHealthCheck"
                   @click="handleSaveHealthCheck"
                 >
@@ -1409,12 +1402,11 @@ async function handleRemoveService() {
                   Auto-generated domain for {{ activeEnvironment?.name ?? 'this environment' }}.
                 </p>
                 <Button
-                  size="sm"
                   variant="outline"
                   :disabled="generatingDomain"
                   @click="handleGenerateDomain"
                 >
-                  <Plus :size="14" class="mr-1" />
+                  <Plus />
                   {{ generatingDomain ? 'Generating...' : 'Generate domain' }}
                 </Button>
               </div>
@@ -1430,25 +1422,23 @@ async function handleRemoveService() {
                     <ExternalLink :size="14" class="shrink-0 text-muted-foreground" />
                     <span class="truncate font-mono text-sm hover:underline">{{ platformEndpoint.host }}</span>
                   </a>
-                  <Button
-                    variant="ghost"
+                  <IconButton
+                    label="Copy"
                     class="h-auto shrink-0 rounded-none border-l px-2.5 text-muted-foreground hover:text-foreground"
-                    title="Copy"
                     @click="copyToClipboard(platformEndpoint!.host)"
                   >
-                    <Copy :size="14" />
-                  </Button>
+                    <Copy />
+                  </IconButton>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  class="h-8 w-8 shrink-0 text-destructive"
+                <IconButton
+                  label="Remove domain"
+                  class="shrink-0 text-destructive"
                   :disabled="removingHostname === platformEndpoint!.host"
                   @click="handleRemoveDomain(platformEndpoint!.host)"
                 >
                   <Spinner v-if="removingHostname === platformEndpoint!.host" :size="14" />
-                  <X v-else :size="14" />
-                </Button>
+                  <Trash2 v-else />
+                </IconButton>
               </div>
             </div>
           </CollapsibleContent>
@@ -1493,45 +1483,40 @@ async function handleRemoveService() {
                         <span class="truncate font-mono text-sm text-muted-foreground">{{ endpoint.redirectTo }}</span>
                       </template>
                     </a>
-                    <Button
-                      variant="ghost"
+                    <IconButton
+                      label="Copy"
                       class="h-auto shrink-0 rounded-none border-l px-2.5 text-muted-foreground hover:text-foreground"
-                      title="Copy"
                       @click="copyToClipboard(endpoint.host)"
                     >
-                      <Copy :size="14" />
-                    </Button>
+                      <Copy />
+                    </IconButton>
                   </div>
                   <div class="hidden shrink-0 items-center gap-3 text-[11px] text-muted-foreground sm:flex">
                     <span>DNS <span :class="['font-medium', dnsStatusColor(endpoint.dns.status)]">{{ endpoint.dns.status }}</span></span>
                     <span>TLS <span :class="['font-medium', tlsStatusColor(endpoint.tls)]">{{ endpoint.tls }}</span></span>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    class="h-8 w-8 shrink-0"
-                    title="DNS records"
+                  <IconButton
+                    label="DNS records"
+                    class="shrink-0"
                     @click="recordsHost = endpoint.host"
                   >
-                    <ClipboardList :size="14" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    class="h-8 w-8 shrink-0 text-destructive"
-                    :title="redirectSourceByTarget.has(endpoint.host) ? `Target of ${redirectSourceByTarget.get(endpoint.host)}` : 'Remove'"
+                    <ClipboardList />
+                  </IconButton>
+                  <IconButton
+                    :label="redirectSourceByTarget.has(endpoint.host) ? `Target of ${redirectSourceByTarget.get(endpoint.host)}` : 'Remove domain'"
+                    class="shrink-0 text-destructive"
                     :disabled="removingHostname === endpoint.host || redirectSourceByTarget.has(endpoint.host)"
                     @click="domainToRemove = endpoint.host"
                   >
                     <Spinner v-if="removingHostname === endpoint.host" :size="14" />
-                    <X v-else :size="14" />
-                  </Button>
+                    <Trash2 v-else />
+                  </IconButton>
                 </div>
               </div>
 
               <div v-if="!addingDomain" class="flex justify-end">
-                <Button size="sm" variant="outline" @click="openAddDomain">
-                  <Plus :size="14" class="mr-1" />
+                <Button variant="outline" @click="openAddDomain">
+                  <Plus />
                   Add custom domain
                 </Button>
               </div>
@@ -1580,8 +1565,8 @@ async function handleRemoveService() {
                   Add the domain to redirect to first.
                 </p>
                 <div class="flex justify-end gap-2">
-                  <Button size="sm" variant="ghost" @click="closeAddDomain">Cancel</Button>
-                  <Button size="sm" :disabled="!canAddDomain" @click="handleAddCustomDomain">
+                  <Button variant="ghost" @click="closeAddDomain">Cancel</Button>
+                  <Button :disabled="!canAddDomain" @click="handleAddCustomDomain">
                     {{ addingCustomDomain ? 'Saving...' : isDomainUpdate ? 'Update domain' : 'Add domain' }}
                   </Button>
                 </div>
@@ -1624,14 +1609,14 @@ async function handleRemoveService() {
                 <div class="grid grid-cols-[3rem_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1">
                   <span class="text-muted-foreground">Name</span>
                   <span class="min-w-0 break-all font-mono">{{ record.host }}</span>
-                  <Button variant="ghost" size="icon" class="h-6 w-6" @click="copyToClipboard(record.host)">
-                    <Copy :size="12" />
-                  </Button>
+                  <IconButton label="Copy name" size="icon-xs" @click="copyToClipboard(record.host)">
+                    <Copy />
+                  </IconButton>
                   <span class="text-muted-foreground">Value</span>
                   <span class="min-w-0 break-all font-mono">{{ record.value }}</span>
-                  <Button variant="ghost" size="icon" class="h-6 w-6" @click="copyToClipboard(record.value)">
-                    <Copy :size="12" />
-                  </Button>
+                  <IconButton label="Copy value" size="icon-xs" @click="copyToClipboard(record.value)">
+                    <Copy />
+                  </IconButton>
                 </div>
               </div>
             </div>
@@ -1649,7 +1634,7 @@ async function handleRemoveService() {
 
           <DialogFooter>
             <Button variant="outline" :disabled="refreshingDomains" @click="refreshDomains">
-              <RefreshCw :size="14" class="mr-1" :class="{ 'animate-spin': refreshingDomains }" />
+              <RefreshCw :class="{ 'animate-spin': refreshingDomains }" />
               {{ refreshingDomains ? 'Checking…' : 'Check again' }}
             </Button>
             <Button @click="recordsHost = null">Close</Button>
@@ -1707,14 +1692,13 @@ async function handleRemoveService() {
                   <Network :size="14" class="shrink-0 text-muted-foreground" />
                   <span class="truncate font-mono text-sm">{{ internalEndpoint.host }}</span>
                 </div>
-                <Button
-                  variant="ghost"
+                <IconButton
+                  label="Copy"
                   class="h-auto shrink-0 rounded-none border-l px-2.5 text-muted-foreground hover:text-foreground"
-                  title="Copy"
                   @click="copyToClipboard(internalEndpoint.host)"
                 >
-                  <Copy :size="14" />
-                </Button>
+                  <Copy />
+                </IconButton>
               </div>
             </div>
           </CollapsibleContent>
@@ -1747,15 +1731,15 @@ async function handleRemoveService() {
               <div class="space-y-1.5">
                 <Label class="text-xs font-medium">Replicas</Label>
                 <div class="flex items-center gap-1">
-                  <Button
+                  <IconButton
+                    label="Fewer replicas"
                     variant="outline"
-                    size="icon"
-                    class="h-8 w-8 shrink-0"
+                    class="shrink-0"
                     :disabled="autoscalingEnabled || scalingReplicas <= 1"
                     @click="scalingReplicas = clamp(scalingReplicas - 1, 1, 20)"
                   >
-                    <Minus :size="14" />
-                  </Button>
+                    <Minus />
+                  </IconButton>
                   <Input
                     v-model.number="scalingReplicas"
                     type="number"
@@ -1765,15 +1749,15 @@ async function handleRemoveService() {
                     :disabled="autoscalingEnabled"
                     @blur="scalingReplicas = clamp(scalingReplicas, 1, 20)"
                   />
-                  <Button
+                  <IconButton
+                    label="More replicas"
                     variant="outline"
-                    size="icon"
-                    class="h-8 w-8 shrink-0"
+                    class="shrink-0"
                     :disabled="autoscalingEnabled || scalingReplicas >= 20"
                     @click="scalingReplicas = clamp(scalingReplicas + 1, 1, 20)"
                   >
-                    <Plus :size="14" />
-                  </Button>
+                    <Plus />
+                  </IconButton>
                 </div>
                 <p v-if="autoscalingEnabled" class="text-[11px] text-muted-foreground">
                   Managed by autoscaler.
@@ -1794,15 +1778,15 @@ async function handleRemoveService() {
                 <div class="space-y-1.5">
                   <Label class="text-xs font-medium">Min</Label>
                   <div class="flex items-center gap-0.5">
-                    <Button
+                    <IconButton
+                      label="Lower minimum"
                       variant="outline"
-                      size="icon"
-                      class="h-8 w-8 shrink-0"
+                      class="shrink-0"
                       :disabled="scalingMinReplicas <= 1"
                       @click="scalingMinReplicas = clamp(scalingMinReplicas - 1, 1, 20)"
                     >
-                      <Minus :size="12" />
-                    </Button>
+                      <Minus />
+                    </IconButton>
                     <Input
                       v-model.number="scalingMinReplicas"
                       type="number"
@@ -1811,30 +1795,30 @@ async function handleRemoveService() {
                       :max="20"
                       @blur="scalingMinReplicas = clamp(scalingMinReplicas, 1, 20)"
                     />
-                    <Button
+                    <IconButton
+                      label="Raise minimum"
                       variant="outline"
-                      size="icon"
-                      class="h-8 w-8 shrink-0"
+                      class="shrink-0"
                       :disabled="scalingMinReplicas >= 20"
                       @click="scalingMinReplicas = clamp(scalingMinReplicas + 1, 1, 20)"
                     >
-                      <Plus :size="12" />
-                    </Button>
+                      <Plus />
+                    </IconButton>
                   </div>
                 </div>
 
                 <div class="space-y-1.5">
                   <Label class="text-xs font-medium">Max</Label>
                   <div class="flex items-center gap-0.5">
-                    <Button
+                    <IconButton
+                      label="Lower maximum"
                       variant="outline"
-                      size="icon"
-                      class="h-8 w-8 shrink-0"
+                      class="shrink-0"
                       :disabled="scalingMaxReplicas <= 1"
                       @click="scalingMaxReplicas = clamp(scalingMaxReplicas - 1, 1, 20)"
                     >
-                      <Minus :size="12" />
-                    </Button>
+                      <Minus />
+                    </IconButton>
                     <Input
                       v-model.number="scalingMaxReplicas"
                       type="number"
@@ -1843,30 +1827,30 @@ async function handleRemoveService() {
                       :max="20"
                       @blur="scalingMaxReplicas = clamp(scalingMaxReplicas, 1, 20)"
                     />
-                    <Button
+                    <IconButton
+                      label="Raise maximum"
                       variant="outline"
-                      size="icon"
-                      class="h-8 w-8 shrink-0"
+                      class="shrink-0"
                       :disabled="scalingMaxReplicas >= 20"
                       @click="scalingMaxReplicas = clamp(scalingMaxReplicas + 1, 1, 20)"
                     >
-                      <Plus :size="12" />
-                    </Button>
+                      <Plus />
+                    </IconButton>
                   </div>
                 </div>
 
                 <div class="space-y-1.5">
                   <Label class="text-xs font-medium">CPU target</Label>
                   <div class="flex items-center gap-0.5">
-                    <Button
+                    <IconButton
+                      label="Lower CPU target"
                       variant="outline"
-                      size="icon"
-                      class="h-8 w-8 shrink-0"
+                      class="shrink-0"
                       :disabled="scalingTargetCPU <= 10"
                       @click="scalingTargetCPU = clamp(scalingTargetCPU - 5, 10, 95)"
                     >
-                      <Minus :size="12" />
-                    </Button>
+                      <Minus />
+                    </IconButton>
                     <div class="relative flex-1">
                       <Input
                         v-model.number="scalingTargetCPU"
@@ -1878,22 +1862,21 @@ async function handleRemoveService() {
                       />
                       <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
                     </div>
-                    <Button
+                    <IconButton
+                      label="Raise CPU target"
                       variant="outline"
-                      size="icon"
-                      class="h-8 w-8 shrink-0"
+                      class="shrink-0"
                       :disabled="scalingTargetCPU >= 95"
                       @click="scalingTargetCPU = clamp(scalingTargetCPU + 5, 10, 95)"
                     >
-                      <Plus :size="12" />
-                    </Button>
+                      <Plus />
+                    </IconButton>
                   </div>
                 </div>
               </div>
 
               <div class="flex justify-end">
                 <Button
-                  size="sm"
                   :disabled="scalingSaving"
                   @click="handleSaveScaling"
                 >
@@ -1975,7 +1958,6 @@ async function handleRemoveService() {
               Saving restarts running instances.
             </p>
             <Button
-              size="sm"
               :disabled="!resourcesChanged || resourcesSaving"
               @click="handleSaveResources"
             >
@@ -2010,7 +1992,6 @@ async function handleRemoveService() {
               Saving restarts running instances.
             </p>
             <Button
-              size="sm"
               :disabled="!userChanged || userSaving"
               @click="handleSaveUser"
             >
@@ -2040,8 +2021,8 @@ async function handleRemoveService() {
             </div>
             <AlertDialog>
               <AlertDialogTrigger as-child>
-                <Button variant="destructive" size="sm">
-                  <Trash2 :size="14" class="mr-1" />
+                <Button variant="destructive">
+                  <Trash2 />
                   Delete
                 </Button>
               </AlertDialogTrigger>

@@ -167,10 +167,9 @@ async function handleDelete() {
           <AlertDialogTrigger as-child>
             <Button
               variant="outline"
-              size="sm"
               :disabled="unmounting"
             >
-              <Unplug :size="14" class="mr-1" />
+              <Unplug />
               {{ unmounting ? 'Unmounting...' : 'Unmount' }}
             </Button>
           </AlertDialogTrigger>
@@ -206,8 +205,8 @@ async function handleDelete() {
             Mount this volume to a service to give it persistent storage.
           </p>
         </div>
-        <Button size="sm" @click="emit('mount')">
-          <Plug :size="14" class="mr-1" />
+        <Button @click="emit('mount')">
+          <Plug />
           Mount
         </Button>
       </div>
@@ -244,7 +243,6 @@ async function handleDelete() {
               You can add more space once a running service uses this volume, but storage can't be made smaller later.
             </p>
             <Button
-              size="sm"
               :disabled="!storageChanged || storageSaving"
               @click="handleExpand"
             >
@@ -274,8 +272,8 @@ async function handleDelete() {
             </div>
             <AlertDialog v-model:open="deleteDialogOpen">
               <AlertDialogTrigger as-child>
-                <Button variant="destructive" size="sm">
-                  <Trash2 :size="14" class="mr-1" />
+                <Button variant="destructive">
+                  <Trash2 />
                   Delete
                 </Button>
               </AlertDialogTrigger>

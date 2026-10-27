@@ -358,8 +358,8 @@ const visibleEntries = computed(() => (showAll.value ? entries.value : entries.v
             </div>
 
             <div class="flex justify-end">
-              <Button size="sm" :disabled="!canRestore" @click="handleRestore">
-                <Spinner v-if="restoring" :size="14" class="mr-1" />
+              <Button :disabled="!canRestore" @click="handleRestore">
+                <Spinner v-if="restoring" :size="14" />
                 {{ restoring ? 'Restoring...' : 'Restore' }}
               </Button>
             </div>
@@ -379,12 +379,11 @@ const visibleEntries = computed(() => (showAll.value ? entries.value : entries.v
             </div>
             <Button
               variant="outline"
-              size="sm"
               class="shrink-0"
               :disabled="backingUp"
               @click="handleBackupNow"
             >
-              <Spinner v-if="backingUp" :size="12" class="mr-1" />
+              <Spinner v-if="backingUp" :size="12" />
               {{ backingUp ? 'Starting...' : 'Back up now' }}
             </Button>
           </div>

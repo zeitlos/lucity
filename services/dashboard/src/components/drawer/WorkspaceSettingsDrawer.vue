@@ -134,8 +134,7 @@ async function handleDelete() {
               <Button
                 v-if="isAdmin"
                 type="submit"
-                size="sm"
-                class="h-9 shrink-0"
+                class="shrink-0"
                 :disabled="!editName.trim() || editName.trim() === workspace.name || updating"
               >
                 {{ updating ? 'Saving...' : 'Save' }}
@@ -164,8 +163,8 @@ async function handleDelete() {
         </div>
         <AlertDialog>
           <AlertDialogTrigger as-child>
-            <Button variant="destructive" size="sm" class="shrink-0" :disabled="deleting">
-              <Trash2 :size="14" class="mr-1" />
+            <Button variant="destructive" class="shrink-0" :disabled="deleting">
+              <Trash2 />
               Delete
             </Button>
           </AlertDialogTrigger>

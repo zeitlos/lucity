@@ -457,15 +457,18 @@ onMounted(async () => {
                 <div>
                   <p class="mb-3 text-sm font-medium text-muted-foreground">Sizes</p>
                   <div class="flex items-center gap-3">
-                    <Button size="sm">
-                      Small
-                    </Button>
                     <Button>Default</Button>
-                    <Button size="lg">
-                      Large
+                    <Button size="xs">
+                      Extra small
                     </Button>
-                    <Button size="icon">
-                      <Rocket :size="18" />
+                    <Button size="icon" aria-label="Deploy">
+                      <Rocket />
+                    </Button>
+                    <Button size="icon-sm" variant="ghost" aria-label="Deploy">
+                      <Rocket />
+                    </Button>
+                    <Button size="icon-xs" variant="ghost" aria-label="Deploy">
+                      <Rocket />
                     </Button>
                   </div>
                 </div>

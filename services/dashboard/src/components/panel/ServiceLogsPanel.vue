@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue';
-import { X, Trash2, Pause, Play } from '@lucide/vue';
+import { X, Pause, Play, Eraser } from '@lucide/vue';
 import Spinner from '@/components/LoadingSpinner.vue';
 import LogLine from '@/components/LogLine.vue';
 import { onKeyStroke } from '@vueuse/core';
 import { useServiceLogs } from '@/composables/useServiceLogs';
-import { Button } from '@/components/ui/button';
+import IconButton from '@/components/IconButton.vue';
 
 const props = defineProps<{
   serviceId: string;
@@ -71,37 +71,32 @@ function clearLogs() {
       </div>
 
       <div class="flex items-center gap-1">
-        <Button
-          variant="ghost"
-          size="icon"
-          class="h-6 w-6 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+        <IconButton
+          :label="paused ? 'Resume' : 'Pause'"
+          class="text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
           @click="togglePause"
         >
           <Pause
             v-if="!paused"
-            :size="12"
           />
           <Play
             v-else
-            :size="12"
           />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          class="h-6 w-6 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+        </IconButton>
+        <IconButton
+          label="Clear logs"
+          class="text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
           @click="clearLogs"
         >
-          <Trash2 :size="12" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          class="h-7 w-7 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+          <Eraser />
+        </IconButton>
+        <IconButton
+          label="Close" shortcut="Esc"
+          class="text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
           @click="emit('close')"
         >
-          <X :size="16" />
-        </Button>
+          <X />
+        </IconButton>
       </div>
     </div>
 

@@ -12,6 +12,8 @@ import { useBuildLogsPanel, type LogsPanelKind } from '@/composables/useBuildLog
 import { DeploymentStatus, ReleaseStatus, RolloutReason, RolloutStatus, ScanStatus } from '@/gql/graphql';
 import { activeBuild, type Deployment, type Release, type Rollout, type Scan } from '@/composables/useEnvironment';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { darkTooltipClass } from '@/lib/tooltip';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   DropdownMenu,
@@ -391,10 +393,9 @@ watch(
       >
         <Spinner
           v-if="deploy.isDeploying"
-          :size="14"
-          class="mr-2 animate-spin"
+          :size="14" class="animate-spin"
         />
-        <Rocket v-else :size="14" class="mr-2" />
+        <Rocket v-else />
         {{ deploy.isDeploying ? 'Building...' : 'Deploy' }}
       </Button>
     </div>
@@ -438,15 +439,21 @@ watch(
         </CollapsibleTrigger>
 
         <DropdownMenu>
-          <DropdownMenuTrigger as-child>
-            <Button
-              variant="ghost"
-              size="sm"
-              class="h-8 w-8 shrink-0 p-0"
-            >
-              <MoreVertical :size="16" />
-            </Button>
-          </DropdownMenuTrigger>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <DropdownMenuTrigger as-child>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  class="shrink-0"
+                  aria-label="More actions"
+                >
+                  <MoreVertical />
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent :class="darkTooltipClass">More actions</TooltipContent>
+          </Tooltip>
           <DropdownMenuContent align="end">
             <DropdownMenuItem :disabled="deploy.isDeploying" @click="handleRedeploy">
               <RefreshCw :size="14" class="mr-2" />
@@ -493,11 +500,11 @@ watch(
             <Button
               v-if="step.logId && step.logKind"
               variant="outline"
-              size="sm"
-              class="h-7 shrink-0 gap-1.5 px-2.5"
+              size="xs"
+              class="shrink-0"
               @click="logsPanel.open(step.logId, service.name, step.logKind)"
             >
-              <Terminal :size="12" />
+              <Terminal />
               Logs
             </Button>
           </div>
@@ -549,11 +556,21 @@ watch(
             </CollapsibleTrigger>
 
             <DropdownMenu v-if="releaseGitHubURL(release)">
-              <DropdownMenuTrigger as-child>
-                <Button variant="ghost" size="sm" class="h-8 w-8 shrink-0 p-0">
-                  <MoreVertical :size="16" />
-                </Button>
-              </DropdownMenuTrigger>
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <DropdownMenuTrigger as-child>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      class="shrink-0"
+                      aria-label="More actions"
+                    >
+                      <MoreVertical />
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent :class="darkTooltipClass">More actions</TooltipContent>
+              </Tooltip>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem as-child>
                   <a
@@ -595,11 +612,11 @@ watch(
                 <Button
                   v-if="step.logId && step.logKind"
                   variant="outline"
-                  size="sm"
-                  class="h-7 shrink-0 gap-1.5 px-2.5"
+                  size="xs"
+                  class="shrink-0"
                   @click="logsPanel.open(step.logId, service.name, step.logKind)"
                 >
-                  <Terminal :size="12" />
+                  <Terminal />
                   Logs
                 </Button>
               </div>

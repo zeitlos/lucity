@@ -37,6 +37,7 @@ const RevokeApiTokenDocument = graphql(`
 `);
 import ContextDrawer from '@/components/drawer/ContextDrawer.vue';
 import { Button } from '@/components/ui/button';
+import IconButton from '@/components/IconButton.vue';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -156,7 +157,7 @@ function formatDate(dateStr: string): string {
               <SelectItem :value="WorkspaceRole.Admin">Admin</SelectItem>
             </SelectContent>
           </Select>
-          <Button type="submit" size="sm" class="h-9 shrink-0" :disabled="!newName.trim() || creating">
+          <Button type="submit" class="shrink-0" :disabled="!newName.trim() || creating">
             {{ creating ? 'Creating...' : 'Create' }}
           </Button>
         </div>
@@ -180,8 +181,8 @@ function formatDate(dateStr: string): string {
           </div>
           <Button
             variant="ghost"
-            size="sm"
-            class="h-8 shrink-0 text-destructive hover:text-destructive"
+            size="xs"
+            class="shrink-0 text-destructive hover:text-destructive"
             :aria-label="`Revoke ${token.name}`"
             :disabled="revoking"
             @click="tokenToRevoke = { id: token.id, name: token.name }"
@@ -221,9 +222,9 @@ function formatDate(dateStr: string): string {
         </DialogHeader>
         <div class="flex min-w-0 items-start gap-2">
           <code class="min-w-0 flex-1 break-all rounded bg-muted px-2 py-1.5 font-mono text-xs">{{ createdToken }}</code>
-          <Button variant="outline" size="icon" class="shrink-0" aria-label="Copy token" @click="copyToken">
-            <Copy :size="14" />
-          </Button>
+          <IconButton label="Copy token" variant="outline" size="icon" class="shrink-0" @click="copyToken">
+            <Copy />
+          </IconButton>
         </div>
         <DialogFooter>
           <Button @click="showTokenDialog = false">Done</Button>

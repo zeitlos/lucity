@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import IconButton from '@/components/IconButton.vue';
 import { computed, watch, ref, onMounted, toRef } from 'vue';
 import { VueFlow, useVueFlow, PanOnScrollMode } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
@@ -287,26 +288,29 @@ watch(
     </VueFlow>
 
     <div class="absolute right-4 top-4 flex items-center gap-2">
-      <button
-        class="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground"
-        title="Fit view"
+      <IconButton
+        label="Fit view"
+        variant="outline"
+        size="icon"
+        class="text-muted-foreground"
         @click="handleFitView"
       >
-        <Maximize2 :size="14" />
-      </button>
-      <button
-        class="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground"
-        title="Reset layout"
+        <Maximize2 />
+      </IconButton>
+      <IconButton
+        label="Reset layout"
+        variant="outline"
+        size="icon"
+        class="text-muted-foreground"
         @click="handleResetLayout"
       >
-        <RotateCcw :size="14" />
-      </button>
+        <RotateCcw />
+      </IconButton>
       <Button
         variant="outline"
-        size="sm"
         @click="emit('create')"
       >
-        <Plus :size="14" class="mr-1" />
+        <Plus />
         Create
       </Button>
     </div>

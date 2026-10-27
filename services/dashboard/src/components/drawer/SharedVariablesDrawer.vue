@@ -20,6 +20,7 @@ const SetSharedVariablesDocument = graphql(`
 `);
 import ContextDrawer from '@/components/drawer/ContextDrawer.vue';
 import { Button } from '@/components/ui/button';
+import IconButton from '@/components/IconButton.vue';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast, errorToast } from '@/components/ui/sonner';
@@ -154,26 +155,24 @@ async function handleSave() {
             class="h-9 w-full pr-9 font-mono text-xs"
             @input="markChanged"
           />
-          <button
-            type="button"
+          <IconButton
+            :label="row.revealed ? 'Hide value' : 'Show value'"
+            size="icon"
             tabindex="-1"
-            :aria-label="row.revealed ? 'Hide value' : 'Show value'"
-            class="absolute right-0 top-0 flex h-9 w-9 items-center justify-center text-muted-foreground hover:text-foreground"
+            class="absolute right-0 top-0 text-muted-foreground hover:bg-transparent"
             @click="row.revealed = !row.revealed"
           >
-            <EyeOff v-if="row.revealed" :size="14" />
-            <Eye v-else :size="14" />
-          </button>
+            <EyeOff v-if="row.revealed" />
+            <Eye v-else />
+          </IconButton>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          class="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-          :aria-label="`Remove ${row.key || 'variable'}`"
+        <IconButton
+          :label="`Remove ${row.key || 'variable'}`"
+          class="shrink-0 text-muted-foreground hover:text-destructive"
           @click="removeRow(index)"
         >
-          <Trash2 :size="14" />
-        </Button>
+          <Trash2 />
+        </IconButton>
       </div>
 
       <div v-if="rows.length === 0" class="rounded-lg border border-dashed p-6 text-center">
@@ -181,19 +180,18 @@ async function handleSave() {
       </div>
 
       <div class="flex items-center gap-2 pt-1.5">
-        <Button variant="outline" size="sm" @click="addRow">
-          <Plus :size="14" class="mr-1" />
+        <Button variant="outline" @click="addRow">
+          <Plus />
           Add variable
         </Button>
         <Button
           v-if="rows.length > 0"
           variant="ghost"
-          size="sm"
           class="text-muted-foreground"
           @click="toggleAll"
         >
-          <EyeOff v-if="allRevealed" :size="14" class="mr-1" />
-          <Eye v-else :size="14" class="mr-1" />
+          <EyeOff v-if="allRevealed" />
+          <Eye v-else />
           {{ allRevealed ? 'Hide all' : 'Show all' }}
         </Button>
       </div>
@@ -205,7 +203,6 @@ async function handleSave() {
           Paste <code class="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">KEY=value</code> lines into a key field to add several.
         </p>
         <Button
-          size="sm"
           class="shrink-0"
           :disabled="!hasChanges || saving"
           @click="handleSave"

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import IconButton from '@/components/IconButton.vue';
 import { ref, computed, watch, nextTick } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
 import { onKeyStroke } from '@vueuse/core';
@@ -181,12 +182,14 @@ async function handleMount() {
                 :placeholder="`Mount ${volumeName} to which service?`"
                 class="flex h-12 w-full bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground"
               />
-              <button
-                class="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
+              <IconButton
+                label="Close"
+                size="icon-xs"
+                class="shrink-0"
                 @click="close"
               >
-                <X :size="16" />
-              </button>
+                <X />
+              </IconButton>
             </div>
 
             <div class="max-h-[320px] overflow-y-auto p-1">
@@ -220,12 +223,14 @@ async function handleMount() {
           <!-- Step: mount path -->
           <template v-else>
             <div class="flex items-center border-b px-3">
-              <button
-                class="mr-1 shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
+              <IconButton
+                label="Back"
+                size="icon-xs"
+                class="mr-1 shrink-0"
                 @click="step = 'service'"
               >
-                <ArrowLeft :size="16" />
-              </button>
+                <ArrowLeft />
+              </IconButton>
               <input
                 ref="inputRef"
                 v-model="path"
@@ -233,12 +238,14 @@ async function handleMount() {
                 placeholder="Directory to mount the volume to? (e.g. /data)"
                 class="flex h-12 w-full bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground"
               />
-              <button
-                class="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
+              <IconButton
+                label="Close"
+                size="icon-xs"
+                class="shrink-0"
                 @click="close"
               >
-                <X :size="16" />
-              </button>
+                <X />
+              </IconButton>
             </div>
             <div class="space-y-3 p-4">
               <p v-if="pathError" class="text-xs text-destructive">{{ pathError }}</p>

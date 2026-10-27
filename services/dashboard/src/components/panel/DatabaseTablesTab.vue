@@ -50,7 +50,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
+import IconButton from '@/components/IconButton.vue';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -181,9 +181,9 @@ watch(() => props.databaseId, () => {
     <template v-if="selectedTable">
       <!-- Header -->
       <div class="flex items-center gap-2">
-        <Button variant="ghost" size="icon" class="h-7 w-7" @click="closeTable">
-          <ArrowLeft :size="14" />
-        </Button>
+        <IconButton label="Back to tables" @click="closeTable">
+          <ArrowLeft />
+        </IconButton>
         <Table2 :size="16" class="text-muted-foreground" />
         <span class="text-sm font-medium">{{ selectedSchema }}.{{ selectedTable }}</span>
         <Badge variant="outline" class="text-xs">~{{ totalEstimatedRows }} rows</Badge>
@@ -244,25 +244,23 @@ watch(() => props.databaseId, () => {
             Showing {{ offset + 1 }}&ndash;{{ offset + dataRows.length }}
           </span>
           <div class="flex items-center gap-1">
-            <Button
+            <IconButton
+              label="Previous page"
               variant="outline"
-              size="icon"
-              class="h-7 w-7"
               :disabled="offset === 0"
               @click="prevPage"
             >
-              <ChevronLeft :size="14" />
-            </Button>
+              <ChevronLeft />
+            </IconButton>
             <span class="px-2 text-xs text-muted-foreground">Page {{ currentPage }}</span>
-            <Button
+            <IconButton
+              label="Next page"
               variant="outline"
-              size="icon"
-              class="h-7 w-7"
               :disabled="!hasMore"
               @click="nextPage"
             >
-              <ChevronRight :size="14" />
-            </Button>
+              <ChevronRight />
+            </IconButton>
           </div>
         </div>
       </template>

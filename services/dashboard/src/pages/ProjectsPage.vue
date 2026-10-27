@@ -71,7 +71,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import PageToolbar from '@/components/PageToolbar.vue';
 import ProjectCard from '@/components/ProjectCard.vue';
 import ProjectTable from '@/components/ProjectTable.vue';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { darkTooltipClass } from '@/lib/tooltip';
 import EmptyState from '@/components/EmptyState.vue';
 import CreateCommandPalette from '@/components/CreateCommandPalette.vue';
@@ -200,7 +200,6 @@ onKeyStroke('/', (event) => {
 </script>
 
 <template>
-  <TooltipProvider :delay-duration="300">
     <div class="flex h-[calc(100vh-var(--banner-height)-52px-0.75rem-0.5rem)] flex-col">
       <div class="relative flex flex-1 py-3">
         <ContextRail :items="railItems" :active-key="activeKey" />
@@ -241,8 +240,8 @@ onKeyStroke('/', (event) => {
                   <TooltipContent side="bottom" :class="darkTooltipClass">{{ option.label }}</TooltipContent>
                 </Tooltip>
               </div>
-              <Button size="sm" class="h-8" @click="paletteOpen = true">
-                <Plus :size="14" />
+              <Button @click="paletteOpen = true">
+                <Plus />
                 New project
               </Button>
             </PageToolbar>
@@ -284,7 +283,7 @@ onKeyStroke('/', (event) => {
                 >
                   <template #action>
                     <Button @click="openInstallPopup()">
-                      <GithubIcon :size="16" class="mr-2" primary />
+                      <GithubIcon :size="16" primary />
                       Connect GitHub
                     </Button>
                   </template>
@@ -298,7 +297,7 @@ onKeyStroke('/', (event) => {
                 >
                   <template #action>
                     <Button @click="paletteOpen = true">
-                      <Plus :size="16" class="mr-2" />
+                      <Plus />
                       New Project
                     </Button>
                   </template>
@@ -381,7 +380,6 @@ onKeyStroke('/', (event) => {
         :initial-view="initialPaletteView"
       />
     </div>
-  </TooltipProvider>
 </template>
 
 <style scoped>

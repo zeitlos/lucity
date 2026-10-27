@@ -7,6 +7,7 @@ import Spinner from '@/components/LoadingSpinner.vue';
 import { onKeyStroke } from '@vueuse/core';
 import { graphql } from '@/gql';
 import { Button } from '@/components/ui/button';
+import IconButton from '@/components/IconButton.vue';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -138,9 +139,9 @@ async function handleDelete() {
         <h2 class="text-lg font-semibold text-foreground">{{ store.name }}</h2>
       </div>
 
-      <Button variant="ghost" size="icon" class="h-7 w-7" @click="emit('close')">
-        <X :size="16" />
-      </Button>
+      <IconButton label="Close" shortcut="Esc" @click="emit('close')">
+        <X />
+      </IconButton>
     </div>
 
     <!-- Tab Content -->
@@ -201,24 +202,24 @@ async function handleDelete() {
                   <span class="flex-1 truncate font-mono text-xs text-foreground">
                     {{ field.sensitive && !revealed[field.key] ? mask(field.value) : field.value }}
                   </span>
-                  <Button
+                  <IconButton
+                    :label="`${revealed[field.key] ? 'Hide' : 'Show'} ${field.label}`"
                     v-if="field.sensitive"
-                    variant="ghost"
-                    size="icon"
-                    class="h-6 w-6 shrink-0"
+                    size="icon-xs"
+                    class="shrink-0"
                     @click="toggleReveal(field.key)"
                   >
-                    <EyeOff v-if="revealed[field.key]" :size="12" />
-                    <Eye v-else :size="12" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    class="h-6 w-6 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                    <EyeOff v-if="revealed[field.key]" />
+                    <Eye v-else />
+                  </IconButton>
+                  <IconButton
+                    :label="`Copy ${field.label}`"
+                    size="icon-xs"
+                    class="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
                     @click="copyToClipboard(field.value)"
                   >
-                    <Copy :size="12" />
-                  </Button>
+                    <Copy />
+                  </IconButton>
                 </div>
               </div>
             </div>
@@ -268,8 +269,8 @@ async function handleDelete() {
                     </div>
                     <AlertDialog v-model:open="deleteDialogOpen">
                       <AlertDialogTrigger as-child>
-                        <Button variant="destructive" size="sm">
-                          <Trash2 :size="14" class="mr-1" />
+                        <Button variant="destructive">
+                          <Trash2 />
                           Delete
                         </Button>
                       </AlertDialogTrigger>

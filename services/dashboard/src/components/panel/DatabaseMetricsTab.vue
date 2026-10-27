@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import IconButton from '@/components/IconButton.vue';
 import { computed, ref } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
 import { ChevronDown, ChevronUp } from '@lucide/vue';
@@ -544,16 +545,16 @@ function copyQuery(query: string) {
                 {{ formatCount(statement.rows) }}
               </td>
               <td class="py-1.5 pr-3 text-right">
-                <button
-                  type="button"
-                  class="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                <IconButton
+                  :label="openQuery === index ? 'Hide details' : 'Show details'"
+                  size="icon-xs"
+                  class="text-muted-foreground"
                   :aria-expanded="openQuery === index"
-                  :aria-label="openQuery === index ? 'Hide details' : 'Show details'"
                   @click="toggleQuery(index)"
                 >
-                  <ChevronUp v-if="openQuery === index" :size="14" />
-                  <ChevronDown v-else :size="14" />
-                </button>
+                  <ChevronUp v-if="openQuery === index" />
+                  <ChevronDown v-else />
+                </IconButton>
               </td>
             </tr>
             <tr v-if="openQuery === index" class="bg-muted/40">

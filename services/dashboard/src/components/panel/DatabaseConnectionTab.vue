@@ -5,6 +5,7 @@ import { Copy, Eye, EyeOff, DatabaseZap, Globe, Lock, ShieldAlert } from '@lucid
 import Spinner from '@/components/LoadingSpinner.vue';
 import { graphql } from '@/gql';
 import { Button } from '@/components/ui/button';
+import IconButton from '@/components/IconButton.vue';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -237,24 +238,24 @@ const privateGroups = computed(() => groups.value.filter(g => g.type !== 'PLATFO
           <span class="min-w-0 flex-1 break-all pt-0.5 font-mono text-xs text-foreground">
             {{ field.sensitive && !revealed[field.key] ? mask(field.value) : field.value }}
           </span>
-          <Button
+          <IconButton
+            :label="`${revealed[field.key] ? 'Hide' : 'Show'} ${field.label}`"
             v-if="field.sensitive"
-            variant="ghost"
-            size="icon"
-            class="h-6 w-6 shrink-0"
+            size="icon-xs"
+            class="shrink-0"
             @click="toggleReveal(field.key)"
           >
-            <EyeOff v-if="revealed[field.key]" :size="12" />
-            <Eye v-else :size="12" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            class="h-6 w-6 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+            <EyeOff v-if="revealed[field.key]" />
+            <Eye v-else />
+          </IconButton>
+          <IconButton
+            :label="`Copy ${field.label}`"
+            size="icon-xs"
+            class="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
             @click="copyToClipboard(field.value)"
           >
-            <Copy :size="12" />
-          </Button>
+            <Copy />
+          </IconButton>
         </div>
       </div>
     </div>
@@ -305,24 +306,24 @@ const privateGroups = computed(() => groups.value.filter(g => g.type !== 'PLATFO
             <span class="min-w-0 flex-1 break-all pt-0.5 font-mono text-xs text-foreground">
               {{ field.sensitive && !revealed[field.key] ? mask(field.value) : field.value }}
             </span>
-            <Button
+            <IconButton
+              :label="`${revealed[field.key] ? 'Hide' : 'Show'} ${field.label}`"
               v-if="field.sensitive"
-              variant="ghost"
-              size="icon"
-              class="h-6 w-6 shrink-0"
+              size="icon-xs"
+              class="shrink-0"
               @click="toggleReveal(field.key)"
             >
-              <EyeOff v-if="revealed[field.key]" :size="12" />
-              <Eye v-else :size="12" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              class="h-6 w-6 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+              <EyeOff v-if="revealed[field.key]" />
+              <Eye v-else />
+            </IconButton>
+            <IconButton
+              :label="`Copy ${field.label}`"
+              size="icon-xs"
+              class="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
               @click="copyToClipboard(field.value)"
             >
-              <Copy :size="12" />
-            </Button>
+              <Copy />
+            </IconButton>
           </div>
         </div>
       </div>

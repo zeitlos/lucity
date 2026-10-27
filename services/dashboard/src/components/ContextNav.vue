@@ -49,7 +49,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { darkTooltipClass } from '@/lib/tooltip';
 
 const route = useRoute();
@@ -148,7 +148,6 @@ const newBoxClass = 'flex size-6 shrink-0 items-center justify-center rounded-[4
 </script>
 
 <template>
-  <TooltipProvider :delay-duration="300">
     <nav class="flex items-center gap-1">
       <span class="inline-flex items-center">
         <RouterLink :to="{ name: 'projects' }" :class="titleClass">
@@ -266,7 +265,6 @@ const newBoxClass = 'flex size-6 shrink-0 items-center justify-center rounded-[4
       </template>
 
     </nav>
-  </TooltipProvider>
 
   <CreateWorkspaceDialog v-model:open="wsDialogOpen" />
   <CreateEnvironmentDialog

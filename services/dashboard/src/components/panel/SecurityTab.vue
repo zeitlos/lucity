@@ -154,12 +154,11 @@ function formatRelativeTime(timestamp: string): string {
 
         <Button
           variant="outline"
-          size="sm"
           class="w-full justify-between"
           @click="openReport"
         >
           View all {{ vulnerabilityReport.summary.total }} vulnerabilit{{ vulnerabilityReport.summary.total !== 1 ? 'ies' : 'y' }}
-          <ChevronRight :size="14" class="opacity-60" />
+          <ChevronRight class="opacity-60" />
         </Button>
       </template>
     </section>
@@ -224,12 +223,12 @@ function formatRelativeTime(timestamp: string): string {
             <Button
               v-if="finding.url"
               variant="outline"
-              size="sm"
-              class="h-7 shrink-0 gap-1.5 px-2.5"
+              size="xs"
+              class="shrink-0"
               as-child
             >
               <a :href="finding.url" target="_blank" rel="noopener">
-                <ExternalLink :size="12" />
+                <ExternalLink />
                 Open on GitHub
               </a>
             </Button>
@@ -283,12 +282,12 @@ function formatRelativeTime(timestamp: string): string {
               <Button
                 v-if="finding.url"
                 variant="outline"
-                size="sm"
-                class="h-7 shrink-0 gap-1.5 px-2.5"
+                size="xs"
+                class="shrink-0"
                 as-child
               >
                 <a :href="finding.url" target="_blank" rel="noopener">
-                  <ExternalLink :size="12" />
+                  <ExternalLink />
                   Open on GitHub
                 </a>
               </Button>

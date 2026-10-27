@@ -15,10 +15,11 @@ export const buttonVariants = cva(
         accent: 'bg-accent-pop text-accent-pop-foreground shadow-[var(--shadow-accent-button)] hover:brightness-[0.92]',
       },
       size: {
-        default: 'h-10 px-4 py-2',
-        sm: 'h-9 px-3',
-        lg: 'h-11 px-8',
-        icon: 'h-10 w-10',
+        'default': 'h-9 px-4',
+        'xs': 'h-7 gap-1.5 px-2.5 text-[13px] [&_svg]:size-3.5',
+        'icon': 'size-9',
+        'icon-sm': 'size-7',
+        'icon-xs': 'size-6 [&_svg]:size-3.5',
       },
     },
     defaultVariants: {
@@ -28,7 +29,7 @@ export const buttonVariants = cva(
   },
 );
 
-type ButtonVariants = VariantProps<typeof buttonVariants>;
+export type ButtonVariants = VariantProps<typeof buttonVariants>;
 </script>
 
 <script setup lang="ts">

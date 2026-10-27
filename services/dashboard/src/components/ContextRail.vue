@@ -3,7 +3,7 @@ import { computed, ref, type Component } from 'vue';
 import type { RouteLocationRaw } from 'vue-router';
 import { CornerLeftUp, Download } from '@lucide/vue';
 import ProjectEjectDialog from '@/components/ProjectEjectDialog.vue';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { darkTooltipClass } from '@/lib/tooltip';
 
 interface RailItem {
@@ -69,7 +69,6 @@ const ejectOpen = ref(false);
       />
     </svg>
 
-    <TooltipProvider :delay-duration="150">
       <nav class="relative flex h-full w-12 flex-col gap-1">
         <Tooltip v-for="item in items" :key="item.key">
           <TooltipTrigger as-child>
@@ -121,7 +120,6 @@ const ejectOpen = ref(false);
           <TooltipContent side="right" :class="darkTooltipClass">{{ upLabel }}</TooltipContent>
         </Tooltip>
       </nav>
-    </TooltipProvider>
 
     <ProjectEjectDialog
       v-if="projectId"

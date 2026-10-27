@@ -3,7 +3,7 @@ import { reactive, computed, ref } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
 import { Copy, Eye, EyeOff, Globe } from '@lucide/vue';
 import { graphql } from '@/gql';
-import { Button } from '@/components/ui/button';
+import IconButton from '@/components/IconButton.vue';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { toast, errorToast } from '@/components/ui/sonner';
@@ -186,9 +186,9 @@ function copyToClipboard(text: string) {
       <div v-if="props.public && props.publicEndpoint" class="space-y-1.5 border-t px-4 py-3">
         <div class="flex items-center justify-between px-1">
           <span class="text-xs font-medium text-muted-foreground">Public URL</span>
-          <Button variant="ghost" size="icon" class="h-6 w-6" @click="copyToClipboard(props.publicEndpoint)">
-            <Copy :size="12" />
-          </Button>
+          <IconButton label="Copy public URL" size="icon-xs" @click="copyToClipboard(props.publicEndpoint)">
+            <Copy />
+          </IconButton>
         </div>
         <div class="flex items-center gap-2 rounded-md bg-muted/40 px-3 py-2">
           <span class="flex-1 truncate font-mono text-xs text-foreground">{{ props.publicEndpoint }}</span>
@@ -224,24 +224,24 @@ function copyToClipboard(text: string) {
           <span class="flex-1 truncate font-mono text-xs text-foreground">
             {{ field.sensitive && !revealed[field.key] ? mask(field.value) : field.value }}
           </span>
-          <Button
+          <IconButton
+            :label="`${revealed[field.key] ? 'Hide' : 'Show'} ${field.label}`"
             v-if="field.sensitive"
-            variant="ghost"
-            size="icon"
-            class="h-6 w-6 shrink-0"
+            size="icon-xs"
+            class="shrink-0"
             @click="toggleReveal(field.key)"
           >
-            <EyeOff v-if="revealed[field.key]" :size="12" />
-            <Eye v-else :size="12" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            class="h-6 w-6 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+            <EyeOff v-if="revealed[field.key]" />
+            <Eye v-else />
+          </IconButton>
+          <IconButton
+            :label="`Copy ${field.label}`"
+            size="icon-xs"
+            class="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
             @click="copyToClipboard(field.value)"
           >
-            <Copy :size="12" />
-          </Button>
+            <Copy />
+          </IconButton>
         </div>
       </div>
 
@@ -264,9 +264,9 @@ function copyToClipboard(text: string) {
               {{ snip.label }}
             </button>
           </div>
-          <Button variant="ghost" size="icon" class="h-6 w-6" @click="copyToClipboard(currentSnippet)">
-            <Copy :size="12" />
-          </Button>
+          <IconButton label="Copy snippet" size="icon-xs" @click="copyToClipboard(currentSnippet)">
+            <Copy />
+          </IconButton>
         </div>
         <pre class="overflow-x-auto rounded-md bg-muted/40 px-3 py-2 font-mono text-xs text-foreground">{{ displayedSnippet }}</pre>
       </div>

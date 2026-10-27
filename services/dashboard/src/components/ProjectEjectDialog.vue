@@ -159,13 +159,10 @@ async function handleEject() {
           >
             <Spinner
               v-if="ejecting"
-              :size="14"
-              class="mr-1.5 animate-spin"
+              :size="14" class="animate-spin"
             />
             <Download
               v-else
-              :size="14"
-              class="mr-1.5"
             />
             {{ ejecting ? 'Exporting...' : 'Download .zip' }}
           </Button>

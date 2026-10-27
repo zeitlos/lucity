@@ -147,8 +147,8 @@ watch(error, (err) => {
       <div class="relative min-w-0 flex-1">
         <div class="flex h-full flex-col overflow-hidden rounded-lg border bg-card shadow-sm">
           <PageToolbar title="Environments" :count="project.environments.length">
-            <Button size="sm" class="h-8" @click="envDialogOpen = true">
-              <Plus :size="14" />
+            <Button @click="envDialogOpen = true">
+              <Plus />
               New environment
             </Button>
           </PageToolbar>

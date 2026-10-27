@@ -13,6 +13,7 @@ import {
 } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { Button } from '@/components/ui/button';
+import IconButton from '@/components/IconButton.vue';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
@@ -313,12 +314,12 @@ async function confirmDelete() {
       </nav>
 
       <div class="flex shrink-0 items-center gap-1.5">
-        <Button variant="outline" size="sm" :disabled="uploading" @click="startFolder">
-          <FolderPlus :size="14" class="mr-1" />
+        <Button variant="outline" :disabled="uploading" @click="startFolder">
+          <FolderPlus />
           New folder
         </Button>
-        <Button variant="outline" size="sm" :disabled="uploading" @click="pickFiles">
-          <Upload :size="14" class="mr-1" />
+        <Button variant="outline" :disabled="uploading" @click="pickFiles">
+          <Upload />
           Upload
         </Button>
         <input ref="fileInput" type="file" multiple class="hidden" @change="onFilesPicked" />
@@ -376,10 +377,10 @@ async function confirmDelete() {
             @keyup.enter="createFolder"
             @keyup.esc="creatingFolder = false"
           />
-          <Button variant="ghost" size="sm" class="h-7" :disabled="savingFolder" @click="createFolder">
+          <Button variant="ghost" size="xs" :disabled="savingFolder" @click="createFolder">
             {{ savingFolder ? 'Creating...' : 'Create' }}
           </Button>
-          <Button variant="ghost" size="sm" class="h-7" :disabled="savingFolder" @click="creatingFolder = false">Cancel</Button>
+          <Button variant="ghost" size="xs" :disabled="savingFolder" @click="creatingFolder = false">Cancel</Button>
         </div>
 
         <!-- Empty -->
@@ -428,24 +429,22 @@ async function confirmDelete() {
               {{ formatDate(object.lastModified) }}
             </span>
             <div class="flex w-14 shrink-0 items-center justify-end gap-0.5">
-              <Button
-                variant="ghost"
-                size="icon"
-                class="h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100"
-                title="Download"
+              <IconButton
+                label="Download"
+                size="icon-xs"
+                class="opacity-0 transition-opacity group-hover:opacity-100"
                 @click="download(object.key)"
               >
-                <Download :size="13" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                class="h-6 w-6 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
-                title="Delete"
+                <Download />
+              </IconButton>
+              <IconButton
+                label="Delete"
+                size="icon-xs"
+                class="text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
                 @click="askDelete(object.key)"
               >
-                <Trash2 :size="13" />
-              </Button>
+                <Trash2 />
+              </IconButton>
             </div>
           </div>
         </div>

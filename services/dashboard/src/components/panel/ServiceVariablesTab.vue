@@ -6,6 +6,9 @@ import SourceIcon from '@/components/SourceIcon.vue';
 import { graphql } from '@/gql';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { darkTooltipClass } from '@/lib/tooltip';
+import IconButton from '@/components/IconButton.vue';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -302,17 +305,22 @@ async function handleSave() {
             :open="openPopoverIndex === index"
             @update:open="(v: boolean) => openPopoverIndex = v ? index : null"
           >
-            <PopoverTrigger as-child>
-              <Button
-                variant="outline"
-                size="icon"
-                class="shrink-0 rounded-r-none border-r-0"
-                :disabled="availableRefs.length === 0"
-                title="Link to a dynamic value"
-              >
-                <Link :size="14" class="opacity-50" />
-              </Button>
-            </PopoverTrigger>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <PopoverTrigger as-child>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    class="shrink-0 rounded-r-none border-r-0"
+                    :disabled="availableRefs.length === 0"
+                    aria-label="Link to a dynamic value"
+                  >
+                    <Link class="opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+              </TooltipTrigger>
+              <TooltipContent :class="darkTooltipClass">Link to a dynamic value</TooltipContent>
+            </Tooltip>
             <PopoverContent
               class="w-80 p-0"
               align="start"
@@ -345,21 +353,21 @@ async function handleSave() {
           </Popover>
 
           <!-- Detach from a dynamic value -->
-          <Button
+          <IconButton
+            label="Detach from dynamic value"
             v-else
             variant="outline"
             size="icon"
             class="shrink-0 rounded-r-none border-r-0"
-            title="Detach from dynamic value"
             @click="clearRef(index)"
           >
-            <Unlink :size="14" class="opacity-50" />
-          </Button>
+            <Unlink class="opacity-50" />
+          </IconButton>
 
           <!-- Linked value display -->
           <div
             v-if="isRefRow(row)"
-            class="magic-border flex h-10 flex-1 items-center gap-1.5 rounded-md rounded-l-none px-3"
+            class="magic-border flex h-9 flex-1 items-center gap-1.5 rounded-md rounded-l-none px-3"
           >
             <SourceIcon :typename="refInfo(row).typename" />
             <span class="text-xs font-medium">{{ refInfo(row).label }}</span>
@@ -378,27 +386,28 @@ async function handleSave() {
               class="w-full rounded-l-none pr-9 font-mono text-sm"
               @input="markChanged"
             />
-            <button
-              type="button"
+            <IconButton
+              :label="row.revealed ? 'Hide value' : 'Show value'"
+              size="icon"
               tabindex="-1"
-              class="absolute right-0 top-0 flex h-10 w-9 items-center justify-center text-muted-foreground hover:text-foreground"
+              class="absolute right-0 top-0 text-muted-foreground hover:bg-transparent"
               @click="row.revealed = !row.revealed"
             >
-              <EyeOff v-if="row.revealed" :size="14" />
-              <Eye v-else :size="14" />
-            </button>
+              <EyeOff v-if="row.revealed" />
+              <Eye v-else />
+            </IconButton>
           </div>
         </div>
 
         <!-- Delete -->
-        <Button
-          variant="ghost"
+        <IconButton
+          :label="`Delete ${row.key || 'variable'}`"
           size="icon"
-          class="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
+          class="shrink-0 text-muted-foreground hover:text-destructive"
           @click="removeRow(index)"
         >
-          <Trash2 :size="14" />
-        </Button>
+          <Trash2 />
+        </IconButton>
       </div>
 
       <!-- Empty state -->
@@ -409,25 +418,23 @@ async function handleSave() {
       <!-- Actions -->
       <div class="flex items-center justify-between pt-2">
         <div class="flex items-center gap-2">
-          <Button variant="outline" size="sm" @click="addRow">
-            <Plus :size="14" class="mr-1" />
+          <Button variant="outline" @click="addRow">
+            <Plus />
             Add Variable
           </Button>
           <Button
             v-if="valueRows.length > 0"
             variant="ghost"
-            size="sm"
             class="text-muted-foreground"
             @click="toggleAll"
           >
-            <EyeOff v-if="allRevealed" :size="14" class="mr-1" />
-            <Eye v-else :size="14" class="mr-1" />
+            <EyeOff v-if="allRevealed" />
+            <Eye v-else />
             {{ allRevealed ? 'Hide all' : 'Show all' }}
           </Button>
         </div>
 
         <Button
-          size="sm"
           :disabled="!hasChanges || saving"
           @click="handleSave"
         >

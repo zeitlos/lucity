@@ -152,7 +152,6 @@ async function handleDelete() {
         </p>
         <div class="flex justify-end">
           <Button
-            size="sm"
             :disabled="savingTier || tier === environment.resourceTier"
             @click="handleSaveTier"
           >
@@ -184,8 +183,8 @@ async function handleDelete() {
         </div>
         <AlertDialog v-model:open="confirmOpen">
           <AlertDialogTrigger as-child>
-            <Button variant="destructive" size="sm" class="shrink-0">
-              <Trash2 :size="14" class="mr-1" />
+            <Button variant="destructive" class="shrink-0">
+              <Trash2 />
               Delete
             </Button>
           </AlertDialogTrigger>

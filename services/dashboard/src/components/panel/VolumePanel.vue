@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import { HardDrive, X } from '@lucide/vue';
 import { onKeyStroke } from '@vueuse/core';
-import { Button } from '@/components/ui/button';
+import IconButton from '@/components/IconButton.vue';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { Service } from '@/composables/useEnvironment';
@@ -42,14 +42,12 @@ onKeyStroke('Escape', () => {
         <h2 class="text-lg font-semibold text-foreground">{{ volume.name }}</h2>
       </div>
 
-      <Button
-        variant="ghost"
-        size="icon"
-        class="h-7 w-7"
+      <IconButton
+        label="Close" shortcut="Esc"
         @click="emit('close')"
       >
-        <X :size="16" />
-      </Button>
+        <X />
+      </IconButton>
     </div>
 
     <!-- Tab Content -->

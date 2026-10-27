@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
-import { Shield, User as UserIcon, X } from '@lucide/vue';
+import { Shield, User as UserIcon, Trash2 } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { WorkspaceRole } from '@/gql/graphql';
 
@@ -35,6 +35,7 @@ const UpdateMemberRoleDocument = graphql(`
 import ContextDrawer from '@/components/drawer/ContextDrawer.vue';
 import Spinner from '@/components/LoadingSpinner.vue';
 import { Button } from '@/components/ui/button';
+import IconButton from '@/components/IconButton.vue';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -164,7 +165,7 @@ function initial(member: { email: string; name?: string | null }) {
               <SelectItem :value="WorkspaceRole.Admin">Admin</SelectItem>
             </SelectContent>
           </Select>
-          <Button type="submit" size="sm" class="h-9 shrink-0" :disabled="!inviteEmail.trim() || inviting">
+          <Button type="submit" class="shrink-0" :disabled="!inviteEmail.trim() || inviting">
             {{ inviting ? 'Inviting...' : 'Invite' }}
           </Button>
         </div>
@@ -211,16 +212,14 @@ function initial(member: { email: string; name?: string | null }) {
                 </SelectItem>
               </SelectContent>
             </Select>
-            <Button
-              variant="ghost"
-              size="icon"
-              class="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-              :aria-label="`Remove ${member.name || member.email}`"
+            <IconButton
+              :label="`Remove ${member.name || member.email}`"
+              class="shrink-0 text-muted-foreground hover:text-destructive"
               :disabled="removingMember"
               @click="memberToRemove = { id: member.id, label: member.name || member.email }"
             >
-              <X :size="14" />
-            </Button>
+              <Trash2 />
+            </IconButton>
           </template>
           <span
             v-else

@@ -102,12 +102,11 @@ function handleKeydown(event: KeyboardEvent) {
           {{ isMac ? '&#8984;' : 'Ctrl' }}+Enter to run
         </span>
         <Button
-          size="sm"
           :disabled="!queryText.trim() || loading"
           @click="executeQuery"
         >
-          <Play v-if="!loading" :size="14" class="mr-1" />
-          <Spinner v-else :size="14" class="mr-1 animate-spin" />
+          <Play v-if="!loading" />
+          <Spinner v-else :size="14" class="animate-spin" />
           Run Query
         </Button>
       </div>

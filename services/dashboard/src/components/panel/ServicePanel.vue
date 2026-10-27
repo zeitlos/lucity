@@ -5,7 +5,7 @@ import GithubIcon from '@/components/GithubIcon.vue';
 import { onKeyStroke } from '@vueuse/core';
 import { useServiceLogsPanel } from '@/composables/useServiceLogsPanel';
 import type { Service } from '@/composables/useEnvironment';
-import { Button } from '@/components/ui/button';
+import IconButton from '@/components/IconButton.vue';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import DeploymentsTab from './DeploymentsTab.vue';
@@ -47,14 +47,12 @@ onKeyStroke('Escape', () => {
         <h2 class="text-lg font-semibold text-foreground">{{ service.name }}</h2>
       </div>
 
-      <Button
-        variant="ghost"
-        size="icon"
-        class="h-7 w-7"
+      <IconButton
+        label="Close" shortcut="Esc"
         @click="emit('close')"
       >
-        <X :size="16" />
-      </Button>
+        <X />
+      </IconButton>
     </div>
 
     <!-- Tab Content -->

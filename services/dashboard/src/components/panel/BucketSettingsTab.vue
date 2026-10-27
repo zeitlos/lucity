@@ -100,8 +100,8 @@ async function handleDelete() {
             </div>
             <AlertDialog v-model:open="deleteDialogOpen">
               <AlertDialogTrigger as-child>
-                <Button variant="destructive" size="sm">
-                  <Trash2 :size="14" class="mr-1" />
+                <Button variant="destructive">
+                  <Trash2 />
                   Delete
                 </Button>
               </AlertDialogTrigger>

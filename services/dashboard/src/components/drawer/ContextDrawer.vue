@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { X } from '@lucide/vue';
-import { Button } from '@/components/ui/button';
+import IconButton from '@/components/IconButton.vue';
 
 defineProps<{
   title: string;
@@ -19,15 +19,12 @@ const emit = defineEmits<{
   >
     <div class="flex shrink-0 items-center justify-between pb-1 pl-5 pr-4 pt-4">
       <h2 class="text-base font-semibold text-foreground">{{ title }}</h2>
-      <Button
-        variant="ghost"
-        size="icon"
-        class="h-7 w-7"
-        aria-label="Close"
+      <IconButton
+        label="Close"
         @click="emit('close')"
       >
-        <X :size="16" />
-      </Button>
+        <X />
+      </IconButton>
     </div>
     <p v-if="description" class="shrink-0 px-5 text-[13px] leading-5 text-muted-foreground">
       {{ description }}

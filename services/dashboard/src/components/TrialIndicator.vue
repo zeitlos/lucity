@@ -181,10 +181,9 @@ function goToBilling() {
 
         <Button
           class="mt-3 w-full"
-          size="sm"
           @click="goToBilling"
         >
-          <Sparkles :size="14" class="mr-1.5" />
+          <Sparkles />
           Upgrade to a plan
         </Button>
       </div>

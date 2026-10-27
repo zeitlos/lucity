@@ -90,8 +90,8 @@ async function handleDelete() {
         </div>
         <AlertDialog>
           <AlertDialogTrigger as-child>
-            <Button variant="destructive" size="sm" class="shrink-0">
-              <Trash2 :size="14" class="mr-1" />
+            <Button variant="destructive" class="shrink-0">
+              <Trash2 />
               Delete
             </Button>
           </AlertDialogTrigger>

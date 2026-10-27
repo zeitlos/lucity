@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
-import { Earth, Laptop, Plus, ShieldAlert, X } from '@lucide/vue';
+import { Earth, Laptop, Plus, ShieldAlert, Trash2 } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { Button } from '@/components/ui/button';
+import IconButton from '@/components/IconButton.vue';
 import { Input } from '@/components/ui/input';
 import {
   AlertDialog,
@@ -114,23 +115,21 @@ async function remove(range: string) {
         <Button
           v-if="clientAddress && !clientAllowed"
           variant="outline"
-          size="sm"
-          class="h-7 text-xs"
+          size="xs"
           :disabled="adding"
           @click="allowClient"
         >
-          <Laptop :size="12" />
+          <Laptop />
           Add my IP ({{ clientAddress }})
         </Button>
         <Button
           v-if="!anyAllowed"
           variant="outline"
-          size="sm"
-          class="h-7 text-xs"
+          size="xs"
           :disabled="adding"
           @click="anyAddressDialogOpen = true"
         >
-          <Earth :size="12" />
+          <Earth />
           Allow connections from anywhere
         </Button>
       </div>
@@ -159,34 +158,33 @@ async function remove(range: string) {
         <span class="font-mono text-xs text-foreground">{{ rule.range }}</span>
         <span class="min-w-0 flex-1 truncate text-xs text-muted-foreground">{{ rule.description }}</span>
       </template>
-      <Button
-        variant="ghost"
-        size="icon"
-        class="h-6 w-6 shrink-0"
+      <IconButton
+        :label="`Remove ${rule.range}`"
+        size="icon-xs"
+        class="shrink-0"
         :disabled="removing === rule.range"
-        :aria-label="`Remove ${rule.range}`"
         @click="remove(rule.range)"
       >
-        <X :size="12" />
-      </Button>
+        <Trash2 />
+      </IconButton>
     </div>
 
     <form class="flex gap-1.5" @submit.prevent="allowEntered">
       <Input
         v-model="newRange"
         placeholder="203.0.113.7 or 203.0.113.0/24"
-        class="h-8 flex-1 font-mono text-xs"
+        class="flex-1 font-mono text-xs"
         aria-label="Address or range"
       />
       <Input
         v-model="newDescription"
         placeholder="Description (optional)"
         maxlength="64"
-        class="h-8 flex-1 text-xs"
+        class="flex-1 text-xs"
         aria-label="Description"
       />
-      <Button type="submit" size="sm" class="h-8 text-xs" :disabled="adding || !newRange.trim()">
-        <Plus :size="12" />
+      <Button type="submit" :disabled="adding || !newRange.trim()">
+        <Plus />
         Allow
       </Button>
     </form>

@@ -187,7 +187,7 @@ async function handleOpenPortal() {
           </p>
         </div>
         <PlanPicker v-model="trialSelectedPlan" :disabled="selectingPlan" />
-        <Button size="sm" :disabled="selectingPlan" @click="selectPlan(trialSelectedPlan)">
+        <Button :disabled="selectingPlan" @click="selectPlan(trialSelectedPlan)">
           {{ selectingPlan ? 'Working...' : `Continue with ${trialSelectedPlan === Plan.Pro ? 'Pro' : 'Hobby'}` }}
         </Button>
       </section>
@@ -276,8 +276,8 @@ async function handleOpenPortal() {
         <p class="text-xs leading-[18px] text-muted-foreground">
           Invoices and payment methods live in the billing portal.
         </p>
-        <Button variant="outline" size="sm" class="shrink-0" :disabled="openingPortal" @click="handleOpenPortal">
-          <ExternalLink :size="14" class="mr-1.5" />
+        <Button variant="outline" class="shrink-0" :disabled="openingPortal" @click="handleOpenPortal">
+          <ExternalLink />
           {{ openingPortal ? 'Opening...' : 'Open portal' }}
         </Button>
       </div>

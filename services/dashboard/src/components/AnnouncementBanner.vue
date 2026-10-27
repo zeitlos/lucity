@@ -2,7 +2,7 @@
 import { onMounted, ref, watchEffect } from 'vue';
 import { useElementSize } from '@vueuse/core';
 import { Info, OctagonAlert, TriangleAlert, X } from '@lucide/vue';
-import { Button } from '@/components/ui/button';
+import IconButton from '@/components/IconButton.vue';
 
 interface Banner {
   id: string;
@@ -52,16 +52,15 @@ function dismiss(id: string) {
   >
     <component :is="tones[banner.severity].icon" :size="14" class="banner-icon mt-px shrink-0 sm:mt-0" />
     <span class="text-pretty">{{ banner.message }}</span>
-    <Button
+    <IconButton
+      label="Dismiss"
       v-if="banner.dismissible"
-      variant="ghost"
-      size="icon"
-      class="absolute top-1/2 right-1 h-6 w-6 -translate-y-1/2 text-muted-foreground sm:right-2"
-      aria-label="Dismiss"
+      size="icon-xs"
+      class="absolute top-1/2 right-1 -translate-y-1/2 text-muted-foreground sm:right-2"
       @click="dismiss(banner.id)"
     >
       <X />
-    </Button>
+    </IconButton>
   </div>
 </template>
 

@@ -4,7 +4,7 @@ import { useQuery } from '@vue/apollo-composable';
 import { X, ShieldCheck, ExternalLink, Layers, Package } from '@lucide/vue';
 import { onKeyStroke } from '@vueuse/core';
 import { graphql } from '@/gql';
-import { Button } from '@/components/ui/button';
+import IconButton from '@/components/IconButton.vue';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { severityStyle, severityLabel } from '@/lib/severity';
@@ -93,14 +93,12 @@ function sourceLabel(source: string): string {
         <h2 class="truncate text-sm font-semibold text-foreground">Vulnerabilities</h2>
         <p class="truncate text-xs text-muted-foreground">{{ serviceName }}</p>
       </div>
-      <Button
-        variant="ghost"
-        size="icon"
-        class="h-7 w-7"
+      <IconButton
+        label="Close" shortcut="Esc"
         @click="emit('close')"
       >
-        <X :size="16" />
-      </Button>
+        <X />
+      </IconButton>
     </div>
 
     <ScrollArea class="flex-1">

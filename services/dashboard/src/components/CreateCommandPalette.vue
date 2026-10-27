@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import IconButton from '@/components/IconButton.vue';
 import { devicon } from '@/lib/devicons';
 import { ref, computed, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
@@ -1048,12 +1049,14 @@ void activeEnvironment;
           <!-- GitHub repos view -->
           <template v-if="view === 'github-repos'">
             <div class="flex items-center border-b px-3">
-              <button
-                class="mr-1 shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
+              <IconButton
+                label="Back"
+                size="icon-xs"
+                class="mr-1 shrink-0"
                 @click="view = 'main'"
               >
-                <ArrowLeft :size="16" />
-              </button>
+                <ArrowLeft />
+              </IconButton>
               <Search :size="16" class="shrink-0 text-muted-foreground" />
               <input
                 ref="inputRef"
@@ -1072,8 +1075,8 @@ void activeEnvironment;
                 <p class="mt-1 text-xs text-muted-foreground">
                   Link your GitHub account to browse and import repositories.
                 </p>
-                <Button size="sm" class="mt-3" @click="openInstallPopup()">
-                  <GithubIcon :size="14" class="mr-1.5" primary />
+                <Button class="mt-3" @click="openInstallPopup()">
+                  <GithubIcon :size="14" primary />
                   Connect GitHub
                 </Button>
               </div>
@@ -1147,8 +1150,8 @@ void activeEnvironment;
                 <p class="mt-1 text-xs text-muted-foreground">
                   Install the Lucity GitHub App on your account or organization.
                 </p>
-                <Button size="sm" class="mt-3" @click="openInstallPopup()">
-                  <Plus :size="14" class="mr-1.5" />
+                <Button class="mt-3" @click="openInstallPopup()">
+                  <Plus />
                   Add GitHub Account
                 </Button>
               </div>
@@ -1199,12 +1202,14 @@ void activeEnvironment;
           <!-- Container image view -->
           <template v-if="view === 'container-image'">
             <div class="flex items-center border-b px-3">
-              <button
-                class="mr-1 shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
+              <IconButton
+                label="Back"
+                size="icon-xs"
+                class="mr-1 shrink-0"
                 @click="view = 'main'"
               >
-                <ArrowLeft :size="16" />
-              </button>
+                <ArrowLeft />
+              </IconButton>
               <Search :size="16" class="shrink-0 text-muted-foreground" />
               <input
                 ref="inputRef"
@@ -1290,12 +1295,14 @@ void activeEnvironment;
           <!-- Redis view -->
           <template v-if="view === 'keyValueStore'">
             <div class="flex h-12 items-center border-b px-3">
-              <button
-                class="mr-1 shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
+              <IconButton
+                label="Back"
+                size="icon-xs"
+                class="mr-1 shrink-0"
                 @click="view = 'main'"
               >
-                <ArrowLeft :size="16" />
-              </button>
+                <ArrowLeft />
+              </IconButton>
               <span class="ml-1 text-sm font-medium text-foreground">Redis</span>
               <div class="flex-1" />            </div>
             <div class="space-y-4 p-4">
@@ -1321,12 +1328,14 @@ void activeEnvironment;
           <!-- Object storage view -->
           <template v-if="view === 'bucket'">
             <div class="flex h-12 items-center border-b px-3">
-              <button
-                class="mr-1 shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
+              <IconButton
+                label="Back"
+                size="icon-xs"
+                class="mr-1 shrink-0"
                 @click="view = 'main'"
               >
-                <ArrowLeft :size="16" />
-              </button>
+                <ArrowLeft />
+              </IconButton>
               <span class="ml-1 text-sm font-medium text-foreground">Bucket</span>
               <div class="flex-1" />            </div>
             <div class="space-y-4 p-4">
@@ -1352,12 +1361,14 @@ void activeEnvironment;
           <!-- Volume view -->
           <template v-if="view === 'volume'">
             <div class="flex h-12 items-center border-b px-3">
-              <button
-                class="mr-1 shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
+              <IconButton
+                label="Back"
+                size="icon-xs"
+                class="mr-1 shrink-0"
                 @click="volumeStep === 'size' ? (volumeStep = 'name') : (view = 'main')"
               >
-                <ArrowLeft :size="16" />
-              </button>
+                <ArrowLeft />
+              </IconButton>
               <span class="ml-1 text-sm font-medium text-foreground">Volume</span>
               <div class="flex-1" />            </div>
 
@@ -1415,12 +1426,14 @@ void activeEnvironment;
           <!-- Name project view -->
           <template v-if="view === 'name-project'">
             <div class="flex h-12 items-center border-b px-3">
-              <button
-                class="mr-1 shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
+              <IconButton
+                label="Back"
+                size="icon-xs"
+                class="mr-1 shrink-0"
                 @click="view = 'main'"
               >
-                <ArrowLeft :size="16" />
-              </button>
+                <ArrowLeft />
+              </IconButton>
               <span class="ml-1 text-sm font-medium text-foreground">New Project</span>
               <div class="flex-1" />            </div>
             <form
@@ -1473,12 +1486,14 @@ void activeEnvironment;
           <!-- Select detected service view (shown when a repo yields more than one) -->
           <template v-if="view === 'select-services'">
             <div class="flex h-12 items-center border-b px-3">
-              <button
-                class="mr-1 shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
+              <IconButton
+                label="Back"
+                size="icon-xs"
+                class="mr-1 shrink-0"
                 @click="selectServicesBack"
               >
-                <ArrowLeft :size="16" />
-              </button>
+                <ArrowLeft />
+              </IconButton>
               <span class="ml-1 text-sm font-medium text-foreground">Select a service</span>
               <div class="flex-1" />            </div>
             <div class="max-h-[320px] overflow-y-auto p-1">
@@ -1510,12 +1525,14 @@ void activeEnvironment;
           <!-- Service wizard view (single-input, step-driven) -->
           <template v-if="view === 'service-wizard'">
             <div class="flex items-center border-b px-3">
-              <button
-                class="mr-1 shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
+              <IconButton
+                label="Back"
+                size="icon-xs"
+                class="mr-1 shrink-0"
                 @click="wizardBack"
               >
-                <ArrowLeft :size="16" />
-              </button>
+                <ArrowLeft />
+              </IconButton>
               <FrameworkIcon
                 v-if="serviceStep === 'name'"
                 :framework="activeDetected?.framework"
