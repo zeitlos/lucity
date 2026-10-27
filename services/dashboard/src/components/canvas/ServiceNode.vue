@@ -43,6 +43,8 @@ const emit = defineEmits<{
 
 const isFromRepo = computed(() => !!props.data.sourceUrl);
 
+const gitMask = `url("${devicon('git')}")`;
+
 const statusTone = computed(() => {
   switch (props.data.status) {
     case ServiceStatus.Healthy:
@@ -200,8 +202,8 @@ const hostUrl = computed(() => {
               width: '12px',
               height: '12px',
               backgroundColor: 'currentColor',
-              maskImage: `url(${devicon('git')})`,
-              WebkitMaskImage: `url(${devicon('git')})`,
+              maskImage: gitMask,
+              WebkitMaskImage: gitMask,
               maskSize: 'contain',
               WebkitMaskSize: 'contain',
               maskRepeat: 'no-repeat',
