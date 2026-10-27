@@ -1,30 +1,14 @@
 <script setup lang="ts">
-import FormFooter from '@/components/FormFooter.vue';
-import { useUnsavedChanges } from '@/composables/useUnsavedChanges';
 import { ref, watch, computed } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
-import { Plus, Trash2, Link, Unlink, Eye, EyeOff } from '@lucide/vue';
-import SourceIcon from '@/components/SourceIcon.vue';
 import { graphql } from '@/gql';
 import { useEnvironment } from '@/composables/useEnvironment';
-import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { darkTooltipClass } from '@/lib/tooltip';
-import IconButton from '@/components/IconButton.vue';
-import { Input } from '@/components/ui/input';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command';
+import { useUnsavedChanges } from '@/composables/useUnsavedChanges';
+import FormFooter from '@/components/FormFooter.vue';
+import VariablesEditor from '@/components/VariablesEditor.vue';
 import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
-import { parseEnvAssignments } from '@/lib/env';
+import type { VariableReference, VariableRow, VariableSourceTypename } from '@/lib/variables';
 
 const ServiceVariablesDocument = graphql(`
   query ServiceVariables($service: ServiceID!) {
@@ -66,20 +50,8 @@ const props = defineProps<{
 const { activeEnvironment } = useEnvironment();
 const environmentId = computed(() => activeEnvironment.value?.id ?? '');
 
-// ── Row state ─────────────────────────────────────────────────────────
-
-interface VarRow {
-  key: string;
-  value: string;
-  ref: string | null;
-  revealed?: boolean;
-}
-
-const rows = ref<VarRow[]>([]);
+const rows = ref<VariableRow[]>([]);
 const hasChanges = ref(false);
-const openPopoverIndex = ref<number | null>(null);
-
-// ── Queries ───────────────────────────────────────────────────────────
 
 const { result, loading, refetch } = useQuery(
   ServiceVariablesDocument,
@@ -93,14 +65,19 @@ const { result: availableResult } = useQuery(
   () => ({ enabled: !!environmentId.value }),
 );
 
+const references = computed<VariableReference[]>(() =>
+  (availableResult.value?.availableVariables ?? []).map(v => ({
+    id: v.id,
+    key: v.key,
+    typename: v.source.__typename as VariableSourceTypename,
+    sourceName: v.source.name,
+  })),
+);
+
 function resetRows() {
   const vars = result.value?.serviceVariables;
   if (!vars) return;
-  rows.value = vars.map((v) => ({
-    key: v.key,
-    value: v.value ?? '',
-    ref: v.ref ?? null,
-  }));
+  rows.value = vars.map(v => ({ key: v.key, value: v.value ?? '', ref: v.ref ?? null }));
   hasChanges.value = false;
 }
 
@@ -110,154 +87,19 @@ watch(() => result.value?.serviceVariables, () => {
 
 useUnsavedChanges(hasChanges);
 
-// ── Reference catalog ─────────────────────────────────────────────────
-
-type SourceTypename = 'DatabaseSource' | 'KeyValueStoreSource' | 'BucketSource' | 'SharedSource';
-
-const SOURCE_LABELS: Record<SourceTypename, string> = {
-  DatabaseSource: 'Postgres',
-  KeyValueStoreSource: 'Redis',
-  BucketSource: 'Object Storage',
-  SharedSource: 'Shared',
-};
-
-function sourceLabel(typename: SourceTypename, name: string): string {
-  const label = SOURCE_LABELS[typename];
-  return name ? `${label}: ${name}` : label;
-}
-
-interface RefOption {
-  id: string;
-  key: string;
-  typename: SourceTypename;
-  sourceName: string;
-}
-
-const availableRefs = computed<RefOption[]>(() =>
-  (availableResult.value?.availableVariables ?? []).map((v) => ({
-    id: v.id,
-    key: v.key,
-    typename: v.source.__typename as SourceTypename,
-    sourceName: v.source.name,
-  })),
-);
-
-interface RefGroup {
-  key: string;
-  typename: SourceTypename;
-  label: string;
-  items: RefOption[];
-}
-
-const refGroups = computed<RefGroup[]>(() => {
-  const map = new Map<string, RefGroup>();
-  for (const opt of availableRefs.value) {
-    const key = `${opt.typename}:${opt.sourceName}`;
-    let group = map.get(key);
-    if (!group) {
-      group = { key, typename: opt.typename, label: sourceLabel(opt.typename, opt.sourceName), items: [] };
-      map.set(key, group);
-    }
-    group.items.push(opt);
-  }
-  return [...map.values()];
-});
-
-const refById = computed(() => {
-  const map = new Map<string, RefOption>();
-  for (const opt of availableRefs.value) {
-    map.set(opt.id, opt);
-  }
-  return map;
-});
-
-// ── Row actions ───────────────────────────────────────────────────────
-
-function addRow() {
-  rows.value.push({ key: '', value: '', ref: null, revealed: true });
-  hasChanges.value = true;
-}
-
-// ── Concealment ───────────────────────────────────────────────────────
-
-const valueRows = computed(() => rows.value.filter((r) => !r.ref));
-const allRevealed = computed(
-  () => valueRows.value.length > 0 && valueRows.value.every((r) => r.revealed),
-);
-
-function toggleAll() {
-  const next = !allRevealed.value;
-  for (const row of rows.value) {
-    if (!row.ref) row.revealed = next;
-  }
-}
-
-function onPasteKey(event: ClipboardEvent, index: number) {
-  const parsed = parseEnvAssignments(event.clipboardData?.getData('text') ?? '');
-
-  if (parsed.length === 0) return;
-
-  event.preventDefault();
-  rows.value.splice(index, 1, ...parsed.map((p) => ({ key: p.key, value: p.value, ref: null })));
-  hasChanges.value = true;
-}
-
-function selectRef(index: number, opt: RefOption) {
-  const row = rows.value[index]!;
-  row.ref = opt.id;
-  row.value = '';
-  if (!row.key.trim()) {
-    row.key = opt.key.toUpperCase();
-  }
-  hasChanges.value = true;
-  openPopoverIndex.value = null;
-}
-
-function clearRef(index: number) {
-  rows.value[index]!.ref = null;
-  hasChanges.value = true;
-}
-
-function removeRow(index: number) {
-  rows.value.splice(index, 1);
-  hasChanges.value = true;
-}
-
-function markChanged() {
-  hasChanges.value = true;
-}
-
-function isRefRow(row: VarRow): boolean {
-  return !!row.ref;
-}
-
-function refInfo(row: VarRow): { typename: SourceTypename | null; label: string; key: string } {
-  const opt = row.ref ? refById.value.get(row.ref) : undefined;
-
-  if (opt) {
-    return { typename: opt.typename, label: opt.sourceName || SOURCE_LABELS[opt.typename], key: opt.key };
-  }
-
-  return { typename: null, label: 'Reference', key: row.ref?.split('/').pop() ?? '' };
-}
-
-// ── Save ──────────────────────────────────────────────────────────────
-
 const { mutate: setVarsMutate, loading: saving } = useMutation(SetServiceVariablesDocument);
 
 async function handleSave() {
-  const validRows = rows.value.filter((r) => r.key.trim());
   try {
-    const variables = validRows.map((r) => ({
-      key: r.key.trim(),
-      value: r.ref ? undefined : r.value,
-      ref: r.ref ?? undefined,
-    }));
+    const variables = rows.value
+      .filter(r => r.key.trim())
+      .map(r => ({
+        key: r.key.trim(),
+        value: r.ref ? undefined : r.value,
+        ref: r.ref ?? undefined,
+      }));
 
-    const res = await setVarsMutate({
-      service: props.serviceId,
-      variables,
-    });
+    const res = await setVarsMutate({ service: props.serviceId, variables });
 
     if (res?.errors?.length) {
       errorToast('Failed to save variables', {
@@ -277,165 +119,16 @@ async function handleSave() {
 
 <template>
   <div class="space-y-4">
-
-    <!-- Loading state -->
-    <div v-if="loading" class="space-y-2">
-      <Skeleton class="h-10 w-full" />
-      <Skeleton class="h-10 w-full" />
-    </div>
-
-    <!-- Variable rows -->
-    <div v-else class="space-y-2">
-      <div
-        v-for="(row, index) in rows"
-        :key="index"
-        class="flex items-center gap-2"
-      >
-        <!-- Key input -->
-        <Input
-          v-model="row.key"
-          placeholder="KEY"
-          class="flex-1 font-mono text-sm"
-          @input="markChanged"
-          @paste="onPasteKey($event, index)"
-        />
-
-        <!-- Value with integrated reference control -->
-        <div class="flex flex-1">
-          <!-- Link to a dynamic value -->
-          <Popover
-            v-if="!isRefRow(row)"
-            :open="openPopoverIndex === index"
-            @update:open="(v: boolean) => openPopoverIndex = v ? index : null"
-          >
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <PopoverTrigger as-child>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    class="shrink-0 rounded-r-none border-r-0"
-                    :disabled="availableRefs.length === 0"
-                    aria-label="Link to a dynamic value"
-                  >
-                    <Link class="opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-              </TooltipTrigger>
-              <TooltipContent :class="darkTooltipClass">Link to a dynamic value</TooltipContent>
-            </Tooltip>
-            <PopoverContent
-              class="w-80 p-0"
-              align="start"
-            >
-              <Command>
-                <CommandInput placeholder="Search references..." />
-                <CommandList>
-                  <CommandEmpty>No references found.</CommandEmpty>
-                  <CommandGroup
-                    v-for="group in refGroups"
-                    :key="group.key"
-                  >
-                    <div class="flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium text-muted-foreground">
-                      <SourceIcon :typename="group.typename" />
-                      {{ group.label }}
-                    </div>
-                    <CommandItem
-                      v-for="opt in group.items"
-                      :key="opt.id"
-                      :value="opt.id"
-                      class="font-mono text-xs"
-                      @select="selectRef(index, opt)"
-                    >
-                      {{ opt.key }}
-                    </CommandItem>
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-
-          <!-- Detach from a dynamic value -->
-          <IconButton
-            label="Detach from dynamic value"
-            v-else
-            variant="outline"
-            size="icon"
-            class="shrink-0 rounded-r-none border-r-0"
-            @click="clearRef(index)"
-          >
-            <Unlink class="opacity-50" />
-          </IconButton>
-
-          <!-- Linked value display -->
-          <div
-            v-if="isRefRow(row)"
-            class="magic-border flex h-9 flex-1 items-center gap-1.5 rounded-md rounded-l-none px-3"
-          >
-            <SourceIcon :typename="refInfo(row).typename" />
-            <span class="text-xs font-medium">{{ refInfo(row).label }}</span>
-            <span class="text-muted-foreground/40">·</span>
-            <span class="font-mono text-xs text-muted-foreground">{{ refInfo(row).key }}</span>
-          </div>
-
-          <!-- Plain value input -->
-          <div v-else class="relative flex-1">
-            <Input
-              v-model="row.value"
-              :type="row.revealed ? 'text' : 'password'"
-              placeholder="value"
-              autocomplete="off"
-              data-1p-ignore="true"
-              class="w-full rounded-l-none pr-9 font-mono text-sm"
-              @input="markChanged"
-            />
-            <IconButton
-              :label="row.revealed ? 'Hide value' : 'Show value'"
-              size="icon"
-              tabindex="-1"
-              class="absolute right-0 top-0 text-muted-foreground hover:bg-transparent"
-              @click="row.revealed = !row.revealed"
-            >
-              <EyeOff v-if="row.revealed" />
-              <Eye v-else />
-            </IconButton>
-          </div>
-        </div>
-
-        <!-- Delete -->
-        <IconButton
-          :label="`Delete ${row.key || 'variable'}`"
-          size="icon"
-          class="shrink-0 text-muted-foreground hover:text-destructive"
-          @click="removeRow(index)"
-        >
-          <Trash2 />
-        </IconButton>
-      </div>
-
-      <!-- Empty state -->
-      <div v-if="rows.length === 0" class="rounded-lg border border-dashed p-6 text-center">
+    <VariablesEditor
+      v-model:rows="rows"
+      :references="references"
+      :loading="loading"
+      @change="hasChanges = true"
+    >
+      <template #empty>
         <p class="text-sm text-muted-foreground">No variables configured for this service.</p>
-      </div>
-
-      <!-- Actions -->
-      <div class="flex items-center gap-2 pt-2">
-        <Button variant="outline" @click="addRow">
-          <Plus />
-          Add Variable
-        </Button>
-        <Button
-          v-if="valueRows.length > 0"
-          variant="ghost"
-          class="text-muted-foreground"
-          @click="toggleAll"
-        >
-          <EyeOff v-if="allRevealed" />
-          <Eye v-else />
-          {{ allRevealed ? 'Hide all' : 'Show all' }}
-        </Button>
-      </div>
-    </div>
+      </template>
+    </VariablesEditor>
 
     <FormFooter
       class="sticky bottom-0 -mx-4 -mb-4 bg-card"
@@ -450,24 +143,3 @@ async function handleSave() {
     </FormFooter>
   </div>
 </template>
-
-<style scoped>
-.magic-border {
-  border: 1.5px solid transparent;
-  background:
-    linear-gradient(var(--background), var(--background)) padding-box,
-    linear-gradient(90deg, #f43f5e, #f59e0b, #facc15, #22c55e, #3b82f6, #a855f7, #f43f5e) border-box;
-  background-size:
-    100% 100%,
-    200% 100%;
-  animation: magic-flow 5s linear infinite;
-}
-
-@keyframes magic-flow {
-  to {
-    background-position:
-      0 0,
-      -200% 0;
-  }
-}
-</style>

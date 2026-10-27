@@ -444,8 +444,8 @@ watch(
 
         <DropdownMenu>
           <Tooltip>
-            <TooltipTrigger as-child>
-              <DropdownMenuTrigger as-child>
+            <DropdownMenuTrigger as-child>
+              <TooltipTrigger as-child>
                 <Button
                   variant="ghost"
                   size="icon-sm"
@@ -454,8 +454,8 @@ watch(
                 >
                   <MoreVertical />
                 </Button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
+              </TooltipTrigger>
+            </DropdownMenuTrigger>
             <TooltipContent :class="darkTooltipClass">More actions</TooltipContent>
           </Tooltip>
           <DropdownMenuContent align="end">
@@ -561,8 +561,8 @@ watch(
 
             <DropdownMenu v-if="releaseGitHubURL(release)">
               <Tooltip>
-                <TooltipTrigger as-child>
-                  <DropdownMenuTrigger as-child>
+                <DropdownMenuTrigger as-child>
+                  <TooltipTrigger as-child>
                     <Button
                       variant="ghost"
                       size="icon-sm"
@@ -571,8 +571,8 @@ watch(
                     >
                       <MoreVertical />
                     </Button>
-                  </DropdownMenuTrigger>
-                </TooltipTrigger>
+                  </TooltipTrigger>
+                </DropdownMenuTrigger>
                 <TooltipContent :class="darkTooltipClass">More actions</TooltipContent>
               </Tooltip>
               <DropdownMenuContent align="end">
