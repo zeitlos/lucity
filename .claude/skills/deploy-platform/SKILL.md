@@ -70,6 +70,9 @@ for the gitignored secrets files live once, at `deployments/secrets.yaml.example
   regardless of your current context. Still, verify the context exists and is reachable.
 - Always pass `VERSION=` explicitly. Without it, Helm resolves the highest stable tag, which
   ranks below every prerelease and snapshot build, and silently downgrades.
+- **Deploy committed values only.** The make targets read `deployments/lucity-<env>/` from the
+  working tree, and other sessions edit those files in parallel. Uncommitted changes there
+  (other than your own approved edits) are a blocker, checked again right before each apply.
 
 ## Output contract
 
@@ -91,7 +94,8 @@ wants the conclusions. Emit user-facing text at exactly these moments:
 2. **One short result** after Step 5: what deployed where, the new revision, and rollout health.
 
 A **blocker** interrupts this and gets reported the moment you hit it: a failed dev gate,
-broken git ancestry, an unreachable cluster, a detected downgrade, or missing/new secrets.
+broken git ancestry, an unreachable cluster, a detected downgrade, missing/new secrets, or
+uncommitted changes in `deployments/lucity-<env>/` that you did not make.
 
 ## Step 1 — in parallel: pick the target, list versions, read what is installed
 
@@ -305,7 +309,19 @@ helm diff upgrade lucity-infra oci://ghcr.io/zeitlos/lucity/charts/lucity-infra 
 ## Step 5 — apply, then check rollout health
 
 Once approved, either **automatically** (Step 4 found nothing outstanding and no blocker) or by
-the user's explicit go-ahead, apply. For both charts, infra goes first:
+the user's explicit go-ahead, apply. For both charts, infra goes first.
+
+Immediately before **each** `make` (not once per session: another session can save a values
+file between your preview and the apply), confirm the tracked values files match `HEAD`. The
+gitignored secrets files never show up here:
+
+```sh
+git status --porcelain -- deployments/lucity-$ENV/     # must print nothing, or only your own approved edits
+```
+
+Anything else there is a blocker: stop and report the file and its diff. On 2026-10-28 a prod
+apply picked up another session's half-finished buildkit edit saved two minutes earlier; the
+upgrade failed on a volume shrink and left the release `failed` with buildkit recreated.
 
 ```sh
 make deploy-$ENV-infra VERSION=<selected-version>     # infra
