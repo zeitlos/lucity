@@ -11,7 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/zeitlos/lucity/services/switchboard/acp"
+	"github.com/zeitlos/lucity/pkg/acp"
 	"github.com/zeitlos/lucity/services/switchboard/telegram"
 )
 

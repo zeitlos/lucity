@@ -35,13 +35,14 @@ type Command struct {
 }
 
 type Update struct {
-	Kind       string          `json:"sessionUpdate"`
-	Content    json.RawMessage `json:"content"`
-	ToolCallID string          `json:"toolCallId"`
-	Title      string          `json:"title"`
-	ToolKind   string          `json:"kind"`
-	Status     string          `json:"status"`
-	RawInput   json.RawMessage `json:"rawInput"`
+	Kind          string          `json:"sessionUpdate"`
+	Content       json.RawMessage `json:"content"`
+	ToolCallID    string          `json:"toolCallId"`
+	Title         string          `json:"title"`
+	ToolKind      string          `json:"kind"`
+	Status        string          `json:"status"`
+	RawInput      json.RawMessage `json:"rawInput"`
+	ConfigOptions []ConfigOption  `json:"configOptions"`
 }
 
 func (u Update) Text() string {
@@ -74,7 +75,57 @@ type PermissionRequest struct {
 	Options   []PermissionOption `json:"options"`
 }
 
+type Session struct {
+	ID            string         `json:"sessionId"`
+	ConfigOptions []ConfigOption `json:"configOptions"`
+}
+
+type ConfigOption struct {
+	ID           string          `json:"id"`
+	Name         string          `json:"name"`
+	Category     string          `json:"category"`
+	Type         string          `json:"type"`
+	CurrentValue json.RawMessage `json:"currentValue"`
+	Options      []ConfigValue   `json:"options"`
+}
+
+type ConfigValue struct {
+	Value   string        `json:"value"`
+	Name    string        `json:"name"`
+	Options []ConfigValue `json:"options"`
+}
+
+func (o ConfigOption) Current() string {
+	var value string
+	if json.Unmarshal(o.CurrentValue, &value) != nil {
+		return ""
+	}
+	return value
+}
+
+func (o ConfigOption) Values() []ConfigValue {
+	var values []ConfigValue
+	for _, option := range o.Options {
+		if len(option.Options) > 0 {
+			values = append(values, option.Options...)
+			continue
+		}
+		values = append(values, option)
+	}
+	return values
+}
+
+func FindConfigOption(options []ConfigOption, category string) (ConfigOption, bool) {
+	for _, option := range options {
+		if option.Category == category {
+			return option, true
+		}
+	}
+	return ConfigOption{}, false
+}
+
 type Client struct {
+	name      string
 	handler   Handler
 	cmd       *exec.Cmd
 	stdin     io.WriteCloser
@@ -120,7 +171,7 @@ type reply struct {
 	err    error
 }
 
-func Start(ctx context.Context, command Command, handler Handler) (*Client, error) {
+func Start(ctx context.Context, name string, command Command, handler Handler) (*Client, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	cmd := exec.CommandContext(ctx, command.Path, command.Args...)
 	cmd.Dir = command.Dir
@@ -145,6 +196,7 @@ func Start(ctx context.Context, command Command, handler Handler) (*Client, erro
 	}
 
 	client := &Client{
+		name:    name,
 		handler: handler,
 		cmd:     cmd,
 		stdin:   stdin,
@@ -162,20 +214,30 @@ func Start(ctx context.Context, command Command, handler Handler) (*Client, erro
 	return client, nil
 }
 
-func (c *Client) NewSession(ctx context.Context, cwd string, mcpServers []json.RawMessage) (string, error) {
-	var result struct {
-		SessionID string `json:"sessionId"`
-	}
-	err := c.call(ctx, "session/new", map[string]any{"cwd": cwd, "mcpServers": servers(mcpServers)}, &result)
-	return result.SessionID, err
+func (c *Client) NewSession(ctx context.Context, cwd string, mcpServers []json.RawMessage, meta map[string]any) (Session, error) {
+	var session Session
+	err := c.call(ctx, "session/new", sessionParams("", cwd, mcpServers, meta), &session)
+	return session, err
 }
 
-func (c *Client) ResumeSession(ctx context.Context, sessionID, cwd string, mcpServers []json.RawMessage) error {
+func (c *Client) ResumeSession(ctx context.Context, sessionID, cwd string, mcpServers []json.RawMessage, meta map[string]any) (Session, error) {
 	method := "session/load"
 	if c.canResume {
 		method = "session/resume"
 	}
-	return c.call(ctx, method, map[string]any{"sessionId": sessionID, "cwd": cwd, "mcpServers": servers(mcpServers)}, nil)
+	session := Session{ID: sessionID}
+	err := c.call(ctx, method, sessionParams(sessionID, cwd, mcpServers, meta), &session)
+	session.ID = sessionID
+	return session, err
+}
+
+func (c *Client) SetConfigOption(ctx context.Context, sessionID, configID, value string) ([]ConfigOption, error) {
+	var result struct {
+		ConfigOptions []ConfigOption `json:"configOptions"`
+	}
+	params := map[string]string{"sessionId": sessionID, "configId": configID, "value": value}
+	err := c.call(ctx, "session/set_config_option", params, &result)
+	return result.ConfigOptions, err
 }
 
 func (c *Client) Prompt(ctx context.Context, sessionID, text string) (string, error) {
@@ -239,13 +301,13 @@ func (c *Client) initialize(ctx context.Context) error {
 			"fs":       map[string]bool{"readTextFile": false, "writeTextFile": false},
 			"terminal": false,
 		},
-		"clientInfo": map[string]string{"name": "switchboard", "version": "0.1.0"},
+		"clientInfo": map[string]string{"name": c.name, "version": "0.1.0"},
 	}, &result)
 	if err != nil {
 		return err
 	}
 	if result.ProtocolVersion != protocolVersion {
-		return fmt.Errorf("agent speaks ACP version %d, switchboard speaks %d", result.ProtocolVersion, protocolVersion)
+		return fmt.Errorf("agent speaks ACP version %d, %s speaks %d", result.ProtocolVersion, c.name, protocolVersion)
 	}
 	c.canResume = result.AgentCapabilities.SessionCapabilities.Resume != nil
 	return nil
@@ -274,7 +336,7 @@ func (c *Client) call(ctx context.Context, method string, params, result any) er
 		if r.err != nil {
 			return fmt.Errorf("%s: %w", method, r.err)
 		}
-		if result == nil {
+		if result == nil || len(r.result) == 0 || string(r.result) == "null" {
 			return nil
 		}
 		return json.Unmarshal(r.result, result)
@@ -401,9 +463,16 @@ func (c *Client) respond(id json.RawMessage, result any, rpcErr *rpcError) {
 	}
 }
 
-func servers(mcpServers []json.RawMessage) []json.RawMessage {
+func sessionParams(sessionID, cwd string, mcpServers []json.RawMessage, meta map[string]any) map[string]any {
 	if mcpServers == nil {
-		return []json.RawMessage{}
+		mcpServers = []json.RawMessage{}
 	}
-	return mcpServers
+	params := map[string]any{"cwd": cwd, "mcpServers": mcpServers}
+	if sessionID != "" {
+		params["sessionId"] = sessionID
+	}
+	if meta != nil {
+		params["_meta"] = meta
+	}
+	return params
 }
