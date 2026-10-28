@@ -20,9 +20,7 @@ var (
 
 	DefaultCPUQuota     = resource.MustParse("32")
 	DefaultMemoryQuota  = resource.MustParse("64Gi")
-	DefaultStorageQuota = resource.MustParse("4Ti")
-
-	MaxDatabaseStorage = resource.MustParse("1Ti")
+	DefaultStorageQuota = resource.MustParse("512Gi")
 )
 
 const (

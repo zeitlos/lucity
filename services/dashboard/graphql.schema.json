@@ -5963,7 +5963,7 @@
           },
           {
             "name": "createKeyValueStore",
-            "description": "Creates a key-value store in an environment. `size` defaults to `1Gi`, up to 1Ti.",
+            "description": "Creates a key-value store in an environment. `size` defaults to `1Gi`, up to 128Gi.",
             "args": [
               {
                 "name": "input",
@@ -6029,7 +6029,7 @@
           },
           {
             "name": "createVolume",
-            "description": "Creates a volume in an environment, with a `size` between `10Gi` and `1Ti`.",
+            "description": "Creates a volume in an environment, with a `size` between `10Gi` and `128Gi`.",
             "args": [
               {
                 "name": "environment",
@@ -6484,7 +6484,7 @@
           },
           {
             "name": "expandVolume",
-            "description": "Grows a volume, up to 1Ti, without a restart. A volume can grow once a running service uses it, and it can't shrink.",
+            "description": "Grows a volume, up to 128Gi, without a restart. A volume can grow once a running service uses it, and it can't shrink.",
             "args": [
               {
                 "name": "size",
@@ -7238,7 +7238,7 @@
           },
           {
             "name": "setDatabaseStorage",
-            "description": "Grows the storage of a database to `size`, such as `32Gi`, up to 1Ti. Storage can't shrink.",
+            "description": "Grows the storage of a database to `size`, such as `32Gi`, up to 128Gi. Storage can't shrink.",
             "args": [
               {
                 "name": "database",

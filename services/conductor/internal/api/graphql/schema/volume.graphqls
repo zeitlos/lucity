@@ -17,9 +17,9 @@ extend type Query {
 }
 
 extend type Mutation {
-  """Creates a volume in an environment, with a `size` between `10Gi` and `1Ti`."""
+  """Creates a volume in an environment, with a `size` between `10Gi` and `128Gi`."""
   createVolume(environment: EnvironmentID!, name: String! @constraint(constraint: "resource_name,min=2,max=16"), size: String!): Volume! @hasRole(role: WORKSPACE_MEMBER)
-  """Grows a volume, up to 1Ti, without a restart. A volume can grow once a running service uses it, and it can't shrink."""
+  """Grows a volume, up to 128Gi, without a restart. A volume can grow once a running service uses it, and it can't shrink."""
   expandVolume(volume: VolumeID!, size: String!): Volume! @hasRole(role: WORKSPACE_MEMBER)
   """Mounts a volume into a service at an absolute `path`. A volume mounts into one service, and from then on the service runs a single instance and every rollout has a short downtime."""
   mountVolume(volume: VolumeID!, service: ServiceID!, path: String!): Volume! @hasRole(role: WORKSPACE_MEMBER)
