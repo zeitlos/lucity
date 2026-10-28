@@ -2,6 +2,19 @@
 const appUrl = '/app';
 const signInUrl = `${appUrl}/login`;
 const signUpUrl = `${appUrl}/login`;
+
+const tucked = ref(false);
+
+function onScroll() {
+  tucked.value = tucked.value ? window.scrollY > 24 : window.scrollY > 96;
+}
+
+onMounted(() => {
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+});
+
+onBeforeUnmount(() => window.removeEventListener('scroll', onScroll));
 </script>
 
 <template>
@@ -15,7 +28,7 @@ const signUpUrl = `${appUrl}/login`;
 
     <div class="relative grid grid-cols-3 items-center xl:grid-cols-3">
       <NuxtLink to="/" class="flex items-center">
-        <LucityLogo class="text-3xl text-neutral-900 dark:text-neutral-100" />
+        <LandingLogo :tucked="tucked" class="text-3xl text-neutral-900 dark:text-neutral-100" />
       </NuxtLink>
 
       <p class="hidden justify-center text-lg text-neutral-600 xl:flex dark:text-neutral-400">

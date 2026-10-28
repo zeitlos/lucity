@@ -139,7 +139,7 @@ function geometry(s: State) {
   return { L, R, W: Math.max(...xs) - minX, H: left.H };
 }
 
-function sheetPath(s: State) {
+export function logoSheetPath(s: State) {
   const { L, R } = geometry(s);
   return `M ${pt(L.A0)} L ${pt(L.A)} C ${pt(L.b1c1)}, ${pt(L.b1c2)}, ${pt(L.B)} L ${pt(L.C)} C ${pt(L.b2c1)}, ${pt(L.b2c2)}, ${pt(L.D)} L ${pt(L.D1)}`
     + ` L ${pt(R.D1)}`
@@ -166,7 +166,7 @@ function pixelRects(s: State, markW: number, markH: number) {
   const ctx = cv.getContext('2d', { willReadFrequently: true })!;
   ctx.scale(SS / px, SS / px);
   ctx.fillStyle = '#000';
-  ctx.fill(new Path2D(sheetPath(s)));
+  ctx.fill(new Path2D(logoSheetPath(s)));
   const data = ctx.getImageData(0, 0, cv.width, cv.height).data;
   const dither = s.pixStyle === 'Dither';
   const on: boolean[][] = [];
@@ -261,7 +261,7 @@ function maskGrid(s: State, markW: number, markH: number, px: number) {
   const ctx = cv.getContext('2d', { willReadFrequently: true })!;
   ctx.scale(SS / px, SS / px);
   ctx.fillStyle = '#000';
-  ctx.fill(new Path2D(sheetPath(s)));
+  ctx.fill(new Path2D(logoSheetPath(s)));
   const data = ctx.getImageData(0, 0, cv.width, cv.height).data;
   const on: boolean[][] = [];
   for (let r = 0; r < rows; r++) {
@@ -290,19 +290,19 @@ function shadedMark(s: State, markW: number, markH: number, idSuffix: string) {
   const bAt = makeBAt(s);
   const { H } = geometry(s);
   const clipId = `lucity-clip-${idSuffix}`;
-  const clip = `<clipPath id="${clipId}"><path d="${sheetPath(s)}"/></clipPath>`;
+  const clip = `<clipPath id="${clipId}"><path d="${logoSheetPath(s)}"/></clipPath>`;
 
   if (s.shade === 'Gradient') {
     const gid = `lucity-grad-${idSuffix}`;
     const stops = shadeTable(s).map(([y, b]) =>
       `<stop offset="${n(Math.min(1, y! / H))}" stop-color="${mixHex(dark, light, b!)}"/>`).join('');
     const defs = `<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">${stops}</linearGradient></defs>`;
-    return `${defs}<path d="${sheetPath(s)}" fill="url(#${gid})"/>`;
+    return `${defs}<path d="${logoSheetPath(s)}" fill="url(#${gid})"/>`;
   }
 
   const K = +s.shadeK;
   const px = +s.detail;
-  const base = `<path d="${sheetPath(s)}" fill="${light}"/>`;
+  const base = `<path d="${logoSheetPath(s)}" fill="${light}"/>`;
   let tex = '';
   if (s.shade === 'Grain') {
     const g = maskGrid(s, markW, markH, px);
@@ -402,7 +402,7 @@ export function buildLogoMark(s: State, idSuffix = '') {
   } else if (s.shade !== 'Off') {
     mark = shadedMark(s, markW, markH, idSuffix);
   } else {
-    mark = `<path d="${sheetPath(s)}" fill="${s.fill}"/>`;
+    mark = `<path d="${logoSheetPath(s)}" fill="${s.fill}"/>`;
   }
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}">${bgEl}\n  ${mark}\n</svg>`;
@@ -432,10 +432,12 @@ export function buildLogoLockup(s: State, scale: number, idSuffix = '') {
   };
 }
 
-export function useLogoGenerator() {
-  const defaults = () => Object.fromEntries(Object.entries(LOGO_PARAMS).map(([k, v]) => [k, v.value]));
+export function logoDefaults(): State {
+  return Object.fromEntries(Object.entries(LOGO_PARAMS).map(([k, v]) => [k, v.value]));
+}
 
-  const state = useState<State>('logo-generator-state', defaults);
+export function useLogoGenerator() {
+  const state = useState<State>('logo-generator-state', logoDefaults);
   const saved = useState<Record<string, State>>('logo-generator-saved', () => ({}));
   const panelOpen = useState<boolean>('logo-generator-open', () => false);
   const ready = useState<boolean>('logo-generator-ready', () => false);
@@ -481,7 +483,7 @@ export function useLogoGenerator() {
   }
 
   function reset() {
-    state.value = defaults();
+    state.value = logoDefaults();
   }
 
   return { state, saved, panelOpen, ready, fontTick, headerLockup, persist, restore, reset };
