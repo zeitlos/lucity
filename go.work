@@ -4,6 +4,7 @@ use (
 	./charts
 	./cli
 	./pkg
+	./services/agent
 	./services/builder
 	./services/cashier
 	./services/conductor
