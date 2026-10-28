@@ -1,0 +1,104 @@
+"""The coding agent that runs inside an agent."""
+enum Harness {
+  """Claude Code. Uses Anthropic models."""
+  CLAUDE_CODE
+  """Codex. Uses OpenAI models."""
+  CODEX
+  """OpenCode. Uses the models of every provider."""
+  OPENCODE
+}
+
+"""How hard the model thinks before it answers."""
+enum Effort {
+  LOW
+  MEDIUM
+  HIGH
+  MAX
+}
+
+"""Whether an agent may use a connector's tools on its own."""
+enum Approval {
+  """The agent uses the tools without asking."""
+  ALLOW
+  """Every tool call waits for someone in the workspace to allow it."""
+  ASK
+}
+
+enum AgentStatus {
+  """The agent is starting, or can't be reached yet."""
+  STARTING
+  IDLE
+  """At least one session is working."""
+  WORKING
+  """At least one session waits for an approval."""
+  WAITING_FOR_APPROVAL
+  """The agent doesn't start."""
+  FAILED
+}
+
+"""A connector granted to an agent."""
+type AgentConnector {
+  connector: Connector!
+  approval: Approval!
+  """Tools of the connector the agent doesn't see and can't call."""
+  hiddenTools: [String!]!
+}
+
+"""A model an agent can use, from one of the workspace's model providers."""
+type AgentModel {
+  provider: ModelProvider!
+  name: String!
+}
+
+"""An agent in an environment: a harness with instructions, the connectors it is granted and the network it may reach."""
+type Agent {
+  id: AgentID!
+  name: String!
+  harness: Harness!
+  """Written into the harness's own instruction file, next to its system prompt."""
+  instructions: String!
+  status: AgentStatus! @goField(forceResolver: true)
+  connectors: [AgentConnector!]!
+  """Hosts on the internet the agent may reach directly, without credentials. `*.example.com` covers the subdomains of `example.com`."""
+  allowedHosts: [String!]!
+  """Whether the agent may reach the other services of its environment."""
+  privateNetwork: Boolean!
+  """The sessions of the agent, newest first."""
+  sessions: [AgentSession!]! @goField(forceResolver: true)
+}
+
+input AgentConnectorInput {
+  connector: ConnectorID!
+  approval: Approval!
+  """Tool names of the connector to hide from the agent."""
+  hiddenTools: [String!] @constraint(constraint: "max=256,dive,min=1,max=128")
+}
+
+input AgentModelInput {
+  provider: ModelProviderID!
+  name: String! @constraint(constraint: "min=1,max=256")
+}
+
+extend type Environment {
+  agents: [Agent!]! @goField(forceResolver: true)
+}
+
+extend type Query {
+  """One agent."""
+  agent(id: AgentID!): Agent! @hasRole(role: WORKSPACE_MEMBER)
+  """The workspace's models that the agent's harness can use."""
+  agentModels(agent: AgentID!): [AgentModel!]! @hasRole(role: WORKSPACE_MEMBER)
+}
+
+extend type Mutation {
+  """Creates an agent in an environment. It starts without network access beyond the workspace's model providers and the connectors it is granted."""
+  createAgent(environment: EnvironmentID!, name: String! @constraint(constraint: "resource_name,min=2,max=32"), harness: Harness!, instructions: String! @constraint(constraint: "max=65536"), connectors: [AgentConnectorInput!] @constraint(constraint: "max=64")): Agent! @hasRole(role: WORKSPACE_MEMBER)
+  """Changes the harness and instructions of an agent. The agent restarts, and running sessions end."""
+  updateAgent(agent: AgentID!, harness: Harness!, instructions: String! @constraint(constraint: "max=65536")): Agent! @hasRole(role: WORKSPACE_MEMBER)
+  """Replaces the connectors an agent is granted."""
+  setAgentConnectors(agent: AgentID!, connectors: [AgentConnectorInput!]! @constraint(constraint: "max=64")): Agent! @hasRole(role: WORKSPACE_MEMBER)
+  """Replaces the network rules of an agent. `allowedHosts` takes hostnames, or `*.example.com` for the subdomains of a domain. IP addresses and a bare `*` aren't accepted."""
+  setAgentNetwork(agent: AgentID!, allowedHosts: [String!]! @constraint(constraint: "max=64,dive,min=1,max=253"), privateNetwork: Boolean!): Agent! @hasRole(role: WORKSPACE_MEMBER)
+  """Deletes an agent with its sessions and files."""
+  deleteAgent(agent: AgentID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
+}

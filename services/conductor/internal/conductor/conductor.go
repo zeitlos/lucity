@@ -18,6 +18,8 @@ import (
 	"github.com/zeitlos/lucity/pkg/pipeline"
 	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/usererror"
+	"github.com/zeitlos/lucity/services/conductor/internal/agentaudit"
+	"github.com/zeitlos/lucity/services/conductor/internal/agentrunner"
 	"github.com/zeitlos/lucity/services/conductor/internal/backuparchive"
 	"github.com/zeitlos/lucity/services/conductor/internal/billing"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
@@ -30,6 +32,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/scanjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/scanreport"
 	"github.com/zeitlos/lucity/services/conductor/internal/source"
+	"github.com/zeitlos/lucity/services/conductor/internal/upstream"
 	"github.com/zeitlos/lucity/services/conductor/internal/vulnerabilities"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -56,6 +59,9 @@ type Client struct {
 	metrics         *metrics.Provider
 	domains         *domains.Client
 	registry        *registry.Client
+	upstream        *upstream.Client
+	agentRunner     *agentrunner.Client
+	agentAudit      *agentaudit.Client
 
 	config Config
 
@@ -84,9 +90,10 @@ type Config struct {
 	MaxQueuedReleases    int
 	PaidPlacement        values.Placement
 	BackupArchive        *backuparchive.Client
+	AgentsEnabled        bool
 }
 
-func New(billing *billing.Client, githubApp *ghpkg.App, logto *logto.Client, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, deployjob deployjob.Interface, scanjob scanjob.Interface, scanreport *scanreport.Client, vulnerabilities *vulnerabilities.Client, pipeline pipeline.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, deployer deployer.Interface, environment environment.Interface, objectStorage objectstorage.Interface, metrics *metrics.Provider, domains *domains.Client, config Config) *Client {
+func New(billing *billing.Client, githubApp *ghpkg.App, logto *logto.Client, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, deployjob deployjob.Interface, scanjob scanjob.Interface, scanreport *scanreport.Client, vulnerabilities *vulnerabilities.Client, pipeline pipeline.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, deployer deployer.Interface, environment environment.Interface, objectStorage objectstorage.Interface, metrics *metrics.Provider, domains *domains.Client, upstream *upstream.Client, agentRunner *agentrunner.Client, agentAudit *agentaudit.Client, config Config) *Client {
 	return &Client{
 		billing:         billing,
 		gitHubApp:       githubApp,
@@ -109,6 +116,9 @@ func New(billing *billing.Client, githubApp *ghpkg.App, logto *logto.Client, dir
 		objectStorage:   objectStorage,
 		metrics:         metrics,
 		domains:         domains,
+		upstream:        upstream,
+		agentRunner:     agentRunner,
+		agentAudit:      agentAudit,
 		registry: registry.New(registry.Config{
 			Endpoint:     config.RegistryPullURL,
 			DialEndpoint: config.RegistryPushURL,

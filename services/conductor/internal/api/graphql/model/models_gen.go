@@ -16,6 +16,11 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/scanjob"
 )
 
+// Something that happened in a session. Events with the same `callId` or `approval` describe the same call or approval, and the later one replaces the earlier one.
+type AgentSessionEvent interface {
+	IsAgentSessionEvent()
+}
+
 type VariableSource interface {
 	IsVariableSource()
 }
@@ -30,6 +35,143 @@ type AddServiceInput struct {
 	// The user id an image-based service runs as, which also owns its mounted volumes.
 	User *int `json:"user,omitempty"`
 }
+
+// An agent in an environment: a harness with instructions, the connectors it is granted and the network it may reach.
+type Agent struct {
+	ID      platform.AgentID `json:"id"`
+	Name    string           `json:"name"`
+	Harness Harness          `json:"harness"`
+	// Written into the harness's own instruction file, next to its system prompt.
+	Instructions string           `json:"instructions"`
+	Status       AgentStatus      `json:"status"`
+	Connectors   []AgentConnector `json:"connectors"`
+	// Hosts on the internet the agent may reach directly, without credentials. `*.example.com` covers the subdomains of `example.com`.
+	AllowedHosts []string `json:"allowedHosts"`
+	// Whether the agent may reach the other services of its environment.
+	PrivateNetwork bool `json:"privateNetwork"`
+	// The sessions of the agent, newest first.
+	Sessions []AgentSession `json:"sessions"`
+}
+
+// A tool call that waits for, or got, a decision from someone in the workspace.
+type AgentApproval struct {
+	ID   string    `json:"id"`
+	Time time.Time `json:"time"`
+	// Pass this to `answerAgentApproval`.
+	Approval string `json:"approval"`
+	// The tool call that needs the approval.
+	CallID *string             `json:"callId,omitempty"`
+	Title  string              `json:"title"`
+	Status AgentApprovalStatus `json:"status"`
+	// Null while pending, or once that person has left the workspace.
+	DecidedBy *WorkspaceMember `json:"decidedBy,omitempty"`
+}
+
+func (AgentApproval) IsAgentSessionEvent() {}
+
+// One call an agent made to a model provider or a connector.
+type AgentAuditEntry struct {
+	Time time.Time      `json:"time"`
+	Kind AgentAuditKind `json:"kind"`
+	// The model provider, for a model call.
+	ModelProvider *string `json:"modelProvider,omitempty"`
+	// The connector, for a tool call.
+	Connector *string `json:"connector,omitempty"`
+	// The model of a model call, or the tool or method of a tool call.
+	Target       string           `json:"target"`
+	InputTokens  *int             `json:"inputTokens,omitempty"`
+	OutputTokens *int             `json:"outputTokens,omitempty"`
+	Result       AgentAuditResult `json:"result"`
+}
+
+// A connector granted to an agent.
+type AgentConnector struct {
+	Connector *Connector `json:"connector"`
+	Approval  Approval   `json:"approval"`
+	// Tools of the connector the agent doesn't see and can't call.
+	HiddenTools []string `json:"hiddenTools"`
+}
+
+type AgentConnectorInput struct {
+	Connector platform.ConnectorID `json:"connector"`
+	Approval  Approval             `json:"approval"`
+	// Tool names of the connector to hide from the agent.
+	HiddenTools []string `json:"hiddenTools,omitempty"`
+}
+
+// Text the agent wrote.
+type AgentMessage struct {
+	ID   string    `json:"id"`
+	Time time.Time `json:"time"`
+	Text string    `json:"text"`
+}
+
+func (AgentMessage) IsAgentSessionEvent() {}
+
+// A model an agent can use, from one of the workspace's model providers.
+type AgentModel struct {
+	Provider *ModelProvider `json:"provider"`
+	Name     string         `json:"name"`
+}
+
+type AgentModelInput struct {
+	Provider platform.ModelProviderID `json:"provider"`
+	Name     string                   `json:"name"`
+}
+
+// One conversation with an agent. Every member of the workspace can see it and take part.
+type AgentSession struct {
+	ID    platform.AgentSessionID `json:"id"`
+	Title string                  `json:"title"`
+	// Who started the session. Null once that person has left the workspace.
+	StartedBy *WorkspaceMember `json:"startedBy,omitempty"`
+	StartedAt time.Time        `json:"startedAt"`
+	// The model of the next turn.
+	Model  *AgentModel        `json:"model"`
+	Effort Effort             `json:"effort"`
+	Status AgentSessionStatus `json:"status"`
+	// Everything that happened in the session, oldest first.
+	Events []AgentSessionEvent `json:"events"`
+}
+
+// A tool the agent called.
+type AgentToolCall struct {
+	ID     string    `json:"id"`
+	Time   time.Time `json:"time"`
+	CallID string    `json:"callId"`
+	// The connector the tool belongs to. Null for the harness's own tools, such as editing a file.
+	Connector *string             `json:"connector,omitempty"`
+	Tool      string              `json:"tool"`
+	Title     string              `json:"title"`
+	Status    AgentToolCallStatus `json:"status"`
+	// The arguments, as JSON.
+	Input  *string `json:"input,omitempty"`
+	Output *string `json:"output,omitempty"`
+}
+
+func (AgentToolCall) IsAgentSessionEvent() {}
+
+// The agent ended its turn and waits for the next message.
+type AgentTurnEnd struct {
+	ID     string             `json:"id"`
+	Time   time.Time          `json:"time"`
+	Reason AgentTurnEndReason `json:"reason"`
+	Error  *string            `json:"error,omitempty"`
+}
+
+func (AgentTurnEnd) IsAgentSessionEvent() {}
+
+// A message someone in the workspace sent to the agent.
+type AgentUserMessage struct {
+	// The event's position in the session. Pass it as `after` to continue from here.
+	ID   string    `json:"id"`
+	Time time.Time `json:"time"`
+	// Null once that person has left the workspace.
+	Author *WorkspaceMember `json:"author,omitempty"`
+	Text   string           `json:"text"`
+}
+
+func (AgentUserMessage) IsAgentSessionEvent() {}
 
 type APIToken struct {
 	ID        string        `json:"id"`
@@ -123,6 +265,29 @@ type Commit struct {
 	Sha     string  `json:"sha"`
 	Message string  `json:"message"`
 	URL     *string `json:"url,omitempty"`
+}
+
+// A set of tools connected to the workspace, such as Linear or Sentry. Agents reach a connector only once they are granted it, and never see its credential.
+type Connector struct {
+	ID   platform.ConnectorID `json:"id"`
+	Name string               `json:"name"`
+	// The address of the connector's remote MCP server.
+	URL string `json:"url"`
+	// The last four characters of the credential, if it has one. The credential itself is never returned.
+	CredentialHint *string          `json:"credentialHint,omitempty"`
+	Status         CredentialStatus `json:"status"`
+	// When the credential was last checked.
+	CheckedAt *time.Time `json:"checkedAt,omitempty"`
+	// The tools the connector listed at the last check.
+	Tools []ConnectorTool `json:"tools"`
+	// The agents granted this connector.
+	Agents []Agent `json:"agents"`
+}
+
+// A tool a connector offers.
+type ConnectorTool struct {
+	Name        string  `json:"name"`
+	Description *string `json:"description,omitempty"`
 }
 
 type CreateAPITokenInput struct {
@@ -372,6 +537,7 @@ type Environment struct {
 	Services       []Service              `json:"services"`
 	Databases      []Database             `json:"databases"`
 	Volumes        []Volume               `json:"volumes"`
+	Agents         []Agent                `json:"agents"`
 	KeyValueStores []KeyValueStore        `json:"keyValueStores"`
 	Buckets        []Bucket               `json:"buckets"`
 }
@@ -472,6 +638,24 @@ type MetricSeries struct {
 
 type MetricsRange struct {
 	Window MetricWindow `json:"window"`
+}
+
+// A model API connected to the workspace. Every agent in the workspace can use it, as far as its harness supports the API.
+type ModelProvider struct {
+	ID   platform.ModelProviderID `json:"id"`
+	Name string                   `json:"name"`
+	API  ModelAPI                 `json:"api"`
+	// The base URL of the API.
+	URL string `json:"url"`
+	// The last four characters of the key. The key itself is never returned.
+	KeyHint *string          `json:"keyHint,omitempty"`
+	Status  CredentialStatus `json:"status"`
+	// When the key was last checked.
+	CheckedAt *time.Time `json:"checkedAt,omitempty"`
+	// The models the provider listed at the last check.
+	Models []string `json:"models"`
+	// The agents whose harness can use this provider.
+	Agents []Agent `json:"agents"`
 }
 
 type Mount struct {
@@ -758,6 +942,533 @@ type WorkspaceMembership struct {
 	Role      WorkspaceRole `json:"role"`
 }
 
+type AgentApprovalDecision string
+
+const (
+	// Allows this one call.
+	AgentApprovalDecisionAllowOnce AgentApprovalDecision = "ALLOW_ONCE"
+	AgentApprovalDecisionDeny      AgentApprovalDecision = "DENY"
+)
+
+var AllAgentApprovalDecision = []AgentApprovalDecision{
+	AgentApprovalDecisionAllowOnce,
+	AgentApprovalDecisionDeny,
+}
+
+func (e AgentApprovalDecision) IsValid() bool {
+	switch e {
+	case AgentApprovalDecisionAllowOnce, AgentApprovalDecisionDeny:
+		return true
+	}
+	return false
+}
+
+func (e AgentApprovalDecision) String() string {
+	return string(e)
+}
+
+func (e *AgentApprovalDecision) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AgentApprovalDecision(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AgentApprovalDecision", str)
+	}
+	return nil
+}
+
+func (e AgentApprovalDecision) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AgentApprovalDecision) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AgentApprovalDecision) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type AgentApprovalStatus string
+
+const (
+	AgentApprovalStatusPending AgentApprovalStatus = "PENDING"
+	AgentApprovalStatusAllowed AgentApprovalStatus = "ALLOWED"
+	AgentApprovalStatusDenied  AgentApprovalStatus = "DENIED"
+)
+
+var AllAgentApprovalStatus = []AgentApprovalStatus{
+	AgentApprovalStatusPending,
+	AgentApprovalStatusAllowed,
+	AgentApprovalStatusDenied,
+}
+
+func (e AgentApprovalStatus) IsValid() bool {
+	switch e {
+	case AgentApprovalStatusPending, AgentApprovalStatusAllowed, AgentApprovalStatusDenied:
+		return true
+	}
+	return false
+}
+
+func (e AgentApprovalStatus) String() string {
+	return string(e)
+}
+
+func (e *AgentApprovalStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AgentApprovalStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AgentApprovalStatus", str)
+	}
+	return nil
+}
+
+func (e AgentApprovalStatus) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AgentApprovalStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AgentApprovalStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type AgentAuditKind string
+
+const (
+	// A call to a model.
+	AgentAuditKindModel AgentAuditKind = "MODEL"
+	// A call to a connector.
+	AgentAuditKindTool AgentAuditKind = "TOOL"
+)
+
+var AllAgentAuditKind = []AgentAuditKind{
+	AgentAuditKindModel,
+	AgentAuditKindTool,
+}
+
+func (e AgentAuditKind) IsValid() bool {
+	switch e {
+	case AgentAuditKindModel, AgentAuditKindTool:
+		return true
+	}
+	return false
+}
+
+func (e AgentAuditKind) String() string {
+	return string(e)
+}
+
+func (e *AgentAuditKind) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AgentAuditKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AgentAuditKind", str)
+	}
+	return nil
+}
+
+func (e AgentAuditKind) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AgentAuditKind) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AgentAuditKind) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type AgentAuditResult string
+
+const (
+	AgentAuditResultOk AgentAuditResult = "OK"
+	// Refused because the agent isn't allowed to make the call.
+	AgentAuditResultDenied AgentAuditResult = "DENIED"
+	AgentAuditResultFailed AgentAuditResult = "FAILED"
+)
+
+var AllAgentAuditResult = []AgentAuditResult{
+	AgentAuditResultOk,
+	AgentAuditResultDenied,
+	AgentAuditResultFailed,
+}
+
+func (e AgentAuditResult) IsValid() bool {
+	switch e {
+	case AgentAuditResultOk, AgentAuditResultDenied, AgentAuditResultFailed:
+		return true
+	}
+	return false
+}
+
+func (e AgentAuditResult) String() string {
+	return string(e)
+}
+
+func (e *AgentAuditResult) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AgentAuditResult(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AgentAuditResult", str)
+	}
+	return nil
+}
+
+func (e AgentAuditResult) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AgentAuditResult) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AgentAuditResult) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type AgentSessionStatus string
+
+const (
+	AgentSessionStatusIdle               AgentSessionStatus = "IDLE"
+	AgentSessionStatusWorking            AgentSessionStatus = "WORKING"
+	AgentSessionStatusWaitingForApproval AgentSessionStatus = "WAITING_FOR_APPROVAL"
+)
+
+var AllAgentSessionStatus = []AgentSessionStatus{
+	AgentSessionStatusIdle,
+	AgentSessionStatusWorking,
+	AgentSessionStatusWaitingForApproval,
+}
+
+func (e AgentSessionStatus) IsValid() bool {
+	switch e {
+	case AgentSessionStatusIdle, AgentSessionStatusWorking, AgentSessionStatusWaitingForApproval:
+		return true
+	}
+	return false
+}
+
+func (e AgentSessionStatus) String() string {
+	return string(e)
+}
+
+func (e *AgentSessionStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AgentSessionStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AgentSessionStatus", str)
+	}
+	return nil
+}
+
+func (e AgentSessionStatus) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AgentSessionStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AgentSessionStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type AgentStatus string
+
+const (
+	// The agent is starting, or can't be reached yet.
+	AgentStatusStarting AgentStatus = "STARTING"
+	AgentStatusIdle     AgentStatus = "IDLE"
+	// At least one session is working.
+	AgentStatusWorking AgentStatus = "WORKING"
+	// At least one session waits for an approval.
+	AgentStatusWaitingForApproval AgentStatus = "WAITING_FOR_APPROVAL"
+	// The agent doesn't start.
+	AgentStatusFailed AgentStatus = "FAILED"
+)
+
+var AllAgentStatus = []AgentStatus{
+	AgentStatusStarting,
+	AgentStatusIdle,
+	AgentStatusWorking,
+	AgentStatusWaitingForApproval,
+	AgentStatusFailed,
+}
+
+func (e AgentStatus) IsValid() bool {
+	switch e {
+	case AgentStatusStarting, AgentStatusIdle, AgentStatusWorking, AgentStatusWaitingForApproval, AgentStatusFailed:
+		return true
+	}
+	return false
+}
+
+func (e AgentStatus) String() string {
+	return string(e)
+}
+
+func (e *AgentStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AgentStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AgentStatus", str)
+	}
+	return nil
+}
+
+func (e AgentStatus) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AgentStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AgentStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type AgentToolCallStatus string
+
+const (
+	AgentToolCallStatusRunning   AgentToolCallStatus = "RUNNING"
+	AgentToolCallStatusCompleted AgentToolCallStatus = "COMPLETED"
+	AgentToolCallStatusFailed    AgentToolCallStatus = "FAILED"
+	// Someone in the workspace denied the call.
+	AgentToolCallStatusDenied AgentToolCallStatus = "DENIED"
+)
+
+var AllAgentToolCallStatus = []AgentToolCallStatus{
+	AgentToolCallStatusRunning,
+	AgentToolCallStatusCompleted,
+	AgentToolCallStatusFailed,
+	AgentToolCallStatusDenied,
+}
+
+func (e AgentToolCallStatus) IsValid() bool {
+	switch e {
+	case AgentToolCallStatusRunning, AgentToolCallStatusCompleted, AgentToolCallStatusFailed, AgentToolCallStatusDenied:
+		return true
+	}
+	return false
+}
+
+func (e AgentToolCallStatus) String() string {
+	return string(e)
+}
+
+func (e *AgentToolCallStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AgentToolCallStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AgentToolCallStatus", str)
+	}
+	return nil
+}
+
+func (e AgentToolCallStatus) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AgentToolCallStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AgentToolCallStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type AgentTurnEndReason string
+
+const (
+	// The agent finished its turn.
+	AgentTurnEndReasonCompleted AgentTurnEndReason = "COMPLETED"
+	// Someone stopped the session.
+	AgentTurnEndReasonStopped AgentTurnEndReason = "STOPPED"
+	AgentTurnEndReasonFailed  AgentTurnEndReason = "FAILED"
+)
+
+var AllAgentTurnEndReason = []AgentTurnEndReason{
+	AgentTurnEndReasonCompleted,
+	AgentTurnEndReasonStopped,
+	AgentTurnEndReasonFailed,
+}
+
+func (e AgentTurnEndReason) IsValid() bool {
+	switch e {
+	case AgentTurnEndReasonCompleted, AgentTurnEndReasonStopped, AgentTurnEndReasonFailed:
+		return true
+	}
+	return false
+}
+
+func (e AgentTurnEndReason) String() string {
+	return string(e)
+}
+
+func (e *AgentTurnEndReason) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AgentTurnEndReason(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AgentTurnEndReason", str)
+	}
+	return nil
+}
+
+func (e AgentTurnEndReason) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AgentTurnEndReason) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AgentTurnEndReason) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// Whether an agent may use a connector's tools on its own.
+type Approval string
+
+const (
+	// The agent uses the tools without asking.
+	ApprovalAllow Approval = "ALLOW"
+	// Every tool call waits for someone in the workspace to allow it.
+	ApprovalAsk Approval = "ASK"
+)
+
+var AllApproval = []Approval{
+	ApprovalAllow,
+	ApprovalAsk,
+}
+
+func (e Approval) IsValid() bool {
+	switch e {
+	case ApprovalAllow, ApprovalAsk:
+		return true
+	}
+	return false
+}
+
+func (e Approval) String() string {
+	return string(e)
+}
+
+func (e *Approval) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = Approval(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid Approval", str)
+	}
+	return nil
+}
+
+func (e Approval) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *Approval) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e Approval) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 type BackupStatus string
 
 const (
@@ -985,6 +1696,66 @@ func (e *BuildStatus) UnmarshalJSON(b []byte) error {
 }
 
 func (e BuildStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// The outcome of the last check of a credential.
+type CredentialStatus string
+
+const (
+	CredentialStatusValid CredentialStatus = "VALID"
+	// The service turned the credential down.
+	CredentialStatusRejected CredentialStatus = "REJECTED"
+	// The service couldn't be reached, or didn't answer as expected.
+	CredentialStatusUnreachable CredentialStatus = "UNREACHABLE"
+)
+
+var AllCredentialStatus = []CredentialStatus{
+	CredentialStatusValid,
+	CredentialStatusRejected,
+	CredentialStatusUnreachable,
+}
+
+func (e CredentialStatus) IsValid() bool {
+	switch e {
+	case CredentialStatusValid, CredentialStatusRejected, CredentialStatusUnreachable:
+		return true
+	}
+	return false
+}
+
+func (e CredentialStatus) String() string {
+	return string(e)
+}
+
+func (e *CredentialStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = CredentialStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid CredentialStatus", str)
+	}
+	return nil
+}
+
+func (e CredentialStatus) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *CredentialStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e CredentialStatus) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil
@@ -1430,6 +2201,66 @@ func (e DNSStatus) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// How hard the model thinks before it answers.
+type Effort string
+
+const (
+	EffortLow    Effort = "LOW"
+	EffortMedium Effort = "MEDIUM"
+	EffortHigh   Effort = "HIGH"
+	EffortMax    Effort = "MAX"
+)
+
+var AllEffort = []Effort{
+	EffortLow,
+	EffortMedium,
+	EffortHigh,
+	EffortMax,
+}
+
+func (e Effort) IsValid() bool {
+	switch e {
+	case EffortLow, EffortMedium, EffortHigh, EffortMax:
+		return true
+	}
+	return false
+}
+
+func (e Effort) String() string {
+	return string(e)
+}
+
+func (e *Effort) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = Effort(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid Effort", str)
+	}
+	return nil
+}
+
+func (e Effort) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *Effort) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e Effort) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 type EndpointType string
 
 const (
@@ -1537,6 +2368,67 @@ func (e *GitHubAccountType) UnmarshalJSON(b []byte) error {
 }
 
 func (e GitHubAccountType) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// The coding agent that runs inside an agent.
+type Harness string
+
+const (
+	// Claude Code. Uses Anthropic models.
+	HarnessClaudeCode Harness = "CLAUDE_CODE"
+	// Codex. Uses OpenAI models.
+	HarnessCodex Harness = "CODEX"
+	// OpenCode. Uses the models of every provider.
+	HarnessOpencode Harness = "OPENCODE"
+)
+
+var AllHarness = []Harness{
+	HarnessClaudeCode,
+	HarnessCodex,
+	HarnessOpencode,
+}
+
+func (e Harness) IsValid() bool {
+	switch e {
+	case HarnessClaudeCode, HarnessCodex, HarnessOpencode:
+		return true
+	}
+	return false
+}
+
+func (e Harness) String() string {
+	return string(e)
+}
+
+func (e *Harness) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = Harness(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid Harness", str)
+	}
+	return nil
+}
+
+func (e Harness) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *Harness) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e Harness) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil
@@ -1716,6 +2608,65 @@ func (e *MetricWindow) UnmarshalJSON(b []byte) error {
 }
 
 func (e MetricWindow) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// The API a model provider speaks.
+type ModelAPI string
+
+const (
+	ModelAPIAnthropic ModelAPI = "ANTHROPIC"
+	ModelAPIOpenai    ModelAPI = "OPENAI"
+	// Any API that speaks OpenAI's chat completions, such as Infomaniak, Scaleway or Mistral. Needs a `url`.
+	ModelAPIOpenaiCompatible ModelAPI = "OPENAI_COMPATIBLE"
+)
+
+var AllModelAPI = []ModelAPI{
+	ModelAPIAnthropic,
+	ModelAPIOpenai,
+	ModelAPIOpenaiCompatible,
+}
+
+func (e ModelAPI) IsValid() bool {
+	switch e {
+	case ModelAPIAnthropic, ModelAPIOpenai, ModelAPIOpenaiCompatible:
+		return true
+	}
+	return false
+}
+
+func (e ModelAPI) String() string {
+	return string(e)
+}
+
+func (e *ModelAPI) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ModelAPI(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ModelApi", str)
+	}
+	return nil
+}
+
+func (e ModelAPI) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *ModelAPI) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e ModelAPI) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

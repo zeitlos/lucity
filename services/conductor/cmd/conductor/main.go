@@ -20,6 +20,8 @@ import (
 	"github.com/zeitlos/lucity/pkg/jobs"
 	"github.com/zeitlos/lucity/pkg/pipeline"
 	platformK8s "github.com/zeitlos/lucity/pkg/platform/kubernetes"
+	"github.com/zeitlos/lucity/services/conductor/internal/agentaudit"
+	"github.com/zeitlos/lucity/services/conductor/internal/agentrunner"
 	webhookhttp "github.com/zeitlos/lucity/services/conductor/internal/api/webhook/http"
 	"github.com/zeitlos/lucity/services/conductor/internal/backuparchive"
 	"github.com/zeitlos/lucity/services/conductor/internal/billing"
@@ -35,6 +37,7 @@ import (
 	scanjobK8s "github.com/zeitlos/lucity/services/conductor/internal/scanjob/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/scanreport"
 	sourceGH "github.com/zeitlos/lucity/services/conductor/internal/source/github"
+	"github.com/zeitlos/lucity/services/conductor/internal/upstream"
 	"github.com/zeitlos/lucity/services/conductor/internal/vulnerabilities"
 
 	"github.com/zeitlos/lucity/pkg/auth"
@@ -54,6 +57,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/metadata"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -188,6 +192,14 @@ type Config struct {
 	DatabaseBackupRegion          string `envconfig:"DATABASE_BACKUP_S3_REGION"`
 	DatabaseBackupAccessKeyID     string `envconfig:"DATABASE_BACKUP_S3_ACCESS_KEY_ID"`
 	DatabaseBackupSecretAccessKey string `envconfig:"DATABASE_BACKUP_S3_SECRET_ACCESS_KEY"`
+
+	// Agents. Their model and connector calls go through the shared agent
+	// gateway, whose access log VictoriaLogs keeps for the audit.
+	AgentsEnabled   bool   `envconfig:"AGENTS_ENABLED" default:"false"`
+	AgentsNamespace string `envconfig:"AGENTS_NAMESPACE" default:"lucity-agents"`
+	AgentImage      string `envconfig:"AGENT_IMAGE"`
+	AgentGatewayURL string `envconfig:"AGENT_GATEWAY_URL" default:"http://lucity-agent-gateway.lucity-agents.svc.cluster.local"`
+	VictoriaLogsURL string `envconfig:"VICTORIA_LOGS_URL"`
 }
 
 func main() {
@@ -204,6 +216,11 @@ func main() {
 
 	if config.EdgeHeaderEnforced && config.EdgeHeaderSecret == "" {
 		slog.Error("EDGE_HEADER_ENFORCED requires EDGE_HEADER_SECRET")
+		os.Exit(1)
+	}
+
+	if config.AgentsEnabled && config.AgentImage == "" {
+		slog.Error("AGENTS_ENABLED requires AGENT_IMAGE")
 		os.Exit(1)
 	}
 
@@ -241,7 +258,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	k8sClient, dynClient, _, err := buildKubeClients()
+	k8sClient, dynClient, _, restConfig, err := buildKubeClients()
 	if err != nil {
 		slog.Error("failed to build kube clients", "error", err)
 		os.Exit(1)
@@ -380,6 +397,26 @@ func main() {
 
 	chartRef.Metadata.Version = version.String()
 
+	var agents helmDeployer.AgentConfig
+
+	if config.AgentsEnabled {
+		workspaceChart, err := helmDeployer.LoadChartFromFS(charts.LucityWorkspace, "lucity-workspace")
+
+		if err != nil {
+			slog.Error("failed to load lucity-workspace chart", "error", err)
+			os.Exit(1)
+		}
+
+		workspaceChart.Metadata.Version = version.String()
+
+		agents = helmDeployer.AgentConfig{
+			Image:          config.AgentImage,
+			GatewayURL:     config.AgentGatewayURL,
+			Namespace:      config.AgentsNamespace,
+			WorkspaceChart: workspaceChart,
+		}
+	}
+
 	var workloadDefaultPlacement values.Placement
 
 	if err := workloadDefaultPlacement.Decode(config.WorkloadDefaultPlacement); err != nil {
@@ -398,7 +435,7 @@ func main() {
 		Enabled:  config.DatabaseBackupEnabled,
 		Endpoint: config.DatabaseBackupEndpoint,
 		Bucket:   config.DatabaseBackupBucket,
-	}, config.RegistryPullURL, workloadDefaultPlacement, helmDeployer.WithEdgeHeader(config.EdgeHeaderEnforced), helmDeployer.WithHTTPSListener(config.GatewayHTTPSListener))
+	}, config.RegistryPullURL, workloadDefaultPlacement, agents, helmDeployer.WithEdgeHeader(config.EdgeHeaderEnforced), helmDeployer.WithHTTPSListener(config.GatewayHTTPSListener))
 
 	if err != nil {
 		slog.Error("failed to create deployer client", "error", err)
@@ -479,6 +516,7 @@ func main() {
 		DashboardURL:         config.DashboardURL,
 		MaxQueuedReleases:    config.MaxQueuedReleases,
 		PaidPlacement:        workloadPaidPlacement,
+		AgentsEnabled:        config.AgentsEnabled,
 		BackupArchive: backuparchive.New(backuparchive.Config{
 			Endpoint:        config.DatabaseBackupEndpoint,
 			Bucket:          config.DatabaseBackupBucket,
@@ -500,7 +538,16 @@ func main() {
 		Keychain:     keychain,
 	})
 
-	conductor := conductor.New(billingClient, githubApp, logtoClient, directoryClient, platformClient, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, vulnerabilitiesClient, pipelineClient, planner, source, hostnameClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, domainsClient, conductorConfig)
+	agentRunnerClient, err := agentrunner.New(restConfig, k8sClient)
+
+	if err != nil {
+		slog.Error("failed to create agent runner client", "error", err)
+		os.Exit(1)
+	}
+
+	agentAuditClient := agentaudit.New(config.VictoriaLogsURL, config.AgentsNamespace)
+
+	conductor := conductor.New(billingClient, githubApp, logtoClient, directoryClient, platformClient, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, vulnerabilitiesClient, pipelineClient, planner, source, hostnameClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, domainsClient, upstream.New(), agentRunnerClient, agentAuditClient, conductorConfig)
 
 	platformClient.Start(ctx)
 	jobsCache.Start(ctx)
@@ -532,27 +579,27 @@ func main() {
 	graceful.Serve(ctx, servers...)
 }
 
-func buildKubeClients() (kubernetes.Interface, dynamic.Interface, metadata.Interface, error) {
+func buildKubeClients() (kubernetes.Interface, dynamic.Interface, metadata.Interface, *rest.Config, error) {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	cfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		loadingRules, &clientcmd.ConfigOverrides{},
 	).ClientConfig()
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	cfg.QPS = 50
 	cfg.Burst = 100
 	k8s, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	dyn, err := dynamic.NewForConfig(cfg)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	meta, err := metadata.NewForConfig(cfg)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
-	return k8s, dyn, meta, nil
+	return k8s, dyn, meta, cfg, nil
 }
