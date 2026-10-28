@@ -154,7 +154,7 @@ func (c *Client) DeleteWorkspace(ctx context.Context, id string) error {
 		return usererror.New("cannot delete personal workspace")
 	}
 
-	if err := c.api.DeleteOrganization(ctx, id); err != nil {
+	if err := c.api.DeleteOrganization(ctx, orgID); err != nil {
 		return err
 	}
 
