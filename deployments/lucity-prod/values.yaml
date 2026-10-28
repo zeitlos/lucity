@@ -18,12 +18,14 @@ conductor:
       effect: NoSchedule
   buildkit:
     enabled: true
-    storageSize: 100Gi
+    replicas: 4
+    storageSize: 50Gi
     resources:
       requests:
-        memory: 6Gi
+        cpu: "1"
+        memory: 4Gi
       limits:
-        memory: 8Gi
+        memory: 7Gi
     nodeSelector:
       lucity.dev/node-pool: builds
     tolerations:
@@ -31,6 +33,13 @@ conductor:
         operator: Equal
         value: builds
         effect: NoSchedule
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: buildkit
   env:
     OIDC_ISSUER_URL: https://id.lucity.cloud/oidc
     OIDC_CLIENT_ID: 30ztkgeb1c7hwmnx6bf4s

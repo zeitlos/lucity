@@ -17,4 +17,22 @@ spec:
       name: grpc
   selector:
     {{- include "lucity.selectorLabels" (dict "name" "buildkit" "release" .Release.Name) | nindent 4 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "lucity.fullname" . }}-buildkit-pool
+  namespace: {{ $ns }}
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+    app.kubernetes.io/component: buildkit
+spec:
+  clusterIP: None
+  ports:
+    - port: 1234
+      targetPort: grpc
+      protocol: TCP
+      name: grpc
+  selector:
+    {{- include "lucity.selectorLabels" (dict "name" "buildkit" "release" .Release.Name) | nindent 4 }}
 {{- end }}

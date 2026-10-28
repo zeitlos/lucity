@@ -1,7 +1,7 @@
 {{- if .Values.conductor.buildkit.enabled }}
 {{- $ns := .Values.conductor.buildNamespace | default "lucity-builds" }}
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: {{ include "lucity.fullname" . }}-buildkit
   namespace: {{ $ns }}
@@ -9,9 +9,9 @@ metadata:
     {{- include "lucity.labels" . | nindent 4 }}
     app.kubernetes.io/component: buildkit
 spec:
-  replicas: 1
-  strategy:
-    type: Recreate
+  serviceName: {{ include "lucity.fullname" . }}-buildkit-pool
+  replicas: {{ .Values.conductor.buildkit.replicas }}
+  podManagementPolicy: Parallel
   selector:
     matchLabels:
       {{- include "lucity.selectorLabels" (dict "name" "buildkit" "release" .Release.Name) | nindent 6 }}
@@ -37,6 +37,10 @@ spec:
       {{- end }}
       {{- with .Values.conductor.buildkit.tolerations }}
       tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.conductor.buildkit.topologySpreadConstraints }}
+      topologySpreadConstraints:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- with .Values.imagePullSecrets }}
@@ -91,9 +95,6 @@ spec:
           resources:
             {{- toYaml .Values.conductor.buildkit.resources | nindent 12 }}
       volumes:
-        - name: buildkit-data
-          persistentVolumeClaim:
-            claimName: {{ include "lucity.fullname" . }}-buildkit
         - name: buildkit-config
           configMap:
             name: {{ include "lucity.fullname" . }}-buildkit
@@ -102,4 +103,13 @@ spec:
           secret:
             secretName: {{ include "lucity.fullname" . }}-buildkit-tls-server
         {{- end }}
+  volumeClaimTemplates:
+    - metadata:
+        name: buildkit-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: {{ .Values.conductor.buildkit.storageSize }}
 {{- end }}

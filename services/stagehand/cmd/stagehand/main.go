@@ -57,7 +57,6 @@ type Config struct {
 	BuildNamespace  string `envconfig:"BUILD_NAMESPACE" default:"lucity-builds"`
 
 	MaxConcurrentReleases int `envconfig:"MAX_CONCURRENT_RELEASES" default:"5"`
-	MaxConcurrentBuilds   int `envconfig:"MAX_CONCURRENT_BUILDS" default:"2"`
 
 	LogtoEndpoint     string `envconfig:"LOGTO_ENDPOINT" required:"true"`
 	LogtoM2MAppID     string `envconfig:"LOGTO_M2M_APP_ID" required:"true"`
@@ -194,7 +193,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	admissionWorker, err := admission.New(jobsCache, pipeline.New(k8sClient, jobsCache, config.MaxConcurrentReleases, config.MaxConcurrentBuilds))
+	builders := jobs.NewBuilders(k8sClient, config.BuildNamespace)
+
+	admissionWorker, err := admission.New(jobsCache, builders, pipeline.New(k8sClient, jobsCache, builders, config.MaxConcurrentReleases))
 
 	if err != nil {
 		slog.Error("failed to create admission worker", "error", err)
@@ -202,13 +203,14 @@ func main() {
 	}
 
 	jobsCache.Start(ctx)
+	builders.Start(ctx.Done())
 
 	directory := workspaces.New(logto.New(config.LogtoEndpoint, config.LogtoM2MAppID, config.LogtoM2MAppSecret), platformClient, workspaceMaxAge)
 
 	releaseWorker := releases.New(environmentClient, deployerClient.Environments(), directory, billingClient, config.WorkloadDefaultPlacement, config.WorkloadPaidPlacement, config.Interval, config.DryRun)
 	domainWorker := customdomains.New(domainsClient, directory, pendingDomainInterval, domainSyncInterval)
 
-	slog.Info("stagehand started", "version", Version, "interval", config.Interval, "dry_run", config.DryRun, "max_concurrent_releases", config.MaxConcurrentReleases, "max_concurrent_builds", config.MaxConcurrentBuilds)
+	slog.Info("stagehand started", "version", Version, "interval", config.Interval, "dry_run", config.DryRun, "max_concurrent_releases", config.MaxConcurrentReleases)
 
 	var workers sync.WaitGroup
 

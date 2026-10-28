@@ -18,15 +18,19 @@ type Worker struct {
 	trigger  chan struct{}
 }
 
-// New returns a worker that runs admission whenever the job cache changes,
-// and at least every 30 seconds.
-func New(cache *jobs.Cache, pipeline pipeline.Interface) (*Worker, error) {
+// New returns a worker that runs admission whenever a Job or a builder pod
+// changes, and at least every 30 seconds.
+func New(cache *jobs.Cache, builders *jobs.Builders, pipeline pipeline.Interface) (*Worker, error) {
 	w := &Worker{
 		pipeline: pipeline,
 		trigger:  make(chan struct{}, 1),
 	}
 
 	if err := cache.OnChange(w.notify); err != nil {
+		return nil, err
+	}
+
+	if err := builders.OnChange(w.notify); err != nil {
 		return nil, err
 	}
 

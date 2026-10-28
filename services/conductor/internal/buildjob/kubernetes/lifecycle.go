@@ -182,6 +182,8 @@ func (c *Client) newBuildJob(id string, opts buildjob.StartOptions, repoURL url.
 		{Name: "BUILD_TARGET_REFS", Value: strings.Join(targetRefs, ",")},
 		{Name: "BUILD_CACHE_KEY", Value: cacheKey(opts.Service.Workspace)},
 		{Name: "BUILDKIT_ADDR", Value: c.buildKitAddr},
+		{Name: "BUILDKIT_BUILDER", ValueFrom: &core.EnvVarSource{FieldRef: &core.ObjectFieldSelector{FieldPath: "metadata.annotations['" + labels.Builder + "']"}}},
+		{Name: "BUILDKIT_BUILDER_ADDR", Value: c.buildKitPoolAddr},
 		{Name: "GITHUB_TOKEN", Value: opts.Token},
 		{Name: "DOCKER_CONFIG", Value: "/etc/registry-auth"},
 	}

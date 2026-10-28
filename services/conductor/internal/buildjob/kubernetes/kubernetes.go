@@ -23,8 +23,8 @@ const (
 )
 
 const (
-	annotationSourceRepo    = "lucity.dev/source-repo"
-	annotationContext       = "lucity.dev/source-context"
+	annotationSourceRepo    = labels.SourceRepo
+	annotationContext       = labels.SourceContext
 	annotationTargets       = "lucity.dev/target-image-refs"
 	annotationTriggeredBy   = "lucity.dev/triggered-by"
 	annotationCancelledAt   = "lucity.dev/cancelled-at"
@@ -36,6 +36,7 @@ type Client struct {
 	registry           string
 	registryAuthSecret string
 	buildKitAddr       string
+	buildKitPoolAddr   string
 	buildRunnerImage   string
 	buildKitTLSSecret  string
 	buildKitServerName string
@@ -52,6 +53,7 @@ func New(kubernetes kubernetes.Interface, jobs *jobs.Cache, namespace, registry,
 		registry:           registry,
 		registryAuthSecret: registryAuthSecret,
 		buildKitAddr:       "tcp://lucity-buildkit:1234",
+		buildKitPoolAddr:   "tcp://$(BUILDKIT_BUILDER).lucity-buildkit-pool:1234",
 		buildRunnerImage:   buildRunnerImage,
 		buildKitTLSSecret:  buildKitTLSSecret,
 		buildKitServerName: buildKitServerName,

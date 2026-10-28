@@ -1,9 +1,15 @@
 package pipeline
 
 import (
+	"cmp"
 	"context"
+	"crypto/sha256"
+	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
+	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -33,23 +39,36 @@ var (
 
 var errJobsNotSynced = errors.New("job cache has not synced yet")
 
+const (
+	builderSlots    = 1
+	builderSpill    = 2
+	builderWarmWait = time.Minute
+)
+
 type Client struct {
 	kubernetes    kubernetes.Interface
 	jobs          *jobs.Cache
+	builders      *jobs.Builders
 	maxConcurrent int
-	maxBuilds     int
 
 	mu      sync.Mutex
-	resumed map[string]string
+	resumed map[string]resumption
 }
 
-func New(kubernetes kubernetes.Interface, jobs *jobs.Cache, maxConcurrent, maxBuilds int) *Client {
+type resumption struct {
+	resourceVersion string
+	builder         string
+}
+
+// New returns an admission client. builders may be nil for clients that only
+// count queued runs; such a client never admits a build.
+func New(kubernetes kubernetes.Interface, jobs *jobs.Cache, builders *jobs.Builders, maxConcurrent int) *Client {
 	return &Client{
 		kubernetes:    kubernetes,
 		jobs:          jobs,
+		builders:      builders,
 		maxConcurrent: maxConcurrent,
-		maxBuilds:     maxBuilds,
-		resumed:       map[string]string{},
+		resumed:       map[string]resumption{},
 	}
 }
 
@@ -68,6 +87,8 @@ type job struct {
 	name            string
 	resourceVersion string
 	build           bool
+	source          string
+	builder         string
 	suspended       bool
 	terminal        bool
 }
@@ -102,21 +123,22 @@ func (r run) state() runState {
 	return runTerminal
 }
 
-func (r run) building() bool {
+func (r run) pendingBuild() (job, bool) {
 	for _, j := range r.jobs {
-		if j.build && !j.terminal {
-			return true
+		if j.build && j.suspended && !j.terminal {
+			return j, true
 		}
 	}
 
-	return false
+	return job{}, false
 }
 
 // Reconcile admits queued release runs: at most one active run per environment
 // (the Helm-release boundary, so concurrent applies to the same release can't
-// race), oldest first, bounded by the global concurrency cap. Runs that still
-// have to build are additionally bounded by the build cap, which leaves
-// deploy-only runs free to pass waiting builds.
+// race), oldest first, bounded by the global concurrency cap. A run that still
+// has to build also needs a free builder: its source is ranked against the
+// ready builders, so builds of one source keep landing on the builder that
+// holds their warm cache. Deploy-only runs pass waiting builds.
 func (c *Client) Reconcile(ctx context.Context) error {
 	if !c.jobs.HasSynced() {
 		return nil
@@ -128,8 +150,14 @@ func (c *Client) Reconcile(ctx context.Context) error {
 		return err
 	}
 
+	ready, err := c.readyBuilders()
+
+	if err != nil {
+		return err
+	}
+
+	load := builderLoad(runs)
 	active := 0
-	activeBuilds := 0
 	activeEnvironments := map[string]bool{}
 	queuedByEnvironment := map[string][]run{}
 
@@ -139,12 +167,22 @@ func (c *Client) Reconcile(ctx context.Context) error {
 			active++
 			activeEnvironments[r.environment] = true
 
-			if r.building() {
-				activeBuilds++
+			builder := ""
+
+			if build, ok := r.pendingBuild(); ok {
+				builder, _, ok = place(build.source, builderWarmWait, ready, load)
+
+				if !ok {
+					continue
+				}
 			}
 
-			if err := c.resume(ctx, r); err != nil {
+			if err := c.resume(ctx, r, builder); err != nil {
 				return fmt.Errorf("resume partially admitted run %q: %w", r.key, err)
+			}
+
+			if builder != "" {
+				load[builder]++
 			}
 		case runQueued:
 			queuedByEnvironment[r.environment] = append(queuedByEnvironment[r.environment], r)
@@ -172,24 +210,86 @@ func (c *Client) Reconcile(ctx context.Context) error {
 			break
 		}
 
-		building := candidate.building()
+		builder := ""
+		choice := 0
 
-		if building && c.maxBuilds > 0 && activeBuilds >= c.maxBuilds {
-			continue
+		if build, ok := candidate.pendingBuild(); ok {
+			builder, choice, ok = place(build.source, time.Since(candidate.createdAt), ready, load)
+
+			if !ok {
+				continue
+			}
 		}
 
-		if err := c.resume(ctx, candidate); err != nil {
+		if err := c.resume(ctx, candidate, builder); err != nil {
 			return fmt.Errorf("admit run %q: %w", candidate.key, err)
 		}
 
 		active++
 
-		if building {
-			activeBuilds++
+		if builder != "" {
+			load[builder]++
+			slog.Info("build placed", "run", candidate.key, "builder", builder, "choice", choice)
 		}
 	}
 
 	return nil
+}
+
+func (c *Client) readyBuilders() ([]string, error) {
+	if c.builders == nil || !c.builders.HasSynced() {
+		return nil, nil
+	}
+
+	return c.builders.Ready()
+}
+
+func builderLoad(runs []run) map[string]int {
+	load := map[string]int{}
+
+	for _, r := range runs {
+		for _, j := range r.jobs {
+			if j.build && !j.suspended && !j.terminal && j.builder != "" {
+				load[j.builder]++
+			}
+		}
+	}
+
+	return load
+}
+
+// place picks the builder for a build of source. It walks the source's
+// ranking and takes the first builder with a free slot, looking only at the
+// first few choices until the build has waited builderWarmWait, so a warm
+// builder that frees up soon wins over a cold one now.
+func place(source string, waited time.Duration, ready []string, load map[string]int) (string, int, bool) {
+	for i, builder := range rank(source, ready) {
+		if i >= builderSpill && waited < builderWarmWait {
+			return "", 0, false
+		}
+
+		if load[builder] < builderSlots {
+			return builder, i + 1, true
+		}
+	}
+
+	return "", 0, false
+}
+
+func rank(source string, builders []string) []string {
+	ranked := slices.Clone(builders)
+
+	slices.SortFunc(ranked, func(a, b string) int {
+		return cmp.Compare(score(source, b), score(source, a))
+	})
+
+	return ranked
+}
+
+func score(source, builder string) uint64 {
+	sum := sha256.Sum256([]byte(source + "\x00" + builder))
+
+	return binary.BigEndian.Uint64(sum[:8])
 }
 
 func (c *Client) QueuedRuns(ctx context.Context, workspace string) (int, error) {
@@ -216,15 +316,36 @@ func (c *Client) QueuedRuns(ctx context.Context, workspace string) (int, error) 
 
 var unsuspendPatch = []byte(`{"spec":{"suspend":false}}`)
 
-func (c *Client) resume(ctx context.Context, r run) error {
+// resume unsuspends the run's suspended Jobs. A build Job also gets builder
+// written onto it and its pod template, in the same patch: the pod reads it to
+// pick its BuildKit daemon, and a suspended Job that never started still
+// accepts pod template annotation changes.
+func (c *Client) resume(ctx context.Context, r run, builder string) error {
 	for _, j := range r.jobs {
 		if !j.suspended || j.terminal {
 			continue
 		}
 
-		c.expectResumed(j)
+		patch := unsuspendPatch
+		placed := ""
 
-		_, err := c.kubernetes.BatchV1().Jobs(j.namespace).Patch(ctx, j.name, types.StrategicMergePatchType, unsuspendPatch, meta.PatchOptions{})
+		if j.build {
+			if builder == "" {
+				continue
+			}
+
+			var err error
+
+			if patch, err = builderPatch(builder); err != nil {
+				return err
+			}
+
+			placed = builder
+		}
+
+		c.expectResumed(j, placed)
+
+		_, err := c.kubernetes.BatchV1().Jobs(j.namespace).Patch(ctx, j.name, types.StrategicMergePatchType, patch, meta.PatchOptions{})
 
 		if err != nil {
 			c.forgetResumed(j)
@@ -233,6 +354,20 @@ func (c *Client) resume(ctx context.Context, r run) error {
 	}
 
 	return nil
+}
+
+func builderPatch(builder string) ([]byte, error) {
+	annotations := map[string]string{labels.Builder: builder}
+
+	return json.Marshal(map[string]any{
+		"metadata": map[string]any{"annotations": annotations},
+		"spec": map[string]any{
+			"suspend": false,
+			"template": map[string]any{
+				"metadata": map[string]any{"annotations": annotations},
+			},
+		},
+	})
 }
 
 func (c *Client) runs(ctx context.Context) ([]run, error) {
@@ -288,18 +423,32 @@ func (c *Client) runs(ctx context.Context) ([]run, error) {
 		}
 
 		suspended := k8sJob.Spec.Suspend != nil && *k8sJob.Spec.Suspend
+		builder := k8sJob.Annotations[labels.Builder]
 		jobKey := k8sJob.Namespace + "/" + k8sJob.Name
 
-		if version, ok := c.resumed[jobKey]; ok && version == k8sJob.ResourceVersion {
+		if expected, ok := c.resumed[jobKey]; ok && expected.resourceVersion == k8sJob.ResourceVersion {
 			suspended = false
 			pending[jobKey] = true
+
+			if expected.builder != "" {
+				builder = expected.builder
+			}
+		}
+
+		build := k8sJob.Labels[labelComponent] == "build"
+		source := ""
+
+		if build {
+			source = workspace + "\x00" + k8sJob.Annotations[labels.SourceRepo] + "\x00" + k8sJob.Annotations[labels.SourceContext]
 		}
 
 		group.jobs = append(group.jobs, job{
 			namespace:       k8sJob.Namespace,
 			name:            k8sJob.Name,
 			resourceVersion: k8sJob.ResourceVersion,
-			build:           k8sJob.Labels[labelComponent] == "build",
+			build:           build,
+			source:          source,
+			builder:         builder,
 			suspended:       suspended,
 			terminal:        jobTerminal(k8sJob),
 		})
@@ -336,11 +485,11 @@ func (c *Client) runs(ctx context.Context) ([]run, error) {
 	return runs, nil
 }
 
-func (c *Client) expectResumed(j job) {
+func (c *Client) expectResumed(j job, builder string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.resumed[j.namespace+"/"+j.name] = j.resourceVersion
+	c.resumed[j.namespace+"/"+j.name] = resumption{resourceVersion: j.resourceVersion, builder: builder}
 }
 
 func (c *Client) forgetResumed(j job) {

@@ -18,6 +18,8 @@ type Config struct {
 	TargetRefs   []string `envconfig:"BUILD_TARGET_REFS" required:"true"`
 	CacheKey     string   `envconfig:"BUILD_CACHE_KEY" required:"true"`
 	BuildkitAddr string   `envconfig:"BUILDKIT_ADDR" required:"true"`
+	Builder      string   `envconfig:"BUILDKIT_BUILDER"`
+	BuilderAddr  string   `envconfig:"BUILDKIT_BUILDER_ADDR"`
 	GitHubToken  string   `envconfig:"GITHUB_TOKEN"`
 
 	BuildkitTLSCACert string `envconfig:"BUILDKIT_TLS_CA"`

@@ -90,6 +90,7 @@ conductor:
   # BuildKit infrastructure entirely.
   buildkit:
     enabled: false
+    replicas: 1
     userNamespaces: true
     tls:
       enabled: true
@@ -109,6 +110,7 @@ conductor:
     nodeSelector: {}
     tolerations: []
     affinity: {}
+    topologySpreadConstraints: []
   env: {}
   envSecret: {}
   resources:

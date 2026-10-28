@@ -49,7 +49,11 @@ func executeBuild(cfg Config, buildVars map[string]string) error {
 		return fmt.Errorf("failed to create work dir: %w", err)
 	}
 
-	slog.Info("waiting for buildkit")
+	if cfg.Builder != "" && cfg.BuilderAddr != "" {
+		cfg.BuildkitAddr = cfg.BuilderAddr
+	}
+
+	slog.Info("waiting for buildkit", "builder", cfg.Builder, "addr", cfg.BuildkitAddr)
 
 	if err := waitForBuildKit(cfg.BuildkitAddr); err != nil {
 		return fmt.Errorf("buildkit not ready: %w", err)
