@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
 import { useMutation, useQuery, useSubscription } from '@vue/apollo-composable';
-import { Bot, MessagesSquare } from '@lucide/vue';
+import { Bot, CircleAlert, Info, MessagesSquare, TriangleAlert } from '@lucide/vue';
 import { graphql } from '@/gql';
-import { AgentSessionStatus, AgentTurnEndReason, type AgentApprovalDecision, type Effort } from '@/gql/graphql';
+import { AgentNoticeSeverity, AgentSessionStatus, AgentTurnEndReason, type AgentApprovalDecision, type Effort } from '@/gql/graphql';
 import { buildTranscript, memberName, sessionActivity, type SessionEvent } from '@/lib/agentSession';
 import type { AgentModelOption } from '@/lib/agents';
 import { formatTime } from '@/lib/format';
 import EmptyState from '@/components/EmptyState.vue';
+import MarkdownText from '@/components/MarkdownText.vue';
 import QueryError from '@/components/QueryError.vue';
 import { Skeleton } from '@/components/ui/skeleton';
 import { failureToast } from '@/components/ui/sonner';
@@ -25,6 +26,7 @@ const AgentSessionDocument = graphql(`
         ... on AgentMessage { id time text }
         ... on AgentToolCall { id time callId connector tool title status input output }
         ... on AgentApproval { id time approval toolCallId: callId title approvalStatus: status decidedBy { id name email } }
+        ... on AgentNotice { id time severity title description }
         ... on AgentTurnEnd { id time reason error }
       }
     }
@@ -39,6 +41,7 @@ const AgentSessionEventsDocument = graphql(`
       ... on AgentMessage { id time text }
       ... on AgentToolCall { id time callId connector tool title status input output }
       ... on AgentApproval { id time approval toolCallId: callId title approvalStatus: status decidedBy { id name email } }
+      ... on AgentNotice { id time severity title description }
       ... on AgentTurnEnd { id time reason error }
     }
   }
@@ -311,11 +314,38 @@ function retryLive() {
               {{ agentName }} · {{ formatTime(block.time) }}
             </span>
             <template v-for="item in block.items" :key="item.key">
-              <div
+              <MarkdownText
                 v-if="item.kind === 'message'"
-                class="text-sm leading-relaxed whitespace-pre-wrap break-words text-foreground"
+                :source="item.event.text"
+                class="text-sm leading-relaxed text-foreground"
+              />
+              <div
+                v-else-if="item.kind === 'notice'"
+                class="flex items-start gap-2.5 rounded-lg border px-3 py-2"
+                :class="{
+                  'border-status-warn/40': item.event.severity === AgentNoticeSeverity.Warning,
+                  'border-status-danger/25': item.event.severity === AgentNoticeSeverity.Error,
+                }"
               >
-                {{ item.event.text }}
+                <TriangleAlert
+                  v-if="item.event.severity === AgentNoticeSeverity.Warning"
+                  :size="14"
+                  class="mt-0.5 shrink-0 text-status-warn"
+                />
+                <CircleAlert
+                  v-else-if="item.event.severity === AgentNoticeSeverity.Error"
+                  :size="14"
+                  class="mt-0.5 shrink-0 text-status-danger"
+                />
+                <Info v-else :size="14" class="mt-0.5 shrink-0 text-muted-foreground" />
+                <div class="min-w-0 space-y-0.5 text-xs">
+                  <p class="font-medium text-foreground">{{ item.event.title }}</p>
+                  <MarkdownText
+                    v-if="item.event.description"
+                    :source="item.event.description"
+                    class="text-muted-foreground"
+                  />
+                </div>
               </div>
               <AgentToolCalls v-else-if="item.kind === 'tools'" :calls="item.calls" />
               <AgentApprovalCard

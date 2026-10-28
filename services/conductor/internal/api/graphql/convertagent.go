@@ -301,6 +301,16 @@ func convertAgentSessionEvent(event conductor.AgentSessionEvent) model.AgentSess
 			Status:    model.AgentApprovalStatus(strings.ToUpper(approval.Status)),
 			DecidedBy: convertWorkspaceMemberOrNil(event.DecidedBy),
 		}
+	case agentrunner.EventNotice:
+		notice := event.Notice
+
+		return model.AgentNotice{
+			ID:          event.ID,
+			Time:        event.Time,
+			Severity:    model.AgentNoticeSeverity(strings.ToUpper(notice.Severity)),
+			Title:       notice.Title,
+			Description: optional(notice.Description),
+		}
 	default:
 		end := event.TurnEnd
 

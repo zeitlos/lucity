@@ -2,6 +2,7 @@ import {
   AgentApprovalStatus,
   AgentSessionStatus,
   AgentTurnEndReason,
+  type AgentNoticeSeverity,
   type AgentToolCallStatus,
 } from '@/gql/graphql';
 
@@ -49,6 +50,15 @@ export interface ApprovalEvent {
   decidedBy?: SessionMember | null;
 }
 
+export interface NoticeEvent {
+  __typename: 'AgentNotice';
+  id: string;
+  time: string;
+  severity: AgentNoticeSeverity;
+  title: string;
+  description?: string | null;
+}
+
 export interface TurnEndEvent {
   __typename: 'AgentTurnEnd';
   id: string;
@@ -57,10 +67,11 @@ export interface TurnEndEvent {
   error?: string | null;
 }
 
-export type SessionEvent = UserMessageEvent | MessageEvent | ToolCallEvent | ApprovalEvent | TurnEndEvent;
+export type SessionEvent = UserMessageEvent | MessageEvent | ToolCallEvent | ApprovalEvent | NoticeEvent | TurnEndEvent;
 
 export type TranscriptItem =
   | { kind: 'message'; key: string; event: MessageEvent }
+  | { kind: 'notice'; key: string; event: NoticeEvent }
   | { kind: 'tools'; key: string; calls: ToolCallEvent[] }
   | { kind: 'approval'; key: string; event: ApprovalEvent; call: ToolCallEvent | null }
   | { kind: 'end'; key: string; event: TurnEndEvent };
@@ -137,6 +148,9 @@ export function buildTranscript(events: SessionEvent[]): TranscriptBlock[] {
         break;
       case 'AgentMessage':
         agentItems(event).push({ kind: 'message', key, event });
+        break;
+      case 'AgentNotice':
+        agentItems(event).push({ kind: 'notice', key, event });
         break;
       case 'AgentToolCall': {
         if (awaiting.has(event.callId)) break;

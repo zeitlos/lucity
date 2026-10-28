@@ -41,7 +41,14 @@ type Event struct {
 	Author   string    `json:"author,omitempty"`
 	ToolCall *ToolCall `json:"toolCall,omitempty"`
 	Approval *Approval `json:"approval,omitempty"`
+	Notice   *Notice   `json:"notice,omitempty"`
 	TurnEnd  *TurnEnd  `json:"turnEnd,omitempty"`
+}
+
+type Notice struct {
+	Severity    string `json:"severity"`
+	Title       string `json:"title"`
+	Description string `json:"description,omitempty"`
 }
 
 type ToolCall struct {
@@ -78,6 +85,7 @@ const (
 	EventMessage     = "message"
 	EventToolCall    = "toolCall"
 	EventApproval    = "approval"
+	EventNotice      = "notice"
 	EventTurnEnd     = "turnEnd"
 )
 
@@ -101,6 +109,7 @@ var (
 	modelAPIs        = []string{"anthropic", "openai", "openaiCompatible"}
 	toolCallStatuses = []string{"running", "completed", "failed", "denied"}
 	approvalStatuses = []string{"pending", "allowed", "denied"}
+	noticeSeverities = []string{"info", "warning", "error"}
 	turnEndReasons   = []string{"completed", "stopped", "failed"}
 )
 
@@ -213,7 +222,23 @@ func sanitizeEvent(event *Event) bool {
 	switch event.Type {
 	case EventUserMessage, EventMessage:
 		event.Text = cut(event.Text, maxTextLen)
-		event.ToolCall, event.Approval, event.TurnEnd = nil, nil, nil
+		event.ToolCall, event.Approval, event.Notice, event.TurnEnd = nil, nil, nil, nil
+
+		return true
+	case EventNotice:
+		notice := event.Notice
+
+		if notice == nil || strings.TrimSpace(notice.Title) == "" {
+			return false
+		}
+
+		if !oneOf(notice.Severity, noticeSeverities) {
+			notice.Severity = "info"
+		}
+
+		notice.Title = cut(notice.Title, maxErrorLen)
+		notice.Description = cut(notice.Description, maxErrorLen)
+		event.Text, event.ToolCall, event.Approval, event.TurnEnd = "", nil, nil, nil
 
 		return true
 	case EventToolCall:
@@ -230,7 +255,7 @@ func sanitizeEvent(event *Event) bool {
 		call.Title = cut(call.Title, maxTitleLen)
 		call.Input = cut(call.Input, maxToolIOLen)
 		call.Output = cut(call.Output, maxToolIOLen)
-		event.Text, event.Approval, event.TurnEnd = "", nil, nil
+		event.Text, event.Approval, event.Notice, event.TurnEnd = "", nil, nil, nil
 
 		return true
 	case EventApproval:
@@ -249,7 +274,7 @@ func sanitizeEvent(event *Event) bool {
 		}
 
 		approval.Title = cut(approval.Title, maxTitleLen)
-		event.Text, event.ToolCall, event.TurnEnd = "", nil, nil
+		event.Text, event.ToolCall, event.Notice, event.TurnEnd = "", nil, nil, nil
 
 		return true
 	case EventTurnEnd:
@@ -260,7 +285,7 @@ func sanitizeEvent(event *Event) bool {
 		}
 
 		end.Error = cut(end.Error, maxErrorLen)
-		event.Text, event.ToolCall, event.Approval = "", nil, nil
+		event.Text, event.ToolCall, event.Approval, event.Notice = "", nil, nil, nil
 
 		return true
 	default:

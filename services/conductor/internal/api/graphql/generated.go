@@ -105,6 +105,14 @@ type ComplexityRoot struct {
 		Provider func(childComplexity int) int
 	}
 
+	AgentNotice struct {
+		Description func(childComplexity int) int
+		ID          func(childComplexity int) int
+		Severity    func(childComplexity int) int
+		Time        func(childComplexity int) int
+		Title       func(childComplexity int) int
+	}
+
 	AgentSession struct {
 		Effort    func(childComplexity int) int
 		Events    func(childComplexity int) int
@@ -1255,6 +1263,37 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.AgentModel.Provider(childComplexity), true
+
+	case "AgentNotice.description":
+		if e.ComplexityRoot.AgentNotice.Description == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentNotice.Description(childComplexity), true
+	case "AgentNotice.id":
+		if e.ComplexityRoot.AgentNotice.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentNotice.ID(childComplexity), true
+	case "AgentNotice.severity":
+		if e.ComplexityRoot.AgentNotice.Severity == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentNotice.Severity(childComplexity), true
+	case "AgentNotice.time":
+		if e.ComplexityRoot.AgentNotice.Time == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentNotice.Time(childComplexity), true
+	case "AgentNotice.title":
+		if e.ComplexityRoot.AgentNotice.Title == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentNotice.Title(childComplexity), true
 
 	case "AgentSession.effort":
 		if e.ComplexityRoot.AgentSession.Effort == nil {
@@ -10650,6 +10689,121 @@ func (ec *executionContext) _AgentModel_name(ctx context.Context, field graphql.
 }
 func (ec *executionContext) fieldContext_AgentModel_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("AgentModel", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AgentNotice_id(ctx context.Context, field graphql.CollectedField, obj *model.AgentNotice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentNotice_id(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentNotice_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentNotice", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _AgentNotice_time(ctx context.Context, field graphql.CollectedField, obj *model.AgentNotice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentNotice_time(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Time, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentNotice_time(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentNotice", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _AgentNotice_severity(ctx context.Context, field graphql.CollectedField, obj *model.AgentNotice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentNotice_severity(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Severity, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.AgentNoticeSeverity) graphql.Marshaler {
+			return ec.marshalNAgentNoticeSeverity2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentNoticeSeverity(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentNotice_severity(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentNotice", field, false, false, errors.New("field of type AgentNoticeSeverity does not have child fields"))
+}
+
+func (ec *executionContext) _AgentNotice_title(ctx context.Context, field graphql.CollectedField, obj *model.AgentNotice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentNotice_title(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Title, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentNotice_title(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentNotice", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AgentNotice_description(ctx context.Context, field graphql.CollectedField, obj *model.AgentNotice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentNotice_description(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Description, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_AgentNotice_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentNotice", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _AgentSession_id(ctx context.Context, field graphql.CollectedField, obj *model.AgentSession) (ret graphql.Marshaler) {
@@ -30340,6 +30494,13 @@ func (ec *executionContext) _AgentSessionEvent(ctx context.Context, sel ast.Sele
 			return graphql.Null
 		}
 		return ec._AgentToolCall(ctx, sel, obj)
+	case model.AgentNotice:
+		return ec._AgentNotice(ctx, sel, &obj)
+	case *model.AgentNotice:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._AgentNotice(ctx, sel, obj)
 	case model.AgentMessage:
 		return ec._AgentMessage(ctx, sel, &obj)
 	case *model.AgentMessage:
@@ -30809,6 +30970,64 @@ func (ec *executionContext) _AgentModel(ctx context.Context, sel ast.SelectionSe
 		case "name":
 			out.Values[i] = ec._AgentModel_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var agentNoticeImplementors = []string{"AgentNotice", "AgentSessionEvent"}
+
+func (ec *executionContext) _AgentNotice(ctx context.Context, sel ast.SelectionSet, obj *model.AgentNotice) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, agentNoticeImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AgentNotice")
+		case "id":
+			out.Values[i] = ec._AgentNotice_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "time":
+			out.Values[i] = ec._AgentNotice_time(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "severity":
+			out.Values[i] = ec._AgentNotice_severity(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "title":
+			out.Values[i] = ec._AgentNotice_title(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "description":
+			out.Values[i] = ec._AgentNotice_description(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
 		default:
@@ -38307,6 +38526,16 @@ func (ec *executionContext) marshalNAgentModel2ᚖgithubᚗcomᚋzeitlosᚋlucit
 func (ec *executionContext) unmarshalNAgentModelInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentModelInput(ctx context.Context, v any) (model.AgentModelInput, error) {
 	res, err := ec.unmarshalInputAgentModelInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNAgentNoticeSeverity2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentNoticeSeverity(ctx context.Context, v any) (model.AgentNoticeSeverity, error) {
+	var res model.AgentNoticeSeverity
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNAgentNoticeSeverity2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentNoticeSeverity(ctx context.Context, sel ast.SelectionSet, v model.AgentNoticeSeverity) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) marshalNAgentSession2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentSession(ctx context.Context, sel ast.SelectionSet, v model.AgentSession) graphql.Marshaler {

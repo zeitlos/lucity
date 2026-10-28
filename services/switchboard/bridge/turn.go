@@ -38,6 +38,12 @@ func (t *turn) record(update acp.Update) {
 	switch update.Kind {
 	case "agent_message_chunk":
 		t.pending.WriteString(update.Text())
+	case "notice":
+		t.pending.WriteString("\n\n" + update.Title)
+		if update.Description != "" {
+			t.pending.WriteString(": " + update.Description)
+		}
+		t.pending.WriteString("\n\n")
 	case "tool_call":
 		if strings.TrimSpace(t.pending.String()) != "" {
 			t.last = t.pending.String()

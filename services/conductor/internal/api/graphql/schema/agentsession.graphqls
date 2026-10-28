@@ -48,7 +48,22 @@ type AgentSession {
 }
 
 """Something that happened in a session. Events with the same `callId` or `approval` describe the same call or approval, and the later one replaces the earlier one."""
-union AgentSessionEvent = AgentUserMessage | AgentMessage | AgentToolCall | AgentApproval | AgentTurnEnd
+union AgentSessionEvent = AgentUserMessage | AgentMessage | AgentToolCall | AgentApproval | AgentNotice | AgentTurnEnd
+
+enum AgentNoticeSeverity {
+  INFO
+  WARNING
+  ERROR
+}
+
+"""Something the harness flags about the session rather than says as the agent, like a model fallback or a safety stop."""
+type AgentNotice {
+  id: ID!
+  time: Time!
+  severity: AgentNoticeSeverity!
+  title: String!
+  description: String
+}
 
 """A message someone in the workspace sent to the agent."""
 type AgentUserMessage {

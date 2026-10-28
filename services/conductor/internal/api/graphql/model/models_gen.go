@@ -119,6 +119,17 @@ type AgentModelInput struct {
 	Name     string                   `json:"name"`
 }
 
+// Something the harness flags about the session rather than says as the agent, like a model fallback or a safety stop.
+type AgentNotice struct {
+	ID          string              `json:"id"`
+	Time        time.Time           `json:"time"`
+	Severity    AgentNoticeSeverity `json:"severity"`
+	Title       string              `json:"title"`
+	Description *string             `json:"description,omitempty"`
+}
+
+func (AgentNotice) IsAgentSessionEvent() {}
+
 // One conversation with an agent. Every member of the workspace can see it and take part.
 type AgentSession struct {
 	ID    platform.AgentSessionID `json:"id"`
@@ -1165,6 +1176,63 @@ func (e *AgentAuditResult) UnmarshalJSON(b []byte) error {
 }
 
 func (e AgentAuditResult) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type AgentNoticeSeverity string
+
+const (
+	AgentNoticeSeverityInfo    AgentNoticeSeverity = "INFO"
+	AgentNoticeSeverityWarning AgentNoticeSeverity = "WARNING"
+	AgentNoticeSeverityError   AgentNoticeSeverity = "ERROR"
+)
+
+var AllAgentNoticeSeverity = []AgentNoticeSeverity{
+	AgentNoticeSeverityInfo,
+	AgentNoticeSeverityWarning,
+	AgentNoticeSeverityError,
+}
+
+func (e AgentNoticeSeverity) IsValid() bool {
+	switch e {
+	case AgentNoticeSeverityInfo, AgentNoticeSeverityWarning, AgentNoticeSeverityError:
+		return true
+	}
+	return false
+}
+
+func (e AgentNoticeSeverity) String() string {
+	return string(e)
+}
+
+func (e *AgentNoticeSeverity) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AgentNoticeSeverity(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AgentNoticeSeverity", str)
+	}
+	return nil
+}
+
+func (e AgentNoticeSeverity) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AgentNoticeSeverity) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AgentNoticeSeverity) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil
