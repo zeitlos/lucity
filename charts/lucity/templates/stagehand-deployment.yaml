@@ -72,6 +72,16 @@ spec:
             - name: WORKLOAD_PAID_PLACEMENT
               value: {{ . | quote }}
             {{- end }}
+            {{- if .Values.agents.enabled }}
+            - name: AGENTS_ENABLED
+              value: "true"
+            - name: AGENTS_NAMESPACE
+              value: {{ .Values.agents.namespace | quote }}
+            - name: AGENT_IMAGE
+              value: "{{ .Values.agents.image.repository }}:{{ .Values.agents.image.tag | default .Chart.AppVersion }}"
+            - name: AGENT_GATEWAY_URL
+              value: "http://lucity-agent-gateway.{{ .Values.agents.namespace }}.svc.cluster.local"
+            {{- end }}
             {{- range $key := $shared }}
             {{- with index $.Values.conductor.env $key }}
             - name: {{ $key }}
