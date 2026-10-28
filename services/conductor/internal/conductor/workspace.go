@@ -81,6 +81,26 @@ func (c *Client) DeleteWorkspace(ctx context.Context, id string) (bool, error) {
 		return false, usererror.Errorf("cannot delete workspace: %d projects still exist, delete them first", len(projects))
 	}
 
+	if c.billing != nil {
+		customerID, err := c.stripeCustomerID(ctx, id)
+
+		if err != nil {
+			return false, err
+		}
+
+		if customerID != "" {
+			renews, err := c.billing.Renews(ctx, customerID)
+
+			if err != nil {
+				return false, fmt.Errorf("read subscription: %w", err)
+			}
+
+			if renews {
+				return false, usererror.New("cannot delete workspace: its plan is still active, cancel it in billing first")
+			}
+		}
+	}
+
 	if err := c.directory.DeleteWorkspace(ctx, id); err != nil {
 		return false, err
 	}

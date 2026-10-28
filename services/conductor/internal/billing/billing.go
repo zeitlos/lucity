@@ -255,6 +255,18 @@ func (c *Client) Paid(ctx context.Context, customerID string) (bool, error) {
 	return c.billing.Paid(current), nil
 }
 
+// Renews reports whether the customer pays for a plan that keeps renewing,
+// that is a paid subscription with no cancellation scheduled.
+func (c *Client) Renews(ctx context.Context, customerID string) (bool, error) {
+	current, err := c.billing.Subscription(ctx, customerID)
+
+	if err != nil || current == nil {
+		return false, err
+	}
+
+	return c.billing.Paid(current) && !current.CancelAtPeriodEnd && current.CancelAt == 0, nil
+}
+
 // Standing reports whether the customer is in good standing, by the same rule
 // stagehand suspends on. The second result is false when the customer never
 // had a subscription, which stagehand leaves alone.
