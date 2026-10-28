@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { useGuardedTab } from '@/composables/useUnsavedChanges';
 import PanelShell from '@/components/PanelShell.vue';
-import { SquareArrowOutUpRight, Container } from '@lucide/vue';
-import GithubIcon from '@/components/GithubIcon.vue';
+import { SquareArrowOutUpRight } from '@lucide/vue';
+import ResourceIcon from '@/components/ResourceIcon.vue';
 import { useServiceLogsPanel } from '@/composables/useServiceLogsPanel';
 import type { Service } from '@/composables/useEnvironment';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -36,8 +36,7 @@ function openLogs() {
 <template>
   <PanelShell :title="service.name" @close="emit('close')">
     <template #icon>
-      <GithubIcon v-if="service.sourceUrl" />
-      <Container v-else />
+      <ResourceIcon :kind="service.sourceUrl ? 'repositoryService' : 'imageService'" :size="24" />
     </template>
 
     <!-- Tab Content -->
