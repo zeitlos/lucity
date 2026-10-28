@@ -60,3 +60,12 @@ scaled to zero, so the implicit ":latest" is never pulled.
 {{- $image.repository -}}
 {{- end -}}
 {{- end }}
+
+{{- define "lucity-app.agentLabels" -}}
+{{ include "lucity-app.labels" .root }}
+app.kubernetes.io/component: agent
+lucity.dev/agent: {{ .name }}
+{{- with .root.Values.commonLabels }}
+{{ toYaml . }}
+{{- end }}
+{{- end }}
