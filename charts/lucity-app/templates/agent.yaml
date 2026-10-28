@@ -219,6 +219,14 @@ spec:
         - ports:
             - port: "8080"
               protocol: TCP
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            app.kubernetes.io/name: konnectivity-agent
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
   egress:
     - toEndpoints:
         - matchLabels:

@@ -1007,9 +1007,12 @@ agentgateway:
   rbac:
     gatewayNamespaces:
       - lucity-agents
-  # -- The agents namespace, plus every environment namespace so the gateway
-  #    can tell which namespace a call comes from
+  # -- The controller's own namespace (its xDS certificate), the agents
+  #    namespace, and every environment namespace so the gateway can tell
+  #    which namespace a call comes from
   discoveryNamespaceSelectors:
+    - matchLabels:
+        kubernetes.io/metadata.name: lucity-system
     - matchLabels:
         kubernetes.io/metadata.name: lucity-agents
     - matchExpressions:
