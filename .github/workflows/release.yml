@@ -62,7 +62,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [conductor, builder, cashier, exporter, stagehand, dashboard, docs, switchboard]
+        service: [conductor, builder, cashier, exporter, stagehand, dashboard, docs, switchboard, agent]
         include:
           - service: conductor
             dockerfile: services/conductor/Dockerfile
@@ -93,6 +93,9 @@ jobs:
             context: docs
           - service: switchboard
             dockerfile: services/switchboard/Dockerfile
+            context: .
+          - service: agent
+            dockerfile: services/agent/Dockerfile
             context: .
 
     steps:
