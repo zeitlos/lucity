@@ -149,6 +149,10 @@ func (o *openCode) ModelValue(model Model) (string, error) {
 	return model.Provider + "/" + model.Name, nil
 }
 
+func (o *openCode) Prepare(Model) error {
+	return nil
+}
+
 func (o *openCode) Covers(routing Routing, model Model) bool {
 	route, ok := routing.Providers[model.Provider]
 	return ok && route.API == model.API && slices.Contains(route.Models, model.Name)

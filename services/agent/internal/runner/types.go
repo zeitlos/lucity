@@ -39,7 +39,14 @@ const (
 	EventMessage     = "message"
 	EventToolCall    = "toolCall"
 	EventApproval    = "approval"
+	EventNotice      = "notice"
 	EventTurnEnd     = "turnEnd"
+)
+
+const (
+	NoticeInfo    = "info"
+	NoticeWarning = "warning"
+	NoticeError   = "error"
 )
 
 const (
@@ -111,7 +118,16 @@ type Event struct {
 	Author   string    `json:"author,omitempty"`
 	ToolCall *ToolCall `json:"toolCall,omitempty"`
 	Approval *Approval `json:"approval,omitempty"`
+	Notice   *Notice   `json:"notice,omitempty"`
 	TurnEnd  *TurnEnd  `json:"turnEnd,omitempty"`
+}
+
+// Notice is something the harness flags about the session rather than says
+// as the agent, like a model fallback or a safety stop.
+type Notice struct {
+	Severity    string `json:"severity"`
+	Title       string `json:"title"`
+	Description string `json:"description,omitempty"`
 }
 
 type ToolCall struct {

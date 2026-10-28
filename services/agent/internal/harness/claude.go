@@ -2,7 +2,12 @@ package harness
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io/fs"
+	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/zeitlos/lucity/pkg/acp"
 	"github.com/zeitlos/lucity/services/agent/internal/config"
@@ -78,6 +83,34 @@ func (c *claudeCode) SessionMeta(model Model) map[string]any {
 		"ANTHROPIC_AUTH_TOKEN": c.agent.Gateway.Key,
 	}
 	return map[string]any{"claudeCode": map[string]any{"options": map[string]any{"env": env, "promptSuggestions": false}}}
+}
+
+func (c *claudeCode) Prepare(model Model) error {
+	path := filepath.Join(c.paths.Home, ".claude", "settings.json")
+	settings := map[string]any{}
+	raw, err := os.ReadFile(path)
+	switch {
+	case err == nil:
+		if err := json.Unmarshal(raw, &settings); err != nil {
+			return fmt.Errorf("read %s: %w", path, err)
+		}
+	case !errors.Is(err, fs.ErrNotExist):
+		return err
+	}
+
+	var models []string
+	if entries, ok := settings["availableModels"].([]any); ok {
+		for _, entry := range entries {
+			if name, ok := entry.(string); ok {
+				models = append(models, name)
+			}
+		}
+	}
+	if slices.Contains(models, model.Name) {
+		return nil
+	}
+	settings["availableModels"] = append(models, model.Name)
+	return writeJSON(path, settings)
 }
 
 func (c *claudeCode) ModelValue(model Model) (string, error) {

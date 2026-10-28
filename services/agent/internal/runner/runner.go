@@ -210,6 +210,9 @@ func (r *Runner) Create(ctx context.Context, message string, model *Model, effor
 	if err != nil {
 		return SessionStatus{}, err
 	}
+	if err := r.harness.Prepare(*model); err != nil {
+		return SessionStatus{}, err
+	}
 	created, err := client.NewSession(ctx, r.workdir, r.harness.MCPServers(), r.harness.SessionMeta(*model))
 	if err != nil {
 		return SessionStatus{}, harnessError(err)
@@ -276,10 +279,13 @@ func (r *Runner) SetModel(ctx context.Context, id string, model *Model, effort s
 	if effort != "" && !slices.Contains(efforts, effort) {
 		return SessionStatus{}, InvalidError{fmt.Errorf("effort must be one of %s", strings.Join(efforts, ", "))}
 	}
+	var value string
 	if model != nil {
-		if _, err := r.harness.ModelValue(*model); err != nil {
+		v, err := r.harness.ModelValue(*model)
+		if err != nil {
 			return SessionStatus{}, InvalidError{err}
 		}
+		value = v
 	}
 	s, err := r.session(id)
 	if err != nil {
@@ -296,13 +302,18 @@ func (r *Runner) SetModel(ctx context.Context, id string, model *Model, effort s
 		s.mu.Unlock()
 		return SessionStatus{}, fmt.Errorf("%w: switch the model provider once the session is idle", ErrBusy)
 	}
+	unoffered := model != nil && !offered(s.options, value)
+	if unoffered && s.statusLocked() != StatusIdle {
+		s.mu.Unlock()
+		return SessionStatus{}, fmt.Errorf("%w: switch to this model once the session is idle", ErrBusy)
+	}
 	if model != nil {
 		s.record.Model = *model
 	}
 	if effort != "" {
 		s.record.Effort = effort
 	}
-	if providerChanged {
+	if providerChanged || unoffered {
 		s.attached = nil
 	}
 	record := s.record
@@ -413,6 +424,13 @@ func (r *Runner) Update(harnessSessionID string, update acp.Update) {
 	switch update.Kind {
 	case "agent_message_chunk":
 		s.appendMessage(update.Text())
+	case "notice":
+		severity := update.Severity
+		if severity != NoticeWarning && severity != NoticeError {
+			severity = NoticeInfo
+		}
+		r.flush(s)
+		r.record(s, Event{Type: EventNotice, Notice: &Notice{Severity: severity, Title: update.Title, Description: update.Description}})
 	case "tool_call", "tool_call_update":
 		if call, changed := s.toolCall(update, r.connectors); changed {
 			r.flush(s)
@@ -572,6 +590,13 @@ func (r *Runner) attach(ctx context.Context, s *session) (*acp.Client, error) {
 	}
 	s.replaying = true
 	s.mu.Unlock()
+
+	if err := r.harness.Prepare(record.Model); err != nil {
+		s.mu.Lock()
+		s.replaying = false
+		s.mu.Unlock()
+		return nil, err
+	}
 
 	ctx, cancel := context.WithTimeout(r.ctx, 2*time.Minute)
 	defer cancel()
@@ -815,6 +840,17 @@ func harnessError(err error) error {
 		return err
 	}
 	return InvalidError{err}
+}
+
+func offered(options []acp.ConfigOption, value string) bool {
+	option, ok := acp.FindConfigOption(options, "model")
+	if !ok {
+		return false
+	}
+	if option.Current() == value {
+		return true
+	}
+	return slices.ContainsFunc(option.Values(), func(v acp.ConfigValue) bool { return v.Value == value })
 }
 
 func effortValue(option acp.ConfigOption, effort string) (string, bool) {

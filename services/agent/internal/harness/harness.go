@@ -50,6 +50,8 @@ type Harness interface {
 	Command(routing Routing) (acp.Command, error)
 	MCPServers() []json.RawMessage
 	SessionMeta(model Model) map[string]any
+	// Prepare readies the harness to create or resume a session on model.
+	Prepare(model Model) error
 	ModelValue(model Model) (string, error)
 	// Covers reports whether a harness started with routing can serve model.
 	Covers(routing Routing, model Model) bool

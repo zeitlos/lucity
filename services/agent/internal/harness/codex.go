@@ -74,6 +74,10 @@ func (c *codex) ModelValue(model Model) (string, error) {
 	return model.Name, nil
 }
 
+func (c *codex) Prepare(Model) error {
+	return nil
+}
+
 func (c *codex) Covers(routing Routing, model Model) bool {
 	return routing.Active == model.Provider && routing.Providers[model.Provider].API == model.API && routing.Model == model.Name
 }
