@@ -4,10 +4,13 @@ import { formatDuration } from '@/lib/format';
 import { devicon } from '@/lib/devicons';
 import { computed, ref, watch, onUnmounted } from 'vue';
 import { Handle, Position } from '@vue-flow/core';
-import { ExternalLink, Globe, Container, HardDrive } from '@lucide/vue';
+import { CircleX, ExternalLink, Globe, Container, HardDrive } from '@lucide/vue';
+import Spinner from '@/components/LoadingSpinner.vue';
+import RelativeTime from '@/components/RelativeTime.vue';
+import { useBuildLogsPanel } from '@/composables/useBuildLogsPanel';
 import GithubIcon from '@/components/GithubIcon.vue';
 import { EndpointType, ServiceStatus, type Protocol } from '@/gql/graphql';
-import type { CanvasReleasePhase } from '@/composables/useCanvasReleaseStatus';
+import type { CanvasReleaseFailure, CanvasReleasePhase } from '@/composables/useCanvasReleaseStatus';
 import { Status } from '@/components/ui/status';
 
 interface Endpoint {
@@ -32,6 +35,8 @@ const props = defineProps<{
     replicas: ReplicaCount;
     activeReleasePhase?: CanvasReleasePhase | null;
     activeReleaseStartedAt?: number | null;
+    releaseFailure?: CanvasReleaseFailure | null;
+    live?: boolean;
     volume?: { id: string; name: string; path: string; selected?: boolean; usagePercent?: number | null } | null;
   };
   selected?: boolean;
@@ -46,7 +51,17 @@ const isFromRepo = computed(() => !!props.data.sourceUrl);
 
 const gitMask = `url("${devicon('git')}")`;
 
-const status = computed(() => serviceStatus(props.data.status));
+const status = computed(() => (props.data.activeReleasePhase && !props.data.live
+  ? { tone: 'neutral' as const, label: 'Not live yet' }
+  : serviceStatus(props.data.status)));
+
+const logsPanel = useBuildLogsPanel();
+
+function openFailure() {
+  const failure = props.data.releaseFailure;
+  if (failure?.logs) logsPanel.open(failure.logs.id, props.data.name, failure.logs.kind);
+  else emit('select');
+}
 
 const shortRepoName = computed(() => {
   if (!props.data.sourceUrl) return null;
@@ -137,9 +152,37 @@ const hostUrl = computed(() => {
         'service-node group cursor-pointer rounded-xl border px-6 py-5 shadow-sm transition duration-200 w-72',
         'hover:shadow-md',
         selected ? 'border-primary shadow-md' : 'border-border',
+        (deployLabel || data.releaseFailure) && 'rounded-tl-none',
       ]"
       @click="emit('select')"
     >
+      <div
+        v-if="deployLabel || data.releaseFailure"
+        :class="[
+          'absolute bottom-full -left-px flex max-w-full items-center gap-1.5 rounded-t-lg border border-b-0 px-3 py-1.5 text-xs font-medium whitespace-nowrap',
+          deployLabel ? 'release-tab-progress' : 'release-tab-failed',
+          selected ? 'border-primary' : 'border-border',
+        ]"
+      >
+        <template v-if="deployLabel">
+          <Spinner :size="12" class="text-status-progress" />
+          <span class="text-foreground">{{ deployLabel }}</span>
+          <span class="font-normal text-muted-foreground tabular-nums">{{ formattedElapsed }}</span>
+        </template>
+        <template v-else-if="data.releaseFailure">
+          <CircleX :size="14" class="shrink-0 text-status-danger" />
+          <span class="truncate text-status-danger">{{ data.releaseFailure.label }}</span>
+          <span class="shrink-0 font-normal text-muted-foreground"><RelativeTime :value="data.releaseFailure.at" /></span>
+          <button
+            type="button"
+            class="ml-1 shrink-0 text-foreground underline underline-offset-2 hover:text-muted-foreground"
+            @click.stop="openFailure"
+          >
+            {{ data.releaseFailure.logs ? 'Logs' : 'Details' }}
+          </button>
+        </template>
+      </div>
+
       <!-- Header: icon + name -->
       <div class="flex items-center gap-3">
         <GithubIcon v-if="isFromRepo" :size="28" class="shrink-0" />
@@ -184,9 +227,6 @@ const hostUrl = computed(() => {
       <!-- Status row -->
       <div class="mt-4 flex items-center justify-between border-t border-border/50 pt-4">
         <Status :tone="status.tone" size="sm">{{ status.label }}</Status>
-        <Status v-if="deployLabel" tone="progress" size="sm">
-          {{ deployLabel }} {{ formattedElapsed }}
-        </Status>
       </div>
 
       <!-- Vue Flow handles (invisible, for potential edges) -->
@@ -228,7 +268,7 @@ const hostUrl = computed(() => {
 <style scoped>
 .service-node {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   background: linear-gradient(
     to bottom,
     var(--card) 0%,
@@ -246,5 +286,13 @@ const hostUrl = computed(() => {
 
 .volume-usage-fill {
   background: color-mix(in oklch, var(--card) 30%, var(--muted));
+}
+
+.release-tab-progress {
+  background: color-mix(in oklab, var(--card) 92%, var(--status-progress));
+}
+
+.release-tab-failed {
+  background: color-mix(in oklab, var(--card) 93%, var(--status-danger));
 }
 </style>

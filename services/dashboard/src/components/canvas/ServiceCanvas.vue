@@ -35,7 +35,7 @@ const emit = defineEmits<{
 const { openPanel, currentPanel } = usePanel();
 
 const servicesRef = toRef(props, 'services');
-const { statusMap } = useCanvasReleaseStatus(
+const { statusMap, failureMap } = useCanvasReleaseStatus(
   servicesRef,
   () => emit('deploy-completed'),
 );
@@ -76,6 +76,8 @@ const nodes = computed(() => {
         replicas: svc.replicas,
         activeReleasePhase: releaseInfo?.phase ?? null,
         activeReleaseStartedAt: releaseInfo?.startedAt ?? null,
+        releaseFailure: failureMap.value[svc.id] ?? null,
+        live: !!svc.activeDeployment,
         volume: mountedVolume
           ? {
             id: mountedVolume.id,
