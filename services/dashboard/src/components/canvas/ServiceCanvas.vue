@@ -8,11 +8,13 @@ import { usePanel } from '@/composables/usePanel';
 import { useCanvasReleaseStatus } from '@/composables/useCanvasReleaseStatus';
 import { useCanvasLayout } from '@/composables/useCanvasLayout';
 import type { Service, Database, KeyValueStore, Bucket, Volume } from '@/composables/useEnvironment';
+import type { Agent } from '@/lib/agents';
 import ServiceNode from './ServiceNode.vue';
 import DatabaseNode from './DatabaseNode.vue';
 import KeyValueStoreNode from './KeyValueStoreNode.vue';
 import BucketNode from './BucketNode.vue';
 import VolumeNode from './VolumeNode.vue';
+import AgentNode from './AgentNode.vue';
 import { Button } from '@/components/ui/button';
 import '@vue-flow/core/dist/style.css';
 import '@vue-flow/core/dist/theme-default.css';
@@ -23,6 +25,7 @@ const props = defineProps<{
   keyValueStores: KeyValueStore[];
   buckets: Bucket[];
   volumes: Volume[];
+  agents: Agent[];
   environmentId: string;
 }>();
 
@@ -52,6 +55,7 @@ const allNodeIds = computed(() => [
   ...props.keyValueStores,
   ...props.buckets,
   ...props.volumes,
+  ...props.agents,
 ].map(node => node.id));
 
 watch(
@@ -152,7 +156,22 @@ const nodes = computed(() => {
       };
     });
 
-  return [...serviceNodes, ...databaseNodes, ...keyValueStoreNodes, ...bucketNodes, ...volumeNodes];
+  const agentNodes = props.agents.map((agent, index) => {
+    return {
+      id: agent.id,
+      type: 'agent',
+      position: positionFor(agent.id) ?? { x: 1700, y: index * 220 },
+      data: {
+        name: agent.name,
+        harness: agent.harness,
+        status: agent.status,
+        connectors: agent.connectors.map(grant => grant.connector.name),
+      },
+      selected: currentPanel.value?.id === agent.id && currentPanel.value?.type === 'agent',
+    };
+  });
+
+  return [...serviceNodes, ...databaseNodes, ...keyValueStoreNodes, ...bucketNodes, ...volumeNodes, ...agentNodes];
 });
 
 const edges = ref<never[]>([]);
@@ -166,6 +185,8 @@ function handleNodeClick(event: { node: { id: string; type: string; data: { name
     openPanel({ type: 'bucket', id: event.node.id, label: event.node.data.name });
   } else if (event.node.type === 'volume') {
     openPanel({ type: 'volume', id: event.node.id, label: event.node.data.name });
+  } else if (event.node.type === 'agent') {
+    openPanel({ type: 'agent', id: event.node.id, label: event.node.data.name });
   } else {
     openPanel({ type: 'service', id: event.node.id, label: event.node.data.name });
   }
@@ -189,7 +210,7 @@ onNodeDragStop(({ nodes: draggedNodes }) => {
 onMounted(() => {
   setTimeout(() => {
     const panel = currentPanel.value;
-    if (panel?.type === 'service' || panel?.type === 'database' || panel?.type === 'keyValueStore' || panel?.type === 'bucket' || panel?.type === 'volume') {
+    if (panel?.type === 'service' || panel?.type === 'database' || panel?.type === 'keyValueStore' || panel?.type === 'bucket' || panel?.type === 'volume' || panel?.type === 'agent') {
       const node = findNode(panel.id);
       if (node) {
         const nodeCenterX = node.position.x + (node.dimensions.width / 2);
@@ -203,7 +224,7 @@ onMounted(() => {
   }, 200);
 });
 
-const totalNodes = computed(() => props.services.length + props.databases.length + props.keyValueStores.length + props.buckets.length + props.volumes.length);
+const totalNodes = computed(() => props.services.length + props.databases.length + props.keyValueStores.length + props.buckets.length + props.volumes.length + props.agents.length);
 watch(totalNodes, () => {
   setTimeout(() => handleFitView(), 100);
 });
@@ -211,7 +232,7 @@ watch(totalNodes, () => {
 watch(
   () => currentPanel.value,
   (panel, oldPanel) => {
-    if (panel?.type === 'service' || panel?.type === 'database' || panel?.type === 'keyValueStore' || panel?.type === 'bucket' || panel?.type === 'volume') {
+    if (panel?.type === 'service' || panel?.type === 'database' || panel?.type === 'keyValueStore' || panel?.type === 'bucket' || panel?.type === 'volume' || panel?.type === 'agent') {
       const node = findNode(panel.id);
       if (node) {
         const nodeCenterX = node.position.x + (node.dimensions.width / 2);
@@ -283,6 +304,14 @@ watch(
           :selected="nodeProps.selected"
           @select="openPanel({ type: 'volume', id: nodeProps.id, label: nodeProps.data.name })"
           @mount="emit('mount-volume', nodeProps.id)"
+        />
+      </template>
+
+      <template #node-agent="nodeProps">
+        <AgentNode
+          :data="nodeProps.data"
+          :selected="nodeProps.selected"
+          @select="openPanel({ type: 'agent', id: nodeProps.id, label: nodeProps.data.name })"
         />
       </template>
 

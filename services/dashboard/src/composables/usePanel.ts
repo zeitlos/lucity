@@ -2,7 +2,7 @@ import { ref, computed } from 'vue';
 import { confirmDiscard } from '@/composables/useUnsavedChanges';
 
 export interface PanelEntry {
-  type: 'service' | 'database' | 'keyValueStore' | 'bucket' | 'volume';
+  type: 'service' | 'database' | 'keyValueStore' | 'bucket' | 'volume' | 'agent';
   id: string;
   label: string;
 }

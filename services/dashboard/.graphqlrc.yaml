@@ -26,6 +26,10 @@ generates:
         ReleaseID: string
         ScanID: string
         VariableID: string
+        ModelProviderID: string
+        ConnectorID: string
+        AgentID: string
+        AgentSessionID: string
     presetConfig:
       fragmentMasking: false
   ./graphql.schema.json:

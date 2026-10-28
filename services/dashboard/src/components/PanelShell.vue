@@ -31,6 +31,7 @@ useEscapeToClose(close);
     class="flex h-full flex-col rounded-lg border bg-card shadow-lg"
   >
     <header class="flex shrink-0 items-center gap-3 border-b px-4 py-3">
+        <slot name="leading" />
         <span
           v-if="$slots.icon"
           class="flex size-6 shrink-0 items-center justify-center text-foreground [&_img]:size-6 [&_svg]:size-6"

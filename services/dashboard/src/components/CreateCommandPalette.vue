@@ -6,7 +6,7 @@ import { devicon } from '@/lib/devicons';
 import { ref, computed, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuery, useMutation, useApolloClient } from '@vue/apollo-composable';
-import { FolderPlus, FolderGit2, Plus, Lock, Globe, ArrowLeft, Search, ChevronDown, ChevronRight, Container, Star, Award, HardDrive, Braces, CornerDownLeft, Check } from '@lucide/vue';
+import { FolderPlus, FolderGit2, Plus, Lock, Globe, ArrowLeft, Search, ChevronDown, ChevronRight, Container, Star, Award, HardDrive, Braces, CornerDownLeft, Check, Bot } from '@lucide/vue';
 import Spinner from '@/components/LoadingSpinner.vue';
 import type { Component } from 'vue';
 import BucketIcon from '@/components/BucketIcon.vue';
@@ -16,7 +16,11 @@ import CommandFlow from '@/components/CommandFlow.vue';
 import type { CommandFlowConfig } from '@/lib/commandFlow';
 import { onKeyStroke, refDebounced } from '@vueuse/core';
 import { graphql } from '@/gql';
-import { GitHubAccountType } from '@/gql/graphql';
+import { Approval, GitHubAccountType, type Harness } from '@/gql/graphql';
+import { harnesses, harnessLabel } from '@/lib/agents';
+import BrandTile from '@/components/BrandTile.vue';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
 
 const GitHubConnectedDocument = graphql(`
   query GitHubConnected {
@@ -136,6 +140,24 @@ const CreateVolumeDocument = graphql(`
     }
   }
 `);
+const AgentPaletteConnectorsDocument = graphql(`
+  query AgentPaletteConnectors {
+    connectors {
+      id
+      name
+      url
+    }
+  }
+`);
+
+const CreateAgentDocument = graphql(`
+  mutation CreateAgent($environment: EnvironmentID!, $name: String!, $harness: Harness!, $instructions: String!, $connectors: [AgentConnectorInput!]) {
+    createAgent(environment: $environment, name: $name, harness: $harness, instructions: $instructions, connectors: $connectors) {
+      id
+      name
+    }
+  }
+`);
 import { useEnvironment } from '@/composables/useEnvironment';
 import { useGitHubInstall } from '@/composables/useGitHubInstall';
 import { failureToast } from '@/components/ui/sonner';
@@ -162,7 +184,7 @@ const { resolveClient } = useApolloClient();
 const { activeEnvironment } = useEnvironment();
 
 // Drill-down state
-type PaletteView = 'main' | 'github-repos' | 'select-services' | 'service-wizard' | 'database' | 'keyValueStore' | 'bucket' | 'volume' | 'container-image' | 'name-project';
+type PaletteView = 'main' | 'github-repos' | 'select-services' | 'service-wizard' | 'database' | 'keyValueStore' | 'bucket' | 'volume' | 'agent' | 'container-image' | 'name-project';
 const view = ref<PaletteView>('main');
 const search = ref('');
 const inputRef = ref<HTMLInputElement>();
@@ -310,6 +332,7 @@ watch(() => props.open, (open) => {
     pendingImage.value = null;
     processingItemId.value = null;
     volumeStep.value = 'name';
+    agentStep.value = 'harness';
     detectedServices.value = [];
     selectedDetectedIndex.value = 0;
     serviceStep.value = 'name';
@@ -345,6 +368,8 @@ onKeyStroke('Escape', () => {
     selectServicesBack();
   } else if (view.value === 'volume' && volumeStep.value === 'size') {
     volumeStep.value = 'name';
+  } else if (view.value === 'agent' && agentStep.value === 'details') {
+    agentStep.value = 'harness';
   } else if (view.value !== 'main') {
     view.value = 'main';
   } else {
@@ -723,6 +748,62 @@ async function handleCreateVolume() {
   }
 }
 
+const agentStep = ref<'harness' | 'details'>('harness');
+const agentHarness = ref<Harness | null>(null);
+const agentName = ref('');
+const agentInstructions = ref('');
+const agentConnectorIds = ref<string[]>([]);
+const agentNameRef = ref<HTMLInputElement>();
+
+const { result: agentConnectorsResult, loading: agentConnectorsLoading } = useQuery(AgentPaletteConnectorsDocument, null, () => ({
+  enabled: props.open && view.value === 'agent',
+}));
+const agentConnectors = computed(() => agentConnectorsResult.value?.connectors ?? []);
+
+const { mutate: createAgentMutate, loading: creatingAgent } = useMutation(CreateAgentDocument);
+
+function startAgent() {
+  agentStep.value = 'harness';
+  agentHarness.value = null;
+  agentName.value = '';
+  agentInstructions.value = '';
+  agentConnectorIds.value = [];
+  view.value = 'agent';
+}
+
+function selectHarness(harness: Harness) {
+  agentHarness.value = harness;
+  agentStep.value = 'details';
+  nextTick(() => agentNameRef.value?.focus());
+}
+
+function toggleAgentConnector(connectorId: string, checked: boolean | 'indeterminate') {
+  agentConnectorIds.value = checked === true
+    ? [...agentConnectorIds.value, connectorId]
+    : agentConnectorIds.value.filter(id => id !== connectorId);
+}
+
+const canCreateAgent = computed(() => !!agentHarness.value && agentName.value.trim().length > 0 && !creatingAgent.value);
+
+async function handleCreateAgent() {
+  if (!props.environmentId || !agentHarness.value || !canCreateAgent.value) return;
+
+  try {
+    await createAgentMutate({
+      environment: props.environmentId,
+      name: agentName.value.trim(),
+      harness: agentHarness.value,
+      instructions: agentInstructions.value,
+      connectors: agentConnectorIds.value.map(connector => ({ connector, approval: Approval.Ask })),
+    });
+
+    close();
+    emit('created');
+  } catch (e: unknown) {
+    failureToast('Failed to create agent', e);
+  }
+}
+
 // Open GitHub App install in a popup, refetch sources on completion
 const { openInstallPopup } = useGitHubInstall(() => {
   const client = resolveClient();
@@ -802,6 +883,7 @@ const currentItemCount = computed(() => {
     case 'container-image': return imageResults.value.length;
     case 'select-services': return detectedServices.value.length;
     case 'service-wizard': return wizardItems.value.length;
+    case 'agent': return agentStep.value === 'harness' ? harnesses.length : 0;
     default: return 0;
   }
 });
@@ -813,6 +895,7 @@ function scrollFocusedIntoView() {
 onKeyStroke('ArrowDown', (e) => {
   if (!props.open) return;
   if (view.value === 'database' || view.value === 'keyValueStore' || view.value === 'volume') return;
+  if (view.value === 'agent' && agentStep.value === 'details') return;
   if (currentItemCount.value === 0) return;
   e.preventDefault();
   focusedIndex.value = (focusedIndex.value + 1) % currentItemCount.value;
@@ -822,6 +905,7 @@ onKeyStroke('ArrowDown', (e) => {
 onKeyStroke('ArrowUp', (e) => {
   if (!props.open) return;
   if (view.value === 'database' || view.value === 'keyValueStore' || view.value === 'volume') return;
+  if (view.value === 'agent' && agentStep.value === 'details') return;
   if (currentItemCount.value === 0) return;
   e.preventDefault();
   focusedIndex.value = (focusedIndex.value - 1 + currentItemCount.value) % currentItemCount.value;
@@ -897,6 +981,18 @@ onKeyStroke('Enter', (e) => {
         handleCreateVolume();
       }
       break;
+    case 'agent':
+      if (agentStep.value === 'harness') {
+        const harness = harnesses[focusedIndex.value];
+        if (harness) {
+          e.preventDefault();
+          selectHarness(harness.value);
+        }
+      } else if (!(e.target instanceof HTMLTextAreaElement) && !(e.target instanceof HTMLButtonElement) && canCreateAgent.value) {
+        e.preventDefault();
+        handleCreateAgent();
+      }
+      break;
     case 'name-project':
       if (isProjectValid.value && !creating.value && !detectingServices.value) {
         e.preventDefault();
@@ -935,6 +1031,7 @@ const mainItems = computed(() => {
         { id: 'keyValueStore', label: 'Redis', iconSrc: devicon('redis'), action: () => { view.value = 'keyValueStore'; } },
         { id: 'bucket', label: 'Bucket', icon: BucketIcon, action: () => { view.value = 'bucket'; } },
         { id: 'volume', label: 'Volume', icon: HardDrive, action: () => { volumeStep.value = 'name'; view.value = 'volume'; } },
+        { id: 'agent', label: 'Agent', icon: Bot, action: startAgent },
       ];
 
   if (!search.value) return items;
@@ -1375,6 +1472,116 @@ void activeEnvironment;
                 {{ creatingVolume ? 'Creating…' : 'Create volume' }}
               </Button>
             </div>
+          </template>
+
+          <template v-if="view === 'agent'">
+            <div class="flex h-12 items-center border-b px-3">
+              <IconButton
+                label="Back"
+                size="icon-xs"
+                class="mr-1 shrink-0"
+                @click="agentStep === 'details' ? (agentStep = 'harness') : (view = 'main')"
+              >
+                <ArrowLeft />
+              </IconButton>
+              <Bot :size="16" class="ml-1 shrink-0 text-muted-foreground" />
+              <span v-if="agentStep === 'harness'" class="ml-2 text-sm text-muted-foreground">Choose a harness</span>
+              <span v-else class="ml-2 text-sm font-medium text-foreground">Agent</span>
+            </div>
+
+            <div v-if="agentStep === 'harness'" class="p-1">
+              <button
+                v-for="(harness, index) in harnesses"
+                :key="harness.value"
+                :data-focused="focusedIndex === index"
+                class="group flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-sm text-popover-foreground transition-colors"
+                :class="focusedIndex === index ? 'bg-accent' : 'hover:bg-accent'"
+                @click="selectHarness(harness.value)"
+                @mouseenter="focusedIndex = index"
+              >
+                <BrandTile :name="harness.label" />
+                <span class="flex min-w-0 flex-1 flex-col items-start">
+                  <span class="text-foreground">{{ harness.label }}</span>
+                  <span class="text-xs text-muted-foreground">{{ harness.models }}</span>
+                </span>
+                <span
+                  v-if="focusedIndex === index"
+                  class="flex shrink-0 items-center gap-1 text-xs font-medium text-green-500"
+                >
+                  select
+                  <CornerDownLeft :size="14" />
+                </span>
+              </button>
+            </div>
+
+            <form v-else class="max-h-[60vh] space-y-4 overflow-y-auto p-4" @submit.prevent="handleCreateAgent">
+              <div class="space-y-2">
+                <label for="agent-name" class="text-sm font-medium text-foreground">Name</label>
+                <input
+                  id="agent-name"
+                  ref="agentNameRef"
+                  v-model="agentName"
+                  class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  placeholder="ops-agent"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+                <p class="text-xs text-muted-foreground">
+                  {{ agentHarness ? harnessLabel(agentHarness) : '' }} &middot; the model is picked per session
+                </p>
+              </div>
+
+              <div class="space-y-2">
+                <label for="agent-instructions" class="text-sm font-medium text-foreground">Instructions</label>
+                <Textarea
+                  id="agent-instructions"
+                  v-model="agentInstructions"
+                  rows="4"
+                  class="text-sm"
+                  placeholder="What the agent is for, and what it should and shouldn't do."
+                />
+              </div>
+
+              <div class="space-y-2">
+                <span class="text-sm font-medium text-foreground">Connectors</span>
+                <div v-if="agentConnectorsLoading && !agentConnectorsResult" class="space-y-2">
+                  <Skeleton class="h-10 w-full" />
+                  <Skeleton class="h-10 w-full" />
+                </div>
+                <p v-else-if="agentConnectors.length === 0" class="text-xs text-muted-foreground">
+                  The workspace has no connectors yet. You can grant them later under Access.
+                </p>
+                <div v-else class="divide-y overflow-hidden rounded-lg border">
+                  <label
+                    v-for="connector in agentConnectors"
+                    :key="connector.id"
+                    class="flex cursor-pointer items-center gap-3 px-3 py-2 transition-colors hover:bg-accent/40"
+                  >
+                    <Checkbox
+                      :model-value="agentConnectorIds.includes(connector.id)"
+                      @update:model-value="toggleAgentConnector(connector.id, $event)"
+                    />
+                    <BrandTile :name="connector.name" size="sm" />
+                    <span class="min-w-0 flex-1 truncate text-sm text-foreground">{{ connector.name }}</span>
+                    <span class="max-w-40 truncate font-mono text-xs text-muted-foreground">{{ connector.url }}</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="space-y-2">
+                <Button
+                  type="submit"
+                  class="w-full"
+                  :pending="creatingAgent"
+                  :disabled="!canCreateAgent"
+                >
+                  {{ creatingAgent ? 'Creating…' : 'Create agent' }}
+                </Button>
+                <p class="text-center text-xs text-muted-foreground">
+                  Tool calls ask for approval until you allow them under Access.
+                </p>
+              </div>
+            </form>
           </template>
 
           <!-- Name project view -->
