@@ -19,6 +19,8 @@ const (
 	GitHubInstallation  = Prefix + "github-installation"
 	ObjectStorageBucket = Prefix + "object-storage-bucket"
 	CustomDomain        = Prefix + "custom-domain"
+	Agent               = Prefix + "agent"
+	AgentKey            = Prefix + "agent-key"
 )
 
 // OCI image label constants.
