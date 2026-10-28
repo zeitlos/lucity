@@ -177,7 +177,23 @@ func (c *Client) Releases(ctx context.Context, service platform.Service) ([]Rele
 		return releases[i].CreatedAt.After(releases[j].CreatedAt)
 	})
 
+	for i := range releases {
+		if releases[i].awaitingRollout() && (i > 0 || time.Since(*releases[i].Deploy.FinishedAt) > rolloutGrace) {
+			releases[i].Status = ReleaseSuperseded
+		}
+	}
+
 	return releases, nil
+}
+
+const rolloutGrace = 15 * time.Minute
+
+func (r Release) awaitingRollout() bool {
+	return r.Status == ReleaseDeploying &&
+		r.Deployment == nil &&
+		r.Deploy != nil &&
+		r.Deploy.Status == deployjob.StatusSucceeded &&
+		r.Deploy.FinishedAt != nil
 }
 
 func assembleRelease(workspace, name string, build *Build, deploy *Deploy, scan *Scan, deployment *Deployment) Release {
@@ -213,6 +229,7 @@ func releaseStatus(build *Build, deploy *Deploy, deployment *Deployment) Release
 	}
 
 	deployInFlight := deploy != nil && (deploy.Status == deployjob.StatusQueued || deploy.Status == deployjob.StatusRunning)
+	deployApplied := deploy != nil && deploy.Status == deployjob.StatusSucceeded
 
 	if build != nil {
 		switch build.Status {
@@ -221,7 +238,7 @@ func releaseStatus(build *Build, deploy *Deploy, deployment *Deployment) Release
 		case buildjob.StatusRunning, buildjob.StatusCancelling:
 			return ReleaseBuilding
 		case buildjob.StatusSucceeded:
-			if deployInFlight {
+			if deployInFlight || deployApplied {
 				return ReleaseDeploying
 			}
 
@@ -233,7 +250,7 @@ func releaseStatus(build *Build, deploy *Deploy, deployment *Deployment) Release
 		}
 	}
 
-	if deployInFlight {
+	if deployInFlight || deployApplied {
 		return ReleaseDeploying
 	}
 
