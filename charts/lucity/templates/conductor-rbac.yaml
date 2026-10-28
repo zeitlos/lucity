@@ -18,7 +18,7 @@ metadata:
     {{- include "lucity.labels" . | nindent 4 }}
 rules:
   - apiGroups: [""]
-    resources: [namespaces, services, configmaps, secrets]
+    resources: [namespaces, services, configmaps, secrets, serviceaccounts]
     verbs: [get, list, watch, create, update, patch, delete]
   - apiGroups: [""]
     resources: [resourcequotas, limitranges]
