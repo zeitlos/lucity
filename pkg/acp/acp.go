@@ -43,6 +43,8 @@ type Update struct {
 	Status        string          `json:"status"`
 	RawInput      json.RawMessage `json:"rawInput"`
 	ConfigOptions []ConfigOption  `json:"configOptions"`
+	Severity      string          `json:"severity"`
+	Description   string          `json:"description"`
 }
 
 func (u Update) Text() string {
@@ -300,6 +302,7 @@ func (c *Client) initialize(ctx context.Context) error {
 		"clientCapabilities": map[string]any{
 			"fs":       map[string]bool{"readTextFile": false, "writeTextFile": false},
 			"terminal": false,
+			"session":  map[string]any{"notices": map[string]any{}},
 		},
 		"clientInfo": map[string]string{"name": c.name, "version": "0.1.0"},
 	}, &result)
