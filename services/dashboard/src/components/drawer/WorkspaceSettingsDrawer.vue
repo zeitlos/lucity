@@ -37,7 +37,7 @@ import ContextDrawer from '@/components/drawer/ContextDrawer.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { failureToast } from '@/components/ui/sonner';
+import { failureToast, successToast } from '@/components/ui/sonner';
 import { useAuth } from '@/composables/useAuth';
 
 const props = defineProps<{
@@ -84,6 +84,8 @@ const { mutate: deleteMutate, loading: deleting } = useMutation(DeleteWorkspaceD
 });
 
 async function handleDelete() {
+  const { name } = props.workspace;
+
   try {
     await deleteMutate();
     await refreshToken();
@@ -93,6 +95,7 @@ async function handleDelete() {
     }
     apolloClient.resetStore();
     router.push({ name: 'projects' });
+    successToast(`Workspace "${name}" deleted`);
   } catch (e: unknown) {
     failureToast('Failed to delete workspace', e);
   }

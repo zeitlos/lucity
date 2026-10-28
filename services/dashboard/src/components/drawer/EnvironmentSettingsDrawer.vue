@@ -27,7 +27,7 @@ import { apolloClient } from '@/lib/apollo';
 import ContextDrawer from '@/components/drawer/ContextDrawer.vue';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { failureToast } from '@/components/ui/sonner';
+import { failureToast, successToast } from '@/components/ui/sonner';
 
 const props = defineProps<{
   projectId: string;
@@ -81,7 +81,7 @@ const { mutate: deleteEnvironmentMutate, loading: deleting } = useMutation(Delet
 const confirmOpen = ref(false);
 
 async function handleDelete() {
-  const { id } = props.environment;
+  const { id, name } = props.environment;
 
   try {
     await deleteEnvironmentMutate({ environment: id });
@@ -91,6 +91,7 @@ async function handleDelete() {
 
     confirmOpen.value = false;
     router.push({ name: 'project', params: { projectId: props.projectId } });
+    successToast(`Environment "${name}" deleted`);
   } catch (e: unknown) {
     failureToast('Failed to delete environment', e);
   }
