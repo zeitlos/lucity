@@ -178,7 +178,8 @@ kubectl --context lucity-dev -n lucity-system get deploy,sts -o json \
   | column -t                                              # READY == WANT and OBSERVED == GEN on every row
 
 kubectl --context lucity-dev -n lucity-system get pods -o json \
-  | jq -r '.items[] | select(.status.phase != "Succeeded") | . as $pod | [.status.containerStatuses[]? | select(.ready | not)]
+  | jq -r '.items[] | select(.status.phase != "Succeeded") | select(all(.metadata.ownerReferences[]?; .kind != "Job"))
+      | . as $pod | [.status.containerStatuses[]? | select(.ready | not)]
       | select(length > 0) | "\($pod.metadata.name)\t\($pod.status.phase)\t\(map(.state.waiting.reason // .state.terminated.reason // "starting") | join(","))"'
 
 kubectl --context lucity-dev get --raw \
@@ -192,6 +193,9 @@ Gate rules:
 - The pod check prints nothing: every container in `lucity-system` is ready. Also glance at
   `kubectl get pods` for recent restarts (the `RESTARTS` column shows "(5m ago)"); on a
   platform pod those count against the gate too.
+- Job pods are not platform workloads (neither chart ships a Job; the `deploy-*` and build
+  pods belong to user releases), so the pod check skips them. Don't mention failed Job pods
+  in the report, here or after Step 5.
 - No critical alert is firing on dev. A firing warning is not automatically a blocker, but name
   it in the report and say whether it could relate to this change. If the Alertmanager service
   does not exist, say that alerting is off on dev and rely on the other checks.
@@ -322,7 +326,8 @@ kubectl --context "$CTX" -n lucity-system get deploy,sts -o json \
   | column -t
 
 kubectl --context "$CTX" -n lucity-system get pods -o json \
-  | jq -r '.items[] | select(.status.phase != "Succeeded") | . as $pod | [.status.containerStatuses[]? | select(.ready | not)]
+  | jq -r '.items[] | select(.status.phase != "Succeeded") | select(all(.metadata.ownerReferences[]?; .kind != "Job"))
+      | . as $pod | [.status.containerStatuses[]? | select(.ready | not)]
       | select(length > 0) | "\($pod.metadata.name)\t\($pod.status.phase)\t\(map(.state.waiting.reason // .state.terminated.reason // "starting") | join(","))"'
 ```
 
