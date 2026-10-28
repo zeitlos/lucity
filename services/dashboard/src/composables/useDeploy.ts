@@ -41,12 +41,6 @@ export interface DeployState {
   reset: () => void;
 }
 
-const TERMINAL_STATUSES = new Set<BuildStatus>([
-  BuildStatus.Succeeded,
-  BuildStatus.Failed,
-  BuildStatus.Cancelled,
-]);
-
 export function useDeploy(): DeployState {
   let pollTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -151,4 +145,3 @@ export function useDeploy(): DeployState {
   return state;
 }
 
-export { TERMINAL_STATUSES };

@@ -1,18 +1,24 @@
 <script setup lang="ts">
-import { jobStatus } from '@/lib/status';
-import { useEscapeToClose } from '@/composables/useEscapeToClose';
-import { ref, computed, watch, nextTick } from 'vue';
-import { X, Pause, Play, AlertCircle, Eraser } from '@lucide/vue';
-import Spinner from '@/components/LoadingSpinner.vue';
-import LogLine from '@/components/LogLine.vue';
-import { useBuildLogs } from '@/composables/useBuildLogs';
-import { useDeployLogs } from '@/composables/useDeployLogs';
-import { useScanLogs } from '@/composables/useScanLogs';
-import type { LogsPanelKind } from '@/composables/useBuildLogsPanel';
+import { computed } from 'vue';
+import { useQuery } from '@vue/apollo-composable';
+import { graphql } from '@/gql';
 import { BuildStatus } from '@/gql/graphql';
-import { useDeploy } from '@/composables/useDeploy';
-import { Status } from '@/components/ui/status';
-import IconButton from '@/components/IconButton.vue';
+import LogViewer from '@/components/LogViewer.vue';
+import type { LogsPanelKind } from '@/composables/useBuildLogsPanel';
+import { useEscapeToClose } from '@/composables/useEscapeToClose';
+import { useJobLogs } from '@/composables/useJobLogs';
+import { formatDuration } from '@/lib/format';
+
+const BuildLogsStatusDocument = graphql(`
+  query BuildLogsStatus($id: BuildID!) {
+    build(id: $id) {
+      id
+      status
+      startedAt
+      finishedAt
+    }
+  }
+`);
 
 const props = defineProps<{
   id: string;
@@ -26,163 +32,49 @@ const emit = defineEmits<{
 
 useEscapeToClose(() => emit('close'));
 
-const buildIdRef = computed(() => (props.kind === 'build' ? props.id : null));
-const deployIdRef = computed(() => (props.kind === 'deploy' ? props.id : null));
-const scanIdRef = computed(() => (props.kind === 'scan' ? props.id : null));
-const buildLogs = useBuildLogs(buildIdRef);
-const deployLogs = useDeployLogs(deployIdRef);
-const scanLogs = useScanLogs(scanIdRef);
-const logs = computed(() => {
-  switch (props.kind) {
-    case 'deploy': return deployLogs;
-    case 'scan': return scanLogs;
-    default: return buildLogs;
-  }
-});
+const titles: Record<LogsPanelKind, string> = { build: 'Build logs', deploy: 'Deploy logs', scan: 'Secret scan logs' };
+const names: Record<LogsPanelKind, string> = { build: 'Build', deploy: 'Deploy', scan: 'Secret scan' };
 
-const lines = computed(() => logs.value.lines.value);
-const isActive = computed(() => logs.value.isActive.value);
-const error = computed(() => logs.value.error.value);
+const kindRef = computed(() => props.kind);
+const idRef = computed(() => props.id);
+const { lines, state, error, retry } = useJobLogs(kindRef, idRef);
 
-function clear() {
-  logs.value.clear();
-}
+const entries = computed(() => lines.value.map(text => ({ text })));
 
-const deploy = useDeploy();
-
-const kindLabel = computed(() => ({ build: 'Build', deploy: 'Deploy', scan: 'Secret scan' } as Record<string, string>)[props.kind] ?? props.kind);
-const buildStatus = computed(() => (deploy.status ? jobStatus(deploy.status) : null));
-
-const logContainer = ref<HTMLElement | null>(null);
-const userScrolled = ref(false);
-const paused = ref(false);
-
-function handleScroll() {
-  if (!logContainer.value) return;
-  const el = logContainer.value;
-  const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
-  userScrolled.value = !atBottom;
-}
-
-watch(lines, async () => {
-  if (userScrolled.value || paused.value) return;
-  await nextTick();
-  if (logContainer.value) {
-    logContainer.value.scrollTop = logContainer.value.scrollHeight;
-  }
-}, { deep: true });
-
-const isTerminal = computed(() =>
-  props.kind === 'build' && (
-    deploy.status === BuildStatus.Succeeded
-      || deploy.status === BuildStatus.Failed
-      || deploy.status === BuildStatus.Cancelled
-  )
+const { result: buildResult } = useQuery(
+  BuildLogsStatusDocument,
+  () => ({ id: props.id }),
+  () => ({ enabled: props.kind === 'build' && state.value === 'finished', fetchPolicy: 'network-only' }),
 );
 
-function togglePause() {
-  paused.value = !paused.value;
-  if (paused.value) {
-    logs.value.stop();
-  } else {
-    logs.value.restart();
+const end = computed(() => {
+  const name = names[props.kind];
+  const build = props.kind === 'build' ? buildResult.value?.build : null;
+  const took = build?.startedAt && build.finishedAt
+    ? formatDuration(new Date(build.finishedAt).getTime() - new Date(build.startedAt).getTime())
+    : null;
+  switch (build?.status) {
+    case BuildStatus.Succeeded:
+      return { text: took ? `${name} succeeded in ${took}` : `${name} succeeded`, tone: 'ok' as const };
+    case BuildStatus.Failed:
+      return { text: took ? `${name} failed after ${took}` : `${name} failed`, tone: 'danger' as const };
+    case BuildStatus.Cancelled:
+      return { text: `${name} was cancelled`, tone: 'neutral' as const };
+    default:
+      return { text: `${name} finished`, tone: 'neutral' as const };
   }
-}
+});
 </script>
 
 <template>
-  <div class="flex h-full flex-col rounded-lg border bg-zinc-950 shadow-2xl">
-    <!-- Header -->
-    <div class="flex shrink-0 items-center justify-between border-b border-zinc-800 px-4 py-3">
-      <div class="flex items-center gap-3">
-        <h2 class="text-sm font-semibold text-zinc-200">
-          {{ serviceName }}
-        </h2>
-        <span class="text-xs text-zinc-500">{{ kindLabel }}</span>
-        <Status
-          v-if="kind === 'build' && buildStatus"
-          :tone="buildStatus.tone"
-          size="sm"
-        >
-          {{ buildStatus.label }}
-        </Status>
-      </div>
-
-      <div class="flex items-center gap-1">
-        <IconButton
-          :label="paused ? 'Resume' : 'Pause'"
-          class="text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
-          @click="togglePause"
-        >
-          <Pause
-            v-if="!paused"
-          />
-          <Play
-            v-else
-          />
-        </IconButton>
-        <IconButton
-          label="Clear logs"
-          class="text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
-          @click="clear"
-        >
-          <Eraser />
-        </IconButton>
-        <IconButton
-          label="Close" shortcut="Esc"
-          class="text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
-          @click="emit('close')"
-        >
-          <X />
-        </IconButton>
-      </div>
-    </div>
-
-    <!-- Log output -->
-    <div
-      ref="logContainer"
-      class="flex-1 overflow-auto p-4 font-mono text-xs leading-relaxed text-zinc-300"
-      @scroll="handleScroll"
-    >
-      <div
-        v-if="error"
-        class="flex items-start gap-2 rounded-md border border-red-900/40 bg-red-950/30 px-3 py-2.5 text-red-300"
-      >
-        <AlertCircle :size="13" class="mt-0.5 shrink-0" />
-        <div class="min-w-0 space-y-0.5">
-          <p class="font-sans text-xs font-medium">Failed to load logs</p>
-          <p class="break-words font-mono text-xs text-red-400/80">{{ error }}</p>
-        </div>
-      </div>
-
-      <div
-        v-else-if="lines.length === 0 && !isTerminal"
-        class="flex items-center gap-2 text-zinc-500"
-      >
-        <Spinner
-          :size="12"
-          class="animate-spin"
-        />
-        <span>Waiting for logs...</span>
-      </div>
-
-      <div
-        v-for="(line, idx) in lines"
-        :key="idx"
-      >
-        <span class="select-none pr-3 text-zinc-600">{{ String(idx + 1).padStart(4, ' ') }}</span>
-        <LogLine :text="line" />
-      </div>
-
-      <div
-        v-if="isActive && !isTerminal && lines.length > 0 && !paused"
-        class="mt-2 flex items-center gap-2 text-zinc-500"
-      >
-        <Spinner
-          :size="12"
-          class="animate-spin"
-        />
-      </div>
-    </div>
-  </div>
+  <LogViewer
+    :title="titles[kind]"
+    :lines="entries"
+    :state="state"
+    :error="error"
+    :end="end"
+    :file-name="`${serviceName}-${kind}-logs.txt`"
+    @close="emit('close')"
+    @retry="retry"
+  />
 </template>

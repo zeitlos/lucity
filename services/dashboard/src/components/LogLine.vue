@@ -2,9 +2,10 @@
 import { computed } from 'vue';
 import Anser from 'anser';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   text: string;
-}>();
+  wrap?: boolean;
+}>(), { wrap: true });
 
 type Segment = ReturnType<typeof Anser.ansiToJson>[number] & {
   isInverted?: boolean;
@@ -42,7 +43,7 @@ function styleFor(segment: Segment) {
 </script>
 
 <template>
-  <span class="whitespace-pre-wrap break-all">
+  <span :class="wrap ? 'whitespace-pre-wrap break-all' : 'whitespace-pre'">
     <span
       v-for="(segment, idx) in segments"
       :key="idx"

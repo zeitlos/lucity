@@ -22,7 +22,7 @@ export function useServiceLogs(
 ) {
   const lines = ref<LogLine[]>([]);
   const isActive = ref(false);
-  const error = ref<string | null>(null);
+  const error = ref<unknown>(null);
 
   const { onResult, onError, stop, restart } = useSubscription(
     ServiceLogsDocument,
@@ -43,7 +43,7 @@ export function useServiceLogs(
 
   onError((e) => {
     isActive.value = false;
-    error.value = e.message;
+    error.value = e;
   });
 
   watch(serviceId, () => {

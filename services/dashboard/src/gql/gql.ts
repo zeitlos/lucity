@@ -56,6 +56,7 @@ type Documents = {
     "\n  query BucketObjectDownloadUrl($bucket: BucketID!, $key: String!) {\n    bucketObjectDownloadUrl(bucket: $bucket, key: $key)\n  }\n": typeof types.BucketObjectDownloadUrlDocument,
     "\n  mutation DeleteBucketObject($bucket: BucketID!, $key: String!) {\n    deleteBucketObject(bucket: $bucket, key: $key)\n  }\n": typeof types.DeleteBucketObjectDocument,
     "\n  mutation DeleteBucket($bucket: BucketID!) {\n    deleteBucket(bucket: $bucket)\n  }\n": typeof types.DeleteBucketDocument,
+    "\n  query BuildLogsStatus($id: BuildID!) {\n    build(id: $id) {\n      id\n      status\n      startedAt\n      finishedAt\n    }\n  }\n": typeof types.BuildLogsStatusDocument,
     "\n  mutation AddDatabaseAllowRule($database: DatabaseID!, $rule: DatabaseAllowRuleInput!) {\n    addDatabaseAllowRule(database: $database, rule: $rule) {\n      id\n      allowRules {\n        range\n        description\n      }\n    }\n  }\n": typeof types.AddDatabaseAllowRuleDocument,
     "\n  mutation RemoveDatabaseAllowRule($database: DatabaseID!, $range: String!) {\n    removeDatabaseAllowRule(database: $database, range: $range) {\n      id\n      allowRules {\n        range\n        description\n      }\n    }\n  }\n": typeof types.RemoveDatabaseAllowRuleDocument,
     "\n  query DatabaseBackups($database: DatabaseID!) {\n    database(id: $database) {\n      id\n      name\n      backups {\n        enabled\n        retentionDays\n        earliestRestorePoint\n        latestRestorePoint\n        lastBackupAt\n        backups {\n          id\n          status\n          trigger\n          createdAt\n          startedAt\n          finishedAt\n          error\n        }\n      }\n    }\n  }\n": typeof types.DatabaseBackupsDocument,
@@ -101,9 +102,9 @@ type Documents = {
     "\n  mutation ExpandVolume($volume: VolumeID!, $size: String!) {\n    expandVolume(volume: $volume, size: $size) {\n      id\n      size\n    }\n  }\n": typeof types.ExpandVolumeDocument,
     "\n  mutation UnmountVolume($volume: VolumeID!) {\n    unmountVolume(volume: $volume) {\n      id\n      mount {\n        service\n        path\n      }\n    }\n  }\n": typeof types.UnmountVolumeDocument,
     "\n  query VolumeMetrics($id: VolumeID!, $range: MetricsRange!) {\n    volume(id: $id) {\n      id\n      metrics(metrics: [STORAGE_USED], range: $range) {\n        metric\n        points {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n": typeof types.VolumeMetricsDocument,
-    "\n  subscription BuildLogs($id: BuildID!) {\n    buildLogs(id: $id)\n  }\n": typeof types.BuildLogsDocument,
     "\n  mutation Deploy($service: ServiceID!, $gitRef: String) {\n    deploy(service: $service, gitRef: $gitRef) {\n      id\n      status\n      build {\n        id\n        status\n        startedAt\n        finishedAt\n      }\n    }\n  }\n": typeof types.DeployDocument,
     "\n  query BuildStatus($id: BuildID!) {\n    build(id: $id) {\n      id\n      status\n      startedAt\n      finishedAt\n    }\n  }\n": typeof types.BuildStatusDocument,
+    "\n  subscription BuildLogs($id: BuildID!) {\n    buildLogs(id: $id)\n  }\n": typeof types.BuildLogsDocument,
     "\n  subscription DeployLogs($id: DeployID!) {\n    deployLogs(id: $id)\n  }\n": typeof types.DeployLogsDocument,
     "\n  subscription ScanLogs($id: ScanID!) {\n    scanLogs(id: $id)\n  }\n": typeof types.ScanLogsDocument,
     "\n  subscription ServiceLogs($service: ServiceID!, $tailLines: Int) {\n    serviceLogs(service: $service, tailLines: $tailLines) {\n      line\n      pod\n    }\n  }\n": typeof types.ServiceLogsDocument,
@@ -160,6 +161,7 @@ const documents: Documents = {
     "\n  query BucketObjectDownloadUrl($bucket: BucketID!, $key: String!) {\n    bucketObjectDownloadUrl(bucket: $bucket, key: $key)\n  }\n": types.BucketObjectDownloadUrlDocument,
     "\n  mutation DeleteBucketObject($bucket: BucketID!, $key: String!) {\n    deleteBucketObject(bucket: $bucket, key: $key)\n  }\n": types.DeleteBucketObjectDocument,
     "\n  mutation DeleteBucket($bucket: BucketID!) {\n    deleteBucket(bucket: $bucket)\n  }\n": types.DeleteBucketDocument,
+    "\n  query BuildLogsStatus($id: BuildID!) {\n    build(id: $id) {\n      id\n      status\n      startedAt\n      finishedAt\n    }\n  }\n": types.BuildLogsStatusDocument,
     "\n  mutation AddDatabaseAllowRule($database: DatabaseID!, $rule: DatabaseAllowRuleInput!) {\n    addDatabaseAllowRule(database: $database, rule: $rule) {\n      id\n      allowRules {\n        range\n        description\n      }\n    }\n  }\n": types.AddDatabaseAllowRuleDocument,
     "\n  mutation RemoveDatabaseAllowRule($database: DatabaseID!, $range: String!) {\n    removeDatabaseAllowRule(database: $database, range: $range) {\n      id\n      allowRules {\n        range\n        description\n      }\n    }\n  }\n": types.RemoveDatabaseAllowRuleDocument,
     "\n  query DatabaseBackups($database: DatabaseID!) {\n    database(id: $database) {\n      id\n      name\n      backups {\n        enabled\n        retentionDays\n        earliestRestorePoint\n        latestRestorePoint\n        lastBackupAt\n        backups {\n          id\n          status\n          trigger\n          createdAt\n          startedAt\n          finishedAt\n          error\n        }\n      }\n    }\n  }\n": types.DatabaseBackupsDocument,
@@ -205,9 +207,9 @@ const documents: Documents = {
     "\n  mutation ExpandVolume($volume: VolumeID!, $size: String!) {\n    expandVolume(volume: $volume, size: $size) {\n      id\n      size\n    }\n  }\n": types.ExpandVolumeDocument,
     "\n  mutation UnmountVolume($volume: VolumeID!) {\n    unmountVolume(volume: $volume) {\n      id\n      mount {\n        service\n        path\n      }\n    }\n  }\n": types.UnmountVolumeDocument,
     "\n  query VolumeMetrics($id: VolumeID!, $range: MetricsRange!) {\n    volume(id: $id) {\n      id\n      metrics(metrics: [STORAGE_USED], range: $range) {\n        metric\n        points {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n": types.VolumeMetricsDocument,
-    "\n  subscription BuildLogs($id: BuildID!) {\n    buildLogs(id: $id)\n  }\n": types.BuildLogsDocument,
     "\n  mutation Deploy($service: ServiceID!, $gitRef: String) {\n    deploy(service: $service, gitRef: $gitRef) {\n      id\n      status\n      build {\n        id\n        status\n        startedAt\n        finishedAt\n      }\n    }\n  }\n": types.DeployDocument,
     "\n  query BuildStatus($id: BuildID!) {\n    build(id: $id) {\n      id\n      status\n      startedAt\n      finishedAt\n    }\n  }\n": types.BuildStatusDocument,
+    "\n  subscription BuildLogs($id: BuildID!) {\n    buildLogs(id: $id)\n  }\n": types.BuildLogsDocument,
     "\n  subscription DeployLogs($id: DeployID!) {\n    deployLogs(id: $id)\n  }\n": types.DeployLogsDocument,
     "\n  subscription ScanLogs($id: ScanID!) {\n    scanLogs(id: $id)\n  }\n": types.ScanLogsDocument,
     "\n  subscription ServiceLogs($service: ServiceID!, $tailLines: Int) {\n    serviceLogs(service: $service, tailLines: $tailLines) {\n      line\n      pod\n    }\n  }\n": types.ServiceLogsDocument,
@@ -407,6 +409,10 @@ export function graphql(source: "\n  mutation DeleteBucket($bucket: BucketID!) {
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
+export function graphql(source: "\n  query BuildLogsStatus($id: BuildID!) {\n    build(id: $id) {\n      id\n      status\n      startedAt\n      finishedAt\n    }\n  }\n"): (typeof documents)["\n  query BuildLogsStatus($id: BuildID!) {\n    build(id: $id) {\n      id\n      status\n      startedAt\n      finishedAt\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
 export function graphql(source: "\n  mutation AddDatabaseAllowRule($database: DatabaseID!, $rule: DatabaseAllowRuleInput!) {\n    addDatabaseAllowRule(database: $database, rule: $rule) {\n      id\n      allowRules {\n        range\n        description\n      }\n    }\n  }\n"): (typeof documents)["\n  mutation AddDatabaseAllowRule($database: DatabaseID!, $rule: DatabaseAllowRuleInput!) {\n    addDatabaseAllowRule(database: $database, rule: $rule) {\n      id\n      allowRules {\n        range\n        description\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -587,15 +593,15 @@ export function graphql(source: "\n  query VolumeMetrics($id: VolumeID!, $range:
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  subscription BuildLogs($id: BuildID!) {\n    buildLogs(id: $id)\n  }\n"): (typeof documents)["\n  subscription BuildLogs($id: BuildID!) {\n    buildLogs(id: $id)\n  }\n"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
 export function graphql(source: "\n  mutation Deploy($service: ServiceID!, $gitRef: String) {\n    deploy(service: $service, gitRef: $gitRef) {\n      id\n      status\n      build {\n        id\n        status\n        startedAt\n        finishedAt\n      }\n    }\n  }\n"): (typeof documents)["\n  mutation Deploy($service: ServiceID!, $gitRef: String) {\n    deploy(service: $service, gitRef: $gitRef) {\n      id\n      status\n      build {\n        id\n        status\n        startedAt\n        finishedAt\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  query BuildStatus($id: BuildID!) {\n    build(id: $id) {\n      id\n      status\n      startedAt\n      finishedAt\n    }\n  }\n"): (typeof documents)["\n  query BuildStatus($id: BuildID!) {\n    build(id: $id) {\n      id\n      status\n      startedAt\n      finishedAt\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  subscription BuildLogs($id: BuildID!) {\n    buildLogs(id: $id)\n  }\n"): (typeof documents)["\n  subscription BuildLogs($id: BuildID!) {\n    buildLogs(id: $id)\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
