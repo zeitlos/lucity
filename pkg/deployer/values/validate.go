@@ -90,6 +90,18 @@ func Validate(env *Env, workspace, registry string) error {
 		if err := validatePublicAccess(name, pg.PublicAccess); err != nil {
 			return err
 		}
+
+		if pg.Size != "" {
+			size, err := resource.ParseQuantity(pg.Size)
+
+			if err != nil {
+				return usererror.Errorf("database %q: invalid size %q", name, pg.Size)
+			}
+
+			if size.Sign() <= 0 || size.Cmp(maxDatabaseSize) > 0 {
+				return usererror.Errorf("database %q: size must be greater than 0 and at most %s", name, maxDatabaseSize.String())
+			}
+		}
 	}
 
 	if err := validateBackupStore(env.Databases.BackupStore); err != nil {

@@ -146,7 +146,7 @@ written at runtime survives.
 
 Volume rules, all enforced at creation or mount time:
 
-- **Size is 10Gi to 1Ti.** Anything smaller is rejected (`volume size must be between 10Gi and 1Ti`),
+- **Size is 10Gi to 128Gi.** Anything outside that is rejected (`size must be between 10Gi and 128Gi`),
   so a tiny config or upload directory still costs 10Gi. Default to `10Gi` unless the data is larger.
 - **Grow-only.** A volume can be expanded later, never shrunk.
 - **One service, one mount path.** A volume mounts into exactly one service at exactly one path; that

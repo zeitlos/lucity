@@ -61,7 +61,7 @@ const mountedServiceName = computed(() => {
   return props.services.find(s => s.id === props.volume.mount!.service)?.name ?? 'Unknown service';
 });
 
-const volumeSizes = ['10Gi', '16Gi', '32Gi', '64Gi', '128Gi', '256Gi', '512Gi', '1Ti'];
+const volumeSizes = ['10Gi', '16Gi', '32Gi', '64Gi', '128Gi'];
 
 const parseGib = (size: string) => {
   const match = /^(\d+)(Gi|Ti)$/.exec(size);

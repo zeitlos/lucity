@@ -187,7 +187,7 @@ Services: `add_service` (starts the first build right away and returns its `rele
 `configure_service` (start command, resources), `set_variables`, `list_variables`, `check_variables`
 (confirm a variable holds an expected value without revealing it).
 Resources: `create_database` (optional `cpu`/`memory`), `create_kv_store`, `create_bucket`,
-`create_volume` (10Gi to 1Ti; optional `mount_service` + `mount_path`), `run_sql`.
+`create_volume` (10Gi to 128Gi; optional `mount_service` + `mount_path`), `run_sql`.
 Deploy: `deploy` (rebuild after a source or `RAILPACK_*` change), `get_deploy_status`, `get_logs`,
 `rollback`, `add_domain`.
 

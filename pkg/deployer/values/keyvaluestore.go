@@ -8,7 +8,7 @@ import (
 
 var (
 	keyValueStoreVersions = []string{"8", "9"}
-	maxKeyValueStoreSize  = resource.MustParse("1Ti")
+	maxKeyValueStoreSize  = resource.MustParse("128Gi")
 )
 
 type Valkey struct {

@@ -11,6 +11,8 @@ import (
 	"github.com/zeitlos/lucity/pkg/usererror"
 )
 
+var maxDatabaseSize = resource.MustParse("128Gi")
+
 type Databases struct {
 	Postgres    map[string]Postgres `yaml:"postgres"`
 	Valkey      map[string]Valkey   `yaml:"valkey"`

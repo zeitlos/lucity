@@ -10,7 +10,7 @@ import (
 
 var (
 	minVolumeSize = resource.MustParse("10Gi")
-	maxVolumeSize = resource.MustParse("1Ti")
+	maxVolumeSize = resource.MustParse("128Gi")
 )
 
 type Volume struct {

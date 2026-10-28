@@ -96,9 +96,6 @@ const storageOptions = [
   { value: '32Gi', gib: 32, label: '32 GB' },
   { value: '64Gi', gib: 64, label: '64 GB' },
   { value: '128Gi', gib: 128, label: '128 GB' },
-  { value: '256Gi', gib: 256, label: '256 GB' },
-  { value: '512Gi', gib: 512, label: '512 GB' },
-  { value: '1Ti', gib: 1024, label: '1 TB' },
 ];
 
 const { result: resourcesResult, error: resourcesError, refetch: refetchResources } = useQuery(DatabaseResourcesDocument, {

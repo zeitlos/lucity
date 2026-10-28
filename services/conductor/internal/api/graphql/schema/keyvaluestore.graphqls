@@ -33,7 +33,7 @@ extend type Query {
 }
 
 extend type Mutation {
-  """Creates a key-value store in an environment. `size` defaults to `1Gi`, up to 1Ti."""
+  """Creates a key-value store in an environment. `size` defaults to `1Gi`, up to 128Gi."""
   createKeyValueStore(input: CreateKeyValueStoreInput!): KeyValueStore! @hasRole(role: WORKSPACE_MEMBER)
   """Deletes a key-value store and its data."""
   deleteKeyValueStore(keyValueStore: KeyValueStoreID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)

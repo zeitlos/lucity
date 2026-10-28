@@ -347,10 +347,6 @@ func (c *Client) SetDatabaseStorage(ctx context.Context, database platform.Datab
 		return nil, usererror.Errorf("invalid storage size %q", size)
 	}
 
-	if parsedSize.Cmp(resources.MaxDatabaseStorage) > 0 {
-		return nil, usererror.Errorf("storage exceeds the maximum of %s", resources.MaxDatabaseStorage.String())
-	}
-
 	current, err := c.platform.Database(ctx, database)
 
 	if err != nil {

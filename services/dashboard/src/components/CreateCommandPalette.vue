@@ -727,7 +727,7 @@ async function handleCreateBucket() {
 // Create volume (within environment context)
 const { mutate: createVolumeMutate, loading: creatingVolume } = useMutation(CreateVolumeDocument);
 const newVolumeName = ref('');
-const volumeSizes = ['10Gi', '16Gi', '32Gi', '64Gi', '128Gi', '256Gi', '512Gi', '1Ti'];
+const volumeSizes = ['10Gi', '16Gi', '32Gi', '64Gi', '128Gi'];
 const newVolumeSize = ref('10Gi');
 const volumeStep = ref<'name' | 'size'>('name');
 
