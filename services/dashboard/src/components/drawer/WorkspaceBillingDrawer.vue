@@ -73,7 +73,7 @@ const emit = defineEmits<{
 const { result: subResult, loading: subLoading, error: subError, refetch: refetchSubscription } = useQuery(SubscriptionDocument);
 const subscription = computed(() => subResult.value?.subscription);
 
-const { result: usageResult, loading: usageLoading } = useQuery(UsageSummaryDocument);
+const { result: usageResult, loading: usageLoading, error: usageError, refetch: refetchUsage } = useQuery(UsageSummaryDocument);
 const usage = computed(() => usageResult.value?.usageSummary);
 
 const billingNotConfigured = computed(() => !!subError.value?.message.includes('not configured'));
@@ -225,15 +225,21 @@ async function handleOpenPortal() {
         </p>
       </div>
 
-      <section class="space-y-2.5">
+      <QueryError
+        v-if="usageError && !usage"
+        title="Couldn't load this period's usage"
+        :error="usageError"
+        @retry="refetchUsage()"
+      />
+      <section v-else-if="usage || usageLoading" class="space-y-2.5">
         <h3 class="text-sm font-medium text-muted-foreground">This period</h3>
         <div class="space-y-2.5 rounded-lg border p-3">
-          <template v-if="usageLoading">
+          <template v-if="!usage">
             <Skeleton class="h-4 w-full" />
             <Skeleton class="h-4 w-full" />
             <Skeleton class="h-4 w-full" />
           </template>
-          <template v-else-if="usage">
+          <template v-else>
             <div class="flex items-center justify-between text-sm">
               <span class="text-muted-foreground">Resources</span>
               <span class="tabular-nums">{{ formatCents(usage.resourceCostCents) }}</span>
