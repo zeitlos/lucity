@@ -6,6 +6,7 @@ import { BookOpen, Bug, Lightbulb, LogOut } from '@lucide/vue';
 import { useAuth } from '@/composables/useAuth';
 import { useWorkspaceColor } from '@/composables/useWorkspaceColor';
 import { useReportBug } from '@/composables/useReportBug';
+import { useLogoFlex } from '@/composables/useLogoFlex';
 import { workspaceNavItems } from '@/lib/workspaceNav';
 import { graphql } from '@/gql';
 
@@ -44,6 +45,7 @@ const router = useRouter();
 const { user, logout, isWorkspaceAdmin } = useAuth();
 const { workspaceColor } = useWorkspaceColor();
 const { report, requestFeature } = useReportBug();
+const { flex: logoFlex, flexTo: flexLogo } = useLogoFlex();
 const { result: wsResult } = useQuery(WorkspaceDocument, null, { fetchPolicy: 'cache-and-network' });
 const workspace = computed(() => wsResult.value?.workspace ?? null);
 const suspended = computed(() => workspace.value?.suspended ?? false);
@@ -70,9 +72,13 @@ async function handleLogout() {
         <div class="flex items-center gap-3">
           <RouterLink
             to="/"
-            class="flex items-center transition-opacity hover:opacity-80"
+            class="flex items-center"
+            @mouseenter="flexLogo(1)"
+            @mouseleave="flexLogo(0)"
+            @focus="flexLogo(1)"
+            @blur="flexLogo(0)"
           >
-            <BaseLogo :size="20" />
+            <BaseLogo :size="20" :flex="logoFlex" />
           </RouterLink>
 
           <template v-if="user">
