@@ -1,0 +1,262 @@
+{{- if .Values.agents.enabled }}
+{{- $ns := .Values.agents.namespace }}
+{{- $gw := "lucity-agent-gateway" }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $ns }}
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+    app.kubernetes.io/component: agents
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayParameters
+metadata:
+  name: {{ $gw }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+spec:
+  logging:
+    format: json
+  {{- with .Values.agents.gateway.resources }}
+  resources:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  service:
+    spec:
+      type: ClusterIP
+  deployment:
+    spec:
+      replicas: {{ .Values.agents.gateway.replicas }}
+      {{- if or .Values.agents.gateway.nodeSelector .Values.agents.gateway.tolerations .Values.agents.gateway.affinity }}
+      template:
+        spec:
+          {{- with .Values.agents.gateway.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.agents.gateway.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.agents.gateway.affinity }}
+          affinity:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- end }}
+  {{- if gt (int .Values.agents.gateway.replicas) 1 }}
+  podDisruptionBudget:
+    spec:
+      minAvailable: 1
+  {{- end }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: {{ $gw }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+spec:
+  gatewayClassName: agentgateway
+  infrastructure:
+    parametersRef:
+      group: agentgateway.dev
+      kind: AgentgatewayParameters
+      name: {{ $gw }}
+  listeners:
+    - name: http
+      port: 80
+      protocol: HTTP
+      allowedRoutes:
+        namespaces:
+          from: Same
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayPolicy
+metadata:
+  name: agent-keys
+  namespace: {{ $ns }}
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ $gw }}
+  traffic:
+    apiKeyAuthentication:
+      mode: Strict
+      configMapSelector:
+        matchLabels:
+          lucity.dev/agent-key: "true"
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayPolicy
+metadata:
+  name: workspace-guard
+  namespace: {{ $ns }}
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ $gw }}
+  traffic:
+    authorization:
+      action: Require
+      policy:
+        matchExpressions:
+          - 'has(proxy.route.name) && (proxy.route.name.startsWith(apiKey.workspace + ".model.") || (proxy.route.name.startsWith(apiKey.workspace + ".connector.") && proxy.route.name in apiKey.routes))'
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayPolicy
+metadata:
+  name: source-guard
+  namespace: {{ $ns }}
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ $gw }}
+  traffic:
+    authorization:
+      action: Require
+      policy:
+        matchExpressions:
+          - 'has(source.unverifiedWorkload.namespace) && source.unverifiedWorkload.namespace in apiKey.namespaces'
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayPolicy
+metadata:
+  name: strip-credentials
+  namespace: {{ $ns }}
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ $gw }}
+  traffic:
+    headerModifiers:
+      request:
+        remove:
+          - x-api-key
+          - x-goog-api-key
+          - api-key
+          - cookie
+          - proxy-authorization
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayPolicy
+metadata:
+  name: audit-log
+  namespace: {{ $ns }}
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ $gw }}
+  frontend:
+    accessLog:
+      attributes:
+        add:
+          - name: lucity.workspace
+            expression: 'has(apiKey.workspace) ? apiKey.workspace : ""'
+          - name: lucity.agent
+            expression: 'has(apiKey.agent) ? apiKey.agent : ""'
+          - name: lucity.route
+            expression: 'has(proxy.route.name) ? proxy.route.name : ""'
+          - name: llm.model
+            expression: 'has(llm.requestModel) ? llm.requestModel : ""'
+          - name: llm.tokens.in
+            expression: 'has(llm.inputTokens) ? llm.inputTokens : 0'
+          - name: llm.tokens.out
+            expression: 'has(llm.outputTokens) ? llm.outputTokens : 0'
+          - name: mcp.method
+            expression: 'has(mcp.methodName) ? mcp.methodName : ""'
+          - name: mcp.tool
+            expression: 'has(mcp.tool.name) ? mcp.tool.name : ""'
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: gateway-egress
+  namespace: {{ $ns }}
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+spec:
+  endpointSelector:
+    matchLabels:
+      gateway.networking.k8s.io/gateway-name: {{ $gw }}
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: ANY
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: {{ .Release.Namespace }}
+            app.kubernetes.io/name: agentgateway
+      toPorts:
+        - ports:
+            - port: "9978"
+              protocol: TCP
+    - toCIDRSet:
+        - cidr: 0.0.0.0/0
+          except:
+            {{- range .Values.agents.gateway.privateCIDRs }}
+            {{- if not (contains ":" .) }}
+            - {{ . }}
+            {{- end }}
+            {{- end }}
+        - cidr: ::/0
+          except:
+            {{- range .Values.agents.gateway.privateCIDRs }}
+            {{- if contains ":" . }}
+            - {{ . }}
+            {{- end }}
+            {{- end }}
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: gateway-ingress
+  namespace: {{ $ns }}
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+spec:
+  endpointSelector:
+    matchLabels:
+      gateway.networking.k8s.io/gateway-name: {{ $gw }}
+  ingress:
+    - fromEndpoints:
+        - matchExpressions:
+            - key: k8s:io.kubernetes.pod.namespace
+              operator: Exists
+            - key: lucity.dev/agent
+              operator: Exists
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+    - fromEntities:
+        - host
+        - remote-node
+      toPorts:
+        - ports:
+            - port: "15020"
+              protocol: TCP
+            - port: "15021"
+              protocol: TCP
+{{- end }}
