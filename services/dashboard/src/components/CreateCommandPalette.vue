@@ -240,7 +240,7 @@ type WizardItem = { id: string; label: string; icon: Component; actionLabel: str
 const wizardItems = computed<WizardItem[]>(() => {
   const createItem: WizardItem = {
     id: 'create',
-    label: creating.value || addingService.value ? 'Creating service...' : 'Create service',
+    label: creating.value || addingService.value ? 'Creating service…' : 'Create service',
     icon: Check,
     actionLabel: 'create',
     disabled: !isServiceValid.value || creating.value || addingService.value,
@@ -917,9 +917,9 @@ type PaletteItem = {
 const mainItems = computed(() => {
   const items: PaletteItem[] = props.context === 'projects'
     ? [
-        { id: 'github-repo', label: 'GitHub Repository', icon: GithubIcon, action: () => { view.value = 'github-repos'; } },
-        { id: 'container-image', label: 'Container Image', iconSrc: devicon('docker'), action: () => { view.value = 'container-image'; } },
-        { id: 'empty-project', label: 'Empty Project', icon: FolderPlus, action: () => {
+        { id: 'github-repo', label: 'GitHub repository', icon: GithubIcon, action: () => { view.value = 'github-repos'; } },
+        { id: 'container-image', label: 'Container image', iconSrc: devicon('docker'), action: () => { view.value = 'container-image'; } },
+        { id: 'empty-project', label: 'Empty project', icon: FolderPlus, action: () => {
           pendingRepo.value = null;
           pendingImage.value = null;
           projectDisplayName.value = '';
@@ -929,8 +929,8 @@ const mainItems = computed(() => {
         } },
       ]
     : [
-        { id: 'github-repo', label: 'GitHub Repository', icon: GithubIcon, action: () => { view.value = 'github-repos'; } },
-        { id: 'container-image', label: 'Container Image', iconSrc: devicon('docker'), action: () => { view.value = 'container-image'; } },
+        { id: 'github-repo', label: 'GitHub repository', icon: GithubIcon, action: () => { view.value = 'github-repos'; } },
+        { id: 'container-image', label: 'Container image', iconSrc: devicon('docker'), action: () => { view.value = 'container-image'; } },
         { id: 'database', label: 'PostgreSQL', iconSrc: devicon('postgresql'), action: () => { view.value = 'database'; } },
         { id: 'keyValueStore', label: 'Redis', iconSrc: devicon('redis'), action: () => { view.value = 'keyValueStore'; } },
         { id: 'bucket', label: 'Bucket', icon: BucketIcon, action: () => { view.value = 'bucket'; } },
@@ -1010,7 +1010,7 @@ void activeEnvironment;
               <input
                 ref="inputRef"
                 v-model="search"
-                placeholder="Search repositories..."
+                placeholder="Search repositories…"
                 class="flex h-12 w-full bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground"
               />            </div>
 
@@ -1089,7 +1089,7 @@ void activeEnvironment;
                       @mouseenter="focusedIndex = sources.length"
                     >
                       <Plus :size="14" />
-                      Add GitHub Account
+                      Add GitHub account
                     </button>
                   </div>
                 </div>
@@ -1103,7 +1103,7 @@ void activeEnvironment;
                 </p>
                 <Button class="mt-3" @click="openInstallPopup()">
                   <Plus />
-                  Add GitHub Account
+                  Add GitHub account
                 </Button>
               </div>
 
@@ -1111,7 +1111,7 @@ void activeEnvironment;
                 <div class="p-1">
                   <p class="px-2 py-1.5 text-xs font-medium text-muted-foreground">Repositories</p>
                   <template v-if="reposLoading">
-                    <p class="px-2 py-6 text-center text-sm text-muted-foreground">Loading repositories...</p>
+                    <p class="px-2 py-6 text-center text-sm text-muted-foreground">Loading repositories…</p>
                   </template>
                   <template v-else-if="repos.length === 0">
                     <p class="px-2 py-6 text-center text-sm text-muted-foreground">No repositories found.</p>
@@ -1165,7 +1165,7 @@ void activeEnvironment;
               <input
                 ref="inputRef"
                 v-model="containerImageRef"
-                placeholder="Search Docker Hub or enter image..."
+                placeholder="Search Docker Hub or enter an image…"
                 class="flex h-12 w-full bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground"
               />
               <Spinner
@@ -1258,7 +1258,7 @@ void activeEnvironment;
               <div class="flex-1" />            </div>
             <div class="space-y-4 p-4">
               <div class="space-y-2">
-                <label class="text-sm font-medium text-foreground">Store Name</label>
+                <label class="text-sm font-medium text-foreground">Store name</label>
                 <input
                   v-model="newKeyValueStoreName"
                   class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
@@ -1292,7 +1292,7 @@ void activeEnvironment;
               <div class="flex-1" />            </div>
             <div class="space-y-4 p-4">
               <div class="space-y-2">
-                <label class="text-sm font-medium text-foreground">Bucket Name</label>
+                <label class="text-sm font-medium text-foreground">Bucket name</label>
                 <input
                   v-model="newBucketName"
                   class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
@@ -1306,7 +1306,7 @@ void activeEnvironment;
                 :disabled="!newBucketName"
                 @click="handleCreateBucket"
               >
-                {{ creatingBucket ? 'Creating…' : 'Create Bucket' }}
+                {{ creatingBucket ? 'Creating…' : 'Create bucket' }}
               </Button>
             </div>
           </template>
@@ -1328,7 +1328,7 @@ void activeEnvironment;
             <!-- Step: name -->
             <div v-if="volumeStep === 'name'" class="space-y-4 p-4">
               <div class="space-y-2">
-                <label class="text-sm font-medium text-foreground">Volume Name</label>
+                <label class="text-sm font-medium text-foreground">Volume name</label>
                 <input
                   ref="inputRef"
                   v-model="newVolumeName"
@@ -1372,7 +1372,7 @@ void activeEnvironment;
                 :disabled="!newVolumeSize"
                 @click="handleCreateVolume"
               >
-                {{ creatingVolume ? 'Creating…' : 'Create Volume' }}
+                {{ creatingVolume ? 'Creating…' : 'Create volume' }}
               </Button>
             </div>
           </template>
@@ -1388,7 +1388,7 @@ void activeEnvironment;
               >
                 <ArrowLeft />
               </IconButton>
-              <span class="ml-1 text-sm font-medium text-foreground">New Project</span>
+              <span class="ml-1 text-sm font-medium text-foreground">New project</span>
               <div class="flex-1" />            </div>
             <form
               class="space-y-4 p-4"
@@ -1432,7 +1432,7 @@ void activeEnvironment;
                   {{ detectingServices ? 'Detecting services…' : 'Continue' }}
                 </template>
                 <template v-else>
-                  {{ creating ? 'Creating…' : 'Create Project' }}
+                  {{ creating ? 'Creating…' : 'Create project' }}
                 </template>
               </Button>
             </form>

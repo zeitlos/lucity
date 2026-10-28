@@ -177,7 +177,7 @@ async function handleOpenPortal() {
         </div>
         <PlanPicker v-model="trialSelectedPlan" :disabled="selectingPlan" />
         <Button :pending="selectingPlan" @click="selectPlan(trialSelectedPlan)">
-          {{ selectingPlan ? 'Working…' : `Continue with ${trialSelectedPlan === Plan.Pro ? 'Pro' : 'Hobby'}` }}
+          {{ selectingPlan ? 'Continuing…' : `Continue with ${trialSelectedPlan === Plan.Pro ? 'Pro' : 'Hobby'}` }}
         </Button>
       </section>
 

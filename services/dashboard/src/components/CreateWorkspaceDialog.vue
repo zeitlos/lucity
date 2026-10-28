@@ -70,7 +70,7 @@ async function handleCheckout() {
     <DialogContent class="sm:max-w-xl">
       <DialogHeader>
         <DialogIcon :icon="Building2" />
-        <DialogTitle>New Workspace</DialogTitle>
+        <DialogTitle>New workspace</DialogTitle>
         <DialogDescription>
           Create a workspace to collaborate with your team.
         </DialogDescription>

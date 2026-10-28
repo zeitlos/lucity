@@ -105,7 +105,7 @@ async function handleCreate() {
     <DialogContent class="sm:max-w-md">
       <DialogHeader>
         <DialogIcon :icon="Layers" />
-        <DialogTitle>New Environment</DialogTitle>
+        <DialogTitle>New environment</DialogTitle>
         <DialogDescription>
           All changes will be isolated from other environments.
         </DialogDescription>
@@ -133,7 +133,7 @@ async function handleCreate() {
             >
               <div class="flex items-center gap-2">
                 <RadioGroupItem value="duplicate" />
-                <span class="text-sm font-medium">Duplicate Environment</span>
+                <span class="text-sm font-medium">Duplicate environment</span>
               </div>
               <p class="text-xs text-muted-foreground pl-6">
                 Copy all the services, variables, and configuration from an existing environment.
@@ -161,7 +161,7 @@ async function handleCreate() {
             >
               <div class="flex items-center gap-2">
                 <RadioGroupItem value="empty" />
-                <span class="text-sm font-medium">Empty Environment</span>
+                <span class="text-sm font-medium">Empty environment</span>
               </div>
               <p class="text-xs text-muted-foreground pl-6">
                 An empty environment with no services or variables included.
@@ -206,7 +206,7 @@ async function handleCreate() {
             :pending="loading"
             :disabled="!name.trim()"
           >
-            {{ loading ? 'Creating…' : 'Create Environment' }}
+            {{ loading ? 'Creating…' : 'Create environment' }}
           </Button>
         </DialogFooter>
       </form>

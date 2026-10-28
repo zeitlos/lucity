@@ -77,7 +77,7 @@ onMounted(async () => {
         :size="32"
         class="mx-auto animate-spin text-muted-foreground"
       />
-      <p class="text-sm text-muted-foreground">Setting up your workspace...</p>
+      <p class="text-sm text-muted-foreground">Setting up your workspace…</p>
     </div>
   </div>
 </template>

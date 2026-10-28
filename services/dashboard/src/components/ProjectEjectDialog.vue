@@ -135,7 +135,7 @@ async function handleEject() {
 
         <!-- Non-destructive notice -->
         <p class="rounded-lg border border-dashed border-border bg-muted/50 px-3 py-2 text-center text-xs text-muted-foreground">
-          Non-destructive — your project keeps running on Lucity.
+          Non-destructive. Your project keeps running on Lucity.
         </p>
 
         <!-- Actions -->

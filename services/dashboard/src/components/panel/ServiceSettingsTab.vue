@@ -983,7 +983,7 @@ async function handleRemoveService() {
               </PopoverTrigger>
               <PopoverContent class="w-64 p-0" align="end">
                 <Command>
-                  <CommandInput placeholder="Search branches..." />
+                  <CommandInput placeholder="Search branches…" />
                   <CommandList>
                     <CommandGroup>
                       <CommandItem value="Default branch" class="text-sm" @select="chooseBranch(null)">
@@ -1087,7 +1087,7 @@ async function handleRemoveService() {
           <CollapsibleTrigger class="flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30">
             <Play :size="16" class="shrink-0 text-muted-foreground" />
             <div class="min-w-0 flex-1 text-left">
-              <p class="text-sm font-medium text-foreground">Custom Start Command</p>
+              <p class="text-sm font-medium text-foreground">Custom start command</p>
               <p class="truncate text-xs text-muted-foreground">
                 {{ service.command || service.defaultCommand || 'Not configured' }}
               </p>
@@ -1171,13 +1171,13 @@ async function handleRemoveService() {
         </div>
       </Collapsible>
 
-      <!-- Health Check -->
+      <!-- Health check -->
       <Collapsible v-if="currentPort">
         <div class="overflow-hidden rounded-lg border">
           <CollapsibleTrigger class="flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30">
             <Activity :size="16" class="shrink-0 text-muted-foreground" />
             <div class="min-w-0 flex-1 text-left">
-              <p class="text-sm font-medium text-foreground">Health Check</p>
+              <p class="text-sm font-medium text-foreground">Health check</p>
               <p class="truncate text-xs text-muted-foreground">{{ healthCheckSummary }}</p>
             </div>
             <ChevronDown
@@ -1499,7 +1499,7 @@ async function handleRemoveService() {
                 <div class="flex justify-end gap-2">
                   <Button variant="ghost" @click="closeAddDomain">Cancel</Button>
                   <Button :pending="addingCustomDomain" :disabled="!canAddDomain" @click="handleAddCustomDomain">
-                    {{ addingCustomDomain ? 'Saving…' : isDomainUpdate ? 'Update domain' : 'Add domain' }}
+                    {{ addingCustomDomain ? (isDomainUpdate ? 'Updating…' : 'Adding…') : isDomainUpdate ? 'Update domain' : 'Add domain' }}
                   </Button>
                 </div>
               </div>

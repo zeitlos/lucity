@@ -177,7 +177,7 @@ function referenceInfo(row: VariableRow) {
                   </PopoverTrigger>
                   <PopoverContent class="w-80 p-0" align="start">
                     <Command>
-                      <CommandInput placeholder="Search references..." />
+                      <CommandInput placeholder="Search references…" />
                       <CommandList>
                         <CommandEmpty>No references found.</CommandEmpty>
                         <CommandGroup v-for="group in referenceGroups" :key="group.key">

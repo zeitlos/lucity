@@ -257,7 +257,7 @@ async function handleMount() {
                 @click="handleMount"
               >
                 <Plug />
-                {{ mounting ? 'Mounting…' : 'Mount Volume' }}
+                {{ mounting ? 'Mounting…' : 'Mount volume' }}
               </Button>
             </div>
           </template>

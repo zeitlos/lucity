@@ -58,7 +58,7 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside));
         </p>
 
         <div v-if="loading" class="py-1 text-xs text-muted-foreground">
-          Checking...
+          Checking…
         </div>
 
         <template v-else>
