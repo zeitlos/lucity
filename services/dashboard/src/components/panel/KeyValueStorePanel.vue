@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import CopyButton from '@/components/CopyButton.vue';
+import CredentialField from '@/components/CredentialField.vue';
+import { formatStorage } from '@/lib/format';
 import EmptyState from '@/components/EmptyState.vue';
 import QueryError from '@/components/QueryError.vue';
 import { useGuardedTab } from '@/composables/useUnsavedChanges';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import PanelShell from '@/components/PanelShell.vue';
 import { devicon } from '@/lib/devicons';
-import { reactive, computed, ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
-import { Eye, EyeOff, DatabaseZap, Trash2, Database, HardDrive } from '@lucide/vue';
+import { DatabaseZap, Trash2, Database, HardDrive } from '@lucide/vue';
 import Spinner from '@/components/LoadingSpinner.vue';
 import { graphql } from '@/gql';
 import { Button } from '@/components/ui/button';
@@ -85,17 +86,6 @@ const groups = computed(() =>
   })),
 );
 
-const revealed = reactive<Record<string, boolean>>({});
-
-function toggleReveal(key: string) {
-  revealed[key] = !revealed[key];
-}
-
-function mask(value: string): string {
-  if (value.length <= 4) return '*'.repeat(value.length);
-  return '*'.repeat(value.length - 2) + value.slice(-2);
-}
-
 
 const { mutate: deleteStore, loading: deleting } = useMutation(DeleteKeyValueStoreDocument);
 const deleteDialogOpen = ref(false);
@@ -123,14 +113,15 @@ async function handleDelete() {
     </template>
 
     <!-- Tab Content -->
-    <ScrollArea class="flex-1">
-      <Tabs :model-value="activeTab" @update:model-value="selectTab" class="h-full">
-        <div class="px-4 pt-2">
-          <TabsList class="w-full">
-            <TabsTrigger value="connect">Connect</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
-          </TabsList>
-        </div>
+    <Tabs :model-value="activeTab" @update:model-value="selectTab" class="flex min-h-0 flex-1 flex-col">
+      <div class="shrink-0 border-b px-4 pt-2">
+        <TabsList class="w-full border-b-0">
+          <TabsTrigger value="connect">Connect</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
+        </TabsList>
+      </div>
+
+      <ScrollArea class="min-h-0 flex-1">
 
         <TabsContent value="connect" class="px-4 py-4">
           <div class="space-y-4">
@@ -171,32 +162,13 @@ async function handleDelete() {
             <div v-else-if="groups.length" class="space-y-4">
               <div v-for="group in groups" :key="group.type" class="space-y-1.5">
                 <span class="text-xs font-medium text-muted-foreground">{{ group.label }}</span>
-                <div
+                <CredentialField
                   v-for="field in group.fields"
                   :key="field.key"
-                  class="group flex items-center gap-2 rounded-md bg-muted/40 px-3 py-2"
-                >
-                  <span class="w-28 shrink-0 text-xs font-medium text-muted-foreground">{{ field.label }}</span>
-                  <span class="flex-1 truncate font-mono text-xs text-foreground">
-                    {{ field.sensitive && !revealed[field.key] ? mask(field.value) : field.value }}
-                  </span>
-                  <IconButton
-                    :label="`${revealed[field.key] ? 'Hide' : 'Show'} ${field.label}`"
-                    v-if="field.sensitive"
-                    size="icon-xs"
-                    class="shrink-0"
-                    @click="toggleReveal(field.key)"
-                  >
-                    <EyeOff v-if="revealed[field.key]" />
-                    <Eye v-else />
-                  </IconButton>
-                  <CopyButton
-                    :label="`Copy ${field.label}`"
-                    size="icon-xs"
-                    class="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-                    :value="field.value"
-                  />
-                </div>
+                  :label="field.label"
+                  :value="field.value"
+                  :sensitive="field.sensitive"
+                />
               </div>
             </div>
           </div>
@@ -220,7 +192,7 @@ async function handleDelete() {
                   <div class="flex items-center gap-3 px-4 py-3">
                     <HardDrive :size="16" class="shrink-0 text-muted-foreground" />
                     <span class="flex-1 text-sm text-muted-foreground">Storage</span>
-                    <span class="font-mono text-sm font-medium text-foreground">{{ store.size }}</span>
+                    <span class="text-sm font-medium text-foreground tabular-nums">{{ formatStorage(store.size) }}</span>
                   </div>
                 </div>
               </div>
@@ -252,7 +224,7 @@ async function handleDelete() {
             </div>
           </div>
         </TabsContent>
-      </Tabs>
-    </ScrollArea>
+      </ScrollArea>
+    </Tabs>
   </PanelShell>
 </template>

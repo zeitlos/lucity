@@ -37,37 +37,39 @@ const { tab: activeTab, selectTab } = useGuardedTab('files');
     </template>
 
     <!-- Tab Content -->
-    <ScrollArea class="flex-1 [&>[data-reka-scroll-area-viewport]>div]:h-full">
-      <Tabs :model-value="activeTab" @update:model-value="selectTab" class="flex h-full flex-col">
-        <div class="px-4 pt-2">
-          <TabsList class="w-full">
-            <TabsTrigger value="files">Files</TabsTrigger>
-            <TabsTrigger value="connect">Connect</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
-          </TabsList>
+    <Tabs :model-value="activeTab" @update:model-value="selectTab" class="flex min-h-0 flex-1 flex-col">
+      <div class="shrink-0 border-b px-4 pt-2">
+        <TabsList class="w-full border-b-0">
+          <TabsTrigger value="files">Files</TabsTrigger>
+          <TabsTrigger value="connect">Connect</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
+        </TabsList>
+      </div>
+
+      <ScrollArea class="min-h-0 flex-1 [&>[data-reka-scroll-area-viewport]>div]:h-full">
+        <div class="flex h-full flex-col">
+          <TabsContent value="files" class="flex-1 px-4 py-4">
+            <BucketFilesTab :bucket-id="props.bucket.id" />
+          </TabsContent>
+
+          <TabsContent value="connect" class="px-4 py-4">
+            <BucketConnectionTab
+              :bucket-id="props.bucket.id"
+              :bucket-name="props.bucket.name"
+              :public="props.bucket.public"
+              :public-endpoint="props.bucket.publicEndpoint"
+            />
+          </TabsContent>
+
+          <TabsContent value="settings" class="px-4 py-4">
+            <BucketSettingsTab
+              :bucket-id="props.bucket.id"
+              :bucket="props.bucket"
+              @bucket-removed="emit('bucket-removed')"
+            />
+          </TabsContent>
         </div>
-
-        <TabsContent value="files" class="flex-1 px-4 py-4">
-          <BucketFilesTab :bucket-id="props.bucket.id" />
-        </TabsContent>
-
-        <TabsContent value="connect" class="px-4 py-4">
-          <BucketConnectionTab
-            :bucket-id="props.bucket.id"
-            :bucket-name="props.bucket.name"
-            :public="props.bucket.public"
-            :public-endpoint="props.bucket.publicEndpoint"
-          />
-        </TabsContent>
-
-        <TabsContent value="settings" class="px-4 py-4">
-          <BucketSettingsTab
-            :bucket-id="props.bucket.id"
-            :bucket="props.bucket"
-            @bucket-removed="emit('bucket-removed')"
-          />
-        </TabsContent>
-      </Tabs>
-    </ScrollArea>
+      </ScrollArea>
+    </Tabs>
   </PanelShell>
 </template>

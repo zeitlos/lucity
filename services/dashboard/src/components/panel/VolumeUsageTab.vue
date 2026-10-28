@@ -7,7 +7,7 @@ import { computed, ref } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
 import { graphql } from '@/gql';
 import { MetricWindow } from '@/gql/graphql';
-import { formatBytes, parseStorageSize } from '@/lib/utils';
+import { formatBytes, parseQuantity } from '@/lib/format';
 import {
   formatMetricTime,
   formatSize,
@@ -69,7 +69,7 @@ const range = computed(() => {
 
 const ticks = computed(() => metricTicks(range.value.from, range.value.to, short.value));
 
-const capacity = computed(() => parseStorageSize(props.volume.size));
+const capacity = computed(() => parseQuantity(props.volume.size));
 
 const points = computed(() => metricsResult.value?.volume.metrics[0]?.points ?? []);
 

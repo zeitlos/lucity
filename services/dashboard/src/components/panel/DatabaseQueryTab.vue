@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatCount } from '@/lib/format';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ref } from 'vue';
 import { useApolloClient } from '@vue/apollo-composable';
@@ -19,6 +20,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableEmpty,
   TableHead,
   TableHeader,
   TableRow,
@@ -95,7 +97,7 @@ function handleKeydown(event: KeyboardEvent) {
       <Textarea
         v-model="queryText"
         placeholder="SELECT * FROM users LIMIT 10;"
-        class="min-h-[120px] font-mono text-sm"
+        class="min-h-30 font-mono text-sm"
         @keydown="handleKeydown"
       />
       <div class="flex items-center justify-between">
@@ -124,10 +126,10 @@ function handleKeydown(event: KeyboardEvent) {
       <!-- Stats -->
       <div class="flex items-center gap-2">
         <Badge v-if="columns.length > 0" variant="secondary" class="text-xs">
-          {{ rows.length }} {{ rows.length === 1 ? 'row' : 'rows' }}
+          {{ formatCount(rows.length) }} {{ rows.length === 1 ? 'row' : 'rows' }}
         </Badge>
         <Badge v-if="affectedRows > 0" variant="outline" class="text-xs">
-          {{ affectedRows }} affected
+          {{ formatCount(affectedRows) }} affected
         </Badge>
         <Badge v-if="columns.length === 0 && affectedRows === 0" variant="secondary" class="text-xs">
           Query executed
@@ -135,7 +137,7 @@ function handleKeydown(event: KeyboardEvent) {
       </div>
 
       <!-- Results table -->
-      <ScrollArea v-if="columns.length > 0" class="max-h-[400px] rounded-lg border">
+      <ScrollArea v-if="columns.length > 0" class="-mx-4 max-h-100 border-y">
         <Table>
           <TableHeader>
             <TableRow>
@@ -149,19 +151,14 @@ function handleKeydown(event: KeyboardEvent) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            <TableRow v-if="rows.length === 0">
-              <TableCell
-                :colspan="columns.length"
-                class="py-8 text-center text-sm text-muted-foreground"
-              >
-                No rows returned
-              </TableCell>
-            </TableRow>
+            <TableEmpty v-if="rows.length === 0" :colspan="columns.length">
+              No rows returned
+            </TableEmpty>
             <TableRow v-for="(row, i) in rows" :key="i">
               <TableCell
                 v-for="(cell, j) in row"
                 :key="j"
-                class="max-w-[300px] truncate whitespace-nowrap font-mono text-xs"
+                class="max-w-75 truncate whitespace-nowrap font-mono text-xs"
               >
                 <span v-if="cell === null" class="italic text-muted-foreground">NULL</span>
                 <span v-else>{{ cell }}</span>

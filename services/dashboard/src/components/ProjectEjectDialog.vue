@@ -88,7 +88,7 @@ async function handleEject() {
     :open="open"
     @update:open="emit('update:open', $event)"
   >
-    <DialogContent class="overflow-hidden p-0 sm:max-w-[480px]">
+    <DialogContent class="overflow-hidden p-0 sm:max-w-120">
       <!-- Hero section with pattern background -->
       <div class="pattern-circles relative flex flex-col items-center bg-card px-8 pt-10 pb-6">
         <!-- Radial fade overlay -->
@@ -103,7 +103,7 @@ async function handleEject() {
         </div>
 
         <DialogHeader class="relative space-y-2 text-center">
-          <DialogTitle class="font-serif text-5xl font-normal leading-tight tracking-[-0.01em]">
+          <DialogTitle class="font-serif text-5xl font-normal leading-tight tracking-tight">
             Eject project
           </DialogTitle>
           <DialogDescription class="text-sm leading-relaxed text-muted-foreground">

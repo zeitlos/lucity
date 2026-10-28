@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import QueryError from '@/components/QueryError.vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { ref, computed, useTemplateRef } from 'vue';
@@ -20,7 +21,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { failureToast } from '@/components/ui/sonner';
-import { formatBytes } from '@/lib/utils';
+import { formatBytes, formatDateTime } from '@/lib/format';
+import EmptyState from '@/components/EmptyState.vue';
 
 const BucketObjectsDocument = graphql(`
   query BucketObjects($bucket: BucketID!, $prefix: String) {
@@ -92,19 +94,6 @@ function baseName(key: string): string {
 
 function folderName(folderPrefix: string): string {
   return baseName(folderPrefix);
-}
-
-function formatDate(value: string): string {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) return '';
-
-  return date.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 }
 
 // --- Upload -------------------------------------------------------------
@@ -361,88 +350,100 @@ async function confirmDelete() {
 
       <!-- Content -->
       <template v-else>
-        <!-- New folder row -->
-        <div v-if="creatingFolder" class="flex items-center gap-2 px-3 py-1.5">
-          <Folder :size="16" class="shrink-0 text-muted-foreground" />
-          <Input
-            v-model="newFolderName"
-            placeholder="Folder name"
-            class="h-7 flex-1"
-            autofocus
-            :disabled="savingFolder"
-            @keyup.enter="createFolder"
-            @keyup.esc="creatingFolder = false"
-          />
-          <Button variant="ghost" size="xs" :pending="savingFolder" @click="createFolder">
-            {{ savingFolder ? 'Creating…' : 'Create' }}
-          </Button>
-          <Button variant="ghost" size="xs" :disabled="savingFolder" @click="creatingFolder = false">Cancel</Button>
-        </div>
-
-        <!-- Empty -->
-        <div
+        <EmptyState
           v-if="isEmpty && !creatingFolder"
-          class="flex flex-col items-center justify-center gap-2 py-14 text-center"
-        >
-          <Folder :size="24" class="text-muted-foreground" />
-          <p class="text-sm text-muted-foreground">This folder is empty.</p>
-          <p class="text-xs text-muted-foreground">Drop files here or use the Upload button.</p>
-        </div>
+          size="compact"
+          :icon="Folder"
+          title="This folder is empty"
+          description="Drop files here or use Upload."
+        />
 
-        <!-- Rows -->
-        <div v-else class="divide-y divide-border/60">
-          <!-- Folders -->
-          <button
-            v-for="folder in folders"
-            :key="folder.prefix"
-            type="button"
-            class="group flex w-full items-center gap-3 px-3 py-1.5 text-left transition-colors hover:bg-accent/50"
-            @click="openFolder(folder.prefix)"
-          >
-            <Folder :size="16" class="shrink-0 text-muted-foreground" />
-            <span class="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
-              {{ folderName(folder.prefix) }}
-            </span>
-            <span class="w-16 shrink-0" />
-            <span class="w-24 shrink-0" />
-            <span class="flex w-14 shrink-0 justify-end">
-              <ChevronRight :size="14" class="text-muted-foreground" />
-            </span>
-          </button>
+        <div v-else class="-mx-4 border-y">
+          <Table class="table-fixed">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead class="w-24 text-right">Size</TableHead>
+                <TableHead class="w-32 text-right">Modified</TableHead>
+                <TableHead class="w-20"><span class="sr-only">Actions</span></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow v-if="creatingFolder" class="hover:bg-transparent">
+                <TableCell :colspan="4" class="py-1.5">
+                  <div class="flex items-center gap-2">
+                    <Folder :size="16" class="shrink-0 text-muted-foreground" />
+                    <Input
+                      v-model="newFolderName"
+                      placeholder="Folder name"
+                      class="h-7 flex-1"
+                      autofocus
+                      :disabled="savingFolder"
+                      @keyup.enter="createFolder"
+                      @keyup.esc="creatingFolder = false"
+                    />
+                    <Button variant="ghost" size="xs" :pending="savingFolder" @click="createFolder">
+                      {{ savingFolder ? 'Creating…' : 'Create' }}
+                    </Button>
+                    <Button variant="ghost" size="xs" :disabled="savingFolder" @click="creatingFolder = false">Cancel</Button>
+                  </div>
+                </TableCell>
+              </TableRow>
 
-          <!-- Files -->
-          <div
-            v-for="object in objects"
-            :key="object.key"
-            class="group flex items-center gap-3 px-3 py-1.5 transition-colors hover:bg-accent/50"
-          >
-            <FileIcon :size="16" class="shrink-0 text-muted-foreground" />
-            <span class="min-w-0 flex-1 truncate text-sm text-foreground">{{ baseName(object.key) }}</span>
-            <span class="w-16 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
-              {{ formatBytes(object.size) }}
-            </span>
-            <span class="w-24 shrink-0 truncate text-right text-xs text-muted-foreground">
-              {{ formatDate(object.lastModified) }}
-            </span>
-            <div class="flex w-14 shrink-0 items-center justify-end gap-0.5">
-              <IconButton
-                label="Download"
-                size="icon-xs"
-                class="opacity-0 transition-opacity group-hover:opacity-100"
-                @click="download(object.key)"
+              <TableRow
+                v-for="folder in folders"
+                :key="folder.prefix"
+                class="cursor-pointer"
+                @click="openFolder(folder.prefix)"
               >
-                <Download />
-              </IconButton>
-              <IconButton
-                label="Delete"
-                size="icon-xs"
-                class="text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
-                @click="askDelete(object.key)"
-              >
-                <Trash2 />
-              </IconButton>
-            </div>
-          </div>
+                <TableCell>
+                  <button
+                    type="button"
+                    class="flex w-full min-w-0 items-center gap-3 text-left font-medium text-foreground focus-visible:outline-none"
+                    @click.stop="openFolder(folder.prefix)"
+                  >
+                    <Folder :size="16" class="shrink-0 text-muted-foreground" />
+                    <span class="truncate">{{ folderName(folder.prefix) }}</span>
+                  </button>
+                </TableCell>
+                <TableCell />
+                <TableCell />
+                <TableCell>
+                  <ChevronRight :size="14" class="ml-auto text-muted-foreground" />
+                </TableCell>
+              </TableRow>
+
+              <TableRow v-for="object in objects" :key="object.key">
+                <TableCell>
+                  <div class="flex min-w-0 items-center gap-3">
+                    <FileIcon :size="16" class="shrink-0 text-muted-foreground" />
+                    <span class="truncate text-foreground">{{ baseName(object.key) }}</span>
+                  </div>
+                </TableCell>
+                <TableCell class="text-right text-xs text-muted-foreground tabular-nums">
+                  {{ formatBytes(object.size) }}
+                </TableCell>
+                <TableCell class="truncate text-right text-xs text-muted-foreground tabular-nums">
+                  {{ formatDateTime(object.lastModified) }}
+                </TableCell>
+                <TableCell class="py-1">
+                  <div class="flex items-center justify-end gap-0.5">
+                    <IconButton label="Download" size="icon-xs" @click="download(object.key)">
+                      <Download />
+                    </IconButton>
+                    <IconButton
+                      label="Delete"
+                      size="icon-xs"
+                      class="text-muted-foreground hover:text-destructive"
+                      @click="askDelete(object.key)"
+                    >
+                      <Trash2 />
+                    </IconButton>
+                  </div>
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
         </div>
       </template>
     </div>

@@ -6,7 +6,7 @@ import { Trash2, MapPin, HardDrive, Files } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { Button } from '@/components/ui/button';
 import { failureToast } from '@/components/ui/sonner';
-import { formatBytes } from '@/lib/utils';
+import { formatBytes, formatCount } from '@/lib/format';
 
 const DeleteBucketDocument = graphql(`
   mutation DeleteBucket($bucket: BucketID!) {
@@ -60,12 +60,12 @@ async function handleDelete() {
           <div class="flex items-center gap-3 px-4 py-3">
             <HardDrive :size="16" class="shrink-0 text-muted-foreground" />
             <span class="flex-1 text-sm text-muted-foreground">Stored</span>
-            <span class="font-mono text-sm font-medium text-foreground">{{ formatBytes(bucket.sizeBytes) }}</span>
+            <span class="text-sm font-medium text-foreground tabular-nums">{{ formatBytes(bucket.sizeBytes) }}</span>
           </div>
           <div class="flex items-center gap-3 px-4 py-3">
             <Files :size="16" class="shrink-0 text-muted-foreground" />
             <span class="flex-1 text-sm text-muted-foreground">Objects</span>
-            <span class="font-mono text-sm font-medium text-foreground">{{ bucket.objectCount.toLocaleString() }}</span>
+            <span class="text-sm font-medium text-foreground tabular-nums">{{ formatCount(bucket.objectCount) }}</span>
           </div>
         </div>
       </div>

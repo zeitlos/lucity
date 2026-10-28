@@ -137,24 +137,24 @@ function initial(name: string) {
   return name.charAt(0).toUpperCase();
 }
 
-const titleClass = 'inline-flex h-7 items-center gap-1.5 rounded-l-[6px] px-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted';
-const arrowClass = 'flex h-7 w-5 items-center justify-center rounded-r-[6px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground data-[state=open]:bg-muted data-[state=open]:text-foreground';
-const contentClass = 'w-[260px] rounded-[12px] p-1';
-const rowClass = 'h-8 gap-2 rounded-[8px] px-1 text-[13px]';
-const letterClass = 'flex size-6 shrink-0 items-center justify-center rounded-[4px] bg-background text-xs font-semibold text-foreground ring-1 ring-inset ring-border';
-const workspaceLetterClass = 'flex size-6 shrink-0 items-center justify-center rounded-[4px] text-xs font-semibold';
-const plainRowClass = 'h-8 gap-2 rounded-[8px] px-2 text-[13px]';
-const newBoxClass = 'flex size-6 shrink-0 items-center justify-center rounded-[4px] border border-dashed border-border text-muted-foreground';
+const titleClass = 'inline-flex h-7 items-center gap-1.5 rounded-l-md px-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted';
+const arrowClass = 'flex h-7 w-5 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground data-[state=open]:bg-muted data-[state=open]:text-foreground';
+const contentClass = 'w-65 rounded-xl p-1';
+const rowClass = 'h-8 gap-2 rounded-lg px-1 text-sm';
+const letterClass = 'flex size-6 shrink-0 items-center justify-center rounded bg-background text-xs font-semibold text-foreground ring-1 ring-inset ring-border';
+const workspaceLetterClass = 'flex size-6 shrink-0 items-center justify-center rounded text-xs font-semibold';
+const plainRowClass = 'h-8 gap-2 rounded-lg px-2 text-sm';
+const newBoxClass = 'flex size-6 shrink-0 items-center justify-center rounded border border-dashed border-border text-muted-foreground';
 </script>
 
 <template>
     <nav class="flex items-center gap-1">
       <span class="inline-flex items-center">
         <RouterLink :to="{ name: 'projects' }" :class="titleClass">
-          <span class="flex size-4 items-center justify-center rounded-[5px] text-[10px] font-semibold" :style="workspaceColor(activeWorkspace)">
+          <span class="flex size-4 items-center justify-center rounded text-xs font-semibold" :style="workspaceColor(activeWorkspace)">
             {{ initial(activeWs?.name ?? activeWorkspace) }}
           </span>
-          <span class="max-w-[140px] truncate">{{ activeWs?.name ?? activeWorkspace }}</span>
+          <span class="max-w-35 truncate">{{ activeWs?.name ?? activeWorkspace }}</span>
         </RouterLink>
         <Tooltip>
           <TooltipTrigger as-child>
@@ -191,7 +191,7 @@ const newBoxClass = 'flex size-6 shrink-0 items-center justify-center rounded-[4
         <span class="text-sm text-border">/</span>
         <span class="inline-flex items-center">
           <RouterLink :to="{ name: 'project', params: { projectId: activeProjectId } }" :class="titleClass">
-            <span class="max-w-[160px] truncate">{{ activeProjectName }}</span>
+            <span class="max-w-40 truncate">{{ activeProjectName }}</span>
           </RouterLink>
           <Tooltip>
             <TooltipTrigger as-child>

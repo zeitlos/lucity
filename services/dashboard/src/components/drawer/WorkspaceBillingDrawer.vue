@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { subscriptionStatus } from '@/lib/status';
+import { formatDate, formatMoney } from '@/lib/format';
 import QueryError from '@/components/QueryError.vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { ref, computed } from 'vue';
@@ -88,17 +90,7 @@ const hasPlan = computed(() => billingAvailable.value && !!subscription.value?.p
 const isTrialing = computed(() => billingAvailable.value && subscription.value?.status === SubscriptionStatus.Trialing);
 
 function formatCents(cents: number): string {
-  return `€${(cents / 100).toFixed(2)}`;
-}
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
-}
-
-function statusLabel(status: SubscriptionStatus): string {
-  if (status === SubscriptionStatus.Active) return 'Active';
-  if (status === SubscriptionStatus.PastDue) return 'Past due';
-  return status;
+  return formatMoney(cents / 100, 'EUR');
 }
 
 async function selectPlan(plan: Plan): Promise<boolean> {
@@ -194,8 +186,8 @@ async function handleOpenPortal() {
         <div class="space-y-2.5 rounded-lg border p-3">
           <div class="flex items-center justify-between text-sm">
             <span class="text-muted-foreground">Status</span>
-            <Status :tone="subscription!.status === SubscriptionStatus.Active ? 'ok' : 'danger'">
-              {{ statusLabel(subscription!.status) }}
+            <Status :tone="subscriptionStatus(subscription!.status).tone" variant="text">
+              {{ subscriptionStatus(subscription!.status).label }}
             </Status>
           </div>
           <div class="flex items-center justify-between text-sm">
@@ -208,7 +200,7 @@ async function handleOpenPortal() {
           </div>
           <div class="flex items-center justify-between text-sm">
             <span class="text-muted-foreground">Credit balance</span>
-            <span>{{ formatCents(subscription!.creditAmountCents) }}</span>
+            <span class="tabular-nums">{{ formatCents(subscription!.creditAmountCents) }}</span>
           </div>
         </div>
       </section>
@@ -226,7 +218,7 @@ async function handleOpenPortal() {
       </div>
       <div
         v-else-if="hasPlan && subscription!.creditExpiry && subscription!.hasPaymentMethod"
-        class="rounded-lg border border-green-500/30 bg-green-500/5 p-3"
+        class="rounded-lg border border-status-ok/30 bg-status-ok/5 p-3"
       >
         <p class="text-sm font-medium text-foreground">
           You're all set! Your payment method is on file and billing will continue automatically after your credits expire on {{ formatDate(subscription!.creditExpiry) }}.
@@ -244,16 +236,16 @@ async function handleOpenPortal() {
           <template v-else-if="usage">
             <div class="flex items-center justify-between text-sm">
               <span class="text-muted-foreground">Resources</span>
-              <span>{{ formatCents(usage.resourceCostCents) }}</span>
+              <span class="tabular-nums">{{ formatCents(usage.resourceCostCents) }}</span>
             </div>
             <div class="flex items-center justify-between text-sm">
               <span class="text-muted-foreground">Credits</span>
-              <span class="text-green-600">-{{ formatCents(usage.creditsCents) }}</span>
+              <span class="text-status-ok tabular-nums">{{ formatCents(-usage.creditsCents) }}</span>
             </div>
             <div class="h-px bg-border/60" />
             <div class="flex items-center justify-between text-sm font-semibold">
               <span>Estimated total</span>
-              <span>{{ formatCents(usage.estimatedTotalCents) }}</span>
+              <span class="tabular-nums">{{ formatCents(usage.estimatedTotalCents) }}</span>
             </div>
           </template>
         </div>
@@ -270,7 +262,7 @@ async function handleOpenPortal() {
 
     <template v-if="isAdmin && billingAvailable && !subLoading" #footer>
       <div class="flex items-center justify-between gap-4">
-        <p class="text-xs leading-[18px] text-muted-foreground">
+        <p class="text-xs leading-4.5 text-muted-foreground">
           Invoices and payment methods live in the billing portal.
         </p>
         <Button variant="outline" class="shrink-0" :pending="openingPortal" @click="handleOpenPortal">

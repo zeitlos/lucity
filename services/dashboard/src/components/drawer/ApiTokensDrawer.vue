@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDate } from '@/lib/format';
 import CopyButton from '@/components/CopyButton.vue';
 import QueryError from '@/components/QueryError.vue';
 import EmptyState from '@/components/EmptyState.vue';
@@ -102,10 +103,6 @@ async function handleRevoke() {
     failureToast('Failed to revoke API token', e);
   }
 }
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-}
 </script>
 
 <template>
@@ -152,11 +149,11 @@ function formatDate(dateStr: string): string {
         :error="error"
         @retry="refetch()"
       />
-      <div v-else-if="apiTokens.length" class="divide-y overflow-hidden rounded-lg border">
+      <div v-else-if="apiTokens.length" class="-mx-4 divide-y border-y">
         <div
           v-for="token in apiTokens"
           :key="token.id"
-          class="flex items-center gap-3 py-3 pl-3.5 pr-2"
+          class="flex items-center gap-3 py-3 pr-3 pl-4"
         >
           <div class="min-w-0 flex-1">
             <p class="truncate font-mono text-sm text-foreground">{{ token.name }}</p>

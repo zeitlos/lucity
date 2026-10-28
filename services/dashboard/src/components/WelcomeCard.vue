@@ -50,7 +50,7 @@ const firstName = ref(
   <div class="overflow-hidden rounded-lg border border-border bg-card">
     <div class="relative px-8 py-10">
       <!-- Pattern texture -->
-      <div class="pattern-crosshatch pointer-events-none absolute inset-0 opacity-[0.02]" />
+      <div class="pattern-crosshatch pointer-events-none absolute inset-0 opacity-2" />
 
       <div class="relative space-y-8">
         <!-- Header -->

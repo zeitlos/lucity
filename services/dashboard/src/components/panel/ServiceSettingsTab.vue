@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import CodeBlock from '@/components/CodeBlock.vue';
+import { Status } from '@/components/ui/status';
+import { certificateStatus, dnsStatus, domainStatus } from '@/lib/status';
 import CopyButton from '@/components/CopyButton.vue';
 import DialogIcon from '@/components/DialogIcon.vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { ref, computed, watch, nextTick, type ComponentPublicInstance } from 'vue';
 import { useMutation, useApolloClient } from '@vue/apollo-composable';
-import { Trash2, Copy, Globe, Plus, Minus, RefreshCw, ChevronDown, Network, ExternalLink, Scaling, GitBranch, Play, Zap, ArrowRight, Cpu, MemoryStick, Leaf, ShieldCheck, Check, ChevronsUpDown, Activity, UserCog, ClipboardList } from '@lucide/vue';
+import { Trash2, Globe, Plus, Minus, RefreshCw, ChevronDown, Network, ExternalLink, Scaling, GitBranch, Play, Zap, ArrowRight, Cpu, MemoryStick, Leaf, ShieldCheck, Check, ChevronsUpDown, Activity, UserCog, ClipboardList } from '@lucide/vue';
 import GithubIcon from '@/components/GithubIcon.vue';
 import { getDomain } from 'tldts';
 import { graphql } from '@/gql';
@@ -294,25 +297,6 @@ function isEndpointVerified(endpoint: Endpoint): boolean {
   return endpoint.dns.status === DnsStatus.Valid && endpoint.tls === TlsStatus.Active;
 }
 
-function dnsStatusColor(status: DnsStatus): string {
-  switch (status) {
-    case DnsStatus.Valid: return 'text-emerald-600 dark:text-emerald-400';
-    case DnsStatus.Pending: return 'text-amber-600 dark:text-amber-400';
-    case DnsStatus.Misconfigured: return 'text-orange-600 dark:text-orange-400';
-    case DnsStatus.Error: return 'text-red-600 dark:text-red-400';
-    default: return 'text-muted-foreground';
-  }
-}
-
-function tlsStatusColor(status: TlsStatus): string {
-  switch (status) {
-    case TlsStatus.Active: return 'text-emerald-600 dark:text-emerald-400';
-    case TlsStatus.Provisioning: return 'text-amber-600 dark:text-amber-400';
-    case TlsStatus.Error: return 'text-red-600 dark:text-red-400';
-    default: return 'text-muted-foreground';
-  }
-}
-
 // Custom domain input
 const addingDomain = ref(false);
 const customDomainInput = ref('');
@@ -582,7 +566,6 @@ const { mutate: setCIDeployMutate } = useMutation(SetCIDeployDocument);
 
 const autoDeploySaving = ref(false);
 const ciDeploySaving = ref(false);
-const ciSnippetCopied = ref(false);
 
 const ciWorkflowSnippet = computed(
   () => `name: Deploy
@@ -606,16 +589,6 @@ jobs:
         env:
           LUCITY_API_URL: ${window.location.origin}`,
 );
-
-async function copyCISnippet() {
-  try {
-    await navigator.clipboard.writeText(ciWorkflowSnippet.value);
-    ciSnippetCopied.value = true;
-    setTimeout(() => (ciSnippetCopied.value = false), 2000);
-  } catch (e: unknown) {
-    failureToast('Failed to copy', e);
-  }
-}
 
 const branchPickerOpen = ref(false);
 const branches = ref<string[]>([]);
@@ -1094,16 +1067,10 @@ async function handleRemoveService() {
 
           <!-- CI workflow snippet -->
           <div v-if="service.ciDeploy" class="space-y-2 px-4 py-3">
-            <div class="flex items-center justify-between">
-              <p class="text-xs font-medium text-muted-foreground">
-                Add to your workflow (needs <code class="font-mono">permissions: id-token: write</code>)
-              </p>
-              <Button variant="ghost" size="xs" @click="copyCISnippet">
-                <component :is="ciSnippetCopied ? Check : Copy" :size="13" />
-                {{ ciSnippetCopied ? 'Copied' : 'Copy' }}
-              </Button>
-            </div>
-            <pre class="overflow-x-auto rounded-md bg-muted/60 p-3 font-mono text-xs leading-relaxed text-foreground">{{ ciWorkflowSnippet }}</pre>
+            <p class="text-xs text-muted-foreground">
+              Add this to your workflow. It needs <code class="rounded bg-muted px-1 py-0.5 font-mono">permissions: id-token: write</code>.
+            </p>
+            <CodeBlock :code="ciWorkflowSnippet" title=".github/workflows/deploy.yml" />
           </div>
         </div>
       </div>
@@ -1262,7 +1229,7 @@ async function handleRemoveService() {
                     <p v-if="healthCheckPathError" class="text-xs text-destructive">
                       {{ healthCheckPathError }}
                     </p>
-                    <p class="text-[11px] text-muted-foreground">
+                    <p class="text-xs text-muted-foreground">
                       Leave the port blank to use the service port ({{ currentPort }}).
                     </p>
                   </div>
@@ -1306,7 +1273,7 @@ async function handleRemoveService() {
                       />
                     </div>
                   </div>
-                  <p class="-mt-2 px-1 text-[11px] text-muted-foreground">
+                  <p class="-mt-2 px-1 text-xs text-muted-foreground">
                     All values in seconds, except failures. Left blank, sensible defaults apply.
                   </p>
 
@@ -1314,7 +1281,7 @@ async function handleRemoveService() {
                   <div class="space-y-1.5">
                     <div class="flex items-center justify-between">
                       <Label class="text-xs font-medium">Startup budget</Label>
-                      <span v-if="startupBudgetLabel" class="text-[11px] text-muted-foreground">
+                      <span v-if="startupBudgetLabel" class="text-xs text-muted-foreground">
                         {{ startupBudgetLabel }} before traffic
                       </span>
                     </div>
@@ -1325,7 +1292,7 @@ async function handleRemoveService() {
                         placeholder="0"
                         class="h-8 w-24 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                       />
-                      <p class="text-[11px] text-muted-foreground">
+                      <p class="text-xs text-muted-foreground">
                         Extra failed checks tolerated only while the instance is starting. Lets a slow
                         warm-up finish without failing the steady-state check.
                       </p>
@@ -1353,7 +1320,7 @@ async function handleRemoveService() {
           <CollapsibleTrigger class="flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30">
             <Globe :size="16" class="shrink-0" :class="platformEndpoint ? 'text-primary' : 'text-muted-foreground'" />
             <div class="min-w-0 flex-1 text-left">
-              <p class="text-sm font-medium text-foreground">Platform Domain</p>
+              <p class="text-sm font-medium text-foreground">Platform domain</p>
               <p class="truncate text-xs text-muted-foreground">
                 {{ platformEndpoint ? platformEndpoint.host : 'Not configured' }}
               </p>
@@ -1417,7 +1384,7 @@ async function handleRemoveService() {
           <CollapsibleTrigger class="flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30">
             <Globe :size="16" class="shrink-0 text-muted-foreground" />
             <div class="min-w-0 flex-1 text-left">
-              <p class="text-sm font-medium text-foreground">Custom Domains</p>
+              <p class="text-sm font-medium text-foreground">Custom domains</p>
               <p class="text-xs text-muted-foreground">
                 {{ customEndpoints.length }} domain{{ customEndpoints.length !== 1 ? 's' : '' }} configured
               </p>
@@ -1455,10 +1422,11 @@ async function handleRemoveService() {
                       :value="endpoint.host"
                     />
                   </div>
-                  <div class="hidden shrink-0 items-center gap-3 text-[11px] text-muted-foreground sm:flex">
-                    <span>DNS <span :class="['font-medium', dnsStatusColor(endpoint.dns.status)]">{{ endpoint.dns.status }}</span></span>
-                    <span>TLS <span :class="['font-medium', tlsStatusColor(endpoint.tls)]">{{ endpoint.tls }}</span></span>
-                  </div>
+                  <span class="hidden shrink-0 text-xs text-muted-foreground sm:flex">
+                    <Status :tone="domainStatus(endpoint.dns.status, endpoint.tls).tone" variant="text">
+                      {{ domainStatus(endpoint.dns.status, endpoint.tls).label }}
+                    </Status>
+                  </span>
                   <IconButton
                     label="DNS records"
                     class="shrink-0"
@@ -1557,8 +1525,14 @@ async function handleRemoveService() {
 
           <div v-if="recordsEndpoint" class="min-w-0 space-y-3">
             <div class="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-              <span>DNS <span :class="['font-medium', dnsStatusColor(recordsEndpoint.dns.status)]">{{ recordsEndpoint.dns.status }}</span></span>
-              <span>TLS <span :class="['font-medium', tlsStatusColor(recordsEndpoint.tls)]">{{ recordsEndpoint.tls }}</span></span>
+              <span class="inline-flex items-center gap-1.5">
+                DNS
+                <Status :tone="dnsStatus(recordsEndpoint.dns.status).tone" variant="text">{{ dnsStatus(recordsEndpoint.dns.status).label }}</Status>
+              </span>
+              <span class="inline-flex items-center gap-1.5">
+                Certificate
+                <Status :tone="certificateStatus(recordsEndpoint.tls).tone" variant="text">{{ certificateStatus(recordsEndpoint.tls).label }}</Status>
+              </span>
               <span v-if="recordsEndpoint.redirectTo" class="truncate">
                 Redirects to <span class="font-mono">{{ recordsEndpoint.redirectTo }}</span>
               </span>
@@ -1632,7 +1606,7 @@ async function handleRemoveService() {
           <CollapsibleTrigger class="flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30">
             <Network :size="16" class="shrink-0 text-muted-foreground" />
             <div class="min-w-0 flex-1 text-left">
-              <p class="text-sm font-medium text-foreground">Private Networking</p>
+              <p class="text-sm font-medium text-foreground">Private networking</p>
               <p class="max-w-55 truncate text-xs text-muted-foreground">
                 {{ internalEndpoint?.host || 'Internal DNS' }}
               </p>
@@ -1718,7 +1692,7 @@ async function handleRemoveService() {
                       <Plus />
                     </IconButton>
                   </div>
-                  <p v-if="autoscalingEnabled" class="text-[11px] text-muted-foreground">
+                  <p v-if="autoscalingEnabled" class="text-xs text-muted-foreground">
                     Managed by autoscaler.
                   </p>
                 </div>
@@ -1854,7 +1828,7 @@ async function handleRemoveService() {
       </h3>
 
       <div class="overflow-hidden rounded-lg border">
-        <div class="divide-y">
+        <div>
           <fieldset :disabled="resourcesSaving" class="min-w-0 divide-y">
             <div class="flex items-center gap-3 px-4 py-3">
               <Cpu :size="16" class="shrink-0 text-muted-foreground" />
@@ -1931,7 +1905,7 @@ async function handleRemoveService() {
       </h3>
 
       <div class="overflow-hidden rounded-lg border">
-        <div class="divide-y">
+        <div>
           <fieldset :disabled="userSaving" class="min-w-0 divide-y">
             <div class="flex items-center gap-3 px-4 py-3">
               <UserCog :size="16" class="shrink-0 text-muted-foreground" />

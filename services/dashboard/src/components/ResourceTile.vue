@@ -13,7 +13,7 @@ defineProps<{
 <template>
   <Tooltip>
     <TooltipTrigger as-child>
-      <span class="flex size-6 items-center justify-center rounded-[6px] border bg-card text-muted-foreground shadow-[0_1px_2px_oklch(0.5_0.02_55/0.06)]">
+      <span class="flex size-6 items-center justify-center rounded-sm border bg-card text-muted-foreground shadow-2xs">
         <ResourceIcon :kind="kind" :size="12" />
       </span>
     </TooltipTrigger>

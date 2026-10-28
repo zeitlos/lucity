@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatCompact, formatStorage } from '@/lib/format';
 import { Skeleton } from '@/components/ui/skeleton';
 import IconButton from '@/components/IconButton.vue';
 import { devicon } from '@/lib/devicons';
@@ -747,13 +748,6 @@ const { result: imageSearchResult, loading: searchingImages } = useQuery(SearchI
 
 const imageResults = computed(() => imageSearchResult.value?.searchImages ?? []);
 
-function formatPullCount(count: number): string {
-  if (count >= 1_000_000_000) return `${(count / 1_000_000_000).toFixed(1)}B`;
-  if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`;
-  if (count >= 1_000) return `${(count / 1_000).toFixed(1)}K`;
-  return String(count);
-}
-
 async function handleSelectImage(imageRef: string) {
   if (!imageRef || creating.value || addingService.value) return;
   containerImageRef.value = imageRef;
@@ -1057,7 +1051,7 @@ void activeEnvironment;
                   <Badge
                     v-if="selectedSource?.accountType === GitHubAccountType.Organization"
                     variant="outline"
-                    class="text-[10px]"
+                    class="text-xs"
                   >Org</Badge>
                   <ChevronDown :size="14" class="text-muted-foreground" />
                 </button>
@@ -1084,7 +1078,7 @@ void activeEnvironment;
                       <Badge
                         v-if="source.accountType === GitHubAccountType.Organization"
                         variant="outline"
-                        class="text-[10px]"
+                        class="text-xs"
                       >Org</Badge>
                     </button>
                     <button
@@ -1113,7 +1107,7 @@ void activeEnvironment;
                 </Button>
               </div>
 
-              <div v-else class="max-h-[320px] overflow-y-auto">
+              <div v-else class="max-h-80 overflow-y-auto">
                 <div class="p-1">
                   <p class="px-2 py-1.5 text-xs font-medium text-muted-foreground">Repositories</p>
                   <template v-if="reposLoading">
@@ -1147,7 +1141,7 @@ void activeEnvironment;
                       <Badge
                         v-else
                         variant="outline"
-                        class="shrink-0 text-[10px]"
+                        class="shrink-0 text-xs"
                       >{{ repo.defaultBranch }}</Badge>
                     </button>
                   </template>
@@ -1182,7 +1176,7 @@ void activeEnvironment;
 
             <div
               v-if="imageResults.length > 0"
-              class="max-h-[320px] overflow-y-auto"
+              class="max-h-80 overflow-y-auto"
             >
               <div class="p-1">
                 <p class="px-2 py-1.5 text-xs font-medium text-muted-foreground">Docker Hub</p>
@@ -1200,7 +1194,7 @@ void activeEnvironment;
                   <div class="min-w-0 flex-1">
                     <div class="flex items-center gap-1.5">
                       <span class="font-medium">{{ img.name }}</span>
-                      <Badge v-if="img.official" variant="outline" class="text-[10px]">
+                      <Badge v-if="img.official" variant="outline" class="text-xs">
                         <Award :size="10" class="mr-0.5" />
                         Official
                       </Badge>
@@ -1220,7 +1214,7 @@ void activeEnvironment;
                     class="flex shrink-0 items-center gap-1 text-xs text-muted-foreground"
                   >
                     <Star :size="10" />
-                    {{ formatPullCount(img.starCount) }}
+                    {{ formatCompact(img.starCount) }}
                   </div>
                 </button>
               </div>
@@ -1270,7 +1264,7 @@ void activeEnvironment;
                   class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   placeholder="cache"
                 />
-                <p class="text-xs text-muted-foreground">Redis 8 &middot; powered by Valkey &middot; 1Gi storage</p>
+                <p class="text-xs text-muted-foreground">Redis 8 &middot; powered by Valkey &middot; 1 GB storage</p>
               </div>
               <Button
                 class="w-full"
@@ -1357,7 +1351,7 @@ void activeEnvironment;
               <div class="space-y-3">
                 <div class="flex items-center justify-between">
                   <label class="text-sm font-medium text-foreground">Size</label>
-                  <span class="font-mono text-sm font-semibold text-foreground">{{ newVolumeSize }}</span>
+                  <span class="text-sm font-semibold text-foreground tabular-nums">{{ formatStorage(newVolumeSize) }}</span>
                 </div>
                 <Slider
                   :model-value="[volumeSizes.indexOf(newVolumeSize)]"
@@ -1366,9 +1360,9 @@ void activeEnvironment;
                   :step="1"
                   @update:model-value="newVolumeSize = volumeSizes[$event?.[0] ?? 0]!"
                 />
-                <div class="flex justify-between text-[10px] text-muted-foreground">
-                  <span>{{ volumeSizes[0] }}</span>
-                  <span>{{ volumeSizes[volumeSizes.length - 1] }}</span>
+                <div class="flex justify-between text-xs text-muted-foreground tabular-nums">
+                  <span>{{ formatStorage(volumeSizes[0]!) }}</span>
+                  <span>{{ formatStorage(volumeSizes[volumeSizes.length - 1]!) }}</span>
                 </div>
                 <p class="text-xs text-muted-foreground">Volumes can be grown later, but not shrunk.</p>
               </div>
@@ -1457,7 +1451,7 @@ void activeEnvironment;
               </IconButton>
               <span class="ml-1 text-sm font-medium text-foreground">Select a service</span>
               <div class="flex-1" />            </div>
-            <div class="max-h-[320px] overflow-y-auto p-1">
+            <div class="max-h-80 overflow-y-auto p-1">
               <p class="px-2 py-1.5 text-xs font-medium text-muted-foreground">
                 Detected in {{ confirmRepo?.fullName }}
               </p>

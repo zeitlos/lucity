@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDateTime } from '@/lib/format';
 import { computed, ref } from 'vue';
 
 const props = defineProps<{
@@ -68,12 +69,7 @@ const stripes = `repeating-linear-gradient(-45deg,
   color-mix(in oklch, var(--primary) 10%, transparent) 5px 10px)`;
 
 function formatEdge(time: number): string {
-  return new Date(time).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return formatDateTime(time);
 }
 </script>
 

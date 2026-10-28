@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SegmentedControl from '@/components/SegmentedControl.vue';
 import ContextDrawer from '@/components/drawer/ContextDrawer.vue';
 import QueryError from '@/components/QueryError.vue';
 import { useQuery } from '@vue/apollo-composable';
@@ -73,8 +74,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import PageToolbar from '@/components/PageToolbar.vue';
 import ProjectCard from '@/components/ProjectCard.vue';
 import ProjectTable from '@/components/ProjectTable.vue';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { darkTooltipClass } from '@/lib/tooltip';
 import EmptyState from '@/components/EmptyState.vue';
 import CreateCommandPalette from '@/components/CreateCommandPalette.vue';
 import WelcomeCard from '@/components/WelcomeCard.vue';
@@ -180,9 +179,9 @@ function allServices(project: { environments: { services?: { id: string; name: s
 
 const view = useLocalStorage<'cards' | 'list'>('lucity_projects_view', 'cards');
 const viewOptions = [
-  { key: 'cards', label: 'Cards', icon: LayoutGrid },
-  { key: 'list', label: 'List', icon: List },
-] as const;
+  { value: 'cards' as const, label: 'Cards', icon: LayoutGrid },
+  { value: 'list' as const, label: 'List', icon: List },
+];
 
 const search = ref('');
 const searchInput = ref<InstanceType<typeof Input> | null>(null);
@@ -216,39 +215,26 @@ onKeyStroke('/', (event) => {
         <div class="relative min-w-0 flex-1">
           <div class="flex h-full flex-col overflow-hidden rounded-lg border bg-card shadow-sm">
             <PageToolbar title="Projects" :count="loading ? undefined : projects.length">
-              <div v-if="projects.length > 0" class="relative w-[280px]">
+              <div v-if="projects.length > 0" class="relative w-70">
                 <Search :size="14" class="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   ref="searchInput"
                   v-model="search"
                   placeholder="Search projects"
-                  class="h-8 px-8 text-[13px]"
+                  class="h-8 px-8 text-sm"
                   @keydown.escape="search = ''"
                 />
                 <kbd
                   v-if="!search"
-                  class="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 rounded-[5px] border bg-card px-1.5 font-sans text-[11px] leading-[18px] text-muted-foreground"
+                  class="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 rounded border bg-card px-1.5 font-sans text-xs leading-4.5 text-muted-foreground"
                 >/</kbd>
               </div>
-              <div v-if="projects.length > 0" class="flex rounded-[10px] border bg-background p-0.5">
-                <Tooltip v-for="option in viewOptions" :key="option.key">
-                  <TooltipTrigger as-child>
-                    <button
-                      type="button"
-                      :aria-label="option.label"
-                      :aria-pressed="view === option.key"
-                      :class="[
-                        'flex h-[26px] w-[30px] items-center justify-center rounded-[7px] transition-colors',
-                        view === option.key ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
-                      ]"
-                      @click="view = option.key"
-                    >
-                      <component :is="option.icon" :size="15" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" :class="darkTooltipClass">{{ option.label }}</TooltipContent>
-                </Tooltip>
-              </div>
+              <SegmentedControl
+                v-if="projects.length > 0"
+                v-model="view"
+                label="Layout"
+                :options="viewOptions"
+              />
               <Button @click="paletteOpen = true">
                 <Plus />
                 New project
@@ -339,7 +325,7 @@ onKeyStroke('/', (event) => {
           <Transition name="slide-drawer">
             <div
               v-if="!workspace && drawer"
-              class="absolute inset-y-0 left-0 z-10 w-[440px] max-w-full"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
             >
               <ContextDrawer :title="drawerTitles[String(drawer)] ?? ''" @close="closeDrawer">
                 <div class="space-y-3">
@@ -354,7 +340,7 @@ onKeyStroke('/', (event) => {
           <Transition name="slide-drawer">
             <div
               v-if="workspace && drawer === 'members'"
-              class="absolute inset-y-0 left-0 z-10 w-[440px] max-w-full"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
             >
               <WorkspaceMembersDrawer
                 :workspace="workspace"
@@ -368,7 +354,7 @@ onKeyStroke('/', (event) => {
           <Transition name="slide-drawer">
             <div
               v-if="workspace && isWorkspaceAdmin && drawer === 'api-tokens'"
-              class="absolute inset-y-0 left-0 z-10 w-[440px] max-w-full"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
             >
               <ApiTokensDrawer @close="closeDrawer" />
             </div>
@@ -377,7 +363,7 @@ onKeyStroke('/', (event) => {
           <Transition name="slide-drawer">
             <div
               v-if="workspace && drawer === 'billing'"
-              class="absolute inset-y-0 left-0 z-10 w-[440px] max-w-full"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
             >
               <WorkspaceBillingDrawer
                 :is-admin="isWorkspaceAdmin"
@@ -389,7 +375,7 @@ onKeyStroke('/', (event) => {
           <Transition name="slide-drawer">
             <div
               v-if="workspace && drawer === 'settings'"
-              class="absolute inset-y-0 left-0 z-10 w-[440px] max-w-full"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
             >
               <WorkspaceSettingsDrawer
                 :workspace="workspace"

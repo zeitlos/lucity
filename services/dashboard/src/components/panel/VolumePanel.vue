@@ -36,14 +36,15 @@ const { tab: activeTab, selectTab } = useGuardedTab('usage');
     </template>
 
     <!-- Tab Content -->
-    <ScrollArea class="flex-1">
-      <Tabs :model-value="activeTab" @update:model-value="selectTab" class="h-full">
-        <div class="px-4 pt-2">
-          <TabsList class="w-full">
-            <TabsTrigger value="usage">Usage</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
-          </TabsList>
-        </div>
+    <Tabs :model-value="activeTab" @update:model-value="selectTab" class="flex min-h-0 flex-1 flex-col">
+      <div class="shrink-0 border-b px-4 pt-2">
+        <TabsList class="w-full border-b-0">
+          <TabsTrigger value="usage">Usage</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
+        </TabsList>
+      </div>
+
+      <ScrollArea class="min-h-0 flex-1">
 
         <TabsContent value="usage" class="px-4 py-4">
           <VolumeUsageTab
@@ -64,7 +65,7 @@ const { tab: activeTab, selectTab } = useGuardedTab('usage');
             @expanded="emit('refetch')"
           />
         </TabsContent>
-      </Tabs>
-    </ScrollArea>
+      </ScrollArea>
+    </Tabs>
   </PanelShell>
 </template>

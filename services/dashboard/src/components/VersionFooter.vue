@@ -53,7 +53,7 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside));
         v-if="expanded"
         class="mb-1.5 min-w-40 rounded-lg border bg-card p-3 shadow-lg"
       >
-        <p class="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+        <p class="mb-2 text-xs font-medium text-muted-foreground">
           Components
         </p>
 
@@ -66,8 +66,8 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside));
             <Circle
               :size="6"
               :class="gatewayUp
-                ? 'fill-emerald-500 text-emerald-500'
-                : 'fill-red-500 text-red-500'"
+                ? 'fill-status-ok text-status-ok'
+                : 'fill-status-danger text-status-danger'"
             />
             <span class="text-xs text-foreground">gateway</span>
           </div>
@@ -80,14 +80,14 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside));
             <Circle
               :size="6"
               :class="c.status === 'UP'
-                ? 'fill-emerald-500 text-emerald-500'
-                : 'fill-red-500 text-red-500'"
+                ? 'fill-status-ok text-status-ok'
+                : 'fill-status-danger text-status-danger'"
             />
             <span class="text-xs text-foreground">{{ c.name }}</span>
           </div>
 
           <div class="flex items-center gap-1.5 py-1">
-            <Circle :size="6" class="fill-emerald-500 text-emerald-500" />
+            <Circle :size="6" class="fill-status-ok text-status-ok" />
             <span class="text-xs text-foreground">dashboard</span>
           </div>
         </template>
@@ -95,7 +95,7 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside));
     </Transition>
 
     <button
-      class="font-mono text-[10px] text-muted-foreground/50 transition-colors hover:text-muted-foreground"
+      class="font-mono text-xs text-muted-foreground/50 transition-colors hover:text-muted-foreground"
       @click="toggle"
     >
       {{ version }}

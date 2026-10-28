@@ -190,7 +190,7 @@ async function handleMount() {
               </IconButton>
             </div>
 
-            <div class="max-h-[320px] overflow-y-auto p-1">
+            <div class="max-h-80 overflow-y-auto p-1">
               <p class="px-2 py-1.5 text-xs font-medium text-muted-foreground">Services</p>
               <button
                 v-for="(service, index) in filteredServices"

@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { MetricWindow } from '@/gql/graphql';
+import SegmentedControl from '@/components/SegmentedControl.vue';
 import { metricWindows } from '@/lib/metrics';
-import { cn } from '@/lib/utils';
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     splitLabel?: string;
     legend?: { key: string; label: string; color: string }[];
@@ -13,55 +14,33 @@ withDefaults(
 
 const split = defineModel<boolean>('split', { default: false });
 const selected = defineModel<MetricWindow>('window', { required: true });
+
+const scope = computed({
+  get: () => (split.value ? 'split' : 'total'),
+  set: (value: 'total' | 'split') => {
+    split.value = value === 'split';
+  },
+});
+
+const scopeOptions = computed(() => [
+  { value: 'total' as const, label: 'Total' },
+  { value: 'split' as const, label: props.splitLabel ?? '' },
+]);
 </script>
 
 <template>
   <div class="flex flex-wrap items-center justify-between gap-3">
     <div class="flex flex-wrap items-center gap-4">
-      <div v-if="splitLabel" class="inline-flex overflow-hidden rounded-md border text-xs">
-        <button
-          type="button"
-          :class="cn(
-            'px-2.5 py-1 text-muted-foreground transition-colors hover:text-foreground',
-            !split && 'bg-muted font-medium text-foreground',
-          )"
-          @click="split = false"
-        >
-          Total
-        </button>
-        <button
-          type="button"
-          :class="cn(
-            'border-l px-2.5 py-1 text-muted-foreground transition-colors hover:text-foreground',
-            split && 'bg-muted font-medium text-foreground',
-          )"
-          @click="split = true"
-        >
-          {{ splitLabel }}
-        </button>
-      </div>
+      <SegmentedControl v-if="splitLabel" v-model="scope" label="Scope" :options="scopeOptions" />
 
       <div v-if="legend.length" class="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-xs text-muted-foreground">
         <span v-for="item in legend" :key="item.key" class="inline-flex items-center gap-1.5">
-          <span class="size-[7px] rounded-full" :style="{ background: item.color }" />
+          <span class="size-1.5 rounded-full" :style="{ background: item.color }" />
           {{ item.label }}
         </span>
       </div>
     </div>
 
-    <div class="inline-flex overflow-hidden rounded-md border text-xs">
-      <button
-        v-for="option in metricWindows"
-        :key="option.value"
-        type="button"
-        :class="cn(
-          'px-2.5 py-1 text-muted-foreground transition-colors not-first:border-l hover:text-foreground',
-          selected === option.value && 'bg-muted font-medium text-foreground',
-        )"
-        @click="selected = option.value"
-      >
-        {{ option.label }}
-      </button>
-    </div>
+    <SegmentedControl v-model="selected" label="Time range" :options="metricWindows" />
   </div>
 </template>

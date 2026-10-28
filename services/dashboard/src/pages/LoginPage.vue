@@ -119,7 +119,7 @@ onUnmounted(() => {
       <!-- Login card floating over the image -->
       <div class="login-card relative z-20 w-full max-w-sm overflow-hidden rounded-xl border border-border p-8">
         <!-- Pattern texture -->
-        <div class="pattern-crosshatch pointer-events-none absolute inset-0 opacity-[0.03]" />
+        <div class="pattern-crosshatch pointer-events-none absolute inset-0 opacity-3" />
 
         <div class="relative z-10 space-y-6">
           <!-- Logo -->

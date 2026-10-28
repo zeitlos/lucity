@@ -243,7 +243,7 @@ async function handleDelete() {
       </h3>
 
       <div class="overflow-hidden rounded-lg border">
-        <div class="divide-y">
+        <div>
           <fieldset :disabled="resourcesSaving" class="min-w-0 divide-y">
             <div class="flex items-center gap-3 px-4 py-3">
               <Cpu :size="16" class="shrink-0 text-muted-foreground" />
@@ -306,7 +306,7 @@ async function handleDelete() {
       </h3>
 
       <div class="overflow-hidden rounded-lg border">
-        <div class="divide-y">
+        <div>
           <fieldset :disabled="storageSaving" class="min-w-0 divide-y">
             <div class="flex items-center gap-3 px-4 py-3">
               <HardDrive :size="16" class="shrink-0 text-muted-foreground" />

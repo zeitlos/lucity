@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatMoney } from '@/lib/format';
 import { computed, ref } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
 import { useRouter } from 'vue-router';
@@ -53,8 +54,8 @@ const creditTotalCents = computed(() => subscription.value?.creditAmountCents ??
 const creditsUsedCents = computed(() => usage.value?.creditsCents ?? 0);
 const creditsRemainingCents = computed(() => Math.max(0, creditTotalCents.value - creditsUsedCents.value));
 
-const creditsRemainingFormatted = computed(() => `€${(creditsRemainingCents.value / 100).toFixed(2)}`);
-const creditTotalFormatted = computed(() => `€${(creditTotalCents.value / 100).toFixed(2)}`);
+const creditsRemainingFormatted = computed(() => formatMoney(creditsRemainingCents.value / 100, 'EUR'));
+const creditTotalFormatted = computed(() => formatMoney(creditTotalCents.value / 100, 'EUR'));
 
 const creditsExhausted = computed(() => creditsRemainingCents.value <= 0);
 const daysExpired = computed(() => daysRemaining.value <= 0);
@@ -86,17 +87,17 @@ const urgency = computed(() => {
 
 const urgencyClasses = computed(() => {
   switch (urgency.value) {
-    case 'danger': return 'border-destructive/40 text-destructive';
-    case 'warn': return 'border-yellow-500/40 text-yellow-600 dark:text-yellow-400';
-    default: return 'border-primary/40 text-primary';
+    case 'danger': return 'border-status-danger/40 text-status-danger';
+    case 'warn': return 'border-status-warn/40 text-status-warn';
+    default: return 'border-status-ok/40 text-status-ok';
   }
 });
 
 const barColor = computed(() => {
   switch (urgency.value) {
-    case 'danger': return 'bg-destructive';
-    case 'warn': return 'bg-yellow-500';
-    default: return 'bg-primary';
+    case 'danger': return 'bg-status-danger';
+    case 'warn': return 'bg-status-warn';
+    default: return 'bg-status-ok';
   }
 });
 
@@ -132,7 +133,7 @@ function goToBilling() {
           <div class="space-y-1.5">
             <div class="flex items-center justify-between text-sm">
               <span class="text-muted-foreground">Credits expire in</span>
-              <span class="font-medium">{{ daysRemaining }} days</span>
+              <span class="font-medium">{{ daysRemaining }} {{ daysRemaining === 1 ? 'day' : 'days' }}</span>
             </div>
             <div class="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
               <div
@@ -167,7 +168,7 @@ function goToBilling() {
 
       <div class="p-4">
         <p class="text-sm font-medium">
-          {{ willSuspend ? 'Trial Ended' : 'Free Credits' }}
+          {{ willSuspend ? 'Trial ended' : 'Free credits' }}
         </p>
         <p class="mt-1 text-xs text-muted-foreground">
           <template v-if="willSuspend">
@@ -175,7 +176,7 @@ function goToBilling() {
             Upgrade to a plan to keep your workspace running.
           </template>
           <template v-else>
-            Your credits expire in {{ daysRemaining }} days. Upgrade to a plan to continue using the platform.
+            Your credits expire in {{ daysRemaining }} {{ daysRemaining === 1 ? 'day' : 'days' }}. Upgrade to a plan to continue using the platform.
           </template>
         </p>
 

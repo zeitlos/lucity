@@ -7,7 +7,7 @@ const props = defineProps<{ class?: HTMLAttributes['class']; colspan?: number }>
 
 <template>
   <tr>
-    <td :colspan="colspan" :class="cn('p-4 text-center text-muted-foreground', props.class)">
+    <td :colspan="colspan" :class="cn('px-4 py-6 text-center text-sm text-muted-foreground', props.class)">
       <slot />
     </td>
   </tr>

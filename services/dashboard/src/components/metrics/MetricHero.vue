@@ -36,13 +36,13 @@ const cursor = defineModel<number | null>('cursor', { default: null });
         <div class="mt-0.5 flex flex-wrap items-baseline gap-x-1.5">
           <span :class="cn('inline-flex flex-wrap items-baseline gap-x-3.5', !split && 'whitespace-nowrap')">
             <span v-for="reading in readings" :key="reading.key" class="inline-flex items-baseline gap-1.5">
-              <span v-if="split" class="size-[7px] -translate-y-1 rounded-full" :style="{ background: reading.color }" />
+              <span v-if="split" class="size-1.5 -translate-y-1 rounded-full" :style="{ background: reading.color }" />
               <span
-                :class="cn('font-semibold tabular-nums tracking-tight', split ? 'text-2xl' : 'text-[28px] leading-9')"
+                :class="cn('font-semibold tabular-nums tracking-tight', split ? 'text-2xl' : 'text-3xl leading-9')"
               >{{ reading.text }}</span>
             </span>
           </span>
-          <span v-if="unit" class="whitespace-nowrap text-[13px] text-muted-foreground">{{ unit }}</span>
+          <span v-if="unit" class="whitespace-nowrap text-sm text-muted-foreground">{{ unit }}</span>
         </div>
       </div>
       <span
@@ -73,7 +73,7 @@ const cursor = defineModel<number | null>('cursor', { default: null });
       grid
     />
 
-    <div class="-mt-1.5 flex justify-between text-[10px] text-muted-foreground">
+    <div class="-mt-1.5 flex justify-between text-xs text-muted-foreground">
       <span v-for="(tick, index) in ticks" :key="index">{{ tick }}</span>
     </div>
   </div>

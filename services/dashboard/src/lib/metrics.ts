@@ -1,5 +1,5 @@
 import { MetricWindow } from '@/gql/graphql';
-import { formatBytes } from '@/lib/utils';
+import { formatBytes, formatDateTime, formatTime } from '@/lib/format';
 
 export type MetricPoint = { timestamp: string; value?: number | null };
 
@@ -49,22 +49,14 @@ export function nearestTime(points: MetricPoint[], cursor: number): number | nul
 }
 
 export function formatMetricTime(time: number, short: boolean): string {
-  return new Date(time).toLocaleString(
-    undefined,
-    short
-      ? { hour: 'numeric', minute: '2-digit' }
-      : { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' },
-  );
+  return short ? formatTime(time) : formatDateTime(time);
 }
 
 export function metricTicks(from: number, to: number, short: boolean): string[] {
   return [0, 0.25, 0.5, 0.75, 1].map(fraction => {
     if (fraction === 1) return 'now';
     const time = from + (to - from) * fraction;
-    return new Date(time).toLocaleString(
-      undefined,
-      short ? { hour: 'numeric', minute: '2-digit' } : { month: 'short', day: 'numeric' },
-    );
+    return short ? formatTime(time) : new Date(time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   });
 }
 
@@ -74,16 +66,15 @@ export function formatCores(value: number): string {
 }
 
 export function formatCoreLimit(value: number): string {
-  const cores = Number(value.toFixed(2));
-  return `${cores} ${cores === 1 ? 'core' : 'cores'}`;
+  return `${Number(value.toFixed(2))} vCPU`;
 }
 
 export function formatSize(value: number): string {
-  return formatBytes(value).replace('.0 ', ' ');
+  return formatBytes(value);
 }
 
 export function formatCount(value: number): string {
-  return Math.round(value).toLocaleString();
+  return Math.round(value).toLocaleString('en-US');
 }
 
 export function formatRate(value: number): string {

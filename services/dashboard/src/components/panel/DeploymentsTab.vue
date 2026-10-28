@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import RelativeTime from '@/components/RelativeTime.vue';
+import { formatDuration } from '@/lib/format';
 import { computed, onMounted, watch } from 'vue';
 import {
   Rocket, Check, AlertCircle, Terminal,
@@ -78,23 +80,6 @@ async function handleDeploy() {
 async function handleRedeploy() {
   await deploy.startDeploy(props.service.id, props.service.name);
   emit('refetch');
-}
-
-function formatRelativeTime(timestamp?: string | null): string {
-  if (!timestamp) return 'queued';
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffSecs = Math.floor(diffMs / 1000);
-  const diffMins = Math.floor(diffSecs / 60);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffSecs < 60) return 'just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 30) return `${diffDays}d ago`;
-  return date.toLocaleDateString();
 }
 
 function shortCommit(commit?: string | null): string | null {
@@ -332,10 +317,21 @@ function stepDuration(step: ReleaseStep): string | null {
     ? new Date(step.finishedAt).getTime()
     : (step.status === 'running' ? now.value.getTime() : null);
   if (end === null) return null;
-  const secs = Math.max(0, Math.floor((end - start) / 1000));
-  if (secs < 60) return `${secs}s`;
-  return `${Math.floor(secs / 60)}m ${secs % 60}s`;
+  return formatDuration(end - start);
 }
+
+const stepLabels: Record<StepStatus, string> = {
+  queued: 'Queued',
+  running: 'Running',
+  succeeded: 'Succeeded',
+  degraded: 'Degraded',
+  failed: 'Failed',
+  cancelled: 'Cancelled',
+  skipped: 'Skipped',
+  superseded: 'Superseded',
+  findings: 'Possible findings',
+  leaked: 'Leaked',
+};
 
 function releaseGitHubURL(release: Release): string | null {
   return release.source?.commit.url ?? release.source?.url ?? null;
@@ -356,7 +352,7 @@ function releaseTitle(release: Release): string {
 }
 
 function releaseMeta(release: Release): string {
-  const parts: string[] = [formatRelativeTime(release.createdAt)];
+  const parts: string[] = [];
   if (release.source) {
     parts.push(`via ${providerLabels[release.source.provider] ?? release.source.provider}`);
   }
@@ -409,7 +405,7 @@ watch(
       <div class="flex items-center gap-3 pr-2">
         <CollapsibleTrigger class="group flex min-w-0 flex-1 cursor-pointer items-center gap-3 py-3 pl-4 text-left">
           <span
-            class="inline-flex w-[84px] shrink-0 items-center justify-center gap-1 rounded py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+            class="inline-flex w-21 shrink-0 items-center justify-center gap-1 rounded py-0.5 text-[10px] font-semibold uppercase tracking-wide"
             :style="{
               color: deploymentStatusMeta(activeDeployment.status).color,
               backgroundColor: `color-mix(in srgb, ${deploymentStatusMeta(activeDeployment.status).color} 15%, transparent)`,
@@ -426,7 +422,7 @@ watch(
               {{ activeDeployment.commitMessage || shortCommit(activeDeployment.commit) || activeDeployment.image }}
             </p>
             <div class="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span v-if="activeDeployment.createdAt">{{ formatRelativeTime(activeDeployment.createdAt) }}</span>
+              <RelativeTime v-if="activeDeployment.createdAt" :value="activeDeployment.createdAt" />
               <span v-if="activeRelease?.source">&middot; via {{ providerLabels[activeRelease.source.provider] ?? activeRelease.source.provider }}</span>
               <span v-if="activeRelease?.trigger.actor">&middot; by {{ activeRelease.trigger.actor }}</span>
             </div>
@@ -483,12 +479,12 @@ watch(
             :key="step.key"
             class="flex items-center gap-3 py-2"
           >
-            <div class="flex w-[84px] shrink-0 flex-col">
+            <div class="flex w-21 shrink-0 flex-col">
               <span class="text-sm font-medium text-foreground">{{ step.label }}</span>
               <span v-if="stepDuration(step)" class="text-xs text-muted-foreground">{{ stepDuration(step) }}</span>
             </div>
             <span
-              class="flex w-32 shrink-0 items-center gap-1.5 text-sm capitalize"
+              class="flex w-36 shrink-0 items-center gap-1.5 text-sm"
               :style="{ color: stepColor(step.status) }"
             >
               <component
@@ -496,7 +492,7 @@ watch(
                 :size="14"
                 :class="step.status === 'running' ? 'animate-spin' : ''"
               />
-              {{ step.status }}
+              {{ stepLabels[step.status] }}
             </span>
             <span class="flex-1 truncate text-sm text-muted-foreground">{{ step.detail }}</span>
             <Button
@@ -530,7 +526,7 @@ watch(
           <div class="flex items-center gap-3 pr-2">
             <CollapsibleTrigger class="group flex min-w-0 flex-1 cursor-pointer items-center gap-3 py-3 pl-4 text-left">
               <span
-                class="inline-flex w-[84px] shrink-0 items-center justify-center gap-1 rounded py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                class="inline-flex w-21 shrink-0 items-center justify-center gap-1 rounded py-0.5 text-[10px] font-semibold uppercase tracking-wide"
                 :style="{
                   color: releaseStatusMeta(release.status).color,
                   backgroundColor: `color-mix(in srgb, ${releaseStatusMeta(release.status).color} 15%, transparent)`,
@@ -547,7 +543,9 @@ watch(
                   {{ releaseTitle(release) }}
                 </p>
                 <div class="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <span>{{ releaseMeta(release) }}</span>
+                  <RelativeTime v-if="release.createdAt" :value="release.createdAt" />
+                  <span v-else>Queued</span>
+                  <span v-if="releaseMeta(release)">&middot; {{ releaseMeta(release) }}</span>
                 </div>
               </div>
 
@@ -597,12 +595,12 @@ watch(
                 :key="step.key"
                 class="flex items-center gap-3 py-2"
               >
-                <div class="flex w-[84px] shrink-0 flex-col">
+                <div class="flex w-21 shrink-0 flex-col">
                   <span class="text-sm font-medium text-foreground">{{ step.label }}</span>
                   <span v-if="stepDuration(step)" class="text-xs text-muted-foreground">{{ stepDuration(step) }}</span>
                 </div>
                 <span
-                  class="flex w-32 shrink-0 items-center gap-1.5 text-sm capitalize"
+                  class="flex w-36 shrink-0 items-center gap-1.5 text-sm"
                   :style="{ color: stepColor(step.status) }"
                 >
                   <component
@@ -610,7 +608,7 @@ watch(
                     :size="14"
                     :class="step.status === 'running' ? 'animate-spin' : ''"
                   />
-                  {{ step.status }}
+                  {{ stepLabels[step.status] }}
                 </span>
                 <span class="flex-1 truncate text-sm text-muted-foreground">{{ step.detail }}</span>
                 <Button

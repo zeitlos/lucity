@@ -240,6 +240,7 @@ function referenceInfo(row: VariableRow) {
           />
           <IconButton
             :label="row.revealed ? 'Hide value' : 'Show value'"
+            :aria-pressed="row.revealed"
             size="icon"
             tabindex="-1"
             class="absolute right-0 top-0 text-muted-foreground hover:bg-transparent"

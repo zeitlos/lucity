@@ -29,7 +29,7 @@ const props = defineProps<{
   linkTo: (project: Project) => RouteLocationRaw;
 }>();
 
-const columns = 'grid grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_minmax(0,1.2fr)_minmax(0,1.6fr)] items-center gap-4 px-4';
+const columns = 'grid grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_minmax(0,1.2fr)_minmax(0,1.6fr)] items-center gap-6 px-4';
 
 interface Tile {
   key: string;
@@ -77,20 +77,22 @@ const rows = computed(() => props.projects.map(project => ({
 
 <template>
   <div>
-    <div :class="[columns, 'sticky top-0 z-10 h-9 border-b border-border/70 bg-card text-xs font-medium text-muted-foreground']">
-      <span>Project</span>
-      <span>Repository</span>
-      <span>Environments</span>
-      <span>Resources</span>
+    <div class="sticky top-0 z-10 border-b bg-card">
+      <div :class="[columns, 'h-8 bg-muted/40 text-xs font-medium text-muted-foreground']">
+        <span>Project</span>
+        <span>Repository</span>
+        <span>Environments</span>
+        <span>Resources</span>
+      </div>
     </div>
     <RouterLink
       v-for="{ project, repositories: repositoryNames, tiles: resourceTiles } in rows"
       :key="project.id"
       :to="linkTo(project)"
-      :class="[columns, 'min-h-[52px] border-b border-border/70 py-2 transition-colors hover:bg-muted/50']"
+      :class="[columns, 'min-h-13 border-b py-2 transition-colors hover:bg-muted/50']"
     >
       <span class="truncate text-sm font-semibold text-foreground">{{ project.name }}</span>
-      <span class="flex min-w-0 items-center gap-1.5 text-[12.5px] text-muted-foreground">
+      <span class="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
         <template v-if="repositoryNames">
           <FolderGit2 :size="13" class="shrink-0" />
           <span class="truncate">{{ repositoryNames }}</span>
@@ -100,7 +102,7 @@ const rows = computed(() => props.projects.map(project => ({
         <span
           v-for="environment in project.environments"
           :key="environment.id"
-          class="inline-flex h-[22px] items-center rounded-[7px] bg-muted px-2 text-xs text-foreground"
+          class="inline-flex h-5.5 items-center rounded-md bg-muted px-2 text-xs text-foreground"
         >
           {{ environment.name }}
         </span>

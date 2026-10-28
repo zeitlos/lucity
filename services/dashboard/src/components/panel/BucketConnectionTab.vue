@@ -1,12 +1,14 @@
 <script setup lang="ts">
+import CodeBlock from '@/components/CodeBlock.vue';
+import CredentialField from '@/components/CredentialField.vue';
+import SegmentedControl from '@/components/SegmentedControl.vue';
 import CopyButton from '@/components/CopyButton.vue';
 import QueryError from '@/components/QueryError.vue';
 import Spinner from '@/components/LoadingSpinner.vue';
-import { reactive, computed, ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
-import { Eye, EyeOff, Globe } from '@lucide/vue';
+import { Globe } from '@lucide/vue';
 import { graphql } from '@/gql';
-import IconButton from '@/components/IconButton.vue';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { failureToast } from '@/components/ui/sonner';
@@ -70,20 +72,20 @@ const fields = computed(() => {
     { key: 'endpoint', label: 'Endpoint', value: c.endpoint, sensitive: false },
     { key: 'region', label: 'Region', value: c.region, sensitive: false },
     { key: 'bucket', label: 'Bucket', value: c.bucket, sensitive: false },
-    { key: 'accessKeyId', label: 'Access Key ID', value: c.accessKeyId, sensitive: false },
-    { key: 'secretAccessKey', label: 'Secret Access Key', value: c.secretAccessKey, sensitive: true },
+    { key: 'accessKeyId', label: 'Access key ID', value: c.accessKeyId, sensitive: false },
+    { key: 'secretAccessKey', label: 'Secret access key', value: c.secretAccessKey, sensitive: true },
   ];
 });
 
 const SNIPPETS = [
-  { key: 'env', label: 'Env' },
-  { key: 'cli', label: 'AWS CLI' },
-  { key: 'rclone', label: 'rclone' },
-  { key: 'node', label: 'Node' },
-  { key: 'python', label: 'Python' },
-] as const;
+  { value: 'env' as const, label: 'Env' },
+  { value: 'cli' as const, label: 'AWS CLI' },
+  { value: 'rclone' as const, label: 'rclone' },
+  { value: 'node' as const, label: 'Node' },
+  { value: 'python' as const, label: 'Python' },
+];
 
-type SnippetKey = (typeof SNIPPETS)[number]['key'];
+type SnippetKey = (typeof SNIPPETS)[number]['value'];
 
 const selectedSnippet = ref<SnippetKey>('env');
 
@@ -143,21 +145,6 @@ function buildSnippets(secretAccessKey: string): Record<SnippetKey, string> {
 
 const currentSnippet = computed(() => buildSnippets(credentials.value?.secretAccessKey ?? '')[selectedSnippet.value]);
 
-const revealed = reactive<Record<string, boolean>>({});
-
-const displayedSnippet = computed(() => {
-  const secretAccessKey = credentials.value?.secretAccessKey ?? '';
-  return buildSnippets(revealed.secretAccessKey ? secretAccessKey : mask(secretAccessKey))[selectedSnippet.value];
-});
-
-function toggleReveal(key: string) {
-  revealed[key] = !revealed[key];
-}
-
-function mask(value: string): string {
-  if (value.length <= 4) return '*'.repeat(value.length);
-  return '*'.repeat(value.length - 2) + value.slice(-2);
-}
 
 </script>
 
@@ -211,57 +198,20 @@ function mask(value: string): string {
     <!-- Credentials -->
     <template v-else-if="credentials">
       <div class="space-y-1.5">
-        <div
+        <CredentialField
           v-for="field in fields"
           :key="field.key"
-          class="group flex items-center gap-2 rounded-md bg-muted/40 px-3 py-2"
-        >
-          <span class="w-32 shrink-0 text-xs font-medium text-muted-foreground">{{ field.label }}</span>
-          <span class="flex-1 truncate font-mono text-xs text-foreground">
-            {{ field.sensitive && !revealed[field.key] ? mask(field.value) : field.value }}
-          </span>
-          <IconButton
-            :label="`${revealed[field.key] ? 'Hide' : 'Show'} ${field.label}`"
-            v-if="field.sensitive"
-            size="icon-xs"
-            class="shrink-0"
-            @click="toggleReveal(field.key)"
-          >
-            <EyeOff v-if="revealed[field.key]" />
-            <Eye v-else />
-          </IconButton>
-          <CopyButton
-            :label="`Copy ${field.label}`"
-            size="icon-xs"
-            class="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-            :value="field.value"
-          />
-        </div>
+          :label="field.label"
+          :value="field.value"
+          :sensitive="field.sensitive"
+        />
       </div>
 
-      <!-- Snippet switcher -->
-      <div class="space-y-1.5">
-        <div class="flex items-center justify-between px-1">
-          <div class="flex gap-0.5 rounded-md bg-muted/40 p-0.5">
-            <button
-              v-for="snip in SNIPPETS"
-              :key="snip.key"
-              type="button"
-              class="rounded px-2 py-1 text-sm font-medium transition-colors"
-              :class="
-                selectedSnippet === snip.key
-                  ? 'bg-background text-foreground shadow-sm ring-1 ring-border'
-                  : 'text-muted-foreground hover:text-foreground'
-              "
-              @click="selectedSnippet = snip.key"
-            >
-              {{ snip.label }}
-            </button>
-          </div>
-          <CopyButton label="Copy snippet" size="icon-xs" :value="currentSnippet" />
-        </div>
-        <pre class="overflow-x-auto rounded-md bg-muted/40 px-3 py-2 font-mono text-xs text-foreground">{{ displayedSnippet }}</pre>
-      </div>
+      <CodeBlock :code="currentSnippet" :secrets="[credentials.secretAccessKey]">
+        <template #header>
+          <SegmentedControl v-model="selectedSnippet" label="Snippet" :options="SNIPPETS" />
+        </template>
+      </CodeBlock>
 
       <p class="text-sm text-muted-foreground">
         S3-compatible credentials for <strong>{{ bucketName }}</strong>. Works with any S3 SDK, the AWS CLI, or rclone.

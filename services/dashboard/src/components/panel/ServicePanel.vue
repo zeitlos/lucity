@@ -41,24 +41,25 @@ function openLogs() {
     </template>
 
     <!-- Tab Content -->
-    <ScrollArea class="flex-1">
-      <Tabs :model-value="activeTab" @update:model-value="selectTab" class="h-full">
-        <div class="px-4 pt-2">
-          <TabsList class="w-full">
-            <TabsTrigger value="deployments">Deployments</TabsTrigger>
-            <button
-              class="inline-flex items-center justify-center gap-1 whitespace-nowrap border-b-2 border-transparent px-1 pb-2.5 pt-2 text-sm font-medium text-muted-foreground transition-all hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
-              @click="openLogs"
-            >
-              Logs
-              <SquareArrowOutUpRight :size="11" class="opacity-50" />
-            </button>
-            <TabsTrigger value="metrics">Metrics</TabsTrigger>
-            <TabsTrigger value="variables">Variables</TabsTrigger>
-            <TabsTrigger value="security">Security</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
-          </TabsList>
-        </div>
+    <Tabs :model-value="activeTab" @update:model-value="selectTab" class="flex min-h-0 flex-1 flex-col">
+      <div class="shrink-0 border-b px-4 pt-2">
+        <TabsList class="w-full border-b-0">
+          <TabsTrigger value="deployments">Deployments</TabsTrigger>
+          <button
+            class="-mb-px inline-flex items-center justify-center gap-1 whitespace-nowrap border-b-2 border-transparent px-1 pb-2.5 pt-2 text-sm font-medium text-muted-foreground transition-all hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+            @click="openLogs"
+          >
+            Logs
+            <SquareArrowOutUpRight :size="11" class="opacity-50" />
+          </button>
+          <TabsTrigger value="metrics">Metrics</TabsTrigger>
+          <TabsTrigger value="variables">Variables</TabsTrigger>
+          <TabsTrigger value="security">Security</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
+        </TabsList>
+      </div>
+
+      <ScrollArea class="min-h-0 flex-1">
 
         <TabsContent value="deployments" class="px-4 py-4">
           <DeploymentsTab :service="service" @refetch="emit('refetch')" />
@@ -89,7 +90,7 @@ function openLogs() {
             @refetch="emit('refetch')"
           />
         </TabsContent>
-      </Tabs>
-    </ScrollArea>
+      </ScrollArea>
+    </Tabs>
   </PanelShell>
 </template>

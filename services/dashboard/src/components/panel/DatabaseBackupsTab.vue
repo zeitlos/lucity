@@ -60,6 +60,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { failureToast, successToast } from '@/components/ui/sonner';
 import EmptyState from '@/components/EmptyState.vue';
 import RecoveryTimeline from './RecoveryTimeline.vue';
+import { Status } from '@/components/ui/status';
+import { backupStatus } from '@/lib/status';
+import { formatDateTime, formatDuration, formatTime } from '@/lib/format';
 
 const props = defineProps<{
   databaseId: string;
@@ -206,37 +209,25 @@ async function handleRestore() {
   }
 }
 
-function formatDate(value?: string | null): string {
-  if (!value) return '';
-  return new Date(value).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
 function duration(entry: { startedAt?: string | null; finishedAt?: string | null }): string {
   if (!entry.startedAt || !entry.finishedAt) return '';
-  const seconds = Math.round(
-    (new Date(entry.finishedAt).getTime() - new Date(entry.startedAt).getTime()) / 1000,
-  );
-  if (seconds < 60) return `${seconds}s`;
-  return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+  return formatDuration(new Date(entry.finishedAt).getTime() - new Date(entry.startedAt).getTime());
 }
 
-function statusColor(status: BackupStatus): string {
-  if (status === BackupStatus.Completed) return 'var(--status-ok)';
-  if (status === BackupStatus.Failed) return 'var(--status-danger)';
-  if (status === BackupStatus.Running) return 'var(--status-progress)';
-  return 'var(--status-neutral)';
-}
+const fullBackupSchedule = (() => {
+  const now = new Date();
+  const sunday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - now.getUTCDay(), 2));
+  return `${sunday.toLocaleDateString('en-US', { weekday: 'long' })} at ${formatTime(sunday)}`;
+})();
 
-function statusLabel(status: BackupStatus): string {
-  if (status === BackupStatus.Completed) return 'Succeeded';
-  if (status === BackupStatus.Failed) return 'Failed';
-  if (status === BackupStatus.Running) return 'Running';
-  return 'Waiting';
+const hasRunning = computed(() => entries.value.some(entry => entry.status === BackupStatus.Running));
+const { now: clock, pause: pauseClock, resume: resumeClock } = useNow({ scheduler: cb => useIntervalFn(cb, 1000), controls: true });
+watch(hasRunning, running => (running ? resumeClock() : pauseClock()), { immediate: true });
+
+function statusText(entry: { status: BackupStatus; startedAt?: string | null }): string {
+  const { label } = backupStatus(entry.status);
+  if (entry.status !== BackupStatus.Running || !entry.startedAt) return label;
+  return `${label} ${formatDuration(clock.value.getTime() - new Date(entry.startedAt).getTime())}`;
 }
 
 const showAll = ref(false);
@@ -291,7 +282,7 @@ const visibleEntries = computed(() => (showAll.value ? entries.value : entries.v
           <div class="space-y-4">
             <p v-if="degenerate" class="text-sm text-muted-foreground">
               Nothing has been written since
-              {{ formatDate(backups.latestRestorePoint) }}, so that is the only state there is
+              {{ formatDateTime(backups.latestRestorePoint) }}, so that is the only state there is
               to restore to.
             </p>
 
@@ -332,7 +323,7 @@ const visibleEntries = computed(() => (showAll.value ? entries.value : entries.v
                   <span class="font-medium text-foreground">The most recent state</span>
                   <span class="block text-xs text-muted-foreground">
                     Everything in the archive, up to
-                    {{ formatDate(backups.latestRestorePoint) }}.
+                    {{ formatDateTime(backups.latestRestorePoint) }}.
                   </span>
                 </span>
               </label>
@@ -368,7 +359,7 @@ const visibleEntries = computed(() => (showAll.value ? entries.value : entries.v
             <div class="space-y-1 text-sm text-muted-foreground/80">
               <h3 class="text-sm font-medium text-muted-foreground">Base backups</h3>
               <p>
-                A full copy runs every Sunday at 02:00 UTC, with every write in between archived
+                A full copy runs every {{ fullBackupSchedule }} (your time), with every write in between archived
                 continuously. Copies older than {{ backups.retentionDays }} days are removed.
               </p>
             </div>
@@ -390,13 +381,13 @@ const visibleEntries = computed(() => (showAll.value ? entries.value : entries.v
             description="The first one runs as soon as the database is ready."
           />
 
-          <div v-else class="overflow-hidden rounded-lg border">
+          <div v-else class="-mx-4 border-y">
             <div class="divide-y">
               <div v-for="entry in visibleEntries" :key="entry.id" class="px-4 py-3">
                 <div class="flex items-start justify-between gap-4">
                   <div class="min-w-0 flex-1 space-y-1">
                     <p class="text-sm text-foreground">
-                      {{ formatDate(entry.startedAt ?? entry.createdAt) }}
+                      {{ formatDateTime(entry.startedAt ?? entry.createdAt) }}
                     </p>
                     <div class="flex items-center gap-3 text-xs text-muted-foreground">
                       <span class="inline-flex items-center gap-1">
@@ -413,16 +404,15 @@ const visibleEntries = computed(() => (showAll.value ? entries.value : entries.v
                       </span>
                     </div>
                   </div>
-                  <span
-                    class="shrink-0 text-sm font-medium"
-                    :style="{ color: statusColor(entry.status) }"
-                  >
-                    {{ statusLabel(entry.status) }}
+                  <span class="shrink-0 text-sm text-muted-foreground">
+                    <Status :tone="backupStatus(entry.status).tone" variant="text">
+                      {{ statusText(entry) }}
+                    </Status>
                   </span>
                 </div>
                 <p
                   v-if="entry.error"
-                  class="mt-2 rounded border border-destructive/20 bg-destructive/5 px-2 py-1 font-mono text-[11px] text-destructive"
+                  class="mt-2 rounded border border-destructive/20 bg-destructive/5 px-2 py-1 font-mono text-xs text-destructive"
                 >
                   {{ entry.error }}
                 </p>

@@ -271,7 +271,7 @@ import { usePanel } from '@/composables/usePanel';
 import { useBuildLogsPanel } from '@/composables/useBuildLogsPanel';
 import { useServiceLogsPanel } from '@/composables/useServiceLogsPanel';
 import { useVulnerabilitiesPanel } from '@/composables/useVulnerabilitiesPanel';
-import { parseStorageSize } from '@/lib/utils';
+import { parseQuantity } from '@/lib/format';
 import { rememberEnvironment } from '@/lib/lastEnvironment';
 
 const route = useRoute();
@@ -581,7 +581,7 @@ watch(
 function volumeUsagePercent(volume: { size: string; metrics: { points: { value?: number | null }[] }[] }): number | null {
   const points = volume.metrics[0]?.points ?? [];
   const usedBytes = [...points].reverse().find(p => p.value != null)?.value ?? null;
-  const capacityBytes = parseStorageSize(volume.size);
+  const capacityBytes = parseQuantity(volume.size);
 
   return usedBytes != null && capacityBytes > 0
     ? Math.min(100, Math.round((usedBytes / capacityBytes) * 100))
@@ -773,7 +773,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
           <Transition name="slide-drawer">
             <div
               v-if="drawer === 'variables'"
-              class="absolute inset-y-0 left-0 z-10 w-[440px] max-w-full"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
             >
               <SharedVariablesDrawer
                 :environment-id="environmentId"
@@ -786,7 +786,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
           <Transition name="slide-drawer">
             <div
               v-if="drawer === 'settings'"
-              class="absolute inset-y-0 left-0 z-10 w-[440px] max-w-full"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
             >
               <EnvironmentSettingsDrawer
                 :project-id="projectId"

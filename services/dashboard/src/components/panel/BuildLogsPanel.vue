@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { jobStatus } from '@/lib/status';
 import { useEscapeToClose } from '@/composables/useEscapeToClose';
 import { ref, computed, watch, nextTick } from 'vue';
 import { X, Pause, Play, AlertCircle, Eraser } from '@lucide/vue';
@@ -49,18 +50,8 @@ function clear() {
 
 const deploy = useDeploy();
 
-const statusTone = computed(() => {
-  switch (deploy.status) {
-    case BuildStatus.Succeeded:
-      return 'ok' as const;
-    case BuildStatus.Failed:
-      return 'danger' as const;
-    case BuildStatus.Running:
-      return 'warn' as const;
-    default:
-      return 'neutral' as const;
-  }
-});
+const kindLabel = computed(() => ({ build: 'Build', deploy: 'Deploy', scan: 'Secret scan' } as Record<string, string>)[props.kind] ?? props.kind);
+const buildStatus = computed(() => (deploy.status ? jobStatus(deploy.status) : null));
 
 const logContainer = ref<HTMLElement | null>(null);
 const userScrolled = ref(false);
@@ -107,13 +98,13 @@ function togglePause() {
         <h2 class="text-sm font-semibold text-zinc-200">
           {{ serviceName }}
         </h2>
-        <span class="text-xs uppercase tracking-wider text-zinc-500">{{ kind }}</span>
+        <span class="text-xs text-zinc-500">{{ kindLabel }}</span>
         <Status
-          v-if="kind === 'build' && deploy.status"
-          :tone="statusTone"
-          class="text-xs"
+          v-if="kind === 'build' && buildStatus"
+          :tone="buildStatus.tone"
+          size="sm"
         >
-          {{ deploy.status }}
+          {{ buildStatus.label }}
         </Status>
       </div>
 
@@ -160,7 +151,7 @@ function togglePause() {
         <AlertCircle :size="13" class="mt-0.5 shrink-0" />
         <div class="min-w-0 space-y-0.5">
           <p class="font-sans text-xs font-medium">Failed to load logs</p>
-          <p class="break-words font-mono text-[11px] text-red-400/80">{{ error }}</p>
+          <p class="break-words font-mono text-xs text-red-400/80">{{ error }}</p>
         </div>
       </div>
 

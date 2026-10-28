@@ -7,7 +7,7 @@ import { computed, ref } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
 import { graphql } from '@/gql';
 import { MetricWindow, MetricGrouping, ResourceMetric } from '@/gql/graphql';
-import { formatBytes, parseCpu, parseStorageSize } from '@/lib/utils';
+import { formatBytes, parseQuantity } from '@/lib/format';
 import {
   formatCoreLimit,
   formatCores,
@@ -129,11 +129,11 @@ function hero(
 }
 
 const heroes = computed(() => [
-  hero(ResourceMetric.CpuUsage, 'CPU', parseCpu(service.value?.resources.cpu ?? ''), formatCores, formatCoreLimit),
+  hero(ResourceMetric.CpuUsage, 'CPU', parseQuantity(service.value?.resources.cpu ?? ''), formatCores, formatCoreLimit),
   hero(
     ResourceMetric.MemoryUsage,
     'Memory',
-    parseStorageSize(service.value?.resources.memory ?? ''),
+    parseQuantity(service.value?.resources.memory ?? ''),
     formatBytes,
     formatSize,
   ),

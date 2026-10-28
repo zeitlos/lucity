@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import CopyButton from '@/components/CopyButton.vue';
+import CredentialField from '@/components/CredentialField.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import QueryError from '@/components/QueryError.vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
-import { reactive, computed, ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
-import { Eye, EyeOff, DatabaseZap, Globe, Lock, ShieldAlert } from '@lucide/vue';
+import { DatabaseZap, Globe, Lock, ShieldAlert } from '@lucide/vue';
 import Spinner from '@/components/LoadingSpinner.vue';
 import { graphql } from '@/gql';
-import IconButton from '@/components/IconButton.vue';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -144,17 +143,6 @@ async function setExposed(next: boolean) {
   }
 }
 
-const revealed = reactive<Record<string, boolean>>({});
-
-function toggleReveal(key: string) {
-  revealed[key] = !revealed[key];
-}
-
-function mask(value: string): string {
-  if (value.length <= 4) return '*'.repeat(value.length);
-  return '*'.repeat(value.length - 2) + value.slice(-2);
-}
-
 
 const endpointLabels: Record<string, string> = {
   INTERNAL: 'Private network',
@@ -216,32 +204,13 @@ const privateGroups = computed(() => groups.value.filter(g => g.type !== 'PLATFO
         />
       </div>
       <div v-if="isPublic && publicGroup" class="space-y-1.5 border-t px-4 py-3">
-        <div
+        <CredentialField
           v-for="field in publicGroup.fields"
           :key="field.key"
-          class="group flex items-start gap-2 rounded-md bg-muted/40 px-3 py-2"
-        >
-          <span class="w-28 shrink-0 pt-1 text-xs font-medium text-muted-foreground">{{ field.label }}</span>
-          <span class="min-w-0 flex-1 break-all pt-0.5 font-mono text-xs text-foreground">
-            {{ field.sensitive && !revealed[field.key] ? mask(field.value) : field.value }}
-          </span>
-          <IconButton
-            :label="`${revealed[field.key] ? 'Hide' : 'Show'} ${field.label}`"
-            v-if="field.sensitive"
-            size="icon-xs"
-            class="shrink-0"
-            @click="toggleReveal(field.key)"
-          >
-            <EyeOff v-if="revealed[field.key]" />
-            <Eye v-else />
-          </IconButton>
-          <CopyButton
-            :label="`Copy ${field.label}`"
-            size="icon-xs"
-            class="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-            :value="field.value"
-          />
-        </div>
+          :label="field.label"
+          :value="field.value"
+          :sensitive="field.sensitive"
+        />
       </div>
     </div>
 
@@ -282,32 +251,13 @@ const privateGroups = computed(() => groups.value.filter(g => g.type !== 'PLATFO
           </div>
         </div>
         <div class="space-y-1.5 border-t px-4 py-3">
-          <div
+          <CredentialField
             v-for="field in group.fields"
             :key="field.key"
-            class="group flex items-start gap-2 rounded-md bg-muted/40 px-3 py-2"
-          >
-            <span class="w-28 shrink-0 pt-1 text-xs font-medium text-muted-foreground">{{ field.label }}</span>
-            <span class="min-w-0 flex-1 break-all pt-0.5 font-mono text-xs text-foreground">
-              {{ field.sensitive && !revealed[field.key] ? mask(field.value) : field.value }}
-            </span>
-            <IconButton
-              :label="`${revealed[field.key] ? 'Hide' : 'Show'} ${field.label}`"
-              v-if="field.sensitive"
-              size="icon-xs"
-              class="shrink-0"
-              @click="toggleReveal(field.key)"
-            >
-              <EyeOff v-if="revealed[field.key]" />
-              <Eye v-else />
-            </IconButton>
-            <CopyButton
-              :label="`Copy ${field.label}`"
-              size="icon-xs"
-              class="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-              :value="field.value"
-            />
-          </div>
+            :label="field.label"
+            :value="field.value"
+            :sensitive="field.sensitive"
+          />
         </div>
       </div>
     </template>

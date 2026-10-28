@@ -52,7 +52,7 @@ const menuWorkspaceItems = computed(() =>
   workspaceNavItems(isWorkspaceAdmin.value).filter(item => item.key !== 'projects'),
 );
 
-const trayItemClass = 'h-[34px] gap-2 whitespace-nowrap rounded-[9px] px-2.5 text-[12.5px] text-muted-foreground focus:text-foreground [&_svg]:size-3.5';
+const trayItemClass = 'h-8.5 gap-2 whitespace-nowrap rounded-lg px-2.5 text-xs text-muted-foreground focus:text-foreground [&_svg]:size-3.5';
 
 async function handleLogout() {
   await logout();
@@ -101,10 +101,10 @@ async function handleLogout() {
                 </Avatar>
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" class="w-[304px] rounded-[17px] bg-background p-0 shadow-xl">
-              <div class="-m-px rounded-[17px] border bg-popover p-1.5 shadow-[0_6px_14px_-8px_oklch(0.35_0.03_55/0.25)]">
-                <div class="flex items-center gap-3 px-[5px] pb-3 pt-2">
-                  <Avatar class="size-[38px] shrink-0">
+            <DropdownMenuContent align="end" class="w-76 rounded-2xl bg-background p-0 shadow-xl">
+              <div class="-m-px rounded-2xl border bg-popover p-1.5 shadow-sm">
+                <div class="flex items-center gap-3 px-1.5 pb-3 pt-2">
+                  <Avatar class="size-9.5 shrink-0">
                     <AvatarImage :src="user.avatarUrl" :alt="user.name || user.email || ''" />
                     <AvatarFallback>{{ (user.name || user.email || '?').charAt(0).toUpperCase() }}</AvatarFallback>
                   </Avatar>
@@ -116,19 +116,19 @@ async function handleLogout() {
 
                 <template v-if="workspace">
                   <DropdownMenuSeparator class="mx-1 mb-1.5 mt-0" />
-                  <div class="flex h-9 items-center gap-2.5 px-[5px]">
-                    <span class="flex size-[26px] shrink-0 items-center justify-center rounded-[6px] text-xs font-semibold" :style="workspaceColor(workspace.id)">
+                  <div class="flex h-9 items-center gap-2.5 px-1.5">
+                    <span class="flex size-6.5 shrink-0 items-center justify-center rounded-md text-xs font-semibold" :style="workspaceColor(workspace.id)">
                       {{ workspace.name.charAt(0).toUpperCase() }}
                     </span>
-                    <span class="truncate text-[13.5px] font-semibold">{{ workspace.name }}</span>
-                    <span v-if="workspace.personal" class="ml-auto rounded-full bg-muted px-2 py-px text-[11px] text-muted-foreground">
+                    <span class="truncate text-sm font-semibold">{{ workspace.name }}</span>
+                    <span v-if="workspace.personal" class="ml-auto rounded-full bg-muted px-2 py-px text-xs text-muted-foreground">
                       Personal
                     </span>
                   </div>
                   <DropdownMenuItem
                     v-for="item in menuWorkspaceItems"
                     :key="item.key"
-                    class="h-9 gap-2.5 rounded-[11px] px-[5px] text-[13.5px]"
+                    class="h-9 gap-2.5 rounded-xl px-1.5 text-sm"
                     @select="router.push(item.to)"
                   >
                     <MenuIcon :icon="item.icon" />

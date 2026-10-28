@@ -235,6 +235,7 @@
   --color-accent-pop: var(--accent-pop);
   --color-accent-pop-foreground: var(--accent-pop-foreground);
   --color-destructive: var(--destructive);
+  --shadow-glow: 0 0 6px currentColor;
   --color-status-ok: var(--status-ok);
   --color-status-warn: var(--status-warn);
   --color-status-danger: var(--status-danger);

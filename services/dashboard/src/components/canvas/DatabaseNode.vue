@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { databaseStatus } from '@/lib/status';
 import { devicon } from '@/lib/devicons';
 import { computed } from 'vue';
 import { Handle, Position } from '@vue-flow/core';
@@ -20,40 +21,7 @@ const emit = defineEmits<{
   (e: 'select'): void;
 }>();
 
-const statusTone = computed(() => {
-  switch (props.data.status) {
-    case DatabaseStatus.Healthy:
-      return 'ok' as const;
-    case DatabaseStatus.Failed:
-      return 'danger' as const;
-    case DatabaseStatus.Degraded:
-      return 'warn' as const;
-    case DatabaseStatus.Pending:
-    case DatabaseStatus.Updating:
-      return 'progress' as const;
-    default:
-      return 'neutral' as const;
-  }
-});
-
-const statusLabel = computed(() => {
-  switch (props.data.status) {
-    case DatabaseStatus.Healthy:
-      return 'Online';
-    case DatabaseStatus.Degraded:
-      return 'Degraded';
-    case DatabaseStatus.Updating:
-      return 'Updating';
-    case DatabaseStatus.Pending:
-      return 'Provisioning';
-    case DatabaseStatus.Failed:
-      return 'Failed';
-    case DatabaseStatus.Stopped:
-      return 'Stopped';
-    default:
-      return 'Unknown';
-  }
-});
+const status = computed(() => databaseStatus(props.data.status));
 </script>
 
 <template>
@@ -81,7 +49,7 @@ const statusLabel = computed(() => {
 
       <!-- Status row -->
       <div class="mt-4 flex items-center justify-between border-t border-border/50 pt-4">
-        <Status :tone="statusTone" class="text-[0.65rem]">{{ statusLabel }}</Status>
+        <Status :tone="status.tone" size="sm">{{ status.label }}</Status>
       </div>
     </div>
 

@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import { serviceStatus } from '@/lib/status';
+import { formatDuration } from '@/lib/format';
 import { devicon } from '@/lib/devicons';
 import { computed, ref, watch, onUnmounted } from 'vue';
 import { Handle, Position } from '@vue-flow/core';
 import { ExternalLink, Globe, Container, HardDrive } from '@lucide/vue';
-import Spinner from '@/components/LoadingSpinner.vue';
 import GithubIcon from '@/components/GithubIcon.vue';
 import { EndpointType, ServiceStatus, type Protocol } from '@/gql/graphql';
 import type { CanvasReleasePhase } from '@/composables/useCanvasReleaseStatus';
@@ -45,37 +46,7 @@ const isFromRepo = computed(() => !!props.data.sourceUrl);
 
 const gitMask = `url("${devicon('git')}")`;
 
-const statusTone = computed(() => {
-  switch (props.data.status) {
-    case ServiceStatus.Healthy:
-      return 'ok' as const;
-    case ServiceStatus.Failed:
-      return 'danger' as const;
-    case ServiceStatus.Degraded:
-      return 'warn' as const;
-    case ServiceStatus.Deploying:
-      return 'progress' as const;
-    default:
-      return 'neutral' as const;
-  }
-});
-
-const statusLabel = computed(() => {
-  switch (props.data.status) {
-    case ServiceStatus.Healthy:
-      return 'Online';
-    case ServiceStatus.Degraded:
-      return 'Degraded';
-    case ServiceStatus.Deploying:
-      return 'Deploying';
-    case ServiceStatus.Failed:
-      return 'Failed';
-    case ServiceStatus.Stopped:
-      return 'Stopped';
-    default:
-      return 'Unknown';
-  }
-});
+const status = computed(() => serviceStatus(props.data.status));
 
 const shortRepoName = computed(() => {
   if (!props.data.sourceUrl) return null;
@@ -125,11 +96,7 @@ const deployLabel = computed(() => {
   }
 });
 
-const formattedElapsed = computed(() => {
-  const mins = Math.floor(elapsed.value / 60);
-  const secs = elapsed.value % 60;
-  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-});
+const formattedElapsed = computed(() => formatDuration(elapsed.value * 1000));
 
 const servedEndpoints = computed(() =>
   props.data.endpoints.filter(e => e.type !== EndpointType.Internal && !e.redirectTo),
@@ -192,7 +159,7 @@ const hostUrl = computed(() => {
         >
           <Globe :size="12" class="shrink-0" />
           <span class="truncate hover:underline">{{ primaryDomain }}</span>
-          <span v-if="extraDomainCount" class="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[0.6rem] leading-none text-muted-foreground">+{{ extraDomainCount }}</span>
+          <span v-if="extraDomainCount" class="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-xs leading-none text-muted-foreground">+{{ extraDomainCount }}</span>
           <ExternalLink :size="10" class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
         </a>
         <div v-if="shortRepoName" class="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -216,11 +183,10 @@ const hostUrl = computed(() => {
 
       <!-- Status row -->
       <div class="mt-4 flex items-center justify-between border-t border-border/50 pt-4">
-        <Status :tone="statusTone" class="text-[0.65rem]">{{ statusLabel }}</Status>
-        <span v-if="deployLabel" class="flex items-center gap-1.5 text-[0.65rem] text-muted-foreground">
-          <Spinner :size="12" class="animate-spin text-[var(--status-progress)]" />
-          {{ deployLabel }} ({{ formattedElapsed }})
-        </span>
+        <Status :tone="status.tone" size="sm">{{ status.label }}</Status>
+        <Status v-if="deployLabel" tone="progress" size="sm">
+          {{ deployLabel }} {{ formattedElapsed }}
+        </Status>
       </div>
 
       <!-- Vue Flow handles (invisible, for potential edges) -->
@@ -244,7 +210,7 @@ const hostUrl = computed(() => {
         :style="{ width: `${data.volume.usagePercent}%` }"
       />
       <!-- Content -->
-      <div class="relative z-[1] flex items-center gap-2.5 px-6 pb-3 pt-6">
+      <div class="relative z-1 flex items-center gap-2.5 px-6 pb-3 pt-6">
         <HardDrive :size="16" class="shrink-0 text-muted-foreground" />
         <span class="truncate text-sm font-medium text-foreground">{{ data.volume.name }}</span>
         <span class="ml-auto shrink-0 font-mono text-xs text-muted-foreground">{{ data.volume.path }}</span>

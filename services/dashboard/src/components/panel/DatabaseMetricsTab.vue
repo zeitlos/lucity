@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { formatExactTime } from '@/lib/format';
 import CopyButton from '@/components/CopyButton.vue';
 import QueryError from '@/components/QueryError.vue';
 import EmptyState from '@/components/EmptyState.vue';
@@ -9,7 +11,8 @@ import { useQuery } from '@vue/apollo-composable';
 import { ChevronDown, ChevronUp, ChartLine } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { DatabaseInstanceRole, DatabaseMetric, MetricGrouping, MetricWindow } from '@/gql/graphql';
-import { formatBytes, parseCpu, parseStorageSize, cn } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import { formatBytes, parseQuantity } from '@/lib/format';
 import {
   formatCoreLimit,
   formatCores,
@@ -206,11 +209,11 @@ function hero(
 }
 
 const heroes = computed(() => [
-  hero(DatabaseMetric.CpuUsage, 'CPU', parseCpu(database.value?.resources.cpu ?? ''), formatCores, formatCoreLimit),
+  hero(DatabaseMetric.CpuUsage, 'CPU', parseQuantity(database.value?.resources.cpu ?? ''), formatCores, formatCoreLimit),
   hero(
     DatabaseMetric.MemoryUsage,
     'Memory',
-    parseStorageSize(database.value?.resources.memory ?? ''),
+    parseQuantity(database.value?.resources.memory ?? ''),
     formatBytes,
     formatSize,
   ),
@@ -269,7 +272,7 @@ function cell(
 
 const storageCell = computed<Cell>(() => {
   const lines = linesFor(DatabaseMetric.StorageUsed);
-  const size = parseStorageSize(database.value?.size ?? '');
+  const size = parseQuantity(database.value?.size ?? '');
   const capacity = size > 0 ? size * scale.value : 0;
 
   let context = '';
@@ -394,7 +397,7 @@ const sinceRelative = computed(() => {
 const sinceExact = computed(() => {
   const value = statistics.value?.since;
   if (!value) return undefined;
-  return `Counted since ${new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}`;
+  return `Counted since ${formatExactTime(value)}`;
 });
 
 function rowsPerCall(rows: number, calls: number): string {
@@ -414,7 +417,7 @@ function toggleQuery(index: number) {
     <MetricsToolbar
       v-model:split="perInstance"
       v-model:window="selectedWindow"
-      split-label="Per instance"
+      split-label="Per replica"
       :legend="legend"
     />
 
@@ -450,13 +453,13 @@ function toggleQuery(index: number) {
               <span v-for="reading in item.readings" :key="reading.key" class="inline-flex items-baseline gap-1.5">
                 <span
                   v-if="perInstance"
-                  class="size-[7px] -translate-y-0.5 rounded-full"
+                  class="size-1.5 -translate-y-0.5 rounded-full"
                   :style="{ background: reading.color }"
                 />
                 <span
                   :class="cn(
                     'font-semibold tabular-nums tracking-tight',
-                    perInstance ? 'text-[17px]' : 'text-xl',
+                    perInstance ? 'text-lg' : 'text-xl',
                   )"
                 >{{ reading.text }}</span>
               </span>
@@ -486,7 +489,7 @@ function toggleQuery(index: number) {
 
           <div
             :class="cn(
-              'truncate text-[11px] tabular-nums',
+              'truncate text-xs tabular-nums',
               focusLabel ? 'font-medium text-foreground' : 'text-muted-foreground',
             )"
           >
@@ -515,45 +518,47 @@ function toggleQuery(index: number) {
       description="They appear within a minute or two of the database running."
     />
 
-    <div class="-mx-4 overflow-x-auto">
-      <table class="w-full border-collapse text-[13px]">
-        <thead>
-          <tr class="border-t bg-muted/60 text-left">
-            <th class="whitespace-nowrap py-2 pl-4 pr-3 align-baseline text-[13px] font-semibold">
-              <span :title="sinceExact">
-                Top queries
-                <span v-if="sinceRelative" class="text-xs font-normal text-muted-foreground">· {{ sinceRelative }}</span>
-              </span>
-            </th>
-            <th class="px-3 py-2 text-right align-baseline text-[11px] font-medium text-muted-foreground">Time</th>
-            <th class="px-3 py-2 text-right align-baseline text-[11px] font-medium text-muted-foreground">Calls</th>
-            <th class="px-3 py-2 text-right align-baseline text-[11px] font-medium text-muted-foreground">Mean</th>
-            <th class="py-2 pl-3 pr-1 text-right align-baseline text-[11px] font-medium text-muted-foreground">Rows</th>
-            <th class="w-10 pr-3"><span class="sr-only">Details</span></th>
-          </tr>
-        </thead>
-        <tbody v-if="statistics?.enabled && statistics.queries.length">
+    <section class="space-y-2">
+      <h3 class="text-sm font-medium text-muted-foreground">
+        <span :title="sinceExact">
+          Top queries
+          <span v-if="sinceRelative" class="font-normal text-muted-foreground/80">· {{ sinceRelative }}</span>
+        </span>
+      </h3>
+      <div class="-mx-4 border-y">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Query</TableHead>
+            <TableHead class="text-right">Time</TableHead>
+            <TableHead class="text-right">Calls</TableHead>
+            <TableHead class="text-right">Mean</TableHead>
+            <TableHead class="text-right">Rows</TableHead>
+            <TableHead class="w-10"><span class="sr-only">Details</span></TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody v-if="statistics?.enabled && statistics.queries.length">
           <template v-for="(statement, index) in statistics.queries" :key="index">
-            <tr :class="cn('border-t', openQuery === index && 'bg-muted/40')">
-              <td class="w-full max-w-0 py-2.5 pl-4 pr-3">
+            <TableRow :class="cn(openQuery === index && 'bg-muted/40')">
+              <TableCell class="w-full max-w-0">
                 <code class="block truncate font-mono text-xs">{{ statement.query }}</code>
-              </td>
-              <td class="whitespace-nowrap px-3 py-2.5 tabular-nums">
+              </TableCell>
+              <TableCell class="whitespace-nowrap tabular-nums">
                 <div class="flex items-center justify-end gap-2">
                   <div class="h-1 w-12 overflow-hidden rounded-full bg-muted">
                     <div class="h-full rounded-full bg-primary" :style="{ width: `${statement.share * 100}%` }" />
                   </div>
                   <span class="min-w-10 text-right">{{ formatRatio(statement.share) }}</span>
                 </div>
-              </td>
-              <td class="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">{{ formatCount(statement.calls) }}</td>
-              <td class="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">
+              </TableCell>
+              <TableCell class="text-right whitespace-nowrap tabular-nums">{{ formatCount(statement.calls) }}</TableCell>
+              <TableCell class="text-right whitespace-nowrap tabular-nums">
                 {{ formatMilliseconds(statement.meanMilliseconds) }}
-              </td>
-              <td class="whitespace-nowrap py-2.5 pl-3 pr-1 text-right tabular-nums text-muted-foreground">
+              </TableCell>
+              <TableCell class="text-right whitespace-nowrap text-muted-foreground tabular-nums">
                 {{ formatCount(statement.rows) }}
-              </td>
-              <td class="py-1.5 pr-3 text-right">
+              </TableCell>
+              <TableCell class="py-1 text-right">
                 <IconButton
                   :label="openQuery === index ? 'Hide details' : 'Show details'"
                   size="icon-xs"
@@ -564,33 +569,32 @@ function toggleQuery(index: number) {
                   <ChevronUp v-if="openQuery === index" />
                   <ChevronDown v-else />
                 </IconButton>
-              </td>
-            </tr>
-            <tr v-if="openQuery === index" class="bg-muted/40">
-              <td colspan="6" class="px-4 pb-3.5">
+              </TableCell>
+            </TableRow>
+            <TableRow v-if="openQuery === index" class="bg-muted/40 hover:bg-muted/40">
+              <TableCell :colspan="6" class="pt-0 pb-3.5">
                 <code
-                  class="block whitespace-pre-wrap break-words rounded-md border bg-card px-3 py-2.5 font-mono text-xs leading-relaxed"
+                  class="block rounded-md border bg-card px-3 py-2.5 font-mono text-xs leading-relaxed break-words whitespace-pre-wrap"
                 >{{ statement.query }}</code>
-                <div class="mt-2.5 flex items-center gap-4 text-[11px] tabular-nums text-muted-foreground">
+                <div class="mt-2.5 flex items-center gap-4 text-xs text-muted-foreground tabular-nums">
                   <span>{{ formatMilliseconds(statement.totalMilliseconds) }} in total</span>
                   <span>{{ rowsPerCall(statement.rows, statement.calls) }} rows per call</span>
                   <CopyButton label="Copy query" class="ml-auto" :value="statement.query" />
                 </div>
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           </template>
-        </tbody>
-        <tbody v-else>
-          <tr class="border-t">
-            <td colspan="6" class="px-4 py-6 text-center text-sm text-muted-foreground">
-              <span v-if="statisticsLoading && !statistics">Loading queries…</span>
-              <span v-else-if="statisticsError">Couldn't read query statistics from the database.</span>
-              <span v-else-if="statistics && !statistics.enabled">This database doesn't collect query statistics yet.</span>
-              <span v-else>No queries recorded yet.</span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+        </TableBody>
+        <TableBody v-else>
+          <TableEmpty :colspan="6">
+            <span v-if="statisticsLoading && !statistics">Loading queries…</span>
+            <span v-else-if="statisticsError">Couldn't read query statistics from the database.</span>
+            <span v-else-if="statistics && !statistics.enabled">This database doesn't collect query statistics yet.</span>
+            <span v-else>No queries recorded yet.</span>
+          </TableEmpty>
+        </TableBody>
+      </Table>
+      </div>
+    </section>
   </div>
 </template>

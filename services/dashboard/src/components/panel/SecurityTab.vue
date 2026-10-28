@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import RelativeTime from '@/components/RelativeTime.vue';
 import QueryError from '@/components/QueryError.vue';
 import { computed, ref } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
@@ -87,18 +88,6 @@ function shortCommit(commit: string): string {
   return commit.slice(0, 7);
 }
 
-function formatRelativeTime(timestamp: string): string {
-  const diffMs = Date.now() - new Date(timestamp).getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffMins < 1) return 'just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 30) return `${diffDays}d ago`;
-  return new Date(timestamp).toLocaleDateString();
-}
 </script>
 
 <template>
@@ -169,7 +158,7 @@ function formatRelativeTime(timestamp: string): string {
       <div class="space-y-1 text-sm text-muted-foreground/80">
         <h3 class="text-sm font-medium text-muted-foreground">Leaked secrets</h3>
         <p v-if="report">
-          Scanned {{ formatRelativeTime(report.scannedAt) }} at
+          Scanned <RelativeTime :value="report.scannedAt" /> at
           <code class="rounded bg-muted px-1 py-0.5 font-mono text-xs">{{ shortCommit(report.commit) }}</code>.
           Every deployment scans the repository and its history for leaked credentials.
         </p>
@@ -198,11 +187,10 @@ function formatRelativeTime(timestamp: string): string {
       <template v-else>
         <div
           v-if="verifiedFindings.length > 0"
-          class="rounded-lg border border-[var(--status-danger)]/40"
+          class="rounded-lg border border-status-danger/40"
         >
           <div
-            class="flex items-center gap-2 border-b border-[var(--status-danger)]/20 px-4 py-2.5 text-sm font-medium text-[var(--status-danger)]"
-            :style="{ backgroundColor: 'color-mix(in srgb, var(--status-danger) 6%, transparent)' }"
+            class="flex items-center gap-2 border-b border-status-danger/20 bg-status-danger/5 px-4 py-2.5 text-sm font-medium text-status-danger"
           >
             <TriangleAlert :size="14" class="shrink-0" />
             {{ verifiedFindings.length }} leaked credential{{ verifiedFindings.length !== 1 ? 's' : '' }} confirmed live. Rotate now.
@@ -212,7 +200,7 @@ function formatRelativeTime(timestamp: string): string {
             :key="idx"
             class="flex items-center gap-3 border-b border-border/30 px-4 py-3 last:border-b-0"
           >
-            <TriangleAlert :size="14" class="shrink-0 text-[var(--status-danger)]" />
+            <TriangleAlert :size="14" class="shrink-0 text-status-danger" />
             <div class="min-w-0 flex-1">
               <p class="text-sm font-medium text-foreground">{{ finding.rule }}</p>
               <p class="mt-0.5 truncate font-mono text-xs text-muted-foreground">

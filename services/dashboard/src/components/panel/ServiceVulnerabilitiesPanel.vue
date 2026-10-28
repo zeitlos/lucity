@@ -117,14 +117,14 @@ function sourceLabel(source: string): string {
             </span>
           </div>
 
-          <div class="rounded-lg border border-border/60">
+          <div class="-mx-4 divide-y border-y">
             <div
               v-for="(vulnerability, idx) in report.vulnerabilities"
               :key="`${vulnerability.id}-${idx}`"
-              class="flex items-start gap-3 border-b border-border/30 px-4 py-3 last:border-b-0"
+              class="flex items-start gap-3 px-4 py-3"
             >
               <span
-                class="mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide"
+                class="mt-0.5 w-16 shrink-0 rounded px-1.5 py-0.5 text-center text-xs font-medium"
                 :style="severityStyle(vulnerability.severity)"
               >
                 {{ severityLabel(vulnerability.severity) }}
@@ -144,7 +144,7 @@ function sourceLabel(source: string): string {
                   <span v-else class="font-mono text-sm font-medium text-foreground">{{ vulnerability.id }}</span>
 
                   <span
-                    class="inline-flex shrink-0 items-center gap-1 rounded border border-border px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground"
+                    class="inline-flex shrink-0 items-center gap-1 rounded border border-border px-1.5 py-0.5 text-xs font-medium text-muted-foreground"
                   >
                     <Layers v-if="vulnerability.source === 'OPERATING_SYSTEM'" :size="11" />
                     <Package v-else :size="11" />
@@ -156,11 +156,11 @@ function sourceLabel(source: string): string {
                   <p class="truncate font-mono text-xs text-muted-foreground">
                     {{ pkg.name }} {{ pkg.installedVersion }}
                     <template v-if="pkg.fixedVersion">
-                      &rarr; <span class="text-[var(--status-ok)]">{{ pkg.fixedVersion }}</span>
+                      &rarr; <span class="text-status-ok">{{ pkg.fixedVersion }}</span>
                     </template>
                     <template v-else> &middot; no fix available</template>
                   </p>
-                  <p v-if="pkg.path" :title="pkg.path" class="truncate font-mono text-[11px] text-muted-foreground/70">
+                  <p v-if="pkg.path" :title="pkg.path" class="truncate font-mono text-xs text-muted-foreground/70">
                     {{ pkg.path }}
                   </p>
                 </div>

@@ -154,13 +154,13 @@ function initial(member: { email: string; name?: string | null }) {
         Only admins can invite people.
       </p>
 
-      <div class="divide-y overflow-hidden rounded-lg border">
+      <div class="-mx-4 divide-y border-y">
         <div
           v-for="member in props.workspace.members"
           :key="member.id"
-          class="flex items-center gap-3 py-3 pl-3.5 pr-2"
+          class="flex items-center gap-3 py-3 pr-3 pl-4"
         >
-          <span class="flex size-[30px] shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">
+          <span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">
             {{ initial(member) }}
           </span>
           <div class="min-w-0 flex-1">
@@ -176,7 +176,7 @@ function initial(member: { email: string; name?: string | null }) {
               :disabled="roleUpdatingFor === member.id"
               @update:model-value="handleUpdateRole(member.id, $event as WorkspaceRole)"
             >
-              <SelectTrigger class="h-8 w-[104px] shrink-0 text-xs" :aria-label="`Role of ${member.name || member.email}`">
+              <SelectTrigger class="h-8 w-26 shrink-0 text-xs" :aria-label="`Role of ${member.name || member.email}`">
                 <Spinner v-if="roleUpdatingFor === member.id" :size="12" />
                 <SelectValue v-else />
               </SelectTrigger>
@@ -206,7 +206,7 @@ function initial(member: { email: string; name?: string | null }) {
           </template>
           <span
             v-else
-            class="shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium"
+            class="shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium"
             :class="member.role === WorkspaceRole.Admin ? 'bg-primary/15 text-foreground' : 'bg-muted text-muted-foreground'"
           >
             {{ member.role === WorkspaceRole.Admin ? 'Admin' : 'Member' }}

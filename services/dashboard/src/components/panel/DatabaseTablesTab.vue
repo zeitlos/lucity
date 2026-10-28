@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatCount } from '@/lib/format';
 import EmptyState from '@/components/EmptyState.vue';
 import QueryError from '@/components/QueryError.vue';
 import { ref, computed, watch, onUnmounted } from 'vue';
@@ -48,6 +49,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableEmpty,
   TableHead,
   TableHeader,
   TableRow,
@@ -188,7 +190,7 @@ watch(() => props.databaseId, () => {
         </IconButton>
         <Table2 :size="16" class="text-muted-foreground" />
         <span class="text-sm font-medium">{{ selectedSchema }}.{{ selectedTable }}</span>
-        <Badge variant="outline" class="text-xs">~{{ totalEstimatedRows }} rows</Badge>
+        <Badge variant="outline" class="text-xs tabular-nums">~{{ formatCount(totalEstimatedRows) }} rows</Badge>
       </div>
 
       <!-- Loading -->
@@ -206,7 +208,7 @@ watch(() => props.databaseId, () => {
 
       <!-- Data table -->
       <template v-else>
-        <ScrollArea class="max-h-[500px] rounded-lg border">
+        <ScrollArea class="-mx-4 max-h-125 border-y">
           <Table>
             <TableHeader>
               <TableRow>
@@ -220,16 +222,14 @@ watch(() => props.databaseId, () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              <TableRow v-if="dataRows.length === 0">
-                <TableCell :colspan="dataColumns.length" class="py-8 text-center text-sm text-muted-foreground">
-                  No rows
-                </TableCell>
-              </TableRow>
+              <TableEmpty v-if="dataRows.length === 0" :colspan="dataColumns.length">
+                No rows
+              </TableEmpty>
               <TableRow v-for="(row, i) in dataRows" :key="i">
                 <TableCell
                   v-for="(cell, j) in row"
                   :key="j"
-                  class="max-w-[300px] truncate whitespace-nowrap font-mono text-xs"
+                  class="max-w-75 truncate whitespace-nowrap font-mono text-xs"
                 >
                   <span v-if="cell === null" class="italic text-muted-foreground">NULL</span>
                   <span v-else>{{ cell }}</span>
@@ -243,7 +243,7 @@ watch(() => props.databaseId, () => {
         <!-- Pagination -->
         <div class="flex items-center justify-between">
           <span class="text-xs text-muted-foreground">
-            Showing {{ offset + 1 }}&ndash;{{ offset + dataRows.length }}
+            Showing {{ formatCount(offset + 1) }}&ndash;{{ formatCount(offset + dataRows.length) }}
           </span>
           <div class="flex items-center gap-1">
             <IconButton
@@ -306,11 +306,11 @@ watch(() => props.databaseId, () => {
       />
 
       <!-- Table list -->
-      <div v-else class="space-y-1">
+      <div v-else class="-mx-4 divide-y border-y">
         <button
           v-for="table in tables"
           :key="`${table.schema}.${table.name}`"
-          class="flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors hover:bg-accent/50"
+          class="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-muted/50"
           @click="openTable(table.name, table.schema)"
         >
           <Table2 :size="16" class="shrink-0 text-muted-foreground" />
@@ -322,7 +322,7 @@ watch(() => props.databaseId, () => {
               </Badge>
             </div>
             <div class="flex items-center gap-3 text-xs text-muted-foreground">
-              <span>~{{ table.estimatedRows }} rows</span>
+              <span class="tabular-nums">~{{ formatCount(table.estimatedRows) }} rows</span>
               <span>{{ table.columns.length }} columns</span>
               <span
                 v-if="table.columns.some((c) => c.primaryKey)"

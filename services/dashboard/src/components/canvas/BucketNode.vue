@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { bucketStatus } from '@/lib/status';
 import { computed } from 'vue';
 import { Handle, Position } from '@vue-flow/core';
 import BucketIcon from '@/components/BucketIcon.vue';
@@ -19,31 +20,7 @@ const emit = defineEmits<{
   (e: 'select'): void;
 }>();
 
-const statusTone = computed(() => {
-  switch (props.data.status) {
-    case BucketStatus.Ready:
-      return 'ok' as const;
-    case BucketStatus.Failed:
-      return 'danger' as const;
-    case BucketStatus.Pending:
-      return 'progress' as const;
-    default:
-      return 'neutral' as const;
-  }
-});
-
-const statusLabel = computed(() => {
-  switch (props.data.status) {
-    case BucketStatus.Ready:
-      return 'Ready';
-    case BucketStatus.Pending:
-      return 'Provisioning';
-    case BucketStatus.Failed:
-      return 'Failed';
-    default:
-      return 'Unknown';
-  }
-});
+const status = computed(() => bucketStatus(props.data.status));
 </script>
 
 <template>
@@ -65,7 +42,7 @@ const statusLabel = computed(() => {
 
       <!-- Status row -->
       <div class="mt-4 flex items-center justify-between border-t border-border/50 pt-4">
-        <Status :tone="statusTone" class="text-[0.65rem]">{{ statusLabel }}</Status>
+        <Status :tone="status.tone" size="sm">{{ status.label }}</Status>
       </div>
     </div>
 

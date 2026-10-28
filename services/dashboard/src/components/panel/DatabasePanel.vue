@@ -44,18 +44,19 @@ const { tab: activeTab, selectTab } = useGuardedTab('connect');
     </template>
 
     <!-- Tab Content -->
-    <ScrollArea class="flex-1">
-      <Tabs :model-value="activeTab" @update:model-value="selectTab" class="h-full">
-        <div class="px-4 pt-2">
-          <TabsList class="w-full">
-            <TabsTrigger value="connect">Connect</TabsTrigger>
-            <TabsTrigger value="metrics">Metrics</TabsTrigger>
-            <TabsTrigger value="tables">Tables</TabsTrigger>
-            <TabsTrigger value="query">Query</TabsTrigger>
-            <TabsTrigger value="backups">Backups</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
-          </TabsList>
-        </div>
+    <Tabs :model-value="activeTab" @update:model-value="selectTab" class="flex min-h-0 flex-1 flex-col">
+      <div class="shrink-0 border-b px-4 pt-2">
+        <TabsList class="w-full border-b-0">
+          <TabsTrigger value="connect">Connect</TabsTrigger>
+          <TabsTrigger value="metrics">Metrics</TabsTrigger>
+          <TabsTrigger value="tables">Tables</TabsTrigger>
+          <TabsTrigger value="query">Query</TabsTrigger>
+          <TabsTrigger value="backups">Backups</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
+        </TabsList>
+      </div>
+
+      <ScrollArea class="min-h-0 flex-1">
 
         <TabsContent value="connect" class="px-4 py-4">
           <DatabaseConnectionTab
@@ -94,7 +95,7 @@ const { tab: activeTab, selectTab } = useGuardedTab('connect');
             @database-removed="emit('database-removed')"
           />
         </TabsContent>
-      </Tabs>
-    </ScrollArea>
+      </ScrollArea>
+    </Tabs>
   </PanelShell>
 </template>

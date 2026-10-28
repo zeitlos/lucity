@@ -122,7 +122,7 @@ async function handleDelete() {
               <div class="flex items-center justify-between gap-4">
                 <span class="text-xs text-muted-foreground">ID</span>
                 <span class="flex items-center gap-2">
-                  <span v-if="workspace.personal" class="rounded-full bg-muted px-2 py-px text-[11px] text-muted-foreground">Personal</span>
+                  <span v-if="workspace.personal" class="rounded-full bg-muted px-2 py-px text-xs text-muted-foreground">Personal</span>
                   <span class="truncate font-mono text-xs text-foreground">{{ workspace.id }}</span>
                 </span>
               </div>

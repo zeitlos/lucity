@@ -191,7 +191,7 @@ function handleEnvironmentCreated(environmentId: string) {
         <Transition name="slide-drawer">
           <div
             v-if="drawer === 'settings'"
-            class="absolute inset-y-0 left-0 z-10 w-[440px] max-w-full"
+            class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
           >
             <ProjectSettingsDrawer :project="project" @close="closeDrawer" />
           </div>
