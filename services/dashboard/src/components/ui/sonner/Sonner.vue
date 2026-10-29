@@ -12,6 +12,7 @@ const props = defineProps<{
   <Sonner
     class="toaster group"
     v-bind="props"
+    :style="{ zIndex: 60 }"
     :toast-options="{
       class: 'w-(--width) rounded-xl border bg-card p-1.5 text-card-foreground shadow-lg',
     }"
