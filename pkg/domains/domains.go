@@ -5,6 +5,7 @@ package domains
 import (
 	"context"
 	"log/slog"
+	"slices"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -221,6 +222,44 @@ func (c *Client) Unregister(ctx context.Context, workspaceID, host string) {
 
 func (c *Client) DeleteZone(ctx context.Context, workspaceID string) error {
 	return c.edge.DeleteZone(ctx, workspaceID)
+}
+
+// ReleaseZones deletes the edge zone of every workspace that has no route left
+// and holds only platform hostnames, which the routing zone's wildcard serves
+// as well. Zones are listed before routes are read: every caller creates a
+// route before its zone, so a zone created in between always has its route
+// seen.
+func (c *Client) ReleaseZones(ctx context.Context) error {
+	zones, err := c.edge.Zones(ctx)
+
+	if err != nil || len(zones) == 0 {
+		return err
+	}
+
+	routed, err := c.platform.RoutedWorkspaces(ctx)
+
+	if err != nil {
+		return err
+	}
+
+	for _, zone := range zones {
+		if routed[zone.Workspace] || slices.ContainsFunc(zone.Hostnames, c.hostname.IsCustom) {
+			continue
+		}
+
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
+		if err := c.edge.DeleteZone(ctx, zone.Workspace); err != nil {
+			slog.WarnContext(ctx, "edge: zone release failed", "workspace", zone.Workspace, "error", err)
+			continue
+		}
+
+		slog.InfoContext(ctx, "edge: zone released", "workspace", zone.Workspace, "hosts", len(zone.Hostnames))
+	}
+
+	return nil
 }
 
 func (c *Client) edgeHost(ctx context.Context, namespace, host string, wildcard *edge.Certificate) (edge.Host, bool) {

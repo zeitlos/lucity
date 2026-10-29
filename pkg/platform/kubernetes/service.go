@@ -159,6 +159,32 @@ func (c *Client) PendingDomains(ctx context.Context) ([]platform.PendingDomain, 
 	return pending, nil
 }
 
+// RoutedWorkspaces returns every workspace that has at least one service
+// route, attached or not, read live from the API server.
+func (c *Client) RoutedWorkspaces(ctx context.Context) (map[string]bool, error) {
+	routes, err := c.dynamic.Resource(httpRouteGVR).List(ctx, meta.ListOptions{
+		LabelSelector: serviceLabel,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	workspaces := make(map[string]bool)
+
+	for _, route := range routes.Items {
+		workspace := route.GetLabels()[workspaceLabel]
+
+		if workspace == "" {
+			return nil, fmt.Errorf("route %s/%s has no %s label", route.GetNamespace(), route.GetName(), workspaceLabel)
+		}
+
+		workspaces[workspace] = true
+	}
+
+	return workspaces, nil
+}
+
 func (c *Client) ServicesByRepo(ctx context.Context, repoURL string) ([]platform.RepoService, error) {
 	req, err := labels.NewRequirement(serviceLabel, selection.Exists, nil)
 

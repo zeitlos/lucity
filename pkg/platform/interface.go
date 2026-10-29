@@ -17,6 +17,7 @@ type Interface interface {
 	Service(ctx context.Context, id ServiceID) (*Service, error)
 	ServicesByRepo(ctx context.Context, repoURL string) ([]RepoService, error)
 	PendingDomains(ctx context.Context) ([]PendingDomain, error)
+	RoutedWorkspaces(ctx context.Context) (map[string]bool, error)
 	BuildVariables(ctx context.Context, id ServiceID) (map[string]string, error)
 
 	Deployments(ctx context.Context, serviceID ServiceID) ([]Deployment, error)

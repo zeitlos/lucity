@@ -1,5 +1,6 @@
 // Package customdomains attaches custom domains as soon as their DNS
-// verifies, and keeps every domain's attachment and edge registration in sync.
+// verifies, keeps every domain's attachment and edge registration in sync, and
+// releases the edge zones nothing routes to any more.
 package customdomains
 
 import (
@@ -53,6 +54,10 @@ func (w *Worker) attachPending(ctx context.Context) {
 }
 
 func (w *Worker) sync(ctx context.Context) {
+	if err := w.domains.ReleaseZones(ctx); err != nil && ctx.Err() == nil {
+		slog.Error("zone release failed", "error", err)
+	}
+
 	environments, err := w.directory.Environments(ctx)
 
 	if err != nil {
