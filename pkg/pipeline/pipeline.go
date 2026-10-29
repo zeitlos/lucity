@@ -214,6 +214,43 @@ func (c *Client) QueuedRuns(ctx context.Context, workspace string) (int, error) 
 	return count, nil
 }
 
+// Releases counts the releases in flight, by whether they wait for admission,
+// build, or only deploy and scan.
+type Releases struct {
+	Queued    int
+	Building  int
+	Deploying int
+}
+
+func (c *Client) Releases(ctx context.Context) (Releases, error) {
+	if !c.jobs.HasSynced() {
+		return Releases{}, errJobsNotSynced
+	}
+
+	runs, err := c.runs(ctx)
+
+	if err != nil {
+		return Releases{}, err
+	}
+
+	var releases Releases
+
+	for _, r := range runs {
+		switch r.state() {
+		case runQueued:
+			releases.Queued++
+		case runActive:
+			if r.building() {
+				releases.Building++
+			} else {
+				releases.Deploying++
+			}
+		}
+	}
+
+	return releases, nil
+}
+
 var unsuspendPatch = []byte(`{"spec":{"suspend":false}}`)
 
 func (c *Client) resume(ctx context.Context, r run) error {

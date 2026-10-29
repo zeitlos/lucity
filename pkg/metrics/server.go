@@ -1,4 +1,6 @@
-package http
+// Package metrics serves a Prometheus registry and records the passes of
+// background loops, the metrics every platform service shares.
+package metrics
 
 import (
 	"context"

@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/deployer/values"
 	"github.com/zeitlos/lucity/pkg/domains"
@@ -62,6 +63,7 @@ type Client struct {
 	upstream        *upstream.Client
 	agentRunner     *agentrunner.Client
 	agentAudit      *agentaudit.Client
+	signups         prometheus.Counter
 
 	config Config
 
@@ -93,7 +95,14 @@ type Config struct {
 	AgentsEnabled        bool
 }
 
-func New(billing *billing.Client, githubApp *ghpkg.App, logto *logto.Client, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, deployjob deployjob.Interface, scanjob scanjob.Interface, scanreport *scanreport.Client, vulnerabilities *vulnerabilities.Client, pipeline pipeline.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, deployer deployer.Interface, environment environment.Interface, objectStorage objectstorage.Interface, metrics *metrics.Provider, domains *domains.Client, upstream *upstream.Client, agentRunner *agentrunner.Client, agentAudit *agentaudit.Client, config Config) *Client {
+func New(billing *billing.Client, githubApp *ghpkg.App, logto *logto.Client, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, deployjob deployjob.Interface, scanjob scanjob.Interface, scanreport *scanreport.Client, vulnerabilities *vulnerabilities.Client, pipeline pipeline.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, deployer deployer.Interface, environment environment.Interface, objectStorage objectstorage.Interface, metrics *metrics.Provider, domains *domains.Client, upstream *upstream.Client, agentRunner *agentrunner.Client, agentAudit *agentaudit.Client, config Config, registerer prometheus.Registerer) *Client {
+	signups := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "lucity_signups_total",
+		Help: "Users whose personal workspace was created.",
+	})
+
+	registerer.MustRegister(signups)
+
 	return &Client{
 		billing:         billing,
 		gitHubApp:       githubApp,
@@ -119,6 +128,7 @@ func New(billing *billing.Client, githubApp *ghpkg.App, logto *logto.Client, dir
 		upstream:        upstream,
 		agentRunner:     agentRunner,
 		agentAudit:      agentAudit,
+		signups:         signups,
 		registry: registry.New(registry.Config{
 			Endpoint:     config.RegistryPullURL,
 			DialEndpoint: config.RegistryPushURL,

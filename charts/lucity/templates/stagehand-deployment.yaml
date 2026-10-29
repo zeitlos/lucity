@@ -53,9 +53,15 @@ spec:
             capabilities:
               drop: [ALL]
             readOnlyRootFilesystem: true
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.stagehand.metricsPort }}
+              protocol: TCP
           env:
             - name: HOME
               value: /tmp
+            - name: METRICS_PORT
+              value: {{ .Values.stagehand.metricsPort | quote }}
             - name: SYSTEM_NAMESPACE
               value: {{ .Release.Namespace | quote }}
             - name: BUILD_NAMESPACE

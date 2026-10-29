@@ -66,6 +66,9 @@ spec:
             - name: webhook
               containerPort: {{ .Values.conductor.webhookPort }}
               protocol: TCP
+            - name: metrics
+              containerPort: {{ .Values.conductor.metricsPort }}
+              protocol: TCP
           livenessProbe:
             httpGet:
               path: /health/live
@@ -83,6 +86,8 @@ spec:
               value: {{ .Values.conductor.httpPort | quote }}
             - name: WEBHOOK_PORT
               value: {{ .Values.conductor.webhookPort | quote }}
+            - name: METRICS_PORT
+              value: {{ .Values.conductor.metricsPort | quote }}
             - name: BUILD_NAMESPACE
               value: {{ .Values.conductor.buildNamespace | quote }}
             - name: BUILD_IMAGE

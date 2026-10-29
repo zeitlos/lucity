@@ -12,6 +12,7 @@ require (
 	github.com/google/go-containerregistry v0.22.1
 	github.com/google/go-github/v92 v92.0.0
 	github.com/lmittmann/tint v1.2.0
+	github.com/prometheus/client_golang v1.24.1
 	github.com/stripe/stripe-go/v87 v87.0.0
 	golang.org/x/net v0.59.0
 	golang.org/x/oauth2 v0.37.0
@@ -119,7 +120,6 @@ require (
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.94.1 // indirect
-	github.com/prometheus/client_golang v1.24.1 // indirect
 	github.com/prometheus/client_model v0.6.3 // indirect
 	github.com/prometheus/common v0.72.0 // indirect
 	github.com/prometheus/procfs v0.22.0 // indirect

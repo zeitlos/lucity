@@ -9,6 +9,7 @@ import (
 
 	"github.com/blang/semver/v4"
 	"github.com/kelseyhightower/envconfig"
+	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/metadata"
@@ -28,6 +29,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/jobs"
 	"github.com/zeitlos/lucity/pkg/logger"
 	"github.com/zeitlos/lucity/pkg/logto"
+	"github.com/zeitlos/lucity/pkg/metrics"
 	"github.com/zeitlos/lucity/pkg/pipeline"
 	platformK8s "github.com/zeitlos/lucity/pkg/platform/kubernetes"
 	"github.com/zeitlos/lucity/services/stagehand/admission"
@@ -50,9 +52,10 @@ const (
 )
 
 type Config struct {
-	LogLevel string        `envconfig:"LOG_LEVEL" default:"info"`
-	Interval time.Duration `envconfig:"INTERVAL" default:"2m"`
-	DryRun   bool          `envconfig:"DRY_RUN" default:"false"`
+	LogLevel    string        `envconfig:"LOG_LEVEL" default:"info"`
+	Interval    time.Duration `envconfig:"INTERVAL" default:"2m"`
+	DryRun      bool          `envconfig:"DRY_RUN" default:"false"`
+	MetricsPort string        `envconfig:"METRICS_PORT" default:"9010"`
 
 	SystemNamespace string `envconfig:"SYSTEM_NAMESPACE" default:"lucity-system"`
 	BuildNamespace  string `envconfig:"BUILD_NAMESPACE" default:"lucity-builds"`
@@ -168,8 +171,18 @@ func main() {
 	ctx, cancel := graceful.Context()
 	defer cancel()
 
+	registry := prometheus.NewRegistry()
+	loops := metrics.NewLoops(registry)
+
 	releaseCache := helmDeployer.NewReleaseCache(metadataClient)
 	releaseCache.Start(ctx)
+
+	var workspaceStatuses *helmDeployer.WorkspaceReleaseStatuses
+
+	if config.AgentsEnabled {
+		workspaceStatuses = helmDeployer.NewWorkspaceReleaseStatuses(metadataClient, config.AgentsNamespace)
+		workspaceStatuses.Start(ctx)
+	}
 
 	deployerClient, err := helmDeployer.New(chartRef, config.GatewayName, config.GatewayNamespace, config.ClusterIssuer, helmDeployer.BackupConfig{
 		Enabled:  config.DatabaseBackupEnabled,
@@ -226,12 +239,20 @@ func main() {
 		os.Exit(1)
 	}
 
-	admissionWorker, err := admission.New(jobsCache, pipeline.New(k8sClient, jobsCache, config.MaxConcurrentReleases, config.MaxConcurrentBuilds))
+	pipelineClient := pipeline.New(k8sClient, jobsCache, config.MaxConcurrentReleases, config.MaxConcurrentBuilds)
+	admissionWorker, err := admission.New(jobsCache, pipelineClient, loops)
 
 	if err != nil {
 		slog.Error("failed to create admission worker", "error", err)
 		os.Exit(1)
 	}
+
+	if err := registerJobMetrics(jobsCache, registry); err != nil {
+		slog.Error("failed to register job metrics", "error", err)
+		os.Exit(1)
+	}
+
+	registry.MustRegister(&collector{appReleases: releaseCache, workspaceReleases: workspaceStatuses, pipeline: pipelineClient})
 
 	jobsCache.Start(ctx)
 
@@ -243,8 +264,8 @@ func main() {
 		workspaceReleases = deployerClient.Workspaces()
 	}
 
-	releaseWorker := releases.New(environmentClient, deployerClient.Environments(), workspaceReleases, directory, billingClient, config.WorkloadDefaultPlacement, config.WorkloadPaidPlacement, config.Interval, config.DryRun)
-	domainWorker := customdomains.New(domainsClient, directory, pendingDomainInterval, domainSyncInterval)
+	releaseWorker := releases.New(environmentClient, deployerClient.Environments(), workspaceReleases, directory, billingClient, config.WorkloadDefaultPlacement, config.WorkloadPaidPlacement, config.Interval, config.DryRun, loops, registry)
+	domainWorker := customdomains.New(domainsClient, directory, loops, pendingDomainInterval, domainSyncInterval)
 
 	slog.Info("stagehand started", "version", Version, "interval", config.Interval, "dry_run", config.DryRun, "max_concurrent_releases", config.MaxConcurrentReleases, "max_concurrent_builds", config.MaxConcurrentBuilds)
 
@@ -253,9 +274,10 @@ func main() {
 	workers.Go(func() { admissionWorker.Run(ctx) })
 	workers.Go(func() { releaseWorker.Run(ctx) })
 	workers.Go(func() { domainWorker.Run(ctx) })
+	workers.Go(func() { graceful.Serve(ctx, metrics.NewServer(config.MetricsPort, registry)) })
 
 	if config.DatabaseBackupEnabled {
-		backupWorker := backups.New(platformClient, directory, backupInterval)
+		backupWorker := backups.New(platformClient, directory, loops, backupInterval)
 		workers.Go(func() { backupWorker.Run(ctx) })
 	}
 

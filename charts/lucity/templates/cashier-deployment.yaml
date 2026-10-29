@@ -58,9 +58,15 @@ spec:
             capabilities:
               drop: [ALL]
             readOnlyRootFilesystem: true
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.cashier.metricsPort }}
+              protocol: TCP
           env:
             - name: SYSTEM_NAMESPACE
               value: {{ .Release.Namespace | quote }}
+            - name: METRICS_PORT
+              value: {{ .Values.cashier.metricsPort | quote }}
             {{- range $key, $value := .Values.cashier.env }}
             - name: {{ $key }}
               value: {{ $value | quote }}

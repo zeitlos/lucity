@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
+	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -15,12 +16,14 @@ import (
 	"github.com/zeitlos/lucity/pkg/graceful"
 	"github.com/zeitlos/lucity/pkg/logger"
 	"github.com/zeitlos/lucity/pkg/logto"
+	"github.com/zeitlos/lucity/pkg/metrics"
 	"github.com/zeitlos/lucity/services/cashier/metering"
 	stripelib "github.com/zeitlos/lucity/services/cashier/stripe"
 )
 
 type Config struct {
-	LogLevel string `envconfig:"LOG_LEVEL" default:"info"`
+	LogLevel    string `envconfig:"LOG_LEVEL" default:"info"`
+	MetricsPort string `envconfig:"METRICS_PORT" default:"9009"`
 
 	StripeSecretKey string `envconfig:"STRIPE_SECRET_KEY" required:"true"`
 	HobbyPriceID    string `envconfig:"STRIPE_HOBBY_PRICE_ID" required:"true"`
@@ -78,13 +81,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	worker := metering.NewWorker(stripeClient, billingClient, logtoClient, vmClient, k8sClient, config.SystemNamespace, config.MeteringInterval)
+	registry := prometheus.NewRegistry()
+
+	worker := metering.NewWorker(stripeClient, billingClient, logtoClient, vmClient, k8sClient, metrics.NewLoops(registry), config.SystemNamespace, config.MeteringInterval)
 	slog.Info("metering enabled", "interval", config.MeteringInterval)
 
 	ctx, cancel := graceful.Context()
 	defer cancel()
 
-	graceful.Serve(ctx, worker)
+	graceful.Serve(ctx, worker, metrics.NewServer(config.MetricsPort, registry))
 }
 
 // buildK8sClient creates a Kubernetes client, trying in-cluster config first

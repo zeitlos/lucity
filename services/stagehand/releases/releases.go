@@ -12,11 +12,14 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/zeitlos/lucity/pkg/billing"
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/deployer/values"
 	"github.com/zeitlos/lucity/pkg/environment"
 	"github.com/zeitlos/lucity/pkg/logto"
+	"github.com/zeitlos/lucity/pkg/metrics"
 	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/services/stagehand/workspaces"
 )
@@ -39,9 +42,14 @@ type Worker struct {
 	paid         values.Placement
 	interval     time.Duration
 	dryRun       bool
+
+	loops            *metrics.Loops
+	workspaceCount   *prometheus.GaugeVec
+	environmentCount prometheus.Gauge
 }
 
 type verdict struct {
+	plan      string
 	paid      bool
 	judged    bool
 	suspended bool
@@ -51,8 +59,8 @@ type verdict struct {
 // New returns a worker that converges environments every interval. With a
 // nil billing client every environment gets the default placement and only
 // the abuse flag suspends. With nil workspace releases, they are left alone.
-func New(environment environment.Interface, environments deployer.EnvironmentClient, workspaceReleases deployer.WorkspaceClient, directory *workspaces.Directory, billing *billing.Client, defaults, paid values.Placement, interval time.Duration, dryRun bool) *Worker {
-	return &Worker{
+func New(environment environment.Interface, environments deployer.EnvironmentClient, workspaceReleases deployer.WorkspaceClient, directory *workspaces.Directory, billing *billing.Client, defaults, paid values.Placement, interval time.Duration, dryRun bool, loops *metrics.Loops, registry prometheus.Registerer) *Worker {
+	w := &Worker{
 		environment:  environment,
 		environments: environments,
 		workspaces:   workspaceReleases,
@@ -62,12 +70,29 @@ func New(environment environment.Interface, environments deployer.EnvironmentCli
 		paid:         paid,
 		interval:     interval,
 		dryRun:       dryRun,
+		loops:        loops,
+		workspaceCount: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "lucity_workspaces",
+			Help: "Workspaces by plan and billing standing.",
+		}, []string{"plan", "standing"}),
+		environmentCount: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "lucity_environments",
+			Help: "Environments of known workspaces.",
+		}),
 	}
+
+	registry.MustRegister(w.workspaceCount, w.environmentCount)
+
+	return w
 }
 
 func (w *Worker) Run(ctx context.Context) {
 	for {
-		if err := w.reconcile(ctx); err != nil && ctx.Err() == nil {
+		start := time.Now()
+		err := w.reconcile(ctx)
+		w.loops.Observe("releases", start, err)
+
+		if err != nil && ctx.Err() == nil {
 			slog.Error("release pass skipped", "error", err)
 		}
 
@@ -89,6 +114,10 @@ func (w *Worker) reconcile(ctx context.Context) error {
 	verdicts, placementFrozen := w.verdicts(ctx, organizations)
 	suspend, resume := changes(organizations, verdicts)
 
+	if !placementFrozen {
+		w.count(organizations, verdicts)
+	}
+
 	w.mark(ctx, suspend, verdicts, true)
 
 	environments, err := w.directory.Environments(ctx)
@@ -96,6 +125,8 @@ func (w *Worker) reconcile(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	w.environmentCount.Set(float64(len(environments)))
 
 	desired := func(id platform.EnvironmentID, current deployer.EnvironmentState) deployer.EnvironmentState {
 		verdict := verdicts[id.Workspace]
@@ -299,13 +330,21 @@ func (w *Worker) verdicts(ctx context.Context, organizations []logto.Organizatio
 
 	for _, organization := range organizations {
 		customer, _ := organization.CustomData[customerKey].(string)
+		subscription := subscriptions[customer]
 
-		if subscription := subscriptions[customer]; customer != "" && subscription != nil && w.billing.Paid(subscription) {
-			verdict := verdicts[organization.Name]
+		if customer == "" || subscription == nil {
+			continue
+		}
+
+		verdict := verdicts[organization.Name]
+		verdict.plan = planLabel(w.billing.Plan(subscription))
+
+		if w.billing.Paid(subscription) {
 			verdict.paid = true
-			verdicts[organization.Name] = verdict
 			paid++
 		}
+
+		verdicts[organization.Name] = verdict
 	}
 
 	if paid == 0 {
@@ -363,7 +402,7 @@ func (w *Worker) verdicts(ctx context.Context, organizations []logto.Organizatio
 func abuseOnly(verdicts map[string]verdict) map[string]verdict {
 	for name, current := range verdicts {
 		if current.reason != "abuse" {
-			verdicts[name] = verdict{paid: current.paid}
+			verdicts[name] = verdict{plan: current.plan, paid: current.paid}
 		}
 	}
 
@@ -405,4 +444,40 @@ func (w *Worker) mark(ctx context.Context, organizations []logto.Organization, v
 
 		slog.Info("suspension: workspace marked", "workspace", organization.Name, "suspended", suspended, "reason", verdicts[organization.Name].reason)
 	}
+}
+
+func (w *Worker) count(organizations []logto.Organization, verdicts map[string]verdict) {
+	counts := map[[2]string]int{}
+
+	for _, organization := range organizations {
+		verdict := verdicts[organization.Name]
+		plan, standing := verdict.plan, "good"
+
+		if plan == "" {
+			plan = "none"
+		}
+
+		switch {
+		case verdict.reason == "abuse":
+			standing = "abuse"
+		case verdict.suspended:
+			standing = "billing"
+		}
+
+		counts[[2]string{plan, standing}]++
+	}
+
+	w.workspaceCount.Reset()
+
+	for key, count := range counts {
+		w.workspaceCount.WithLabelValues(key[0], key[1]).Set(float64(count))
+	}
+}
+
+func planLabel(plan billing.Plan) string {
+	if plan == billing.PlanNone {
+		return "trial"
+	}
+
+	return string(plan)
 }

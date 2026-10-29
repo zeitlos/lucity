@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/blang/semver/v4"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/zeitlos/lucity/charts"
 	helmDeployer "github.com/zeitlos/lucity/pkg/deployer/helm"
 	"github.com/zeitlos/lucity/pkg/deployer/values"
@@ -18,6 +19,7 @@ import (
 	environmentK8s "github.com/zeitlos/lucity/pkg/environment/kubernetes"
 	"github.com/zeitlos/lucity/pkg/hostname"
 	"github.com/zeitlos/lucity/pkg/jobs"
+	metricsHTTP "github.com/zeitlos/lucity/pkg/metrics"
 	"github.com/zeitlos/lucity/pkg/pipeline"
 	platformK8s "github.com/zeitlos/lucity/pkg/platform/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/agentaudit"
@@ -64,6 +66,7 @@ import (
 type Config struct {
 	Port        string `envconfig:"PORT" default:"8080"`
 	WebhookPort string `envconfig:"WEBHOOK_PORT" default:"9004"`
+	MetricsPort string `envconfig:"METRICS_PORT" default:"9008"`
 	LogLevel    string `envconfig:"LOG_LEVEL" default:"info"`
 
 	// OIDC
@@ -547,7 +550,9 @@ func main() {
 
 	agentAuditClient := agentaudit.New(config.VictoriaLogsURL, config.AgentsNamespace)
 
-	conductor := conductor.New(billingClient, githubApp, logtoClient, directoryClient, platformClient, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, vulnerabilitiesClient, pipelineClient, planner, source, hostnameClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, domainsClient, upstream.New(), agentRunnerClient, agentAuditClient, conductorConfig)
+	registry := prometheus.NewRegistry()
+
+	conductor := conductor.New(billingClient, githubApp, logtoClient, directoryClient, platformClient, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, vulnerabilitiesClient, pipelineClient, planner, source, hostnameClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, domainsClient, upstream.New(), agentRunnerClient, agentAuditClient, conductorConfig, registry)
 
 	platformClient.Start(ctx)
 	jobsCache.Start(ctx)
@@ -561,7 +566,7 @@ func main() {
 
 	graphqlServer := NewGraphQLServer(config.Port, conductor, oidcProvider, sessionStore, sessionCodec, verifier, logtoClient, config.OIDCCallbackURL, config.DashboardURL, config.GitHubAppSlug, githubActionsAudience, config.OIDCIssuerURL, apiAudience, config.OIDCCLIClientID)
 
-	servers := []graceful.Server{graphqlServer}
+	servers := []graceful.Server{graphqlServer, metricsHTTP.NewServer(config.MetricsPort, registry)}
 
 	if githubApp != nil {
 		webhookHandler := &webhookhttp.Handler{
@@ -569,7 +574,7 @@ func main() {
 			Platform:  platformClient,
 			Conductor: conductor,
 		}
-		webhookSrv := webhookhttp.NewServer(config.WebhookPort, config.WebhookSecret, webhookHandler)
+		webhookSrv := webhookhttp.NewServer(config.WebhookPort, config.WebhookSecret, webhookHandler, registry)
 		servers = append(servers, webhookSrv)
 		slog.Info("webhook receiver ready", "port", config.WebhookPort)
 	} else {

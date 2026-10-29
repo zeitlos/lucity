@@ -697,6 +697,40 @@ victoria-metrics-alert:
                 labels: { severity: warning }
                 annotations:
                   summary: "Metering has not completed a billing window in 3 hours: usage is not reaching Stripe, check the cashier logs for \"window failed\""
+              - alert: LoopStalled
+                expr: |-
+                  (time() - max by (loop) (max_over_time(lucity_loop_last_success_timestamp_seconds{loop=~"admission|domains_pending"}[6h])) > 300)
+                  or (time() - max by (loop) (max_over_time(lucity_loop_last_success_timestamp_seconds{loop=~"releases|domains_sync"}[6h])) > 900)
+                  or (time() - max by (loop) (max_over_time(lucity_loop_last_success_timestamp_seconds{loop=~"object_storage|edge_zones"}[6h])) > 1800)
+                  or (time() - max by (loop) (max_over_time(lucity_loop_last_success_timestamp_seconds{loop="backups"}[6h])) > 3600)
+                  or (time() - max by (loop) (max_over_time(lucity_loop_last_success_timestamp_seconds{loop="metering"}[6h])) > 10800)
+                for: 5m
+                labels: { severity: warning }
+                annotations:
+                  summary: "Background loop {{ $labels.loop }} last passed {{ $value | humanizeDuration }} ago"
+              - alert: HelmReleaseBroken
+                expr: sum by (chart, status) (lucity_helm_releases{status!~"deployed|superseded"}) > 0
+                for: 15m
+                labels: { severity: warning }
+                annotations:
+                  summary: "{{ $value }} {{ $labels.chart }} releases have their newest revision in {{ $labels.status }}"
+              - alert: BuildQueueSlow
+                expr: histogram_quantile(0.95, sum by (le) (rate(lucity_job_queue_seconds_bucket{component="build"}[30m]))) > 600
+                for: 10m
+                labels: { severity: warning }
+                annotations:
+                  summary: "Builds wait {{ $value | humanizeDuration }} for admission at p95: the build cap is saturated"
+              - alert: SignupSpike
+                expr: sum(increase(lucity_signups_total[1h])) > 15
+                labels: { severity: warning }
+                annotations:
+                  summary: "{{ $value }} signups in the last hour: check for an abuse wave"
+              - alert: EdgeZonesHigh
+                expr: lucity_edge_zones > 450
+                for: 10m
+                labels: { severity: warning }
+                annotations:
+                  summary: "{{ $value }} edge zones in use, the account limit is 500"
               - alert: PVCNearlyFull
                 expr: |-
                   label_replace(label_replace(label_replace(

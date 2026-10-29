@@ -9,27 +9,20 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/zeitlos/lucity/pkg/labels"
+	"github.com/zeitlos/lucity/pkg/metrics"
 	"github.com/zeitlos/lucity/services/exporter/ovh"
 )
 
 const (
-	source         = "object_storage"
+	loop           = "object_storage"
 	refreshTimeout = 2 * time.Minute
 )
 
-var (
-	sizeDesc = prometheus.NewDesc(
-		"lucity_bucket_size_bytes",
-		"Bytes stored in a bucket.",
-		[]string{"workspace", "project", "environment", "bucket"},
-		nil,
-	)
-	lastSuccessDesc = prometheus.NewDesc(
-		"lucity_exporter_last_success_timestamp_seconds",
-		"Unix time of the last successful refresh of a usage source.",
-		[]string{"source"},
-		nil,
-	)
+var sizeDesc = prometheus.NewDesc(
+	"lucity_bucket_size_bytes",
+	"Bytes stored in a bucket.",
+	[]string{"workspace", "project", "environment", "bucket"},
+	nil,
 )
 
 type bucketID struct {
@@ -41,25 +34,27 @@ type bucketID struct {
 
 type Collector struct {
 	ovh      *ovh.Client
+	loops    *metrics.Loops
 	region   string
 	interval time.Duration
 
 	ids map[string]bucketID
 
-	mu          sync.RWMutex
-	sizes       map[bucketID]int64
-	lastSuccess time.Time
+	mu        sync.RWMutex
+	sizes     map[bucketID]int64
+	refreshed bool
 
 	ctx    context.Context
 	cancel context.CancelFunc
 	done   chan struct{}
 }
 
-func New(client *ovh.Client, region string, interval time.Duration) *Collector {
+func New(client *ovh.Client, loops *metrics.Loops, region string, interval time.Duration) *Collector {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Collector{
 		ovh:      client,
+		loops:    loops,
 		region:   region,
 		interval: interval,
 		ids:      make(map[string]bucketID),
@@ -78,7 +73,11 @@ func (c *Collector) Start() error {
 	defer ticker.Stop()
 
 	for {
-		if err := c.refresh(c.ctx); err != nil && c.ctx.Err() == nil {
+		start := time.Now()
+		err := c.refresh(c.ctx)
+		c.loops.Observe(loop, start, err)
+
+		if err != nil && c.ctx.Err() == nil {
 			slog.Warn("object storage refresh failed", "error", err)
 		}
 
@@ -103,22 +102,19 @@ func (c *Collector) Shutdown(ctx context.Context) error {
 
 func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- sizeDesc
-	ch <- lastSuccessDesc
 }
 
 func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	if c.lastSuccess.IsZero() {
+	if !c.refreshed {
 		return
 	}
 
 	for id, bytes := range c.sizes {
 		ch <- prometheus.MustNewConstMetric(sizeDesc, prometheus.GaugeValue, float64(bytes), id.workspace, id.project, id.environment, id.name)
 	}
-
-	ch <- prometheus.MustNewConstMetric(lastSuccessDesc, prometheus.GaugeValue, float64(c.lastSuccess.Unix()), source)
 }
 
 func (c *Collector) refresh(ctx context.Context) error {
@@ -169,7 +165,7 @@ func (c *Collector) refresh(ctx context.Context) error {
 
 	c.mu.Lock()
 	c.sizes = sizes
-	c.lastSuccess = time.Now()
+	c.refreshed = true
 	c.mu.Unlock()
 
 	slog.Debug("object storage refreshed", "buckets", len(buckets), "billable", len(sizes))

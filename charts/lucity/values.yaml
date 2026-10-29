@@ -69,6 +69,8 @@ conductor:
   httpPort: 8080
   # GitHub webhook receiver
   webhookPort: 9004
+  # Prometheus metrics, scraped by the otel agents only
+  metricsPort: 9008
   # -- Namespace for BuildKit and build Jobs (isolated from platform services)
   buildNamespace: lucity-builds
   # -- Registry host for BuildKit config (used in buildkitd.toml for build Jobs)
@@ -130,6 +132,7 @@ cashier:
     repository: ghcr.io/zeitlos/lucity/cashier
     tag: ""
     pullPolicy: IfNotPresent
+  metricsPort: 9009
   serviceAccount:
     create: true
   env: {}
@@ -180,6 +183,7 @@ stagehand:
     repository: ghcr.io/zeitlos/lucity/stagehand
     tag: ""
     pullPolicy: IfNotPresent
+  metricsPort: 9010
   interval: 2m
   # Only log what would move
   dryRun: false

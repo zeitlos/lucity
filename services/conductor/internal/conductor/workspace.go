@@ -254,6 +254,7 @@ func (c *Client) EnsurePersonalWorkspace(ctx context.Context, userID, username s
 		email = user.PrimaryEmail
 	}
 	c.setupBilling(ctx, wsID, username, email, 14)
+	c.signups.Inc()
 
 	return wsID, true, nil
 }

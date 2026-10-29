@@ -18,6 +18,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/billing"
 	"github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/pkg/logto"
+	"github.com/zeitlos/lucity/pkg/metrics"
 	stripelib "github.com/zeitlos/lucity/services/cashier/stripe"
 )
 
@@ -45,6 +46,7 @@ type Worker struct {
 	logto      *logto.Client
 	vm         *VMClient
 	k8s        kubernetes.Interface
+	loops      *metrics.Loops
 	namespace  string
 	interval   time.Duration
 	checkpoint time.Time
@@ -54,13 +56,14 @@ type Worker struct {
 
 // NewWorker creates a metering worker. It reads the environment namespaces and
 // keeps its checkpoint through k8sClient.
-func NewWorker(stripeClient *stripelib.Client, billingClient *billing.Client, logtoClient *logto.Client, vmClient *VMClient, k8sClient kubernetes.Interface, namespace string, interval time.Duration) *Worker {
+func NewWorker(stripeClient *stripelib.Client, billingClient *billing.Client, logtoClient *logto.Client, vmClient *VMClient, k8sClient kubernetes.Interface, loops *metrics.Loops, namespace string, interval time.Duration) *Worker {
 	return &Worker{
 		stripe:    stripeClient,
 		billing:   billingClient,
 		logto:     logtoClient,
 		vm:        vmClient,
 		k8s:       k8sClient,
+		loops:     loops,
 		namespace: namespace,
 		interval:  interval,
 		done:      make(chan struct{}),
@@ -75,7 +78,7 @@ func (w *Worker) Start() error {
 
 	defer close(w.done)
 
-	w.catchUp(ctx)
+	w.pass(ctx)
 
 	ticker := time.NewTicker(w.interval)
 	defer ticker.Stop()
@@ -87,7 +90,7 @@ func (w *Worker) Start() error {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			w.catchUp(ctx)
+			w.pass(ctx)
 			slog.Info("metering: next tick", "in", w.interval, "at", time.Now().Add(w.interval).Format(time.RFC3339))
 		}
 	}
@@ -114,12 +117,17 @@ func alignWindow(now time.Time) (start, end time.Time) {
 	return time.Unix(endUnix-windowSec, 0).UTC(), time.Unix(endUnix, 0).UTC()
 }
 
-func (w *Worker) catchUp(ctx context.Context) {
+func (w *Worker) pass(ctx context.Context) {
+	start := time.Now()
+	w.loops.Observe("metering", start, w.catchUp(ctx))
+}
+
+func (w *Worker) catchUp(ctx context.Context) error {
 	if w.checkpoint.IsZero() {
 		checkpoint, err := w.lastCheckpoint(ctx)
 		if err != nil {
 			slog.Error("metering: failed to read checkpoint, retrying next tick", "error", err)
-			return
+			return err
 		}
 		w.checkpoint = checkpoint
 	}
@@ -140,8 +148,8 @@ func (w *Worker) catchUp(ctx context.Context) {
 	}
 
 	for !windowStart.Add(meterWindow).After(currentEnd) {
-		if ctx.Err() != nil {
-			return
+		if err := ctx.Err(); err != nil {
+			return err
 		}
 
 		windowEnd := windowStart.Add(meterWindow)
@@ -149,13 +157,15 @@ func (w *Worker) catchUp(ctx context.Context) {
 		if err := w.processWindow(ctx, windowStart, windowEnd); err != nil {
 			slog.Error("metering: window failed, retrying next tick",
 				"window_start", windowStart, "window_end", windowEnd, "error", err)
-			return
+			return err
 		}
 
 		w.checkpoint = windowEnd
 		w.saveCheckpointQuiet(ctx, windowEnd)
 		windowStart = windowEnd
 	}
+
+	return nil
 }
 
 // billableWorkspaces returns workspaces that have a stripeCustomerId in their

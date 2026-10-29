@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/zeitlos/lucity/pkg/metrics"
 	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/services/stagehand/workspaces"
 )
@@ -19,16 +20,21 @@ const retryInterval = time.Hour
 type Worker struct {
 	platform  platform.Interface
 	directory *workspaces.Directory
+	loops     *metrics.Loops
 	interval  time.Duration
 }
 
-func New(platform platform.Interface, directory *workspaces.Directory, interval time.Duration) *Worker {
-	return &Worker{platform: platform, directory: directory, interval: interval}
+func New(platform platform.Interface, directory *workspaces.Directory, loops *metrics.Loops, interval time.Duration) *Worker {
+	return &Worker{platform: platform, directory: directory, loops: loops, interval: interval}
 }
 
 func (w *Worker) Run(ctx context.Context) {
 	for {
-		if err := w.reconcile(ctx); err != nil && ctx.Err() == nil {
+		start := time.Now()
+		err := w.reconcile(ctx)
+		w.loops.Observe("backups", start, err)
+
+		if err != nil && ctx.Err() == nil {
 			slog.Error("backup pass failed", "error", err)
 		}
 
