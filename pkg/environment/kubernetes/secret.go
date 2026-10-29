@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"log/slog"
+	"time"
 
 	pkglabels "github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/pkg/platform"
@@ -20,7 +21,7 @@ func (c *Client) ensurePullSecret(ctx context.Context, id platform.EnvironmentID
 
 	namespace := id.Namespace()
 
-	source, err := c.k8s.CoreV1().Secrets(c.systemNamespace).Get(ctx, c.systemPullSecret, metav1.GetOptions{})
+	source, err := c.systemPullSecretSource(ctx)
 
 	if apierrors.IsNotFound(err) {
 		slog.Warn("registry pull secret not found, skipping", "secret", c.systemPullSecret, "namespace", c.systemNamespace)
@@ -70,6 +71,26 @@ func (c *Client) ensurePullSecret(ctx context.Context, id platform.EnvironmentID
 	}
 
 	return nil
+}
+
+func (c *Client) systemPullSecretSource(ctx context.Context) (*corev1.Secret, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.pullSecret != nil && time.Since(c.pullSecretRead) < pullSecretMaxAge {
+		return c.pullSecret, nil
+	}
+
+	source, err := c.k8s.CoreV1().Secrets(c.systemNamespace).Get(ctx, c.systemPullSecret, metav1.GetOptions{})
+
+	if err != nil {
+		return nil, err
+	}
+
+	c.pullSecret = source
+	c.pullSecretRead = time.Now()
+
+	return source, nil
 }
 
 func (c *Client) ensureBackupSecret(ctx context.Context, id platform.EnvironmentID) error {

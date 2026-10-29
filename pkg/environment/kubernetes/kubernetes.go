@@ -2,11 +2,14 @@ package kubernetes
 
 import (
 	"context"
+	"sync"
+	"time"
 
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/environment"
 	"github.com/zeitlos/lucity/pkg/platform"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 )
@@ -21,6 +24,8 @@ const (
 	BackupAccessKeyIDKey     = deployer.BackupAccessKeyIDKey
 	BackupSecretAccessKeyKey = deployer.BackupSecretAccessKeyKey
 	BackupRegionKey          = deployer.BackupRegionKey
+
+	pullSecretMaxAge = time.Minute
 )
 
 type Client struct {
@@ -31,6 +36,10 @@ type Client struct {
 	podCIDR          string
 	serviceCIDR      string
 	backups          BackupCredentials
+
+	mu             sync.Mutex
+	pullSecret     *corev1.Secret
+	pullSecretRead time.Time
 }
 
 type BackupCredentials struct {

@@ -2,10 +2,12 @@ package kubernetes
 
 import (
 	"context"
+	"maps"
 
 	pkglabels "github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/pkg/platform"
 
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -38,6 +40,10 @@ func (c *Client) ensureCiliumNetworkPolicy(ctx context.Context, id platform.Envi
 
 	if err != nil {
 		return err
+	}
+
+	if apiequality.Semantic.DeepEqual(existing.Object["spec"], policy.Object["spec"]) && maps.Equal(existing.GetLabels(), policy.GetLabels()) {
+		return nil
 	}
 
 	policy.SetResourceVersion(existing.GetResourceVersion())

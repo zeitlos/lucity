@@ -2,12 +2,14 @@ package kubernetes
 
 import (
 	"context"
+	"maps"
 
 	pkglabels "github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/pkg/platform"
 
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -34,6 +36,10 @@ func (c *Client) ensureNetworkPolicy(ctx context.Context, id platform.Environmen
 
 	if err != nil {
 		return err
+	}
+
+	if apiequality.Semantic.DeepEqual(existing.Spec, policy.Spec) && maps.Equal(existing.Labels, policy.Labels) {
+		return nil
 	}
 
 	existing.Spec = policy.Spec

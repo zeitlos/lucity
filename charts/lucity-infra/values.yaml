@@ -700,9 +700,9 @@ victoria-metrics-alert:
               - alert: LoopStalled
                 expr: |-
                   (time() - max by (loop) (max_over_time(lucity_loop_last_success_timestamp_seconds{loop=~"admission|domains_pending"}[6h])) > 300)
-                  or (time() - max by (loop) (max_over_time(lucity_loop_last_success_timestamp_seconds{loop=~"releases|domains_sync"}[6h])) > 900)
+                  or (time() - max by (loop) (max_over_time(lucity_loop_last_success_timestamp_seconds{loop="domains_sync"}[6h])) > 900)
                   or (time() - max by (loop) (max_over_time(lucity_loop_last_success_timestamp_seconds{loop=~"object_storage|edge_zones"}[6h])) > 1800)
-                  or (time() - max by (loop) (max_over_time(lucity_loop_last_success_timestamp_seconds{loop="backups"}[6h])) > 3600)
+                  or (time() - max by (loop) (max_over_time(lucity_loop_last_success_timestamp_seconds{loop=~"releases|backups"}[6h])) > 3600)
                   or (time() - max by (loop) (max_over_time(lucity_loop_last_success_timestamp_seconds{loop="metering"}[6h])) > 10800)
                 for: 5m
                 labels: { severity: warning }
