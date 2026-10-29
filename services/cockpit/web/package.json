@@ -1,0 +1,46 @@
+{
+  "name": "cockpit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "run-p type-check \"build-only {@}\" --",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --build",
+    "lint": "run-s lint:*",
+    "lint:oxlint": "oxlint . --fix",
+    "lint:eslint": "eslint . --fix --cache",
+    "codegen": "graphql-codegen --config .graphqlrc.yaml"
+  },
+  "dependencies": {
+    "@apollo/client": "3.14.1",
+    "@lucide/vue": "1.49.0",
+    "@tailwindcss/vite": "4.3.3",
+    "@vue/apollo-composable": "4.2.2",
+    "graphql": "16.14.2",
+    "tailwindcss": "4.3.3",
+    "vue": "3.5.43"
+  },
+  "devDependencies": {
+    "@graphql-codegen/cli": "7.4.3",
+    "@graphql-codegen/client-preset": "6.2.0",
+    "@tsconfig/node24": "24.0.5",
+    "@types/node": "26.6.3",
+    "@vitejs/plugin-vue": "6.0.9",
+    "@vue/eslint-config-typescript": "14.9.0",
+    "@vue/tsconfig": "0.9.1",
+    "eslint": "10.11.0",
+    "eslint-plugin-oxlint": "1.86.0",
+    "eslint-plugin-vue": "10.11.1",
+    "jiti": "2.7.0",
+    "npm-run-all2": "9.0.3",
+    "oxlint": "1.86.0",
+    "typescript": "6.0.3",
+    "vite": "8.3.2",
+    "vue-tsc": "3.3.11"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

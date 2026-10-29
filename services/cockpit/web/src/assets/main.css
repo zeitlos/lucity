@@ -1,0 +1,64 @@
+@import 'tailwindcss';
+
+@layer base {
+  :root {
+    --background: oklch(0.95 0.02 80);
+    --foreground: oklch(0.25 0.04 55);
+    --card: oklch(0.97 0.015 80);
+    --muted: oklch(0.90 0.02 80);
+    --muted-foreground: oklch(0.50 0.04 55);
+    --accent: oklch(0.92 0.02 75);
+    --border: oklch(0.85 0.03 75);
+    --hairline: oklch(0.89 0.025 78);
+    --sidebar: oklch(0.93 0.025 80);
+    --selected: oklch(0.93 0.03 78);
+    --brand-mark: #8843db;
+    --destructive: oklch(0.55 0.21 25);
+
+    --status-warn: oklch(0.48 0.11 70);
+    --status-danger: oklch(0.50 0.19 25);
+    --status-danger-background: oklch(0.92 0.045 25);
+    --status-progress: oklch(0.50 0.20 300);
+
+    --radius: 0.875rem;
+
+    --shadow-xs: 0 2px 12px -3px oklch(0.50 0.02 55 / 0.08);
+    --shadow-lg: 0 8px 50px -10px oklch(0.30 0.04 55 / 0.45);
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-sm text-foreground font-sans;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-border: var(--border);
+  --color-hairline: var(--hairline);
+  --color-sidebar: var(--sidebar);
+  --color-selected: var(--selected);
+  --color-brand-mark: var(--brand-mark);
+  --color-destructive: var(--destructive);
+  --color-status-warn: var(--status-warn);
+  --color-status-danger: var(--status-danger);
+  --color-status-danger-background: var(--status-danger-background);
+  --color-status-progress: var(--status-progress);
+  --font-sans: 'Sora', system-ui, sans-serif;
+  --font-mono: 'Fira Code', monospace;
+  --radius-xs: calc(var(--radius) - 8px);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --shadow-xs: var(--shadow-xs);
+  --shadow-lg: var(--shadow-lg);
+}

@@ -1,4 +1,4 @@
-.PHONY: build dev dev-conductor dev-cashier dev-dashboard dev-docs dev-logs dev-stop dev-agent generate-graphql generate-cli-docs lint minikube dns infra infra-down infra-forward infra-forward-stop db-forward deploy-prod deploy-prod-infra
+.PHONY: build dev dev-conductor dev-cashier dev-dashboard dev-docs dev-logs dev-stop dev-agent cockpit cockpit-dev generate-graphql generate-cli-docs lint minikube dns infra infra-down infra-forward infra-forward-stop db-forward deploy-prod deploy-prod-infra
 
 # Build all Go services
 build:
@@ -44,6 +44,18 @@ dev-dashboard:
 
 dev-docs:
 	cd docs && npm run dev
+
+# Ops cockpit desktop window, opens on ENV (dev or prod) and switches in the window
+ENV ?= dev
+cockpit:
+	cd services/cockpit/web && npm run build
+	cd services/cockpit && go run ./cmd/cockpit -env $(ENV) -deployments $(CURDIR)/deployments
+
+# Same window with the UI served by Vite: web/ edits hot reload, Go edits need a restart
+cockpit-dev:
+	cd services/cockpit/web && (test -d dist || npm run build)
+	(cd services/cockpit/web && exec node_modules/.bin/vite) & pid=$$!; trap "kill $$pid 2>/dev/null" EXIT; \
+	cd services/cockpit && FRONTEND_DEVSERVER_URL=http://127.0.0.1:5175 go run ./cmd/cockpit -env $(ENV) -deployments $(CURDIR)/deployments
 
 # Lint
 lint:

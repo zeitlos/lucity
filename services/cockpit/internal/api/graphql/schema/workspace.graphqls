@@ -1,0 +1,107 @@
+"""A tenant of the platform, with what it runs and what points at abuse."""
+type Workspace {
+  id: ID!
+  createdAt: Time!
+  """Set by an operator. Stagehand keeps a workspace with this flag suspended."""
+  abuse: Boolean!
+  abuseNote: String
+  """Set by stagehand once the workspace's environments are suspended."""
+  suspended: Boolean!
+  """Null when the workspace has no subscription."""
+  billing: Billing
+  members: [Member!]!
+  signals: [Signal!]!
+  runningPods: Int!
+  pendingPods: Int!
+  """Memory requested by running and pending pods, in bytes."""
+  memoryRequested: Int!
+  """Bytes served through the gateway over the last seven days."""
+  egress7d: Int!
+  environments: [Environment!]!
+}
+
+type Billing {
+  plan: Plan!
+  """When the trial expires, for a workspace without a plan."""
+  trialEndsAt: Time
+  goodStanding: Boolean!
+  standingReason: String
+  hasPaymentMethod: Boolean!
+}
+
+enum Plan {
+  NONE
+  HOBBY
+  PRO
+}
+
+type Member {
+  name: String
+  email: String
+  role: String
+  """The member's source-control account. Null when there is none or it no longer exists."""
+  account: Account
+}
+
+type Account {
+  login: String!
+  createdAt: Time!
+}
+
+type Signal {
+  kind: SignalKind!
+  strong: Boolean!
+  detail: String!
+}
+
+enum SignalKind {
+  SHARED_COMMIT
+  IMAGE
+  FORK
+  YOUNG_ACCOUNT
+}
+
+type Environment {
+  """The environment as `workspace/project/environment`."""
+  id: ID!
+  project: String!
+  name: String!
+  runningPods: Int!
+  pendingPods: Int!
+  services: [Service!]!
+}
+
+type Service {
+  name: String!
+  image: String
+  commit: String
+  repository: String
+}
+
+"""The workspaces as loaded at one point in time."""
+type WorkspaceList {
+  loadedAt: Time!
+  workspaces: [Workspace!]!
+}
+
+type WorkspaceResult {
+  workspaceID: ID!
+  """Why the change failed. Null when it succeeded."""
+  error: String
+}
+
+extend type Query {
+  """Loads every workspace fresh, newest first, and keeps the result as the cached list."""
+  workspaces: WorkspaceList!
+  """The workspaces of the last load, kept across restarts. Null before the first load."""
+  cachedWorkspaces: WorkspaceList
+  """The last lines of every running pod in the environment."""
+  environmentLogs(id: ID!, lines: Int! = 100 @constraint(constraint: "min=1,max=1000")): [String!]!
+}
+
+extend type Mutation {
+  """Flags the workspaces as abuse. Stagehand suspends them on its next pass."""
+  markAbuse(workspaceIDs: [ID!]!, note: String @constraint(constraint: "max=500")): [WorkspaceResult!]!
+  """Removes the abuse flag. Stagehand resumes the workspaces in good standing."""
+  clearAbuse(workspaceIDs: [ID!]!): [WorkspaceResult!]!
+}

@@ -190,7 +190,7 @@ func (c *Client) Standing(subscription *stripe.Subscription, hasPaymentMethod bo
 		return Standing{Reason: "trial credit used up"}
 	}
 
-	if end := trialEnd(subscription); !end.IsZero() && !now.Before(end) {
+	if end := TrialEnd(subscription); !end.IsZero() && !now.Before(end) {
 		return Standing{Reason: "trial ended"}
 	}
 
@@ -209,7 +209,9 @@ func periodStart(subscription *stripe.Subscription) time.Time {
 	return time.Time{}
 }
 
-func trialEnd(subscription *stripe.Subscription) time.Time {
+// TrialEnd returns when the subscription's trial expires, or the zero time
+// when it has no trial interval.
+func TrialEnd(subscription *stripe.Subscription) time.Time {
 	interval := subscription.PendingInvoiceItemInterval
 
 	if interval == nil || interval.Interval != stripe.SubscriptionPendingInvoiceItemIntervalIntervalDay {

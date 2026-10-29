@@ -48,11 +48,12 @@ type OrganizationRole struct {
 
 // OrganizationMember represents a user in an organization with their roles.
 type OrganizationMember struct {
-	ID       string             `json:"id"`
-	Name     string             `json:"name,omitempty"`
-	Email    string             `json:"primaryEmail,omitempty"`
-	Avatar   string             `json:"avatar,omitempty"`
-	OrgRoles []OrganizationRole `json:"organizationRoles,omitempty"`
+	ID         string                  `json:"id"`
+	Name       string                  `json:"name,omitempty"`
+	Email      string                  `json:"primaryEmail,omitempty"`
+	Avatar     string                  `json:"avatar,omitempty"`
+	OrgRoles   []OrganizationRole      `json:"organizationRoles,omitempty"`
+	Identities map[string]UserIdentity `json:"identities,omitempty"`
 }
 
 // Organization returns a single organization by its Logto internal ID.
