@@ -108,7 +108,7 @@ func (m *jobMetrics) observe(job *batch.Job) {
 
 	m.queue.WithLabelValues(component).Observe(started.Sub(job.CreationTimestamp.Time).Seconds())
 
-	if component != "build" {
+	if component == "deploy" {
 		if built, ok := m.buildFinished(job); ok && built.After(started) {
 			started = built
 		}
