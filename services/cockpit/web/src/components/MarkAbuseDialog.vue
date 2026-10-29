@@ -79,7 +79,7 @@ onMounted(() => dialog.value?.showModal());
               <TriangleAlert class="size-3 shrink-0" aria-hidden="true" />
               <span class="truncate">{{ firstStrong(workspace) }}</span>
             </span>
-            <span class="text-right font-mono text-muted-foreground">{{ plural(workspace.runningPods + workspace.pendingPods, 'pod') }}</span>
+            <span class="text-right text-muted-foreground tabular-nums">{{ plural(workspace.runningPods + workspace.pendingPods, 'pod') }}</span>
           </li>
         </ul>
       </div>

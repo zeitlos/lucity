@@ -33,6 +33,13 @@ import {
 
 const columns = 'grid-cols-[32px_minmax(160px,1.4fr)_150px_96px_170px_minmax(190px,1.3fr)_80px_64px_84px_150px]';
 
+const lowEgress = 5e9;
+const lowMemory = 2 ** 30;
+
+function trial(workspace: Workspace): boolean {
+  return workspace.billing?.plan === Plan.None && workspace.billing.goodStanding;
+}
+
 const polling = ref(false);
 
 const { result: cached } = useQuery(CachedWorkspacesDocument);
@@ -347,12 +354,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
             </div>
             <span class="truncate text-muted-foreground">{{ relativeTime(workspace.createdAt) }}</span>
             <SignalIcons :signals="workspace.signals" :muted="workspace.suspended" />
-            <span class="truncate" :class="toneClass[plan(workspace).tone]">{{ plan(workspace).text }}</span>
+            <span class="truncate" :class="trial(workspace) ? 'text-muted-foreground' : toneClass[plan(workspace).tone]">{{ plan(workspace).text }}</span>
             <span class="flex min-w-0 items-baseline gap-1.5">
               <template v-if="owner(workspace)?.account">
                 <a
                   :href="githubProfile(owner(workspace)!.account!.login)"
                   class="truncate hover:underline"
+                  :class="youngAccount(workspace) ? '' : 'text-muted-foreground'"
                   @click.prevent.stop="openExternal(githubProfile(owner(workspace)!.account!.login))"
                 >{{ owner(workspace)!.account!.login }}</a>
                 <span class="shrink-0" :class="youngAccount(workspace) && !workspace.suspended ? 'text-status-warn' : 'text-muted-foreground'">
@@ -362,11 +370,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
               <span v-else class="truncate text-muted-foreground">{{ owner(workspace)?.email ?? 'No members' }}</span>
               <span v-if="workspace.members.length > 1" class="shrink-0 text-muted-foreground">+{{ workspace.members.length - 1 }}</span>
             </span>
-            <span class="text-right font-mono">{{ gigabytes(workspace.egress7d) }}</span>
-            <span class="text-right font-mono">
+            <span class="text-right tabular-nums" :class="workspace.egress7d < lowEgress ? 'text-muted-foreground' : ''">{{ gigabytes(workspace.egress7d) }}</span>
+            <span class="text-right tabular-nums">
               {{ workspace.runningPods }}<span v-if="workspace.pendingPods" class="text-status-warn"> +{{ workspace.pendingPods }}</span>
             </span>
-            <span class="text-right font-mono">{{ memory(workspace.memoryRequested) }}</span>
+            <span class="text-right tabular-nums" :class="workspace.memoryRequested < lowMemory ? 'text-muted-foreground' : ''">{{ memory(workspace.memoryRequested) }}</span>
             <span class="truncate">
               <span :class="toneClass[status(workspace).tone]">{{ status(workspace).text }}</span>
               <span v-if="status(workspace).note" class="text-muted-foreground"> · {{ status(workspace).note }}</span>

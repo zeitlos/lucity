@@ -234,7 +234,7 @@ export function plan(workspace: Workspace): { text: string; tone: Tone } {
 
 export function status(workspace: Workspace): { text: string; note: string; tone: Tone } {
   if (workspace.suspended) {
-    return { text: 'Suspended', note: workspace.abuse ? 'abuse' : (workspace.billing?.standingReason ?? ''), tone: 'muted' };
+    return { text: 'Suspended', note: workspace.abuse ? 'abuse' : (workspace.billing?.standingReason ?? ''), tone: 'warn' };
   }
 
   if (workspace.abuse) {
