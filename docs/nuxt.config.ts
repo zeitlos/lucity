@@ -77,6 +77,9 @@ export default defineNuxtConfig({
             'yaml',
           ],
         },
+        rehypePlugins: {
+          'rehype-external-links': false,
+        },
       },
     },
   },

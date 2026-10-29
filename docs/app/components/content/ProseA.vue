@@ -2,7 +2,6 @@
 const props = defineProps<{
   href?: string;
   target?: string;
-  /** Nuxt Content puts rel="nofollow" on external links while parsing. */
   rel?: string | string[];
   class?: unknown;
   ui?: { base?: string };
