@@ -297,6 +297,7 @@ import { usePanel } from '@/composables/usePanel';
 import { useBuildLogsPanel } from '@/composables/useBuildLogsPanel';
 import { useServiceLogsPanel } from '@/composables/useServiceLogsPanel';
 import { useVulnerabilitiesPanel } from '@/composables/useVulnerabilitiesPanel';
+import { useCapabilities } from '@/composables/useCapabilities';
 import { parseQuantity } from '@/lib/format';
 import { rememberEnvironment } from '@/lib/lastEnvironment';
 
@@ -375,11 +376,12 @@ watch(activeImageDigests, (current, previous) => {
 const environment = computed(() => result.value?.environment ?? null);
 
 const agentsBusy = ref(false);
+const { agents: agentsAvailable } = useCapabilities();
 
 const { result: agentsResult, refetch: refetchAgents } = useQuery(
   EnvironmentAgentsDocument,
   () => ({ environment: environmentId.value }),
-  () => ({ pollInterval: agentsBusy.value ? 3000 : 10000 }),
+  () => ({ enabled: agentsAvailable.value, pollInterval: agentsBusy.value ? 3000 : 10000 }),
 );
 
 const agents = computed(() => agentsResult.value?.environment?.agents ?? []);

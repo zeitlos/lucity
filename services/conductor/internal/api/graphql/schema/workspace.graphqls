@@ -4,6 +4,14 @@ type Workspace {
   personal: Boolean!
   suspended: Boolean!
   members: [WorkspaceMember!]!
+  """What the workspace can use. Anything reported unavailable is refused."""
+  capabilities: Capabilities! @goField(forceResolver: true)
+}
+
+"""What a workspace can use on this platform."""
+type Capabilities {
+  """Whether the workspace can create and run agents."""
+  agents: Boolean!
 }
 
 type WorkspaceMember {

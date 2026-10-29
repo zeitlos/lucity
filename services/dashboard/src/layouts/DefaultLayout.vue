@@ -7,6 +7,7 @@ import { useAuth } from '@/composables/useAuth';
 import { useWorkspaceColor } from '@/composables/useWorkspaceColor';
 import { useReportBug } from '@/composables/useReportBug';
 import { useLogoFlex } from '@/composables/useLogoFlex';
+import { useCapabilities } from '@/composables/useCapabilities';
 import { workspaceNavItems } from '@/lib/workspaceNav';
 import { graphql } from '@/gql';
 
@@ -46,12 +47,13 @@ const { user, logout, isWorkspaceAdmin } = useAuth();
 const { workspaceColor } = useWorkspaceColor();
 const { report, requestFeature } = useReportBug();
 const { flex: logoFlex, flexTo: flexLogo } = useLogoFlex();
+const { agents } = useCapabilities();
 const { result: wsResult } = useQuery(WorkspaceDocument, null, { fetchPolicy: 'cache-and-network' });
 const workspace = computed(() => wsResult.value?.workspace ?? null);
 const suspended = computed(() => workspace.value?.suspended ?? false);
 
 const menuWorkspaceItems = computed(() =>
-  workspaceNavItems(isWorkspaceAdmin.value).filter(item => item.key !== 'projects'),
+  workspaceNavItems(isWorkspaceAdmin.value, agents.value).filter(item => item.key !== 'projects'),
 );
 
 const trayItemClass = 'h-8.5 gap-2 whitespace-nowrap rounded-lg px-2.5 text-xs text-muted-foreground focus:text-foreground [&_svg]:size-3.5';

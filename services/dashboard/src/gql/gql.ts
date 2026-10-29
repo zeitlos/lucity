@@ -130,6 +130,7 @@ type Documents = {
     "\n  mutation ExpandVolume($volume: VolumeID!, $size: String!) {\n    expandVolume(volume: $volume, size: $size) {\n      id\n      size\n    }\n  }\n": typeof types.ExpandVolumeDocument,
     "\n  mutation UnmountVolume($volume: VolumeID!) {\n    unmountVolume(volume: $volume) {\n      id\n      mount {\n        service\n        path\n      }\n    }\n  }\n": typeof types.UnmountVolumeDocument,
     "\n  query VolumeMetrics($id: VolumeID!, $range: MetricsRange!) {\n    volume(id: $id) {\n      id\n      metrics(metrics: [STORAGE_USED], range: $range) {\n        metric\n        points {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n": typeof types.VolumeMetricsDocument,
+    "\n  query Capabilities {\n    workspace {\n      id\n      capabilities {\n        agents\n      }\n    }\n  }\n": typeof types.CapabilitiesDocument,
     "\n  mutation Deploy($service: ServiceID!, $gitRef: String) {\n    deploy(service: $service, gitRef: $gitRef) {\n      id\n      status\n      build {\n        id\n        status\n        startedAt\n        finishedAt\n      }\n    }\n  }\n": typeof types.DeployDocument,
     "\n  query BuildStatus($id: BuildID!) {\n    build(id: $id) {\n      id\n      status\n      startedAt\n      finishedAt\n    }\n  }\n": typeof types.BuildStatusDocument,
     "\n  subscription BuildLogs($id: BuildID!) {\n    buildLogs(id: $id)\n  }\n": typeof types.BuildLogsDocument,
@@ -264,6 +265,7 @@ const documents: Documents = {
     "\n  mutation ExpandVolume($volume: VolumeID!, $size: String!) {\n    expandVolume(volume: $volume, size: $size) {\n      id\n      size\n    }\n  }\n": types.ExpandVolumeDocument,
     "\n  mutation UnmountVolume($volume: VolumeID!) {\n    unmountVolume(volume: $volume) {\n      id\n      mount {\n        service\n        path\n      }\n    }\n  }\n": types.UnmountVolumeDocument,
     "\n  query VolumeMetrics($id: VolumeID!, $range: MetricsRange!) {\n    volume(id: $id) {\n      id\n      metrics(metrics: [STORAGE_USED], range: $range) {\n        metric\n        points {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n": types.VolumeMetricsDocument,
+    "\n  query Capabilities {\n    workspace {\n      id\n      capabilities {\n        agents\n      }\n    }\n  }\n": types.CapabilitiesDocument,
     "\n  mutation Deploy($service: ServiceID!, $gitRef: String) {\n    deploy(service: $service, gitRef: $gitRef) {\n      id\n      status\n      build {\n        id\n        status\n        startedAt\n        finishedAt\n      }\n    }\n  }\n": types.DeployDocument,
     "\n  query BuildStatus($id: BuildID!) {\n    build(id: $id) {\n      id\n      status\n      startedAt\n      finishedAt\n    }\n  }\n": types.BuildStatusDocument,
     "\n  subscription BuildLogs($id: BuildID!) {\n    buildLogs(id: $id)\n  }\n": types.BuildLogsDocument,
@@ -760,6 +762,10 @@ export function graphql(source: "\n  mutation UnmountVolume($volume: VolumeID!) 
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  query VolumeMetrics($id: VolumeID!, $range: MetricsRange!) {\n    volume(id: $id) {\n      id\n      metrics(metrics: [STORAGE_USED], range: $range) {\n        metric\n        points {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query VolumeMetrics($id: VolumeID!, $range: MetricsRange!) {\n    volume(id: $id) {\n      id\n      metrics(metrics: [STORAGE_USED], range: $range) {\n        metric\n        points {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query Capabilities {\n    workspace {\n      id\n      capabilities {\n        agents\n      }\n    }\n  }\n"): (typeof documents)["\n  query Capabilities {\n    workspace {\n      id\n      capabilities {\n        agents\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

@@ -59,7 +59,7 @@ var agentResources = values.Resources{
 }
 
 func (c *Client) Agents(ctx context.Context, environment EnvironmentID) ([]Agent, error) {
-	if !c.config.AgentsEnabled {
+	if !c.Capabilities(ctx, environment.Workspace).Agents {
 		return []Agent{}, nil
 	}
 
@@ -93,7 +93,7 @@ func (c *Client) Agent(ctx context.Context, id AgentID) (*Agent, error) {
 }
 
 func (c *Client) loadAgent(ctx context.Context, id AgentID) (values.Agent, *values.Workspace, error) {
-	if !c.config.AgentsEnabled {
+	if !c.Capabilities(ctx, id.Workspace).Agents {
 		return values.Agent{}, nil, usererror.Errorf("agent %q not found", id.Name)
 	}
 
@@ -199,7 +199,7 @@ func toAgent(id AgentID, agent values.Agent, ws *values.Workspace) Agent {
 }
 
 func (c *Client) CreateAgent(ctx context.Context, environment EnvironmentID, name string, harness values.Harness, instructions string, connectors []AgentConnectorSpec) (*Agent, error) {
-	if !c.config.AgentsEnabled {
+	if !c.Capabilities(ctx, environment.Workspace).Agents {
 		return nil, usererror.New("agents are not enabled on this platform")
 	}
 
@@ -309,7 +309,7 @@ func (c *Client) SetAgentNetwork(ctx context.Context, id AgentID, allowedHosts [
 // gone before its key stops working, and treats either part already being
 // gone as done.
 func (c *Client) DeleteAgent(ctx context.Context, id AgentID) (bool, error) {
-	if !c.config.AgentsEnabled {
+	if !c.Capabilities(ctx, id.Workspace).Agents {
 		return false, usererror.Errorf("agent %q not found", id.Name)
 	}
 

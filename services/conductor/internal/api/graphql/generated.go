@@ -46,6 +46,7 @@ type ResolverRoot interface {
 	Service() ServiceResolver
 	Subscription() SubscriptionResolver
 	Volume() VolumeResolver
+	Workspace() WorkspaceResolver
 }
 
 type DirectiveRoot struct {
@@ -223,6 +224,10 @@ type ComplexityRoot struct {
 		ID         func(childComplexity int) int
 		StartedAt  func(childComplexity int) int
 		Status     func(childComplexity int) int
+	}
+
+	Capabilities struct {
+		Agents func(childComplexity int) int
 	}
 
 	CheckoutSession struct {
@@ -848,11 +853,12 @@ type ComplexityRoot struct {
 	}
 
 	Workspace struct {
-		ID        func(childComplexity int) int
-		Members   func(childComplexity int) int
-		Name      func(childComplexity int) int
-		Personal  func(childComplexity int) int
-		Suspended func(childComplexity int) int
+		Capabilities func(childComplexity int) int
+		ID           func(childComplexity int) int
+		Members      func(childComplexity int) int
+		Name         func(childComplexity int) int
+		Personal     func(childComplexity int) int
+		Suspended    func(childComplexity int) int
 	}
 
 	WorkspaceMember struct {
@@ -1046,6 +1052,9 @@ type SubscriptionResolver interface {
 }
 type VolumeResolver interface {
 	Metrics(ctx context.Context, obj *model.Volume, metrics []model.ResourceMetric, rangeArg model.MetricsRange) ([]model.MetricSeries, error)
+}
+type WorkspaceResolver interface {
+	Capabilities(ctx context.Context, obj *model.Workspace) (*model.Capabilities, error)
 }
 
 // endregion ************************** generated!.gotpl **************************
@@ -1711,6 +1720,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Build.Status(childComplexity), true
+
+	case "Capabilities.agents":
+		if e.ComplexityRoot.Capabilities.Agents == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Capabilities.Agents(childComplexity), true
 
 	case "CheckoutSession.url":
 		if e.ComplexityRoot.CheckoutSession.URL == nil {
@@ -4905,6 +4921,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.VulnerablePackage.Path(childComplexity), true
 
+	case "Workspace.capabilities":
+		if e.ComplexityRoot.Workspace.Capabilities == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Workspace.Capabilities(childComplexity), true
 	case "Workspace.id":
 		if e.ComplexityRoot.Workspace.ID == nil {
 			break
@@ -5371,6 +5393,14 @@ func (ec *executionContext) childFields_Build(ctx context.Context, field graphql
 		return ec.fieldContext_Build_finishedAt(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Build", field.Name)
+}
+
+func (ec *executionContext) childFields_Capabilities(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "agents":
+		return ec.fieldContext_Capabilities_agents(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type Capabilities", field.Name)
 }
 
 func (ec *executionContext) childFields_CheckoutSession(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -6335,6 +6365,8 @@ func (ec *executionContext) childFields_Workspace(ctx context.Context, field gra
 		return ec.fieldContext_Workspace_suspended(ctx, field)
 	case "members":
 		return ec.fieldContext_Workspace_members(ctx, field)
+	case "capabilities":
+		return ec.fieldContext_Workspace_capabilities(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Workspace", field.Name)
 }
@@ -12390,6 +12422,29 @@ func (ec *executionContext) _Build_finishedAt(ctx context.Context, field graphql
 }
 func (ec *executionContext) fieldContext_Build_finishedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Build", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _Capabilities_agents(ctx context.Context, field graphql.CollectedField, obj *model.Capabilities) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Capabilities_agents(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Agents, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Capabilities_agents(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Capabilities", field, false, false, errors.New("field of type Boolean does not have child fields"))
 }
 
 func (ec *executionContext) _CheckoutSession_url(ctx context.Context, field graphql.CollectedField, obj *model.CheckoutSession) (ret graphql.Marshaler) {
@@ -27611,6 +27666,38 @@ func (ec *executionContext) fieldContext_Workspace_members(_ context.Context, fi
 	return fc, nil
 }
 
+func (ec *executionContext) _Workspace_capabilities(ctx context.Context, field graphql.CollectedField, obj *model.Workspace) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Workspace_capabilities(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Workspace().Capabilities(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Capabilities) graphql.Marshaler {
+			return ec.marshalNCapabilities2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐCapabilities(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Workspace_capabilities(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Workspace",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Capabilities(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _WorkspaceMember_id(ctx context.Context, field graphql.CollectedField, obj *model.WorkspaceMember) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -31891,6 +31978,44 @@ func (ec *executionContext) _Build(ctx context.Context, sel ast.SelectionSet, ob
 		case "finishedAt":
 			out.Values[i] = ec._Build_finishedAt(ctx, field, obj)
 			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var capabilitiesImplementors = []string{"Capabilities"}
+
+func (ec *executionContext) _Capabilities(ctx context.Context, sel ast.SelectionSet, obj *model.Capabilities) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, capabilitiesImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Capabilities")
+		case "agents":
+			out.Values[i] = ec._Capabilities_agents(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
 		default:
@@ -37818,28 +37943,66 @@ func (ec *executionContext) _Workspace(ctx context.Context, sel ast.SelectionSet
 		case "id":
 			out.Values[i] = ec._Workspace_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "name":
 			out.Values[i] = ec._Workspace_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "personal":
 			out.Values[i] = ec._Workspace_personal(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "suspended":
 			out.Values[i] = ec._Workspace_suspended(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "members":
 			out.Values[i] = ec._Workspace_members(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "capabilities":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Workspace_capabilities(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.IsDeferred() {
+				deferredFieldSet.AddField(field)
+				fieldIndex := len(deferredFieldSet.Values) - 1
+				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, deferredFieldSet)
+				})
+
+				for _, deferrable := range field.Deferrables {
+					view, ok := deferLabelToView[deferrable.Label]
+					if !ok {
+						view = deferredFieldSet.NewView()
+						deferLabelToView[deferrable.Label] = view
+					}
+					view.AddIndices(fieldIndex)
+				}
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -38898,6 +39061,16 @@ func (ec *executionContext) unmarshalNBuildStatus2githubᚗcomᚋzeitlosᚋlucit
 
 func (ec *executionContext) marshalNBuildStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBuildStatus(ctx context.Context, sel ast.SelectionSet, v model.BuildStatus) graphql.Marshaler {
 	return v
+}
+
+func (ec *executionContext) marshalNCapabilities2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐCapabilities(ctx context.Context, sel ast.SelectionSet, v *model.Capabilities) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._Capabilities(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNCheckoutSession2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐCheckoutSession(ctx context.Context, sel ast.SelectionSet, v *model.CheckoutSession) graphql.Marshaler {

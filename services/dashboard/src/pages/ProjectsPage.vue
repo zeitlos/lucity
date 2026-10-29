@@ -81,6 +81,7 @@ import { useOnboarding } from '@/composables/useOnboarding';
 import { useGitHubInstall } from '@/composables/useGitHubInstall';
 import { preferredEnvironment } from '@/lib/lastEnvironment';
 import { workspaceNavItems } from '@/lib/workspaceNav';
+import { useCapabilities } from '@/composables/useCapabilities';
 import { useAuth } from '@/composables/useAuth';
 import ContextRail from '@/components/ContextRail.vue';
 import WorkspaceMembersDrawer from '@/components/drawer/WorkspaceMembersDrawer.vue';
@@ -118,7 +119,8 @@ const drawerTitles: Record<string, string> = {
   'settings': 'Workspace settings',
 };
 
-const railItems = computed(() => workspaceNavItems(isWorkspaceAdmin.value));
+const { agents } = useCapabilities();
+const railItems = computed(() => workspaceNavItems(isWorkspaceAdmin.value, agents.value));
 const activeKey = computed(() => {
   if (connection.value) return 'connections';
   return typeof drawer.value === 'string' && drawer.value ? drawer.value : 'projects';
@@ -363,7 +365,7 @@ onKeyStroke('/', (event) => {
 
           <Transition name="slide-drawer" mode="out-in">
             <div
-              v-if="workspace && drawer === 'connections'"
+              v-if="workspace && agents && drawer === 'connections'"
               key="connections"
               class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
             >
@@ -374,7 +376,7 @@ onKeyStroke('/', (event) => {
               />
             </div>
             <div
-              v-else-if="connection?.kind === 'model-providers'"
+              v-else-if="agents && connection?.kind === 'model-providers'"
               :key="`model-providers/${connection.name}`"
               class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
             >
@@ -386,7 +388,7 @@ onKeyStroke('/', (event) => {
               />
             </div>
             <div
-              v-else-if="connection?.kind === 'connectors'"
+              v-else-if="agents && connection?.kind === 'connectors'"
               :key="`connectors/${connection.name}`"
               class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
             >

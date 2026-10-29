@@ -129,3 +129,13 @@ func (r *queryResolver) Workspaces(ctx context.Context) ([]model.Workspace, erro
 
 	return result, nil
 }
+
+// Capabilities is the resolver for the capabilities field.
+func (r *workspaceResolver) Capabilities(ctx context.Context, obj *model.Workspace) (*model.Capabilities, error) {
+	return convertCapabilities(r.Conductor.Capabilities(ctx, obj.ID)), nil
+}
+
+// Workspace returns WorkspaceResolver implementation.
+func (r *Resolver) Workspace() WorkspaceResolver { return &workspaceResolver{r} }
+
+type workspaceResolver struct{ *Resolver }

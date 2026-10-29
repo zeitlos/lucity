@@ -459,6 +459,10 @@ func convertWorkspaceDetails(ws *conductor.WorkspaceDetails) *model.Workspace {
 	return result
 }
 
+func convertCapabilities(c conductor.Capabilities) *model.Capabilities {
+	return &model.Capabilities{Agents: c.Agents}
+}
+
 func convertWorkspaceMember(m *conductor.WorkspaceMember) *model.WorkspaceMember {
 	result := &model.WorkspaceMember{
 		ID:    m.ID,

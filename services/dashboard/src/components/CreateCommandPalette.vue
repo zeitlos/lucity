@@ -160,6 +160,7 @@ const CreateAgentDocument = graphql(`
 `);
 import { useEnvironment } from '@/composables/useEnvironment';
 import { useGitHubInstall } from '@/composables/useGitHubInstall';
+import { useCapabilities } from '@/composables/useCapabilities';
 import { failureToast } from '@/components/ui/sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -1010,6 +1011,8 @@ type PaletteItem = {
   action: () => void;
 };
 
+const { agents } = useCapabilities();
+
 const mainItems = computed(() => {
   const items: PaletteItem[] = props.context === 'projects'
     ? [
@@ -1031,7 +1034,7 @@ const mainItems = computed(() => {
         { id: 'keyValueStore', label: 'Redis', iconSrc: devicon('redis'), action: () => { view.value = 'keyValueStore'; } },
         { id: 'bucket', label: 'Bucket', icon: BucketIcon, action: () => { view.value = 'bucket'; } },
         { id: 'volume', label: 'Volume', icon: HardDrive, action: () => { volumeStep.value = 'name'; view.value = 'volume'; } },
-        { id: 'agent', label: 'Agent', icon: Bot, action: startAgent },
+        ...(agents.value ? [{ id: 'agent', label: 'Agent', icon: Bot, action: startAgent }] : []),
       ];
 
   if (!search.value) return items;

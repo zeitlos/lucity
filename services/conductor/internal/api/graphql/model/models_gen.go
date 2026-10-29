@@ -268,6 +268,12 @@ type Build struct {
 	FinishedAt *time.Time       `json:"finishedAt,omitempty"`
 }
 
+// What a workspace can use on this platform.
+type Capabilities struct {
+	// Whether the workspace can create and run agents.
+	Agents bool `json:"agents"`
+}
+
 type CheckoutSession struct {
 	URL string `json:"url"`
 }
@@ -939,6 +945,8 @@ type Workspace struct {
 	Personal  bool              `json:"personal"`
 	Suspended bool              `json:"suspended"`
 	Members   []WorkspaceMember `json:"members"`
+	// What the workspace can use. Anything reported unavailable is refused.
+	Capabilities *Capabilities `json:"capabilities"`
 }
 
 type WorkspaceMember struct {
