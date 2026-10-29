@@ -1,0 +1,67 @@
+{{- $workspace := include "lucity-workspace.workspace" . }}
+{{- range $name, $connector := .Values.connectors }}
+{{- $resource := printf "%s.connector.%s" $workspace $name }}
+{{- $url := urlParse $connector.url }}
+{{- if $connector.credential }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $resource }}
+  labels:
+    {{- include "lucity-workspace.labels" $ | nindent 4 }}
+type: Opaque
+stringData:
+  Authorization: {{ $connector.credential | quote }}
+{{- end }}
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayBackend
+metadata:
+  name: {{ $resource }}
+  labels:
+    {{- include "lucity-workspace.labels" $ | nindent 4 }}
+spec:
+  mcp:
+    targets:
+      - name: {{ $name }}
+        static:
+          host: {{ $url.hostname | quote }}
+          port: {{ include "lucity-workspace.port" $url }}
+          path: {{ $url.path | default "/" | quote }}
+          protocol: StreamableHTTP
+          policies:
+            {{- if $connector.credential }}
+            auth:
+              secretRef:
+                name: {{ $resource }}
+            {{- end }}
+            tls:
+              sni: {{ $url.hostname | quote }}
+---
+{{ include "lucity-workspace.route" (dict "root" $ "resource" $resource "prefix" (printf "/%s/connectors/%s/" $workspace $name)) }}
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayPolicy
+metadata:
+  name: {{ $resource }}
+  labels:
+    {{- include "lucity-workspace.labels" $ | nindent 4 }}
+spec:
+  targetRefs:
+    - group: agentgateway.dev
+      kind: AgentgatewayBackend
+      name: {{ $resource }}
+  backend:
+    authorization:
+      action: Require
+      policy:
+        matchExpressions:
+          - {{ printf "apiKey.workspace == %q && %q in apiKey.routes" $workspace $resource | squote }}
+    mcp:
+      authorization:
+        action: Allow
+        policy:
+          matchExpressions:
+            - {{ printf "!has(apiKey.hiddenTools) || !((%q + mcp.tool.name) in apiKey.hiddenTools)" (printf "%s/" $name) | squote }}
+{{- end }}

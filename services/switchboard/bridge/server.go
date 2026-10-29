@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zeitlos/lucity/services/switchboard/acp"
+	"github.com/zeitlos/lucity/pkg/acp"
 	"github.com/zeitlos/lucity/services/switchboard/telegram"
 )
 
@@ -144,7 +144,7 @@ func (s *Server) identify() bool {
 
 func (s *Server) superviseAgent() {
 	for s.ctx.Err() == nil {
-		agent, err := acp.Start(s.ctx, acp.Command{
+		agent, err := acp.Start(s.ctx, "switchboard", acp.Command{
 			Path: s.agentConfig.Command[0],
 			Args: s.agentConfig.Command[1:],
 			Dir:  s.agentConfig.Workdir,
@@ -348,7 +348,7 @@ func (s *Server) session(agent *acp.Client, thread string) (string, error) {
 		return sessionID, nil
 	}
 	if known {
-		err := agent.ResumeSession(ctx, sessionID, s.agentConfig.Workdir, s.agentConfig.MCPServers)
+		_, err := agent.ResumeSession(ctx, sessionID, s.agentConfig.Workdir, s.agentConfig.MCPServers, nil)
 		if err == nil {
 			s.markAttached(sessionID)
 			return sessionID, nil
@@ -356,12 +356,12 @@ func (s *Server) session(agent *acp.Client, thread string) (string, error) {
 		slog.Warn("could not resume session, starting a new one", "session", sessionID, "error", err)
 	}
 
-	sessionID, err := agent.NewSession(ctx, s.agentConfig.Workdir, s.agentConfig.MCPServers)
+	session, err := agent.NewSession(ctx, s.agentConfig.Workdir, s.agentConfig.MCPServers, nil)
 	if err != nil {
 		return "", err
 	}
-	s.markAttached(sessionID)
-	return sessionID, s.threads.SetSession(thread, sessionID)
+	s.markAttached(session.ID)
+	return session.ID, s.threads.SetSession(thread, session.ID)
 }
 
 func (s *Server) Update(sessionID string, update acp.Update) {

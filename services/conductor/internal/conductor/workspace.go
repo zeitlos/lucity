@@ -101,6 +101,10 @@ func (c *Client) DeleteWorkspace(ctx context.Context, id string) (bool, error) {
 		}
 	}
 
+	if err := c.deployer.Workspaces().Delete(ctx, id); err != nil {
+		return false, fmt.Errorf("delete agent workspace release: %w", err)
+	}
+
 	if err := c.directory.DeleteWorkspace(ctx, id); err != nil {
 		return false, err
 	}

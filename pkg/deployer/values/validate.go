@@ -166,6 +166,10 @@ func Validate(env *Env, workspace, registry string) error {
 		}
 	}
 
+	if err := validateAgents(env); err != nil {
+		return err
+	}
+
 	mountedBy := map[string]string{}
 
 	for k := range env.SharedVariables {

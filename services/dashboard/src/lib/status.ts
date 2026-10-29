@@ -1,5 +1,9 @@
 import {
+  AgentAuditResult,
+  AgentSessionStatus,
+  AgentStatus,
   BackupStatus,
+  CredentialStatus,
   BucketStatus,
   BuildStatus,
   DatabaseStatus,
@@ -67,6 +71,51 @@ const subscription: Record<SubscriptionStatus, StatusView> = {
   [SubscriptionStatus.Incomplete]: { tone: 'warn', label: 'Payment due' },
   [SubscriptionStatus.Canceled]: { tone: 'neutral', label: 'Cancelled' },
 };
+
+const agent: Record<AgentStatus, StatusView> = {
+  [AgentStatus.Starting]: { tone: 'progress', label: 'Starting' },
+  [AgentStatus.Idle]: { tone: 'neutral', label: 'Idle' },
+  [AgentStatus.Working]: { tone: 'progress', label: 'Working' },
+  [AgentStatus.WaitingForApproval]: { tone: 'progress', label: 'Working' },
+  [AgentStatus.Failed]: { tone: 'danger', label: 'Failed' },
+};
+
+const agentSession: Record<AgentSessionStatus, StatusView> = {
+  [AgentSessionStatus.Idle]: { tone: 'neutral', label: 'Idle' },
+  [AgentSessionStatus.Working]: { tone: 'progress', label: 'Working' },
+  [AgentSessionStatus.WaitingForApproval]: { tone: 'warn', label: 'Waiting' },
+};
+
+const auditResult: Record<AgentAuditResult, StatusView> = {
+  [AgentAuditResult.Ok]: { tone: 'neutral', label: 'OK' },
+  [AgentAuditResult.Denied]: { tone: 'warn', label: 'Denied' },
+  [AgentAuditResult.Failed]: { tone: 'danger', label: 'Failed' },
+};
+
+export function agentStatus(status: AgentStatus): StatusView {
+  return agent[status] ?? unknown;
+}
+
+export function agentSessionStatus(status: AgentSessionStatus): StatusView {
+  return agentSession[status] ?? unknown;
+}
+
+export function auditResultStatus(result: AgentAuditResult): StatusView {
+  return auditResult[result] ?? unknown;
+}
+
+export function credentialStatus(status: CredentialStatus, credential: string): StatusView {
+  switch (status) {
+    case CredentialStatus.Valid:
+      return { tone: 'ok', label: 'Connected' };
+    case CredentialStatus.Rejected:
+      return { tone: 'danger', label: `${credential} rejected` };
+    case CredentialStatus.Unreachable:
+      return { tone: 'warn', label: 'Unreachable' };
+    default:
+      return unknown;
+  }
+}
 
 export function serviceStatus(status: ServiceStatus): StatusView {
   return service[status] ?? unknown;

@@ -18,7 +18,7 @@ metadata:
     {{- include "lucity.labels" . | nindent 4 }}
 rules:
   - apiGroups: [""]
-    resources: [namespaces, services, configmaps, secrets]
+    resources: [namespaces, services, configmaps, secrets, serviceaccounts]
     verbs: [get, list, watch, create, update, patch, delete]
   - apiGroups: [""]
     resources: [resourcequotas, limitranges]
@@ -65,6 +65,14 @@ rules:
   - apiGroups: [gateway.networking.k8s.io]
     resources: [gateways]
     verbs: [get, list]
+  {{- if .Values.agents.enabled }}
+  - apiGroups: [agentgateway.dev]
+    resources: [agentgatewaybackends, agentgatewaypolicies]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [""]
+    resources: [services/proxy]
+    verbs: [get, create]
+  {{- end }}
   - apiGroups: [cert-manager.io]
     resources: [certificates]
     verbs: [get, list, watch, create, update, patch, delete]

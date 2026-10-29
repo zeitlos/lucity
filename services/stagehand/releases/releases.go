@@ -1,7 +1,8 @@
 // Package releases converges every tenant environment's namespace
 // scaffolding and Helm release: the embedded chart version, the placement of
 // the workspace's plan, and whether billing standing or an abuse flag
-// suspends the workspace.
+// suspends the workspace. It also upgrades every workspace release to the
+// embedded chart version.
 package releases
 
 import (
@@ -31,6 +32,7 @@ const (
 type Worker struct {
 	environment  environment.Interface
 	environments deployer.EnvironmentClient
+	workspaces   deployer.WorkspaceClient
 	directory    *workspaces.Directory
 	billing      *billing.Client
 	defaults     values.Placement
@@ -48,11 +50,12 @@ type verdict struct {
 
 // New returns a worker that converges environments every interval. With a
 // nil billing client every environment gets the default placement and only
-// the abuse flag suspends.
-func New(environment environment.Interface, environments deployer.EnvironmentClient, directory *workspaces.Directory, billing *billing.Client, defaults, paid values.Placement, interval time.Duration, dryRun bool) *Worker {
+// the abuse flag suspends. With nil workspace releases, they are left alone.
+func New(environment environment.Interface, environments deployer.EnvironmentClient, workspaceReleases deployer.WorkspaceClient, directory *workspaces.Directory, billing *billing.Client, defaults, paid values.Placement, interval time.Duration, dryRun bool) *Worker {
 	return &Worker{
 		environment:  environment,
 		environments: environments,
+		workspaces:   workspaceReleases,
 		directory:    directory,
 		billing:      billing,
 		defaults:     defaults,
@@ -196,11 +199,60 @@ func (w *Worker) reconcile(ctx context.Context) error {
 		}
 	}
 
-	if applied > 0 || planned > 0 || len(suspend) > 0 || len(resume) > 0 {
-		slog.Info("release pass done", "applied", applied, "planned", planned, "suspended", len(suspend), "resumed", len(resume))
+	upgraded := w.upgradeWorkspaces(ctx)
+
+	if applied > 0 || planned > 0 || upgraded > 0 || len(suspend) > 0 || len(resume) > 0 {
+		slog.Info("release pass done", "applied", applied, "planned", planned, "workspaces", upgraded, "suspended", len(suspend), "resumed", len(resume))
 	}
 
 	return nil
+}
+
+func (w *Worker) upgradeWorkspaces(ctx context.Context) int {
+	if w.workspaces == nil {
+		return 0
+	}
+
+	names, err := w.workspaces.Workspaces(ctx)
+
+	if err != nil {
+		slog.Warn("release: failed to list workspace releases", "error", err)
+		return 0
+	}
+
+	upgraded := 0
+
+	for _, name := range names {
+		if ctx.Err() != nil {
+			return upgraded
+		}
+
+		outdated, err := w.workspaces.Outdated(ctx, name)
+
+		if err != nil {
+			slog.Warn("release: failed to read workspace chart version", "workspace", name, "error", err)
+			continue
+		}
+
+		if !outdated {
+			continue
+		}
+
+		if w.dryRun {
+			slog.Info("release: would upgrade workspace", "workspace", name)
+			continue
+		}
+
+		if err := w.workspaces.Upgrade(ctx, name); err != nil {
+			slog.Warn("release: failed to upgrade workspace", "workspace", name, "error", err)
+			continue
+		}
+
+		slog.Info("release: upgraded workspace", "workspace", name)
+		upgraded++
+	}
+
+	return upgraded
 }
 
 func (w *Worker) apply(ctx context.Context, id platform.EnvironmentID, verdict verdict, current, desired deployer.EnvironmentState, outdated bool) bool {

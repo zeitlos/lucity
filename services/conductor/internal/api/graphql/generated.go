@@ -35,8 +35,12 @@ func NewExecutableSchema(cfg Config) graphql.ExecutableSchema {
 type Config = graphql.Config[ResolverRoot, DirectiveRoot, ComplexityRoot]
 
 type ResolverRoot interface {
+	Agent() AgentResolver
+	AgentSession() AgentSessionResolver
+	Connector() ConnectorResolver
 	Database() DatabaseResolver
 	Environment() EnvironmentResolver
+	ModelProvider() ModelProviderResolver
 	Mutation() MutationResolver
 	Query() QueryResolver
 	Service() ServiceResolver
@@ -51,6 +55,101 @@ type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
+	Agent struct {
+		AllowedHosts   func(childComplexity int) int
+		Connectors     func(childComplexity int) int
+		Harness        func(childComplexity int) int
+		ID             func(childComplexity int) int
+		Instructions   func(childComplexity int) int
+		Name           func(childComplexity int) int
+		PrivateNetwork func(childComplexity int) int
+		Sessions       func(childComplexity int) int
+		Status         func(childComplexity int) int
+	}
+
+	AgentApproval struct {
+		Approval  func(childComplexity int) int
+		CallID    func(childComplexity int) int
+		DecidedBy func(childComplexity int) int
+		ID        func(childComplexity int) int
+		Status    func(childComplexity int) int
+		Time      func(childComplexity int) int
+		Title     func(childComplexity int) int
+	}
+
+	AgentAuditEntry struct {
+		Connector     func(childComplexity int) int
+		InputTokens   func(childComplexity int) int
+		Kind          func(childComplexity int) int
+		ModelProvider func(childComplexity int) int
+		OutputTokens  func(childComplexity int) int
+		Result        func(childComplexity int) int
+		Target        func(childComplexity int) int
+		Time          func(childComplexity int) int
+	}
+
+	AgentConnector struct {
+		Approval    func(childComplexity int) int
+		Connector   func(childComplexity int) int
+		HiddenTools func(childComplexity int) int
+	}
+
+	AgentMessage struct {
+		ID   func(childComplexity int) int
+		Text func(childComplexity int) int
+		Time func(childComplexity int) int
+	}
+
+	AgentModel struct {
+		Name     func(childComplexity int) int
+		Provider func(childComplexity int) int
+	}
+
+	AgentNotice struct {
+		Description func(childComplexity int) int
+		ID          func(childComplexity int) int
+		Severity    func(childComplexity int) int
+		Time        func(childComplexity int) int
+		Title       func(childComplexity int) int
+	}
+
+	AgentSession struct {
+		Effort    func(childComplexity int) int
+		Events    func(childComplexity int) int
+		ID        func(childComplexity int) int
+		Model     func(childComplexity int) int
+		StartedAt func(childComplexity int) int
+		StartedBy func(childComplexity int) int
+		Status    func(childComplexity int) int
+		Title     func(childComplexity int) int
+	}
+
+	AgentToolCall struct {
+		CallID    func(childComplexity int) int
+		Connector func(childComplexity int) int
+		ID        func(childComplexity int) int
+		Input     func(childComplexity int) int
+		Output    func(childComplexity int) int
+		Status    func(childComplexity int) int
+		Time      func(childComplexity int) int
+		Title     func(childComplexity int) int
+		Tool      func(childComplexity int) int
+	}
+
+	AgentTurnEnd struct {
+		Error  func(childComplexity int) int
+		ID     func(childComplexity int) int
+		Reason func(childComplexity int) int
+		Time   func(childComplexity int) int
+	}
+
+	AgentUserMessage struct {
+		Author func(childComplexity int) int
+		ID     func(childComplexity int) int
+		Text   func(childComplexity int) int
+		Time   func(childComplexity int) int
+	}
+
 	ApiToken struct {
 		CreatedAt func(childComplexity int) int
 		ID        func(childComplexity int) int
@@ -134,6 +233,22 @@ type ComplexityRoot struct {
 		Message func(childComplexity int) int
 		Sha     func(childComplexity int) int
 		URL     func(childComplexity int) int
+	}
+
+	Connector struct {
+		Agents         func(childComplexity int) int
+		CheckedAt      func(childComplexity int) int
+		CredentialHint func(childComplexity int) int
+		ID             func(childComplexity int) int
+		Name           func(childComplexity int) int
+		Status         func(childComplexity int) int
+		Tools          func(childComplexity int) int
+		URL            func(childComplexity int) int
+	}
+
+	ConnectorTool struct {
+		Description func(childComplexity int) int
+		Name        func(childComplexity int) int
 	}
 
 	CreatedApiToken struct {
@@ -304,6 +419,7 @@ type ComplexityRoot struct {
 	}
 
 	Environment struct {
+		Agents         func(childComplexity int) int
 		Buckets        func(childComplexity int) int
 		Databases      func(childComplexity int) int
 		ID             func(childComplexity int) int
@@ -390,70 +506,100 @@ type ComplexityRoot struct {
 		Unit    func(childComplexity int) int
 	}
 
+	ModelProvider struct {
+		API       func(childComplexity int) int
+		Agents    func(childComplexity int) int
+		CheckedAt func(childComplexity int) int
+		ID        func(childComplexity int) int
+		KeyHint   func(childComplexity int) int
+		Models    func(childComplexity int) int
+		Name      func(childComplexity int) int
+		Status    func(childComplexity int) int
+		URL       func(childComplexity int) int
+	}
+
 	Mount struct {
 		Path    func(childComplexity int) int
 		Service func(childComplexity int) int
 	}
 
 	Mutation struct {
-		AddCustomDomain           func(childComplexity int, service platform.ServiceID, hostname string, redirectTo *string) int
-		AddDatabaseAllowRule      func(childComplexity int, database platform.DatabaseID, rule model.DatabaseAllowRuleInput) int
-		AddService                func(childComplexity int, environment platform.EnvironmentID, input model.AddServiceInput) int
-		BillingPortalURL          func(childComplexity int) int
-		BucketObjectUploadURL     func(childComplexity int, bucket platform.BucketID, key string) int
-		CompletePlanCheckout      func(childComplexity int, sessionID string) int
-		CompleteWorkspaceCheckout func(childComplexity int, sessionID string) int
-		CreateAPIToken            func(childComplexity int, input model.CreateAPITokenInput) int
-		CreateBucket              func(childComplexity int, input model.CreateBucketInput) int
-		CreateDatabase            func(childComplexity int, input model.CreateDatabaseInput) int
-		CreateDatabaseBackup      func(childComplexity int, database platform.DatabaseID) int
-		CreateEnvironment         func(childComplexity int, input model.CreateEnvironmentInput) int
-		CreateKeyValueStore       func(childComplexity int, input model.CreateKeyValueStoreInput) int
-		CreateProject             func(childComplexity int, input model.CreateProjectInput) int
-		CreateVolume              func(childComplexity int, environment platform.EnvironmentID, name string, size string) int
-		CreateWorkspaceCheckout   func(childComplexity int, input model.CreateWorkspaceCheckoutInput) int
-		DeleteBucket              func(childComplexity int, bucket platform.BucketID) int
-		DeleteBucketObject        func(childComplexity int, bucket platform.BucketID, key string) int
-		DeleteDatabase            func(childComplexity int, database platform.DatabaseID) int
-		DeleteEnvironment         func(childComplexity int, environment platform.EnvironmentID) int
-		DeleteKeyValueStore       func(childComplexity int, keyValueStore platform.KeyValueStoreID) int
-		DeleteProject             func(childComplexity int, id platform.ProjectID) int
-		DeleteVolume              func(childComplexity int, volume platform.VolumeID) int
-		DeleteWorkspace           func(childComplexity int) int
-		Deploy                    func(childComplexity int, service platform.ServiceID, gitRef *string) int
-		ExecuteQuery              func(childComplexity int, database platform.DatabaseID, query string) int
-		ExpandVolume              func(childComplexity int, volume platform.VolumeID, size string) int
-		ExposeDatabase            func(childComplexity int, database platform.DatabaseID) int
-		GenerateDomain            func(childComplexity int, service platform.ServiceID) int
-		InviteMember              func(childComplexity int, input model.InviteMemberInput) int
-		MountVolume               func(childComplexity int, volume platform.VolumeID, service platform.ServiceID, path string) int
-		RemoveDatabaseAllowRule   func(childComplexity int, database platform.DatabaseID, rangeArg string) int
-		RemoveDomain              func(childComplexity int, service platform.ServiceID, hostname string) int
-		RemoveMember              func(childComplexity int, userID string) int
-		RemoveService             func(childComplexity int, service platform.ServiceID) int
-		RestoreDatabase           func(childComplexity int, input model.RestoreDatabaseInput) int
-		RevokeAPIToken            func(childComplexity int, id string) int
-		Rollback                  func(childComplexity int, deployment platform.DeploymentID) int
-		SelectPlan                func(childComplexity int, plan model.Plan) int
-		SetAutoDeploy             func(childComplexity int, service platform.ServiceID, enabled bool) int
-		SetBucketPublic           func(childComplexity int, bucket platform.BucketID, public bool) int
-		SetCIDeploy               func(childComplexity int, service platform.ServiceID, enabled bool) int
-		SetCustomStartCommand     func(childComplexity int, service platform.ServiceID, command string) int
-		SetDatabaseResources      func(childComplexity int, database platform.DatabaseID, resources model.ResourcesInput) int
-		SetDatabaseStorage        func(childComplexity int, database platform.DatabaseID, size string) int
-		SetEnvironmentResources   func(childComplexity int, input model.SetEnvironmentResourcesInput) int
-		SetServiceBranch          func(childComplexity int, service platform.ServiceID, branch *string) int
-		SetServiceHealthCheck     func(childComplexity int, service platform.ServiceID, healthCheck *model.HealthCheckInput) int
-		SetServicePort            func(childComplexity int, service platform.ServiceID, port *int) int
-		SetServiceResources       func(childComplexity int, service platform.ServiceID, resources model.ResourcesInput) int
-		SetServiceScaling         func(childComplexity int, input model.SetServiceScalingInput) int
-		SetServiceUser            func(childComplexity int, service platform.ServiceID, user *int) int
-		SetServiceVariables       func(childComplexity int, service platform.ServiceID, variables []model.ServiceVariableInput) int
-		SetSharedVariables        func(childComplexity int, environment platform.EnvironmentID, variables []model.VariableInput) int
-		UnexposeDatabase          func(childComplexity int, database platform.DatabaseID) int
-		UnmountVolume             func(childComplexity int, volume platform.VolumeID) int
-		UpdateMemberRole          func(childComplexity int, input model.UpdateMemberRoleInput) int
-		UpdateWorkspace           func(childComplexity int, input model.UpdateWorkspaceInput) int
+		AddCustomDomain            func(childComplexity int, service platform.ServiceID, hostname string, redirectTo *string) int
+		AddDatabaseAllowRule       func(childComplexity int, database platform.DatabaseID, rule model.DatabaseAllowRuleInput) int
+		AddService                 func(childComplexity int, environment platform.EnvironmentID, input model.AddServiceInput) int
+		AnswerAgentApproval        func(childComplexity int, session platform.AgentSessionID, approval string, decision model.AgentApprovalDecision) int
+		BillingPortalURL           func(childComplexity int) int
+		BucketObjectUploadURL      func(childComplexity int, bucket platform.BucketID, key string) int
+		CompletePlanCheckout       func(childComplexity int, sessionID string) int
+		CompleteWorkspaceCheckout  func(childComplexity int, sessionID string) int
+		CreateAPIToken             func(childComplexity int, input model.CreateAPITokenInput) int
+		CreateAgent                func(childComplexity int, environment platform.EnvironmentID, name string, harness model.Harness, instructions string, connectors []model.AgentConnectorInput) int
+		CreateBucket               func(childComplexity int, input model.CreateBucketInput) int
+		CreateConnector            func(childComplexity int, name string, url string, credential *string) int
+		CreateDatabase             func(childComplexity int, input model.CreateDatabaseInput) int
+		CreateDatabaseBackup       func(childComplexity int, database platform.DatabaseID) int
+		CreateEnvironment          func(childComplexity int, input model.CreateEnvironmentInput) int
+		CreateKeyValueStore        func(childComplexity int, input model.CreateKeyValueStoreInput) int
+		CreateModelProvider        func(childComplexity int, name string, api model.ModelAPI, url *string, apiKey string) int
+		CreateProject              func(childComplexity int, input model.CreateProjectInput) int
+		CreateVolume               func(childComplexity int, environment platform.EnvironmentID, name string, size string) int
+		CreateWorkspaceCheckout    func(childComplexity int, input model.CreateWorkspaceCheckoutInput) int
+		DeleteAgent                func(childComplexity int, agent platform.AgentID) int
+		DeleteBucket               func(childComplexity int, bucket platform.BucketID) int
+		DeleteBucketObject         func(childComplexity int, bucket platform.BucketID, key string) int
+		DeleteConnector            func(childComplexity int, connector platform.ConnectorID) int
+		DeleteDatabase             func(childComplexity int, database platform.DatabaseID) int
+		DeleteEnvironment          func(childComplexity int, environment platform.EnvironmentID) int
+		DeleteKeyValueStore        func(childComplexity int, keyValueStore platform.KeyValueStoreID) int
+		DeleteModelProvider        func(childComplexity int, provider platform.ModelProviderID) int
+		DeleteProject              func(childComplexity int, id platform.ProjectID) int
+		DeleteVolume               func(childComplexity int, volume platform.VolumeID) int
+		DeleteWorkspace            func(childComplexity int) int
+		Deploy                     func(childComplexity int, service platform.ServiceID, gitRef *string) int
+		ExecuteQuery               func(childComplexity int, database platform.DatabaseID, query string) int
+		ExpandVolume               func(childComplexity int, volume platform.VolumeID, size string) int
+		ExposeDatabase             func(childComplexity int, database platform.DatabaseID) int
+		GenerateDomain             func(childComplexity int, service platform.ServiceID) int
+		InviteMember               func(childComplexity int, input model.InviteMemberInput) int
+		MountVolume                func(childComplexity int, volume platform.VolumeID, service platform.ServiceID, path string) int
+		RefreshConnector           func(childComplexity int, connector platform.ConnectorID) int
+		RefreshModelProvider       func(childComplexity int, provider platform.ModelProviderID) int
+		RemoveDatabaseAllowRule    func(childComplexity int, database platform.DatabaseID, rangeArg string) int
+		RemoveDomain               func(childComplexity int, service platform.ServiceID, hostname string) int
+		RemoveMember               func(childComplexity int, userID string) int
+		RemoveService              func(childComplexity int, service platform.ServiceID) int
+		ReplaceConnectorCredential func(childComplexity int, connector platform.ConnectorID, credential string) int
+		ReplaceModelProviderKey    func(childComplexity int, provider platform.ModelProviderID, apiKey string) int
+		RestoreDatabase            func(childComplexity int, input model.RestoreDatabaseInput) int
+		RevokeAPIToken             func(childComplexity int, id string) int
+		Rollback                   func(childComplexity int, deployment platform.DeploymentID) int
+		SelectPlan                 func(childComplexity int, plan model.Plan) int
+		SendAgentMessage           func(childComplexity int, session platform.AgentSessionID, message string) int
+		SetAgentConnectors         func(childComplexity int, agent platform.AgentID, connectors []model.AgentConnectorInput) int
+		SetAgentNetwork            func(childComplexity int, agent platform.AgentID, allowedHosts []string, privateNetwork bool) int
+		SetAgentSessionModel       func(childComplexity int, session platform.AgentSessionID, model model.AgentModelInput, effort model.Effort) int
+		SetAutoDeploy              func(childComplexity int, service platform.ServiceID, enabled bool) int
+		SetBucketPublic            func(childComplexity int, bucket platform.BucketID, public bool) int
+		SetCIDeploy                func(childComplexity int, service platform.ServiceID, enabled bool) int
+		SetCustomStartCommand      func(childComplexity int, service platform.ServiceID, command string) int
+		SetDatabaseResources       func(childComplexity int, database platform.DatabaseID, resources model.ResourcesInput) int
+		SetDatabaseStorage         func(childComplexity int, database platform.DatabaseID, size string) int
+		SetEnvironmentResources    func(childComplexity int, input model.SetEnvironmentResourcesInput) int
+		SetServiceBranch           func(childComplexity int, service platform.ServiceID, branch *string) int
+		SetServiceHealthCheck      func(childComplexity int, service platform.ServiceID, healthCheck *model.HealthCheckInput) int
+		SetServicePort             func(childComplexity int, service platform.ServiceID, port *int) int
+		SetServiceResources        func(childComplexity int, service platform.ServiceID, resources model.ResourcesInput) int
+		SetServiceScaling          func(childComplexity int, input model.SetServiceScalingInput) int
+		SetServiceUser             func(childComplexity int, service platform.ServiceID, user *int) int
+		SetServiceVariables        func(childComplexity int, service platform.ServiceID, variables []model.ServiceVariableInput) int
+		SetSharedVariables         func(childComplexity int, environment platform.EnvironmentID, variables []model.VariableInput) int
+		StartAgentSession          func(childComplexity int, agent platform.AgentID, message string, model *model.AgentModelInput, effort *model.Effort) int
+		StopAgentSession           func(childComplexity int, session platform.AgentSessionID) int
+		UnexposeDatabase           func(childComplexity int, database platform.DatabaseID) int
+		UnmountVolume              func(childComplexity int, volume platform.VolumeID) int
+		UpdateAgent                func(childComplexity int, agent platform.AgentID, harness model.Harness, instructions string) int
+		UpdateMemberRole           func(childComplexity int, input model.UpdateMemberRoleInput) int
+		UpdateWorkspace            func(childComplexity int, input model.UpdateWorkspaceInput) int
 	}
 
 	PlanSelection struct {
@@ -469,6 +615,10 @@ type ComplexityRoot struct {
 
 	Query struct {
 		APITokens                func(childComplexity int) int
+		Agent                    func(childComplexity int, id platform.AgentID) int
+		AgentAudit               func(childComplexity int, agent platform.AgentID, kinds []model.AgentAuditKind, since *time.Time) int
+		AgentModels              func(childComplexity int, agent platform.AgentID) int
+		AgentSession             func(childComplexity int, id platform.AgentSessionID) int
 		AvailableVariables       func(childComplexity int, environment platform.EnvironmentID) int
 		Bucket                   func(childComplexity int, id platform.BucketID) int
 		BucketCredentials        func(childComplexity int, bucket platform.BucketID) int
@@ -476,6 +626,8 @@ type ComplexityRoot struct {
 		BucketObjects            func(childComplexity int, bucket platform.BucketID, prefix *string) int
 		Build                    func(childComplexity int, id buildjob.BuildID) int
 		ClientAddress            func(childComplexity int) int
+		Connector                func(childComplexity int, id platform.ConnectorID) int
+		Connectors               func(childComplexity int) int
 		Database                 func(childComplexity int, id platform.DatabaseID) int
 		DatabaseCredentials      func(childComplexity int, database platform.DatabaseID) int
 		DatabaseTableData        func(childComplexity int, database platform.DatabaseID, table string, schema *string, limit *int, offset *int) int
@@ -491,6 +643,8 @@ type ComplexityRoot struct {
 		KeyValueStore            func(childComplexity int, id platform.KeyValueStoreID) int
 		KeyValueStoreCredentials func(childComplexity int, keyValueStore platform.KeyValueStoreID) int
 		Me                       func(childComplexity int) int
+		ModelProvider            func(childComplexity int, id platform.ModelProviderID) int
+		ModelProviders           func(childComplexity int) int
 		Project                  func(childComplexity int, id platform.ProjectID) int
 		Projects                 func(childComplexity int) int
 		RepositoryBranches       func(childComplexity int, repositoryURL string) int
@@ -627,10 +781,11 @@ type ComplexityRoot struct {
 	}
 
 	Subscription struct {
-		BuildLogs   func(childComplexity int, id buildjob.BuildID) int
-		DeployLogs  func(childComplexity int, id deployjob.DeployID) int
-		ScanLogs    func(childComplexity int, id scanjob.ScanID) int
-		ServiceLogs func(childComplexity int, service platform.ServiceID, tailLines *int) int
+		AgentSessionEvents func(childComplexity int, session platform.AgentSessionID, after *string) int
+		BuildLogs          func(childComplexity int, id buildjob.BuildID) int
+		DeployLogs         func(childComplexity int, id deployjob.DeployID) int
+		ScanLogs           func(childComplexity int, id scanjob.ScanID) int
+		ServiceLogs        func(childComplexity int, service platform.ServiceID, tailLines *int) int
 	}
 
 	UsageSummary struct {
@@ -717,6 +872,17 @@ type ComplexityRoot struct {
 
 // region    ************************** generated!.gotpl **************************
 
+type AgentResolver interface {
+	Status(ctx context.Context, obj *model.Agent) (model.AgentStatus, error)
+
+	Sessions(ctx context.Context, obj *model.Agent) ([]model.AgentSession, error)
+}
+type AgentSessionResolver interface {
+	Events(ctx context.Context, obj *model.AgentSession) ([]model.AgentSessionEvent, error)
+}
+type ConnectorResolver interface {
+	Agents(ctx context.Context, obj *model.Connector) ([]model.Agent, error)
+}
 type DatabaseResolver interface {
 	AllowRules(ctx context.Context, obj *model.Database) ([]model.DatabaseAllowRule, error)
 	Backups(ctx context.Context, obj *model.Database) (*model.DatabaseBackups, error)
@@ -728,10 +894,24 @@ type EnvironmentResolver interface {
 	Services(ctx context.Context, obj *model.Environment) ([]model.Service, error)
 	Databases(ctx context.Context, obj *model.Environment) ([]model.Database, error)
 	Volumes(ctx context.Context, obj *model.Environment) ([]model.Volume, error)
+	Agents(ctx context.Context, obj *model.Environment) ([]model.Agent, error)
 	KeyValueStores(ctx context.Context, obj *model.Environment) ([]model.KeyValueStore, error)
 	Buckets(ctx context.Context, obj *model.Environment) ([]model.Bucket, error)
 }
+type ModelProviderResolver interface {
+	Agents(ctx context.Context, obj *model.ModelProvider) ([]model.Agent, error)
+}
 type MutationResolver interface {
+	CreateAgent(ctx context.Context, environment platform.EnvironmentID, name string, harness model.Harness, instructions string, connectors []model.AgentConnectorInput) (*model.Agent, error)
+	UpdateAgent(ctx context.Context, agent platform.AgentID, harness model.Harness, instructions string) (*model.Agent, error)
+	SetAgentConnectors(ctx context.Context, agent platform.AgentID, connectors []model.AgentConnectorInput) (*model.Agent, error)
+	SetAgentNetwork(ctx context.Context, agent platform.AgentID, allowedHosts []string, privateNetwork bool) (*model.Agent, error)
+	DeleteAgent(ctx context.Context, agent platform.AgentID) (bool, error)
+	StartAgentSession(ctx context.Context, agent platform.AgentID, message string, model *model.AgentModelInput, effort *model.Effort) (*model.AgentSession, error)
+	SetAgentSessionModel(ctx context.Context, session platform.AgentSessionID, model model.AgentModelInput, effort model.Effort) (*model.AgentSession, error)
+	SendAgentMessage(ctx context.Context, session platform.AgentSessionID, message string) (*model.AgentSession, error)
+	AnswerAgentApproval(ctx context.Context, session platform.AgentSessionID, approval string, decision model.AgentApprovalDecision) (*model.AgentSession, error)
+	StopAgentSession(ctx context.Context, session platform.AgentSessionID) (*model.AgentSession, error)
 	CreateAPIToken(ctx context.Context, input model.CreateAPITokenInput) (*model.CreatedAPIToken, error)
 	RevokeAPIToken(ctx context.Context, id string) (bool, error)
 	CreateDatabaseBackup(ctx context.Context, database platform.DatabaseID) (*model.DatabaseBackup, error)
@@ -740,6 +920,10 @@ type MutationResolver interface {
 	SelectPlan(ctx context.Context, plan model.Plan) (*model.PlanSelection, error)
 	BillingPortalURL(ctx context.Context) (*model.BillingPortalURL, error)
 	CompletePlanCheckout(ctx context.Context, sessionID string) (*model.BillingSubscription, error)
+	CreateConnector(ctx context.Context, name string, url string, credential *string) (*model.Connector, error)
+	ReplaceConnectorCredential(ctx context.Context, connector platform.ConnectorID, credential string) (*model.Connector, error)
+	RefreshConnector(ctx context.Context, connector platform.ConnectorID) (*model.Connector, error)
+	DeleteConnector(ctx context.Context, connector platform.ConnectorID) (bool, error)
 	CreateDatabase(ctx context.Context, input model.CreateDatabaseInput) (*model.Database, error)
 	SetDatabaseResources(ctx context.Context, database platform.DatabaseID, resources model.ResourcesInput) (*model.Database, error)
 	SetDatabaseStorage(ctx context.Context, database platform.DatabaseID, size string) (*model.Database, error)
@@ -753,6 +937,10 @@ type MutationResolver interface {
 	DeleteEnvironment(ctx context.Context, environment platform.EnvironmentID) (bool, error)
 	CreateKeyValueStore(ctx context.Context, input model.CreateKeyValueStoreInput) (*model.KeyValueStore, error)
 	DeleteKeyValueStore(ctx context.Context, keyValueStore platform.KeyValueStoreID) (bool, error)
+	CreateModelProvider(ctx context.Context, name string, api model.ModelAPI, url *string, apiKey string) (*model.ModelProvider, error)
+	ReplaceModelProviderKey(ctx context.Context, provider platform.ModelProviderID, apiKey string) (*model.ModelProvider, error)
+	RefreshModelProvider(ctx context.Context, provider platform.ModelProviderID) (*model.ModelProvider, error)
+	DeleteModelProvider(ctx context.Context, provider platform.ModelProviderID) (bool, error)
 	CreateBucket(ctx context.Context, input model.CreateBucketInput) (*model.Bucket, error)
 	DeleteBucket(ctx context.Context, bucket platform.BucketID) (bool, error)
 	SetBucketPublic(ctx context.Context, bucket platform.BucketID, public bool) (*model.Bucket, error)
@@ -792,10 +980,16 @@ type MutationResolver interface {
 	UpdateMemberRole(ctx context.Context, input model.UpdateMemberRoleInput) (*model.WorkspaceMember, error)
 }
 type QueryResolver interface {
+	Agent(ctx context.Context, id platform.AgentID) (*model.Agent, error)
+	AgentModels(ctx context.Context, agent platform.AgentID) ([]model.AgentModel, error)
+	AgentAudit(ctx context.Context, agent platform.AgentID, kinds []model.AgentAuditKind, since *time.Time) ([]model.AgentAuditEntry, error)
+	AgentSession(ctx context.Context, id platform.AgentSessionID) (*model.AgentSession, error)
 	APITokens(ctx context.Context) ([]model.APIToken, error)
 	Me(ctx context.Context) (*model.User, error)
 	Subscription(ctx context.Context) (*model.BillingSubscription, error)
 	UsageSummary(ctx context.Context) (*model.UsageSummary, error)
+	Connectors(ctx context.Context) ([]model.Connector, error)
+	Connector(ctx context.Context, id platform.ConnectorID) (*model.Connector, error)
 	Database(ctx context.Context, id platform.DatabaseID) (*model.Database, error)
 	DatabaseTables(ctx context.Context, database platform.DatabaseID) ([]model.DatabaseTable, error)
 	DatabaseTableData(ctx context.Context, database platform.DatabaseID, table string, schema *string, limit *int, offset *int) (*model.DatabaseTableData, error)
@@ -809,6 +1003,8 @@ type QueryResolver interface {
 	GithubConnected(ctx context.Context) (bool, error)
 	KeyValueStore(ctx context.Context, id platform.KeyValueStoreID) (*model.KeyValueStore, error)
 	KeyValueStoreCredentials(ctx context.Context, keyValueStore platform.KeyValueStoreID) ([]model.KeyValueStoreCredentials, error)
+	ModelProviders(ctx context.Context) ([]model.ModelProvider, error)
+	ModelProvider(ctx context.Context, id platform.ModelProviderID) (*model.ModelProvider, error)
 	Bucket(ctx context.Context, id platform.BucketID) (*model.Bucket, error)
 	BucketCredentials(ctx context.Context, bucket platform.BucketID) (*model.BucketCredentials, error)
 	BucketObjects(ctx context.Context, bucket platform.BucketID, prefix *string) (*model.BucketObjectListing, error)
@@ -842,6 +1038,7 @@ type ServiceResolver interface {
 	VulnerabilityReport(ctx context.Context, obj *model.Service) (*model.VulnerabilityReport, error)
 }
 type SubscriptionResolver interface {
+	AgentSessionEvents(ctx context.Context, session platform.AgentSessionID, after *string) (<-chan model.AgentSessionEvent, error)
 	ServiceLogs(ctx context.Context, service platform.ServiceID, tailLines *int) (<-chan *model.ServiceLogEntry, error)
 	BuildLogs(ctx context.Context, id buildjob.BuildID) (<-chan string, error)
 	DeployLogs(ctx context.Context, id deployjob.DeployID) (<-chan string, error)
@@ -868,6 +1065,389 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 	ec := newExecutionContext(nil, e, nil)
 	_ = ec
 	switch typeName + "." + field {
+
+	case "Agent.allowedHosts":
+		if e.ComplexityRoot.Agent.AllowedHosts == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Agent.AllowedHosts(childComplexity), true
+	case "Agent.connectors":
+		if e.ComplexityRoot.Agent.Connectors == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Agent.Connectors(childComplexity), true
+	case "Agent.harness":
+		if e.ComplexityRoot.Agent.Harness == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Agent.Harness(childComplexity), true
+	case "Agent.id":
+		if e.ComplexityRoot.Agent.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Agent.ID(childComplexity), true
+	case "Agent.instructions":
+		if e.ComplexityRoot.Agent.Instructions == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Agent.Instructions(childComplexity), true
+	case "Agent.name":
+		if e.ComplexityRoot.Agent.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Agent.Name(childComplexity), true
+	case "Agent.privateNetwork":
+		if e.ComplexityRoot.Agent.PrivateNetwork == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Agent.PrivateNetwork(childComplexity), true
+	case "Agent.sessions":
+		if e.ComplexityRoot.Agent.Sessions == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Agent.Sessions(childComplexity), true
+	case "Agent.status":
+		if e.ComplexityRoot.Agent.Status == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Agent.Status(childComplexity), true
+
+	case "AgentApproval.approval":
+		if e.ComplexityRoot.AgentApproval.Approval == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentApproval.Approval(childComplexity), true
+	case "AgentApproval.callId":
+		if e.ComplexityRoot.AgentApproval.CallID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentApproval.CallID(childComplexity), true
+	case "AgentApproval.decidedBy":
+		if e.ComplexityRoot.AgentApproval.DecidedBy == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentApproval.DecidedBy(childComplexity), true
+	case "AgentApproval.id":
+		if e.ComplexityRoot.AgentApproval.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentApproval.ID(childComplexity), true
+	case "AgentApproval.status":
+		if e.ComplexityRoot.AgentApproval.Status == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentApproval.Status(childComplexity), true
+	case "AgentApproval.time":
+		if e.ComplexityRoot.AgentApproval.Time == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentApproval.Time(childComplexity), true
+	case "AgentApproval.title":
+		if e.ComplexityRoot.AgentApproval.Title == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentApproval.Title(childComplexity), true
+
+	case "AgentAuditEntry.connector":
+		if e.ComplexityRoot.AgentAuditEntry.Connector == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentAuditEntry.Connector(childComplexity), true
+	case "AgentAuditEntry.inputTokens":
+		if e.ComplexityRoot.AgentAuditEntry.InputTokens == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentAuditEntry.InputTokens(childComplexity), true
+	case "AgentAuditEntry.kind":
+		if e.ComplexityRoot.AgentAuditEntry.Kind == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentAuditEntry.Kind(childComplexity), true
+	case "AgentAuditEntry.modelProvider":
+		if e.ComplexityRoot.AgentAuditEntry.ModelProvider == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentAuditEntry.ModelProvider(childComplexity), true
+	case "AgentAuditEntry.outputTokens":
+		if e.ComplexityRoot.AgentAuditEntry.OutputTokens == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentAuditEntry.OutputTokens(childComplexity), true
+	case "AgentAuditEntry.result":
+		if e.ComplexityRoot.AgentAuditEntry.Result == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentAuditEntry.Result(childComplexity), true
+	case "AgentAuditEntry.target":
+		if e.ComplexityRoot.AgentAuditEntry.Target == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentAuditEntry.Target(childComplexity), true
+	case "AgentAuditEntry.time":
+		if e.ComplexityRoot.AgentAuditEntry.Time == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentAuditEntry.Time(childComplexity), true
+
+	case "AgentConnector.approval":
+		if e.ComplexityRoot.AgentConnector.Approval == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentConnector.Approval(childComplexity), true
+	case "AgentConnector.connector":
+		if e.ComplexityRoot.AgentConnector.Connector == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentConnector.Connector(childComplexity), true
+	case "AgentConnector.hiddenTools":
+		if e.ComplexityRoot.AgentConnector.HiddenTools == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentConnector.HiddenTools(childComplexity), true
+
+	case "AgentMessage.id":
+		if e.ComplexityRoot.AgentMessage.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentMessage.ID(childComplexity), true
+	case "AgentMessage.text":
+		if e.ComplexityRoot.AgentMessage.Text == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentMessage.Text(childComplexity), true
+	case "AgentMessage.time":
+		if e.ComplexityRoot.AgentMessage.Time == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentMessage.Time(childComplexity), true
+
+	case "AgentModel.name":
+		if e.ComplexityRoot.AgentModel.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentModel.Name(childComplexity), true
+	case "AgentModel.provider":
+		if e.ComplexityRoot.AgentModel.Provider == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentModel.Provider(childComplexity), true
+
+	case "AgentNotice.description":
+		if e.ComplexityRoot.AgentNotice.Description == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentNotice.Description(childComplexity), true
+	case "AgentNotice.id":
+		if e.ComplexityRoot.AgentNotice.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentNotice.ID(childComplexity), true
+	case "AgentNotice.severity":
+		if e.ComplexityRoot.AgentNotice.Severity == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentNotice.Severity(childComplexity), true
+	case "AgentNotice.time":
+		if e.ComplexityRoot.AgentNotice.Time == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentNotice.Time(childComplexity), true
+	case "AgentNotice.title":
+		if e.ComplexityRoot.AgentNotice.Title == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentNotice.Title(childComplexity), true
+
+	case "AgentSession.effort":
+		if e.ComplexityRoot.AgentSession.Effort == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentSession.Effort(childComplexity), true
+	case "AgentSession.events":
+		if e.ComplexityRoot.AgentSession.Events == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentSession.Events(childComplexity), true
+	case "AgentSession.id":
+		if e.ComplexityRoot.AgentSession.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentSession.ID(childComplexity), true
+	case "AgentSession.model":
+		if e.ComplexityRoot.AgentSession.Model == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentSession.Model(childComplexity), true
+	case "AgentSession.startedAt":
+		if e.ComplexityRoot.AgentSession.StartedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentSession.StartedAt(childComplexity), true
+	case "AgentSession.startedBy":
+		if e.ComplexityRoot.AgentSession.StartedBy == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentSession.StartedBy(childComplexity), true
+	case "AgentSession.status":
+		if e.ComplexityRoot.AgentSession.Status == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentSession.Status(childComplexity), true
+	case "AgentSession.title":
+		if e.ComplexityRoot.AgentSession.Title == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentSession.Title(childComplexity), true
+
+	case "AgentToolCall.callId":
+		if e.ComplexityRoot.AgentToolCall.CallID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentToolCall.CallID(childComplexity), true
+	case "AgentToolCall.connector":
+		if e.ComplexityRoot.AgentToolCall.Connector == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentToolCall.Connector(childComplexity), true
+	case "AgentToolCall.id":
+		if e.ComplexityRoot.AgentToolCall.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentToolCall.ID(childComplexity), true
+	case "AgentToolCall.input":
+		if e.ComplexityRoot.AgentToolCall.Input == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentToolCall.Input(childComplexity), true
+	case "AgentToolCall.output":
+		if e.ComplexityRoot.AgentToolCall.Output == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentToolCall.Output(childComplexity), true
+	case "AgentToolCall.status":
+		if e.ComplexityRoot.AgentToolCall.Status == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentToolCall.Status(childComplexity), true
+	case "AgentToolCall.time":
+		if e.ComplexityRoot.AgentToolCall.Time == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentToolCall.Time(childComplexity), true
+	case "AgentToolCall.title":
+		if e.ComplexityRoot.AgentToolCall.Title == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentToolCall.Title(childComplexity), true
+	case "AgentToolCall.tool":
+		if e.ComplexityRoot.AgentToolCall.Tool == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentToolCall.Tool(childComplexity), true
+
+	case "AgentTurnEnd.error":
+		if e.ComplexityRoot.AgentTurnEnd.Error == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentTurnEnd.Error(childComplexity), true
+	case "AgentTurnEnd.id":
+		if e.ComplexityRoot.AgentTurnEnd.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentTurnEnd.ID(childComplexity), true
+	case "AgentTurnEnd.reason":
+		if e.ComplexityRoot.AgentTurnEnd.Reason == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentTurnEnd.Reason(childComplexity), true
+	case "AgentTurnEnd.time":
+		if e.ComplexityRoot.AgentTurnEnd.Time == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentTurnEnd.Time(childComplexity), true
+
+	case "AgentUserMessage.author":
+		if e.ComplexityRoot.AgentUserMessage.Author == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentUserMessage.Author(childComplexity), true
+	case "AgentUserMessage.id":
+		if e.ComplexityRoot.AgentUserMessage.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentUserMessage.ID(childComplexity), true
+	case "AgentUserMessage.text":
+		if e.ComplexityRoot.AgentUserMessage.Text == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentUserMessage.Text(childComplexity), true
+	case "AgentUserMessage.time":
+		if e.ComplexityRoot.AgentUserMessage.Time == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentUserMessage.Time(childComplexity), true
 
 	case "ApiToken.createdAt":
 		if e.ComplexityRoot.ApiToken.CreatedAt == nil {
@@ -1157,6 +1737,68 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Commit.URL(childComplexity), true
+
+	case "Connector.agents":
+		if e.ComplexityRoot.Connector.Agents == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Connector.Agents(childComplexity), true
+	case "Connector.checkedAt":
+		if e.ComplexityRoot.Connector.CheckedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Connector.CheckedAt(childComplexity), true
+	case "Connector.credentialHint":
+		if e.ComplexityRoot.Connector.CredentialHint == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Connector.CredentialHint(childComplexity), true
+	case "Connector.id":
+		if e.ComplexityRoot.Connector.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Connector.ID(childComplexity), true
+	case "Connector.name":
+		if e.ComplexityRoot.Connector.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Connector.Name(childComplexity), true
+	case "Connector.status":
+		if e.ComplexityRoot.Connector.Status == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Connector.Status(childComplexity), true
+	case "Connector.tools":
+		if e.ComplexityRoot.Connector.Tools == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Connector.Tools(childComplexity), true
+	case "Connector.url":
+		if e.ComplexityRoot.Connector.URL == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Connector.URL(childComplexity), true
+
+	case "ConnectorTool.description":
+		if e.ComplexityRoot.ConnectorTool.Description == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ConnectorTool.Description(childComplexity), true
+	case "ConnectorTool.name":
+		if e.ComplexityRoot.ConnectorTool.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ConnectorTool.Name(childComplexity), true
 
 	case "CreatedApiToken.apiToken":
 		if e.ComplexityRoot.CreatedApiToken.APIToken == nil {
@@ -1825,6 +2467,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Endpoint.Type(childComplexity), true
 
+	case "Environment.agents":
+		if e.ComplexityRoot.Environment.Agents == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Environment.Agents(childComplexity), true
 	case "Environment.buckets":
 		if e.ComplexityRoot.Environment.Buckets == nil {
 			break
@@ -2160,6 +2808,61 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.MetricSeries.Unit(childComplexity), true
 
+	case "ModelProvider.api":
+		if e.ComplexityRoot.ModelProvider.API == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModelProvider.API(childComplexity), true
+	case "ModelProvider.agents":
+		if e.ComplexityRoot.ModelProvider.Agents == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModelProvider.Agents(childComplexity), true
+	case "ModelProvider.checkedAt":
+		if e.ComplexityRoot.ModelProvider.CheckedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModelProvider.CheckedAt(childComplexity), true
+	case "ModelProvider.id":
+		if e.ComplexityRoot.ModelProvider.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModelProvider.ID(childComplexity), true
+	case "ModelProvider.keyHint":
+		if e.ComplexityRoot.ModelProvider.KeyHint == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModelProvider.KeyHint(childComplexity), true
+	case "ModelProvider.models":
+		if e.ComplexityRoot.ModelProvider.Models == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModelProvider.Models(childComplexity), true
+	case "ModelProvider.name":
+		if e.ComplexityRoot.ModelProvider.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModelProvider.Name(childComplexity), true
+	case "ModelProvider.status":
+		if e.ComplexityRoot.ModelProvider.Status == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModelProvider.Status(childComplexity), true
+	case "ModelProvider.url":
+		if e.ComplexityRoot.ModelProvider.URL == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModelProvider.URL(childComplexity), true
+
 	case "Mount.path":
 		if e.ComplexityRoot.Mount.Path == nil {
 			break
@@ -2206,6 +2909,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.AddService(childComplexity, args["environment"].(platform.EnvironmentID), args["input"].(model.AddServiceInput)), true
+	case "Mutation.answerAgentApproval":
+		if e.ComplexityRoot.Mutation.AnswerAgentApproval == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_answerAgentApproval_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.AnswerAgentApproval(childComplexity, args["session"].(platform.AgentSessionID), args["approval"].(string), args["decision"].(model.AgentApprovalDecision)), true
 	case "Mutation.billingPortalUrl":
 		if e.ComplexityRoot.Mutation.BillingPortalURL == nil {
 			break
@@ -2256,6 +2970,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CreateAPIToken(childComplexity, args["input"].(model.CreateAPITokenInput)), true
+	case "Mutation.createAgent":
+		if e.ComplexityRoot.Mutation.CreateAgent == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createAgent_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.CreateAgent(childComplexity, args["environment"].(platform.EnvironmentID), args["name"].(string), args["harness"].(model.Harness), args["instructions"].(string), args["connectors"].([]model.AgentConnectorInput)), true
 	case "Mutation.createBucket":
 		if e.ComplexityRoot.Mutation.CreateBucket == nil {
 			break
@@ -2267,6 +2992,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CreateBucket(childComplexity, args["input"].(model.CreateBucketInput)), true
+	case "Mutation.createConnector":
+		if e.ComplexityRoot.Mutation.CreateConnector == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createConnector_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.CreateConnector(childComplexity, args["name"].(string), args["url"].(string), args["credential"].(*string)), true
 	case "Mutation.createDatabase":
 		if e.ComplexityRoot.Mutation.CreateDatabase == nil {
 			break
@@ -2311,6 +3047,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CreateKeyValueStore(childComplexity, args["input"].(model.CreateKeyValueStoreInput)), true
+	case "Mutation.createModelProvider":
+		if e.ComplexityRoot.Mutation.CreateModelProvider == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createModelProvider_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.CreateModelProvider(childComplexity, args["name"].(string), args["api"].(model.ModelAPI), args["url"].(*string), args["apiKey"].(string)), true
 	case "Mutation.createProject":
 		if e.ComplexityRoot.Mutation.CreateProject == nil {
 			break
@@ -2344,6 +3091,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CreateWorkspaceCheckout(childComplexity, args["input"].(model.CreateWorkspaceCheckoutInput)), true
+	case "Mutation.deleteAgent":
+		if e.ComplexityRoot.Mutation.DeleteAgent == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteAgent_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.DeleteAgent(childComplexity, args["agent"].(platform.AgentID)), true
 	case "Mutation.deleteBucket":
 		if e.ComplexityRoot.Mutation.DeleteBucket == nil {
 			break
@@ -2366,6 +3124,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.DeleteBucketObject(childComplexity, args["bucket"].(platform.BucketID), args["key"].(string)), true
+	case "Mutation.deleteConnector":
+		if e.ComplexityRoot.Mutation.DeleteConnector == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteConnector_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.DeleteConnector(childComplexity, args["connector"].(platform.ConnectorID)), true
 	case "Mutation.deleteDatabase":
 		if e.ComplexityRoot.Mutation.DeleteDatabase == nil {
 			break
@@ -2399,6 +3168,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.DeleteKeyValueStore(childComplexity, args["keyValueStore"].(platform.KeyValueStoreID)), true
+	case "Mutation.deleteModelProvider":
+		if e.ComplexityRoot.Mutation.DeleteModelProvider == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteModelProvider_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.DeleteModelProvider(childComplexity, args["provider"].(platform.ModelProviderID)), true
 	case "Mutation.deleteProject":
 		if e.ComplexityRoot.Mutation.DeleteProject == nil {
 			break
@@ -2504,6 +3284,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.MountVolume(childComplexity, args["volume"].(platform.VolumeID), args["service"].(platform.ServiceID), args["path"].(string)), true
+	case "Mutation.refreshConnector":
+		if e.ComplexityRoot.Mutation.RefreshConnector == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_refreshConnector_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.RefreshConnector(childComplexity, args["connector"].(platform.ConnectorID)), true
+	case "Mutation.refreshModelProvider":
+		if e.ComplexityRoot.Mutation.RefreshModelProvider == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_refreshModelProvider_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.RefreshModelProvider(childComplexity, args["provider"].(platform.ModelProviderID)), true
 	case "Mutation.removeDatabaseAllowRule":
 		if e.ComplexityRoot.Mutation.RemoveDatabaseAllowRule == nil {
 			break
@@ -2548,6 +3350,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.RemoveService(childComplexity, args["service"].(platform.ServiceID)), true
+	case "Mutation.replaceConnectorCredential":
+		if e.ComplexityRoot.Mutation.ReplaceConnectorCredential == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_replaceConnectorCredential_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.ReplaceConnectorCredential(childComplexity, args["connector"].(platform.ConnectorID), args["credential"].(string)), true
+	case "Mutation.replaceModelProviderKey":
+		if e.ComplexityRoot.Mutation.ReplaceModelProviderKey == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_replaceModelProviderKey_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.ReplaceModelProviderKey(childComplexity, args["provider"].(platform.ModelProviderID), args["apiKey"].(string)), true
 	case "Mutation.restoreDatabase":
 		if e.ComplexityRoot.Mutation.RestoreDatabase == nil {
 			break
@@ -2592,6 +3416,50 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SelectPlan(childComplexity, args["plan"].(model.Plan)), true
+	case "Mutation.sendAgentMessage":
+		if e.ComplexityRoot.Mutation.SendAgentMessage == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_sendAgentMessage_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SendAgentMessage(childComplexity, args["session"].(platform.AgentSessionID), args["message"].(string)), true
+	case "Mutation.setAgentConnectors":
+		if e.ComplexityRoot.Mutation.SetAgentConnectors == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setAgentConnectors_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetAgentConnectors(childComplexity, args["agent"].(platform.AgentID), args["connectors"].([]model.AgentConnectorInput)), true
+	case "Mutation.setAgentNetwork":
+		if e.ComplexityRoot.Mutation.SetAgentNetwork == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setAgentNetwork_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetAgentNetwork(childComplexity, args["agent"].(platform.AgentID), args["allowedHosts"].([]string), args["privateNetwork"].(bool)), true
+	case "Mutation.setAgentSessionModel":
+		if e.ComplexityRoot.Mutation.SetAgentSessionModel == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setAgentSessionModel_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetAgentSessionModel(childComplexity, args["session"].(platform.AgentSessionID), args["model"].(model.AgentModelInput), args["effort"].(model.Effort)), true
 	case "Mutation.setAutoDeploy":
 		if e.ComplexityRoot.Mutation.SetAutoDeploy == nil {
 			break
@@ -2757,6 +3625,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetSharedVariables(childComplexity, args["environment"].(platform.EnvironmentID), args["variables"].([]model.VariableInput)), true
+	case "Mutation.startAgentSession":
+		if e.ComplexityRoot.Mutation.StartAgentSession == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_startAgentSession_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.StartAgentSession(childComplexity, args["agent"].(platform.AgentID), args["message"].(string), args["model"].(*model.AgentModelInput), args["effort"].(*model.Effort)), true
+	case "Mutation.stopAgentSession":
+		if e.ComplexityRoot.Mutation.StopAgentSession == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_stopAgentSession_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.StopAgentSession(childComplexity, args["session"].(platform.AgentSessionID)), true
 	case "Mutation.unexposeDatabase":
 		if e.ComplexityRoot.Mutation.UnexposeDatabase == nil {
 			break
@@ -2779,6 +3669,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.UnmountVolume(childComplexity, args["volume"].(platform.VolumeID)), true
+	case "Mutation.updateAgent":
+		if e.ComplexityRoot.Mutation.UpdateAgent == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateAgent_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.UpdateAgent(childComplexity, args["agent"].(platform.AgentID), args["harness"].(model.Harness), args["instructions"].(string)), true
 	case "Mutation.updateMemberRole":
 		if e.ComplexityRoot.Mutation.UpdateMemberRole == nil {
 			break
@@ -2840,6 +3741,50 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.APITokens(childComplexity), true
+	case "Query.agent":
+		if e.ComplexityRoot.Query.Agent == nil {
+			break
+		}
+
+		args, err := ec.field_Query_agent_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.Agent(childComplexity, args["id"].(platform.AgentID)), true
+	case "Query.agentAudit":
+		if e.ComplexityRoot.Query.AgentAudit == nil {
+			break
+		}
+
+		args, err := ec.field_Query_agentAudit_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.AgentAudit(childComplexity, args["agent"].(platform.AgentID), args["kinds"].([]model.AgentAuditKind), args["since"].(*time.Time)), true
+	case "Query.agentModels":
+		if e.ComplexityRoot.Query.AgentModels == nil {
+			break
+		}
+
+		args, err := ec.field_Query_agentModels_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.AgentModels(childComplexity, args["agent"].(platform.AgentID)), true
+	case "Query.agentSession":
+		if e.ComplexityRoot.Query.AgentSession == nil {
+			break
+		}
+
+		args, err := ec.field_Query_agentSession_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.AgentSession(childComplexity, args["id"].(platform.AgentSessionID)), true
 	case "Query.availableVariables":
 		if e.ComplexityRoot.Query.AvailableVariables == nil {
 			break
@@ -2912,6 +3857,23 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.ClientAddress(childComplexity), true
+	case "Query.connector":
+		if e.ComplexityRoot.Query.Connector == nil {
+			break
+		}
+
+		args, err := ec.field_Query_connector_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.Connector(childComplexity, args["id"].(platform.ConnectorID)), true
+	case "Query.connectors":
+		if e.ComplexityRoot.Query.Connectors == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.Connectors(childComplexity), true
 	case "Query.database":
 		if e.ComplexityRoot.Query.Database == nil {
 			break
@@ -3063,6 +4025,23 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Me(childComplexity), true
+	case "Query.modelProvider":
+		if e.ComplexityRoot.Query.ModelProvider == nil {
+			break
+		}
+
+		args, err := ec.field_Query_modelProvider_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.ModelProvider(childComplexity, args["id"].(platform.ModelProviderID)), true
+	case "Query.modelProviders":
+		if e.ComplexityRoot.Query.ModelProviders == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.ModelProviders(childComplexity), true
 	case "Query.project":
 		if e.ComplexityRoot.Query.Project == nil {
 			break
@@ -3647,6 +4626,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.SharedVariable.Value(childComplexity), true
 
+	case "Subscription.agentSessionEvents":
+		if e.ComplexityRoot.Subscription.AgentSessionEvents == nil {
+			break
+		}
+
+		args, err := ec.field_Subscription_agentSessionEvents_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Subscription.AgentSessionEvents(childComplexity, args["session"].(platform.AgentSessionID), args["after"].(*string)), true
 	case "Subscription.buildLogs":
 		if e.ComplexityRoot.Subscription.BuildLogs == nil {
 			break
@@ -3993,6 +4983,8 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	ec := newExecutionContext(opCtx, e, make(chan graphql.DeferredResult))
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
 		ec.unmarshalInputAddServiceInput,
+		ec.unmarshalInputAgentConnectorInput,
+		ec.unmarshalInputAgentModelInput,
 		ec.unmarshalInputAutoscalingInput,
 		ec.unmarshalInputCreateApiTokenInput,
 		ec.unmarshalInputCreateBucketInput,
@@ -4104,7 +5096,7 @@ func newExecutionContext(
 	}
 }
 
-//go:embed "schema/apitoken.graphqls" "schema/auth.graphqls" "schema/backup.graphqls" "schema/billing.graphqls" "schema/database.graphqls" "schema/databasemetrics.graphqls" "schema/eject.graphqls" "schema/environment.graphqls" "schema/github.graphqls" "schema/keyvaluestore.graphqls" "schema/logs.graphqls" "schema/metrics.graphqls" "schema/objectstorage.graphqls" "schema/project.graphqls" "schema/registry.graphqls" "schema/release.graphqls" "schema/scan.graphqls" "schema/schema.graphqls" "schema/service.graphqls" "schema/variable.graphqls" "schema/volume.graphqls" "schema/vulnerability.graphqls" "schema/workspace.graphqls"
+//go:embed "schema/agent.graphqls" "schema/agentaudit.graphqls" "schema/agentsession.graphqls" "schema/apitoken.graphqls" "schema/auth.graphqls" "schema/backup.graphqls" "schema/billing.graphqls" "schema/connector.graphqls" "schema/database.graphqls" "schema/databasemetrics.graphqls" "schema/eject.graphqls" "schema/environment.graphqls" "schema/github.graphqls" "schema/keyvaluestore.graphqls" "schema/logs.graphqls" "schema/metrics.graphqls" "schema/modelprovider.graphqls" "schema/objectstorage.graphqls" "schema/project.graphqls" "schema/registry.graphqls" "schema/release.graphqls" "schema/scan.graphqls" "schema/schema.graphqls" "schema/service.graphqls" "schema/variable.graphqls" "schema/volume.graphqls" "schema/vulnerability.graphqls" "schema/workspace.graphqls"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -4116,10 +5108,14 @@ func sourceData(filename string) string {
 }
 
 var sources = []*ast.Source{
+	{Name: "schema/agent.graphqls", Input: sourceData("schema/agent.graphqls"), BuiltIn: false},
+	{Name: "schema/agentaudit.graphqls", Input: sourceData("schema/agentaudit.graphqls"), BuiltIn: false},
+	{Name: "schema/agentsession.graphqls", Input: sourceData("schema/agentsession.graphqls"), BuiltIn: false},
 	{Name: "schema/apitoken.graphqls", Input: sourceData("schema/apitoken.graphqls"), BuiltIn: false},
 	{Name: "schema/auth.graphqls", Input: sourceData("schema/auth.graphqls"), BuiltIn: false},
 	{Name: "schema/backup.graphqls", Input: sourceData("schema/backup.graphqls"), BuiltIn: false},
 	{Name: "schema/billing.graphqls", Input: sourceData("schema/billing.graphqls"), BuiltIn: false},
+	{Name: "schema/connector.graphqls", Input: sourceData("schema/connector.graphqls"), BuiltIn: false},
 	{Name: "schema/database.graphqls", Input: sourceData("schema/database.graphqls"), BuiltIn: false},
 	{Name: "schema/databasemetrics.graphqls", Input: sourceData("schema/databasemetrics.graphqls"), BuiltIn: false},
 	{Name: "schema/eject.graphqls", Input: sourceData("schema/eject.graphqls"), BuiltIn: false},
@@ -4128,6 +5124,7 @@ var sources = []*ast.Source{
 	{Name: "schema/keyvaluestore.graphqls", Input: sourceData("schema/keyvaluestore.graphqls"), BuiltIn: false},
 	{Name: "schema/logs.graphqls", Input: sourceData("schema/logs.graphqls"), BuiltIn: false},
 	{Name: "schema/metrics.graphqls", Input: sourceData("schema/metrics.graphqls"), BuiltIn: false},
+	{Name: "schema/modelprovider.graphqls", Input: sourceData("schema/modelprovider.graphqls"), BuiltIn: false},
 	{Name: "schema/objectstorage.graphqls", Input: sourceData("schema/objectstorage.graphqls"), BuiltIn: false},
 	{Name: "schema/project.graphqls", Input: sourceData("schema/project.graphqls"), BuiltIn: false},
 	{Name: "schema/registry.graphqls", Input: sourceData("schema/registry.graphqls"), BuiltIn: false},
@@ -4145,6 +5142,96 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 // childFields_* functions provide shared child field context lookups.
 // Each function is generated once per unique object type, deduplicating the
 // switch statements that were previously inlined in every fieldContext_* function.
+
+func (ec *executionContext) childFields_Agent(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_Agent_id(ctx, field)
+	case "name":
+		return ec.fieldContext_Agent_name(ctx, field)
+	case "harness":
+		return ec.fieldContext_Agent_harness(ctx, field)
+	case "instructions":
+		return ec.fieldContext_Agent_instructions(ctx, field)
+	case "status":
+		return ec.fieldContext_Agent_status(ctx, field)
+	case "connectors":
+		return ec.fieldContext_Agent_connectors(ctx, field)
+	case "allowedHosts":
+		return ec.fieldContext_Agent_allowedHosts(ctx, field)
+	case "privateNetwork":
+		return ec.fieldContext_Agent_privateNetwork(ctx, field)
+	case "sessions":
+		return ec.fieldContext_Agent_sessions(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type Agent", field.Name)
+}
+
+func (ec *executionContext) childFields_AgentAuditEntry(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "time":
+		return ec.fieldContext_AgentAuditEntry_time(ctx, field)
+	case "kind":
+		return ec.fieldContext_AgentAuditEntry_kind(ctx, field)
+	case "modelProvider":
+		return ec.fieldContext_AgentAuditEntry_modelProvider(ctx, field)
+	case "connector":
+		return ec.fieldContext_AgentAuditEntry_connector(ctx, field)
+	case "target":
+		return ec.fieldContext_AgentAuditEntry_target(ctx, field)
+	case "inputTokens":
+		return ec.fieldContext_AgentAuditEntry_inputTokens(ctx, field)
+	case "outputTokens":
+		return ec.fieldContext_AgentAuditEntry_outputTokens(ctx, field)
+	case "result":
+		return ec.fieldContext_AgentAuditEntry_result(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type AgentAuditEntry", field.Name)
+}
+
+func (ec *executionContext) childFields_AgentConnector(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "connector":
+		return ec.fieldContext_AgentConnector_connector(ctx, field)
+	case "approval":
+		return ec.fieldContext_AgentConnector_approval(ctx, field)
+	case "hiddenTools":
+		return ec.fieldContext_AgentConnector_hiddenTools(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type AgentConnector", field.Name)
+}
+
+func (ec *executionContext) childFields_AgentModel(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "provider":
+		return ec.fieldContext_AgentModel_provider(ctx, field)
+	case "name":
+		return ec.fieldContext_AgentModel_name(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type AgentModel", field.Name)
+}
+
+func (ec *executionContext) childFields_AgentSession(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_AgentSession_id(ctx, field)
+	case "title":
+		return ec.fieldContext_AgentSession_title(ctx, field)
+	case "startedBy":
+		return ec.fieldContext_AgentSession_startedBy(ctx, field)
+	case "startedAt":
+		return ec.fieldContext_AgentSession_startedAt(ctx, field)
+	case "model":
+		return ec.fieldContext_AgentSession_model(ctx, field)
+	case "effort":
+		return ec.fieldContext_AgentSession_effort(ctx, field)
+	case "status":
+		return ec.fieldContext_AgentSession_status(ctx, field)
+	case "events":
+		return ec.fieldContext_AgentSession_events(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type AgentSession", field.Name)
+}
 
 func (ec *executionContext) childFields_ApiToken(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
@@ -4304,6 +5391,38 @@ func (ec *executionContext) childFields_Commit(ctx context.Context, field graphq
 		return ec.fieldContext_Commit_url(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Commit", field.Name)
+}
+
+func (ec *executionContext) childFields_Connector(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_Connector_id(ctx, field)
+	case "name":
+		return ec.fieldContext_Connector_name(ctx, field)
+	case "url":
+		return ec.fieldContext_Connector_url(ctx, field)
+	case "credentialHint":
+		return ec.fieldContext_Connector_credentialHint(ctx, field)
+	case "status":
+		return ec.fieldContext_Connector_status(ctx, field)
+	case "checkedAt":
+		return ec.fieldContext_Connector_checkedAt(ctx, field)
+	case "tools":
+		return ec.fieldContext_Connector_tools(ctx, field)
+	case "agents":
+		return ec.fieldContext_Connector_agents(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type Connector", field.Name)
+}
+
+func (ec *executionContext) childFields_ConnectorTool(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "name":
+		return ec.fieldContext_ConnectorTool_name(ctx, field)
+	case "description":
+		return ec.fieldContext_ConnectorTool_description(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ConnectorTool", field.Name)
 }
 
 func (ec *executionContext) childFields_CreatedApiToken(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -4644,6 +5763,8 @@ func (ec *executionContext) childFields_Environment(ctx context.Context, field g
 		return ec.fieldContext_Environment_databases(ctx, field)
 	case "volumes":
 		return ec.fieldContext_Environment_volumes(ctx, field)
+	case "agents":
+		return ec.fieldContext_Environment_agents(ctx, field)
 	case "keyValueStores":
 		return ec.fieldContext_Environment_keyValueStores(ctx, field)
 	case "buckets":
@@ -4792,6 +5913,30 @@ func (ec *executionContext) childFields_MetricSeries(ctx context.Context, field 
 		return ec.fieldContext_MetricSeries_points(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type MetricSeries", field.Name)
+}
+
+func (ec *executionContext) childFields_ModelProvider(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_ModelProvider_id(ctx, field)
+	case "name":
+		return ec.fieldContext_ModelProvider_name(ctx, field)
+	case "api":
+		return ec.fieldContext_ModelProvider_api(ctx, field)
+	case "url":
+		return ec.fieldContext_ModelProvider_url(ctx, field)
+	case "keyHint":
+		return ec.fieldContext_ModelProvider_keyHint(ctx, field)
+	case "status":
+		return ec.fieldContext_ModelProvider_status(ctx, field)
+	case "checkedAt":
+		return ec.fieldContext_ModelProvider_checkedAt(ctx, field)
+	case "models":
+		return ec.fieldContext_ModelProvider_models(ctx, field)
+	case "agents":
+		return ec.fieldContext_ModelProvider_agents(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ModelProvider", field.Name)
 }
 
 func (ec *executionContext) childFields_Mount(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -5545,6 +6690,74 @@ func (ec *executionContext) field_Mutation_addService_args(ctx context.Context, 
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_answerAgentApproval_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "session",
+		func(ctx context.Context, v any) (platform.AgentSessionID, error) {
+			return ec.unmarshalNAgentSessionID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐAgentSessionID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["session"] = arg0
+
+	arg1, err := ec.field_Mutation_answerAgentApproval_argsApproval(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["approval"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "decision",
+		func(ctx context.Context, v any) (model.AgentApprovalDecision, error) {
+			return ec.unmarshalNAgentApprovalDecision2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentApprovalDecision(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["decision"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_answerAgentApproval_argsApproval(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("approval"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["approval"]
+		if !ok {
+			var zeroVal string
+			return zeroVal, nil
+		}
+		return ec.unmarshalNID2string(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=128")
+		if err != nil {
+			var zeroVal string
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal string
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(string); ok {
+		return data, nil
+	} else {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
+	}
+}
+
 func (ec *executionContext) field_Mutation_bucketObjectUploadUrl_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -5633,6 +6846,169 @@ func (ec *executionContext) field_Mutation_completeWorkspaceCheckout_args(ctx co
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_createAgent_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "environment",
+		func(ctx context.Context, v any) (platform.EnvironmentID, error) {
+			return ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐEnvironmentID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["environment"] = arg0
+
+	arg1, err := ec.field_Mutation_createAgent_argsName(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["name"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "harness",
+		func(ctx context.Context, v any) (model.Harness, error) {
+			return ec.unmarshalNHarness2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐHarness(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["harness"] = arg2
+
+	arg3, err := ec.field_Mutation_createAgent_argsInstructions(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["instructions"] = arg3
+
+	arg4, err := ec.field_Mutation_createAgent_argsConnectors(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["connectors"] = arg4
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_createAgent_argsName(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["name"]
+		if !ok {
+			var zeroVal string
+			return zeroVal, nil
+		}
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "resource_name,min=2,max=32")
+		if err != nil {
+			var zeroVal string
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal string
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(string); ok {
+		return data, nil
+	} else {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
+	}
+}
+
+func (ec *executionContext) field_Mutation_createAgent_argsInstructions(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("instructions"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["instructions"]
+		if !ok {
+			var zeroVal string
+			return zeroVal, nil
+		}
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "max=65536")
+		if err != nil {
+			var zeroVal string
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal string
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(string); ok {
+		return data, nil
+	} else {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
+	}
+}
+
+func (ec *executionContext) field_Mutation_createAgent_argsConnectors(
+	ctx context.Context,
+	rawArgs map[string]any,
+) ([]model.AgentConnectorInput, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("connectors"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["connectors"]
+		if !ok {
+			var zeroVal []model.AgentConnectorInput
+			return zeroVal, nil
+		}
+		return ec.unmarshalOAgentConnectorInput2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentConnectorInputᚄ(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "max=64")
+		if err != nil {
+			var zeroVal []model.AgentConnectorInput
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal []model.AgentConnectorInput
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal []model.AgentConnectorInput
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.([]model.AgentConnectorInput); ok {
+		return data, nil
+	} else if tmp == nil {
+		var zeroVal []model.AgentConnectorInput
+		return zeroVal, nil
+	} else {
+		var zeroVal []model.AgentConnectorInput
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be []github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model.AgentConnectorInput`, tmp))
+	}
+}
+
 func (ec *executionContext) field_Mutation_createApiToken_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -5659,6 +7035,153 @@ func (ec *executionContext) field_Mutation_createBucket_args(ctx context.Context
 	}
 	args["input"] = arg0
 	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_createConnector_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+
+	arg0, err := ec.field_Mutation_createConnector_argsName(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["name"] = arg0
+
+	arg1, err := ec.field_Mutation_createConnector_argsURL(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["url"] = arg1
+
+	arg2, err := ec.field_Mutation_createConnector_argsCredential(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["credential"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_createConnector_argsName(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["name"]
+		if !ok {
+			var zeroVal string
+			return zeroVal, nil
+		}
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "resource_name,min=2,max=32")
+		if err != nil {
+			var zeroVal string
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal string
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(string); ok {
+		return data, nil
+	} else {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
+	}
+}
+
+func (ec *executionContext) field_Mutation_createConnector_argsURL(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("url"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["url"]
+		if !ok {
+			var zeroVal string
+			return zeroVal, nil
+		}
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=512")
+		if err != nil {
+			var zeroVal string
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal string
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(string); ok {
+		return data, nil
+	} else {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
+	}
+}
+
+func (ec *executionContext) field_Mutation_createConnector_argsCredential(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("credential"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["credential"]
+		if !ok {
+			var zeroVal *string
+			return zeroVal, nil
+		}
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=4096")
+		if err != nil {
+			var zeroVal *string
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal *string
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal *string
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(*string); ok {
+		return data, nil
+	} else if tmp == nil {
+		var zeroVal *string
+		return zeroVal, nil
+	} else {
+		var zeroVal *string
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be *string`, tmp))
+	}
 }
 
 func (ec *executionContext) field_Mutation_createDatabaseBackup_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
@@ -5715,6 +7238,161 @@ func (ec *executionContext) field_Mutation_createKeyValueStore_args(ctx context.
 	}
 	args["input"] = arg0
 	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_createModelProvider_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+
+	arg0, err := ec.field_Mutation_createModelProvider_argsName(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["name"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "api",
+		func(ctx context.Context, v any) (model.ModelAPI, error) {
+			return ec.unmarshalNModelApi2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐModelAPI(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["api"] = arg1
+
+	arg2, err := ec.field_Mutation_createModelProvider_argsURL(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["url"] = arg2
+
+	arg3, err := ec.field_Mutation_createModelProvider_argsAPIKey(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["apiKey"] = arg3
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_createModelProvider_argsName(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["name"]
+		if !ok {
+			var zeroVal string
+			return zeroVal, nil
+		}
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "resource_name,min=2,max=32")
+		if err != nil {
+			var zeroVal string
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal string
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(string); ok {
+		return data, nil
+	} else {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
+	}
+}
+
+func (ec *executionContext) field_Mutation_createModelProvider_argsURL(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("url"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["url"]
+		if !ok {
+			var zeroVal *string
+			return zeroVal, nil
+		}
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "max=512")
+		if err != nil {
+			var zeroVal *string
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal *string
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal *string
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(*string); ok {
+		return data, nil
+	} else if tmp == nil {
+		var zeroVal *string
+		return zeroVal, nil
+	} else {
+		var zeroVal *string
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be *string`, tmp))
+	}
+}
+
+func (ec *executionContext) field_Mutation_createModelProvider_argsAPIKey(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("apiKey"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["apiKey"]
+		if !ok {
+			var zeroVal string
+			return zeroVal, nil
+		}
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=4096")
+		if err != nil {
+			var zeroVal string
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal string
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(string); ok {
+		return data, nil
+	} else {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
+	}
 }
 
 func (ec *executionContext) field_Mutation_createProject_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
@@ -5813,6 +7491,20 @@ func (ec *executionContext) field_Mutation_createWorkspaceCheckout_args(ctx cont
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_deleteAgent_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "agent",
+		func(ctx context.Context, v any) (platform.AgentID, error) {
+			return ec.unmarshalNAgentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐAgentID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["agent"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_deleteBucketObject_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -5887,6 +7579,20 @@ func (ec *executionContext) field_Mutation_deleteBucket_args(ctx context.Context
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_deleteConnector_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "connector",
+		func(ctx context.Context, v any) (platform.ConnectorID, error) {
+			return ec.unmarshalNConnectorID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐConnectorID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["connector"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_deleteDatabase_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -5926,6 +7632,20 @@ func (ec *executionContext) field_Mutation_deleteKeyValueStore_args(ctx context.
 		return nil, err
 	}
 	args["keyValueStore"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteModelProvider_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "provider",
+		func(ctx context.Context, v any) (platform.ModelProviderID, error) {
+			return ec.unmarshalNModelProviderID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐModelProviderID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["provider"] = arg0
 	return args, nil
 }
 
@@ -6095,6 +7815,34 @@ func (ec *executionContext) field_Mutation_mountVolume_args(ctx context.Context,
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_refreshConnector_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "connector",
+		func(ctx context.Context, v any) (platform.ConnectorID, error) {
+			return ec.unmarshalNConnectorID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐConnectorID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["connector"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_refreshModelProvider_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "provider",
+		func(ctx context.Context, v any) (platform.ModelProviderID, error) {
+			return ec.unmarshalNModelProviderID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐModelProviderID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["provider"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_removeDatabaseAllowRule_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -6205,6 +7953,126 @@ func (ec *executionContext) field_Mutation_removeService_args(ctx context.Contex
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_replaceConnectorCredential_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "connector",
+		func(ctx context.Context, v any) (platform.ConnectorID, error) {
+			return ec.unmarshalNConnectorID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐConnectorID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["connector"] = arg0
+
+	arg1, err := ec.field_Mutation_replaceConnectorCredential_argsCredential(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["credential"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_replaceConnectorCredential_argsCredential(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("credential"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["credential"]
+		if !ok {
+			var zeroVal string
+			return zeroVal, nil
+		}
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=4096")
+		if err != nil {
+			var zeroVal string
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal string
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(string); ok {
+		return data, nil
+	} else {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
+	}
+}
+
+func (ec *executionContext) field_Mutation_replaceModelProviderKey_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "provider",
+		func(ctx context.Context, v any) (platform.ModelProviderID, error) {
+			return ec.unmarshalNModelProviderID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐModelProviderID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["provider"] = arg0
+
+	arg1, err := ec.field_Mutation_replaceModelProviderKey_argsAPIKey(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["apiKey"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_replaceModelProviderKey_argsAPIKey(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("apiKey"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["apiKey"]
+		if !ok {
+			var zeroVal string
+			return zeroVal, nil
+		}
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=4096")
+		if err != nil {
+			var zeroVal string
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal string
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(string); ok {
+		return data, nil
+	} else {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
+	}
+}
+
 func (ec *executionContext) field_Mutation_restoreDatabase_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -6258,6 +8126,230 @@ func (ec *executionContext) field_Mutation_selectPlan_args(ctx context.Context, 
 		return nil, err
 	}
 	args["plan"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_sendAgentMessage_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "session",
+		func(ctx context.Context, v any) (platform.AgentSessionID, error) {
+			return ec.unmarshalNAgentSessionID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐAgentSessionID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["session"] = arg0
+
+	arg1, err := ec.field_Mutation_sendAgentMessage_argsMessage(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["message"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_sendAgentMessage_argsMessage(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("message"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["message"]
+		if !ok {
+			var zeroVal string
+			return zeroVal, nil
+		}
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=65536")
+		if err != nil {
+			var zeroVal string
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal string
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(string); ok {
+		return data, nil
+	} else {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
+	}
+}
+
+func (ec *executionContext) field_Mutation_setAgentConnectors_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "agent",
+		func(ctx context.Context, v any) (platform.AgentID, error) {
+			return ec.unmarshalNAgentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐAgentID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["agent"] = arg0
+
+	arg1, err := ec.field_Mutation_setAgentConnectors_argsConnectors(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["connectors"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setAgentConnectors_argsConnectors(
+	ctx context.Context,
+	rawArgs map[string]any,
+) ([]model.AgentConnectorInput, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("connectors"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["connectors"]
+		if !ok {
+			var zeroVal []model.AgentConnectorInput
+			return zeroVal, nil
+		}
+		return ec.unmarshalNAgentConnectorInput2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentConnectorInputᚄ(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "max=64")
+		if err != nil {
+			var zeroVal []model.AgentConnectorInput
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal []model.AgentConnectorInput
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal []model.AgentConnectorInput
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.([]model.AgentConnectorInput); ok {
+		return data, nil
+	} else if tmp == nil {
+		var zeroVal []model.AgentConnectorInput
+		return zeroVal, nil
+	} else {
+		var zeroVal []model.AgentConnectorInput
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be []github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model.AgentConnectorInput`, tmp))
+	}
+}
+
+func (ec *executionContext) field_Mutation_setAgentNetwork_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "agent",
+		func(ctx context.Context, v any) (platform.AgentID, error) {
+			return ec.unmarshalNAgentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐAgentID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["agent"] = arg0
+
+	arg1, err := ec.field_Mutation_setAgentNetwork_argsAllowedHosts(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["allowedHosts"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "privateNetwork",
+		func(ctx context.Context, v any) (bool, error) {
+			return ec.unmarshalNBoolean2bool(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["privateNetwork"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setAgentNetwork_argsAllowedHosts(
+	ctx context.Context,
+	rawArgs map[string]any,
+) ([]string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("allowedHosts"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["allowedHosts"]
+		if !ok {
+			var zeroVal []string
+			return zeroVal, nil
+		}
+		return ec.unmarshalNString2ᚕstringᚄ(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "max=64,dive,min=1,max=253")
+		if err != nil {
+			var zeroVal []string
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal []string
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal []string
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.([]string); ok {
+		return data, nil
+	} else if tmp == nil {
+		var zeroVal []string
+		return zeroVal, nil
+	} else {
+		var zeroVal []string
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be []string`, tmp))
+	}
+}
+
+func (ec *executionContext) field_Mutation_setAgentSessionModel_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "session",
+		func(ctx context.Context, v any) (platform.AgentSessionID, error) {
+			return ec.unmarshalNAgentSessionID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐAgentSessionID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["session"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "model",
+		func(ctx context.Context, v any) (model.AgentModelInput, error) {
+			return ec.unmarshalNAgentModelInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentModelInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["model"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "effort",
+		func(ctx context.Context, v any) (model.Effort, error) {
+			return ec.unmarshalNEffort2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐEffort(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["effort"] = arg2
 	return args, nil
 }
 
@@ -6698,6 +8790,96 @@ func (ec *executionContext) field_Mutation_setSharedVariables_args(ctx context.C
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_startAgentSession_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "agent",
+		func(ctx context.Context, v any) (platform.AgentID, error) {
+			return ec.unmarshalNAgentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐAgentID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["agent"] = arg0
+
+	arg1, err := ec.field_Mutation_startAgentSession_argsMessage(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["message"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "model",
+		func(ctx context.Context, v any) (*model.AgentModelInput, error) {
+			return ec.unmarshalOAgentModelInput2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentModelInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["model"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "effort",
+		func(ctx context.Context, v any) (*model.Effort, error) {
+			return ec.unmarshalOEffort2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐEffort(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["effort"] = arg3
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_startAgentSession_argsMessage(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("message"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["message"]
+		if !ok {
+			var zeroVal string
+			return zeroVal, nil
+		}
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=65536")
+		if err != nil {
+			var zeroVal string
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal string
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(string); ok {
+		return data, nil
+	} else {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
+	}
+}
+
+func (ec *executionContext) field_Mutation_stopAgentSession_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "session",
+		func(ctx context.Context, v any) (platform.AgentSessionID, error) {
+			return ec.unmarshalNAgentSessionID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐAgentSessionID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["session"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_unexposeDatabase_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -6724,6 +8906,74 @@ func (ec *executionContext) field_Mutation_unmountVolume_args(ctx context.Contex
 	}
 	args["volume"] = arg0
 	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateAgent_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "agent",
+		func(ctx context.Context, v any) (platform.AgentID, error) {
+			return ec.unmarshalNAgentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐAgentID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["agent"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "harness",
+		func(ctx context.Context, v any) (model.Harness, error) {
+			return ec.unmarshalNHarness2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐHarness(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["harness"] = arg1
+
+	arg2, err := ec.field_Mutation_updateAgent_argsInstructions(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["instructions"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateAgent_argsInstructions(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("instructions"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["instructions"]
+		if !ok {
+			var zeroVal string
+			return zeroVal, nil
+		}
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "max=65536")
+		if err != nil {
+			var zeroVal string
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal string
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(string); ok {
+		return data, nil
+	} else {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
+	}
 }
 
 func (ec *executionContext) field_Mutation_updateMemberRole_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
@@ -6765,6 +9015,78 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 		return nil, err
 	}
 	args["name"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_agentAudit_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "agent",
+		func(ctx context.Context, v any) (platform.AgentID, error) {
+			return ec.unmarshalNAgentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐAgentID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["agent"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "kinds",
+		func(ctx context.Context, v any) ([]model.AgentAuditKind, error) {
+			return ec.unmarshalOAgentAuditKind2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentAuditKindᚄ(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["kinds"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "since",
+		func(ctx context.Context, v any) (*time.Time, error) {
+			return ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["since"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_agentModels_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "agent",
+		func(ctx context.Context, v any) (platform.AgentID, error) {
+			return ec.unmarshalNAgentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐAgentID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["agent"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_agentSession_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
+		func(ctx context.Context, v any) (platform.AgentSessionID, error) {
+			return ec.unmarshalNAgentSessionID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐAgentSessionID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_agent_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
+		func(ctx context.Context, v any) (platform.AgentID, error) {
+			return ec.unmarshalNAgentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐAgentID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
 	return args, nil
 }
 
@@ -6939,6 +9261,20 @@ func (ec *executionContext) field_Query_build_args(ctx context.Context, rawArgs 
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
 		func(ctx context.Context, v any) (buildjob.BuildID, error) {
 			return ec.unmarshalNBuildID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋbuildjobᚐBuildID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_connector_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
+		func(ctx context.Context, v any) (platform.ConnectorID, error) {
+			return ec.unmarshalNConnectorID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐConnectorID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -7185,6 +9521,20 @@ func (ec *executionContext) field_Query_keyValueStore_args(ctx context.Context, 
 	return args, nil
 }
 
+func (ec *executionContext) field_Query_modelProvider_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
+		func(ctx context.Context, v any) (platform.ModelProviderID, error) {
+			return ec.unmarshalNModelProviderID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐModelProviderID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Query_project_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -7351,6 +9701,69 @@ func (ec *executionContext) field_Service_metrics_args(ctx context.Context, rawA
 	return args, nil
 }
 
+func (ec *executionContext) field_Subscription_agentSessionEvents_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "session",
+		func(ctx context.Context, v any) (platform.AgentSessionID, error) {
+			return ec.unmarshalNAgentSessionID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐAgentSessionID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["session"] = arg0
+
+	arg1, err := ec.field_Subscription_agentSessionEvents_argsAfter(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["after"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Subscription_agentSessionEvents_argsAfter(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("after"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["after"]
+		if !ok {
+			var zeroVal *string
+			return zeroVal, nil
+		}
+		return ec.unmarshalOID2ᚖstring(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "max=64")
+		if err != nil {
+			var zeroVal *string
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal *string
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal *string
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(*string); ok {
+		return data, nil
+	} else if tmp == nil {
+		var zeroVal *string
+		return zeroVal, nil
+	} else {
+		var zeroVal *string
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be *string`, tmp))
+	}
+}
+
 func (ec *executionContext) field_Subscription_buildLogs_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -7496,6 +9909,1504 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 // endregion ***************************** args.gotpl *****************************
 
 // region    **************************** field.gotpl *****************************
+
+func (ec *executionContext) _Agent_id(ctx context.Context, field graphql.CollectedField, obj *model.Agent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Agent_id(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v platform.AgentID) graphql.Marshaler {
+			return ec.marshalNAgentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐAgentID(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Agent_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Agent", field, false, false, errors.New("field of type AgentID does not have child fields"))
+}
+
+func (ec *executionContext) _Agent_name(ctx context.Context, field graphql.CollectedField, obj *model.Agent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Agent_name(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Agent_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Agent", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _Agent_harness(ctx context.Context, field graphql.CollectedField, obj *model.Agent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Agent_harness(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Harness, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.Harness) graphql.Marshaler {
+			return ec.marshalNHarness2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐHarness(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Agent_harness(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Agent", field, false, false, errors.New("field of type Harness does not have child fields"))
+}
+
+func (ec *executionContext) _Agent_instructions(ctx context.Context, field graphql.CollectedField, obj *model.Agent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Agent_instructions(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Instructions, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Agent_instructions(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Agent", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _Agent_status(ctx context.Context, field graphql.CollectedField, obj *model.Agent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Agent_status(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Agent().Status(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.AgentStatus) graphql.Marshaler {
+			return ec.marshalNAgentStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentStatus(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Agent_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Agent", field, true, true, errors.New("field of type AgentStatus does not have child fields"))
+}
+
+func (ec *executionContext) _Agent_connectors(ctx context.Context, field graphql.CollectedField, obj *model.Agent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Agent_connectors(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Connectors, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []model.AgentConnector) graphql.Marshaler {
+			return ec.marshalNAgentConnector2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentConnectorᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Agent_connectors(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Agent",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_AgentConnector(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Agent_allowedHosts(ctx context.Context, field graphql.CollectedField, obj *model.Agent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Agent_allowedHosts(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.AllowedHosts, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
+			return ec.marshalNString2ᚕstringᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Agent_allowedHosts(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Agent", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _Agent_privateNetwork(ctx context.Context, field graphql.CollectedField, obj *model.Agent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Agent_privateNetwork(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.PrivateNetwork, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Agent_privateNetwork(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Agent", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _Agent_sessions(ctx context.Context, field graphql.CollectedField, obj *model.Agent) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Agent_sessions(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Agent().Sessions(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []model.AgentSession) graphql.Marshaler {
+			return ec.marshalNAgentSession2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentSessionᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Agent_sessions(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Agent",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_AgentSession(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AgentApproval_id(ctx context.Context, field graphql.CollectedField, obj *model.AgentApproval) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentApproval_id(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentApproval_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentApproval", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _AgentApproval_time(ctx context.Context, field graphql.CollectedField, obj *model.AgentApproval) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentApproval_time(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Time, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentApproval_time(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentApproval", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _AgentApproval_approval(ctx context.Context, field graphql.CollectedField, obj *model.AgentApproval) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentApproval_approval(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Approval, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentApproval_approval(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentApproval", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _AgentApproval_callId(ctx context.Context, field graphql.CollectedField, obj *model.AgentApproval) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentApproval_callId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CallID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_AgentApproval_callId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentApproval", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AgentApproval_title(ctx context.Context, field graphql.CollectedField, obj *model.AgentApproval) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentApproval_title(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Title, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentApproval_title(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentApproval", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AgentApproval_status(ctx context.Context, field graphql.CollectedField, obj *model.AgentApproval) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentApproval_status(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Status, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.AgentApprovalStatus) graphql.Marshaler {
+			return ec.marshalNAgentApprovalStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentApprovalStatus(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentApproval_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentApproval", field, false, false, errors.New("field of type AgentApprovalStatus does not have child fields"))
+}
+
+func (ec *executionContext) _AgentApproval_decidedBy(ctx context.Context, field graphql.CollectedField, obj *model.AgentApproval) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentApproval_decidedBy(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.DecidedBy, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.WorkspaceMember) graphql.Marshaler {
+			return ec.marshalOWorkspaceMember2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐWorkspaceMember(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_AgentApproval_decidedBy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AgentApproval",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_WorkspaceMember(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AgentAuditEntry_time(ctx context.Context, field graphql.CollectedField, obj *model.AgentAuditEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentAuditEntry_time(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Time, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentAuditEntry_time(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentAuditEntry", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _AgentAuditEntry_kind(ctx context.Context, field graphql.CollectedField, obj *model.AgentAuditEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentAuditEntry_kind(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Kind, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.AgentAuditKind) graphql.Marshaler {
+			return ec.marshalNAgentAuditKind2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentAuditKind(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentAuditEntry_kind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentAuditEntry", field, false, false, errors.New("field of type AgentAuditKind does not have child fields"))
+}
+
+func (ec *executionContext) _AgentAuditEntry_modelProvider(ctx context.Context, field graphql.CollectedField, obj *model.AgentAuditEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentAuditEntry_modelProvider(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ModelProvider, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_AgentAuditEntry_modelProvider(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentAuditEntry", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AgentAuditEntry_connector(ctx context.Context, field graphql.CollectedField, obj *model.AgentAuditEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentAuditEntry_connector(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Connector, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_AgentAuditEntry_connector(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentAuditEntry", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AgentAuditEntry_target(ctx context.Context, field graphql.CollectedField, obj *model.AgentAuditEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentAuditEntry_target(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Target, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentAuditEntry_target(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentAuditEntry", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AgentAuditEntry_inputTokens(ctx context.Context, field graphql.CollectedField, obj *model.AgentAuditEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentAuditEntry_inputTokens(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.InputTokens, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *int) graphql.Marshaler {
+			return ec.marshalOInt2ᚖint(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_AgentAuditEntry_inputTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentAuditEntry", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _AgentAuditEntry_outputTokens(ctx context.Context, field graphql.CollectedField, obj *model.AgentAuditEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentAuditEntry_outputTokens(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.OutputTokens, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *int) graphql.Marshaler {
+			return ec.marshalOInt2ᚖint(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_AgentAuditEntry_outputTokens(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentAuditEntry", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _AgentAuditEntry_result(ctx context.Context, field graphql.CollectedField, obj *model.AgentAuditEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentAuditEntry_result(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Result, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.AgentAuditResult) graphql.Marshaler {
+			return ec.marshalNAgentAuditResult2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentAuditResult(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentAuditEntry_result(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentAuditEntry", field, false, false, errors.New("field of type AgentAuditResult does not have child fields"))
+}
+
+func (ec *executionContext) _AgentConnector_connector(ctx context.Context, field graphql.CollectedField, obj *model.AgentConnector) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentConnector_connector(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Connector, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Connector) graphql.Marshaler {
+			return ec.marshalNConnector2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐConnector(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentConnector_connector(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AgentConnector",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Connector(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AgentConnector_approval(ctx context.Context, field graphql.CollectedField, obj *model.AgentConnector) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentConnector_approval(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Approval, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.Approval) graphql.Marshaler {
+			return ec.marshalNApproval2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐApproval(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentConnector_approval(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentConnector", field, false, false, errors.New("field of type Approval does not have child fields"))
+}
+
+func (ec *executionContext) _AgentConnector_hiddenTools(ctx context.Context, field graphql.CollectedField, obj *model.AgentConnector) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentConnector_hiddenTools(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.HiddenTools, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
+			return ec.marshalNString2ᚕstringᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentConnector_hiddenTools(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentConnector", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AgentMessage_id(ctx context.Context, field graphql.CollectedField, obj *model.AgentMessage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentMessage_id(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentMessage_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentMessage", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _AgentMessage_time(ctx context.Context, field graphql.CollectedField, obj *model.AgentMessage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentMessage_time(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Time, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentMessage_time(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentMessage", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _AgentMessage_text(ctx context.Context, field graphql.CollectedField, obj *model.AgentMessage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentMessage_text(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Text, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentMessage_text(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentMessage", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AgentModel_provider(ctx context.Context, field graphql.CollectedField, obj *model.AgentModel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentModel_provider(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Provider, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.ModelProvider) graphql.Marshaler {
+			return ec.marshalNModelProvider2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐModelProvider(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentModel_provider(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AgentModel",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ModelProvider(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AgentModel_name(ctx context.Context, field graphql.CollectedField, obj *model.AgentModel) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentModel_name(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentModel_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentModel", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AgentNotice_id(ctx context.Context, field graphql.CollectedField, obj *model.AgentNotice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentNotice_id(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentNotice_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentNotice", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _AgentNotice_time(ctx context.Context, field graphql.CollectedField, obj *model.AgentNotice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentNotice_time(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Time, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentNotice_time(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentNotice", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _AgentNotice_severity(ctx context.Context, field graphql.CollectedField, obj *model.AgentNotice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentNotice_severity(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Severity, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.AgentNoticeSeverity) graphql.Marshaler {
+			return ec.marshalNAgentNoticeSeverity2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentNoticeSeverity(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentNotice_severity(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentNotice", field, false, false, errors.New("field of type AgentNoticeSeverity does not have child fields"))
+}
+
+func (ec *executionContext) _AgentNotice_title(ctx context.Context, field graphql.CollectedField, obj *model.AgentNotice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentNotice_title(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Title, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentNotice_title(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentNotice", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AgentNotice_description(ctx context.Context, field graphql.CollectedField, obj *model.AgentNotice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentNotice_description(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Description, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_AgentNotice_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentNotice", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AgentSession_id(ctx context.Context, field graphql.CollectedField, obj *model.AgentSession) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentSession_id(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v platform.AgentSessionID) graphql.Marshaler {
+			return ec.marshalNAgentSessionID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐAgentSessionID(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentSession_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentSession", field, false, false, errors.New("field of type AgentSessionID does not have child fields"))
+}
+
+func (ec *executionContext) _AgentSession_title(ctx context.Context, field graphql.CollectedField, obj *model.AgentSession) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentSession_title(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Title, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentSession_title(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentSession", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AgentSession_startedBy(ctx context.Context, field graphql.CollectedField, obj *model.AgentSession) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentSession_startedBy(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.StartedBy, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.WorkspaceMember) graphql.Marshaler {
+			return ec.marshalOWorkspaceMember2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐWorkspaceMember(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_AgentSession_startedBy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AgentSession",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_WorkspaceMember(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AgentSession_startedAt(ctx context.Context, field graphql.CollectedField, obj *model.AgentSession) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentSession_startedAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.StartedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentSession_startedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentSession", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _AgentSession_model(ctx context.Context, field graphql.CollectedField, obj *model.AgentSession) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentSession_model(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Model, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.AgentModel) graphql.Marshaler {
+			return ec.marshalNAgentModel2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentModel(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentSession_model(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AgentSession",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_AgentModel(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AgentSession_effort(ctx context.Context, field graphql.CollectedField, obj *model.AgentSession) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentSession_effort(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Effort, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.Effort) graphql.Marshaler {
+			return ec.marshalNEffort2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐEffort(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentSession_effort(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentSession", field, false, false, errors.New("field of type Effort does not have child fields"))
+}
+
+func (ec *executionContext) _AgentSession_status(ctx context.Context, field graphql.CollectedField, obj *model.AgentSession) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentSession_status(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Status, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.AgentSessionStatus) graphql.Marshaler {
+			return ec.marshalNAgentSessionStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentSessionStatus(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentSession_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentSession", field, false, false, errors.New("field of type AgentSessionStatus does not have child fields"))
+}
+
+func (ec *executionContext) _AgentSession_events(ctx context.Context, field graphql.CollectedField, obj *model.AgentSession) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentSession_events(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.AgentSession().Events(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []model.AgentSessionEvent) graphql.Marshaler {
+			return ec.marshalNAgentSessionEvent2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentSessionEventᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentSession_events(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentSession", field, true, true, errors.New("field of type AgentSessionEvent does not have child fields"))
+}
+
+func (ec *executionContext) _AgentToolCall_id(ctx context.Context, field graphql.CollectedField, obj *model.AgentToolCall) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentToolCall_id(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentToolCall_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentToolCall", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _AgentToolCall_time(ctx context.Context, field graphql.CollectedField, obj *model.AgentToolCall) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentToolCall_time(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Time, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentToolCall_time(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentToolCall", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _AgentToolCall_callId(ctx context.Context, field graphql.CollectedField, obj *model.AgentToolCall) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentToolCall_callId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CallID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentToolCall_callId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentToolCall", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AgentToolCall_connector(ctx context.Context, field graphql.CollectedField, obj *model.AgentToolCall) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentToolCall_connector(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Connector, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_AgentToolCall_connector(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentToolCall", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AgentToolCall_tool(ctx context.Context, field graphql.CollectedField, obj *model.AgentToolCall) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentToolCall_tool(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Tool, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentToolCall_tool(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentToolCall", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AgentToolCall_title(ctx context.Context, field graphql.CollectedField, obj *model.AgentToolCall) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentToolCall_title(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Title, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentToolCall_title(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentToolCall", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AgentToolCall_status(ctx context.Context, field graphql.CollectedField, obj *model.AgentToolCall) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentToolCall_status(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Status, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.AgentToolCallStatus) graphql.Marshaler {
+			return ec.marshalNAgentToolCallStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentToolCallStatus(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentToolCall_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentToolCall", field, false, false, errors.New("field of type AgentToolCallStatus does not have child fields"))
+}
+
+func (ec *executionContext) _AgentToolCall_input(ctx context.Context, field graphql.CollectedField, obj *model.AgentToolCall) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentToolCall_input(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Input, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_AgentToolCall_input(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentToolCall", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AgentToolCall_output(ctx context.Context, field graphql.CollectedField, obj *model.AgentToolCall) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentToolCall_output(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Output, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_AgentToolCall_output(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentToolCall", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AgentTurnEnd_id(ctx context.Context, field graphql.CollectedField, obj *model.AgentTurnEnd) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentTurnEnd_id(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentTurnEnd_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentTurnEnd", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _AgentTurnEnd_time(ctx context.Context, field graphql.CollectedField, obj *model.AgentTurnEnd) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentTurnEnd_time(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Time, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentTurnEnd_time(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentTurnEnd", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _AgentTurnEnd_reason(ctx context.Context, field graphql.CollectedField, obj *model.AgentTurnEnd) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentTurnEnd_reason(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Reason, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.AgentTurnEndReason) graphql.Marshaler {
+			return ec.marshalNAgentTurnEndReason2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentTurnEndReason(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentTurnEnd_reason(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentTurnEnd", field, false, false, errors.New("field of type AgentTurnEndReason does not have child fields"))
+}
+
+func (ec *executionContext) _AgentTurnEnd_error(ctx context.Context, field graphql.CollectedField, obj *model.AgentTurnEnd) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentTurnEnd_error(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Error, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_AgentTurnEnd_error(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentTurnEnd", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AgentUserMessage_id(ctx context.Context, field graphql.CollectedField, obj *model.AgentUserMessage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentUserMessage_id(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentUserMessage_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentUserMessage", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _AgentUserMessage_time(ctx context.Context, field graphql.CollectedField, obj *model.AgentUserMessage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentUserMessage_time(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Time, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentUserMessage_time(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentUserMessage", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _AgentUserMessage_author(ctx context.Context, field graphql.CollectedField, obj *model.AgentUserMessage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentUserMessage_author(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Author, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.WorkspaceMember) graphql.Marshaler {
+			return ec.marshalOWorkspaceMember2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐWorkspaceMember(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_AgentUserMessage_author(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AgentUserMessage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_WorkspaceMember(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AgentUserMessage_text(ctx context.Context, field graphql.CollectedField, obj *model.AgentUserMessage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentUserMessage_text(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Text, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AgentUserMessage_text(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentUserMessage", field, false, false, errors.New("field of type String does not have child fields"))
+}
 
 func (ec *executionContext) _ApiToken_id(ctx context.Context, field graphql.CollectedField, obj *model.APIToken) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
@@ -8571,6 +12482,254 @@ func (ec *executionContext) _Commit_url(ctx context.Context, field graphql.Colle
 }
 func (ec *executionContext) fieldContext_Commit_url(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Commit", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _Connector_id(ctx context.Context, field graphql.CollectedField, obj *model.Connector) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Connector_id(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v platform.ConnectorID) graphql.Marshaler {
+			return ec.marshalNConnectorID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐConnectorID(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Connector_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Connector", field, false, false, errors.New("field of type ConnectorID does not have child fields"))
+}
+
+func (ec *executionContext) _Connector_name(ctx context.Context, field graphql.CollectedField, obj *model.Connector) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Connector_name(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Connector_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Connector", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _Connector_url(ctx context.Context, field graphql.CollectedField, obj *model.Connector) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Connector_url(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.URL, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Connector_url(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Connector", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _Connector_credentialHint(ctx context.Context, field graphql.CollectedField, obj *model.Connector) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Connector_credentialHint(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CredentialHint, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Connector_credentialHint(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Connector", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _Connector_status(ctx context.Context, field graphql.CollectedField, obj *model.Connector) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Connector_status(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Status, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.CredentialStatus) graphql.Marshaler {
+			return ec.marshalNCredentialStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐCredentialStatus(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Connector_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Connector", field, false, false, errors.New("field of type CredentialStatus does not have child fields"))
+}
+
+func (ec *executionContext) _Connector_checkedAt(ctx context.Context, field graphql.CollectedField, obj *model.Connector) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Connector_checkedAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CheckedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
+			return ec.marshalOTime2ᚖtimeᚐTime(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Connector_checkedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Connector", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _Connector_tools(ctx context.Context, field graphql.CollectedField, obj *model.Connector) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Connector_tools(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Tools, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []model.ConnectorTool) graphql.Marshaler {
+			return ec.marshalNConnectorTool2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐConnectorToolᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Connector_tools(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Connector",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ConnectorTool(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Connector_agents(ctx context.Context, field graphql.CollectedField, obj *model.Connector) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Connector_agents(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Connector().Agents(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []model.Agent) graphql.Marshaler {
+			return ec.marshalNAgent2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Connector_agents(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Connector",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Agent(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ConnectorTool_name(ctx context.Context, field graphql.CollectedField, obj *model.ConnectorTool) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ConnectorTool_name(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ConnectorTool_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ConnectorTool", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _ConnectorTool_description(ctx context.Context, field graphql.CollectedField, obj *model.ConnectorTool) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ConnectorTool_description(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Description, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_ConnectorTool_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ConnectorTool", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _CreatedApiToken_apiToken(ctx context.Context, field graphql.CollectedField, obj *model.CreatedAPIToken) (ret graphql.Marshaler) {
@@ -11346,6 +15505,38 @@ func (ec *executionContext) fieldContext_Environment_volumes(_ context.Context, 
 	return fc, nil
 }
 
+func (ec *executionContext) _Environment_agents(ctx context.Context, field graphql.CollectedField, obj *model.Environment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Environment_agents(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Environment().Agents(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []model.Agent) graphql.Marshaler {
+			return ec.marshalNAgent2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Environment_agents(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Environment",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Agent(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Environment_keyValueStores(ctx context.Context, field graphql.CollectedField, obj *model.Environment) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -12486,6 +16677,222 @@ func (ec *executionContext) fieldContext_MetricSeries_points(_ context.Context, 
 	return fc, nil
 }
 
+func (ec *executionContext) _ModelProvider_id(ctx context.Context, field graphql.CollectedField, obj *model.ModelProvider) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ModelProvider_id(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v platform.ModelProviderID) graphql.Marshaler {
+			return ec.marshalNModelProviderID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐModelProviderID(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ModelProvider_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ModelProvider", field, false, false, errors.New("field of type ModelProviderID does not have child fields"))
+}
+
+func (ec *executionContext) _ModelProvider_name(ctx context.Context, field graphql.CollectedField, obj *model.ModelProvider) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ModelProvider_name(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ModelProvider_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ModelProvider", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _ModelProvider_api(ctx context.Context, field graphql.CollectedField, obj *model.ModelProvider) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ModelProvider_api(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.API, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.ModelAPI) graphql.Marshaler {
+			return ec.marshalNModelApi2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐModelAPI(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ModelProvider_api(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ModelProvider", field, false, false, errors.New("field of type ModelApi does not have child fields"))
+}
+
+func (ec *executionContext) _ModelProvider_url(ctx context.Context, field graphql.CollectedField, obj *model.ModelProvider) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ModelProvider_url(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.URL, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ModelProvider_url(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ModelProvider", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _ModelProvider_keyHint(ctx context.Context, field graphql.CollectedField, obj *model.ModelProvider) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ModelProvider_keyHint(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.KeyHint, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_ModelProvider_keyHint(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ModelProvider", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _ModelProvider_status(ctx context.Context, field graphql.CollectedField, obj *model.ModelProvider) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ModelProvider_status(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Status, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.CredentialStatus) graphql.Marshaler {
+			return ec.marshalNCredentialStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐCredentialStatus(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ModelProvider_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ModelProvider", field, false, false, errors.New("field of type CredentialStatus does not have child fields"))
+}
+
+func (ec *executionContext) _ModelProvider_checkedAt(ctx context.Context, field graphql.CollectedField, obj *model.ModelProvider) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ModelProvider_checkedAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CheckedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
+			return ec.marshalOTime2ᚖtimeᚐTime(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_ModelProvider_checkedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ModelProvider", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _ModelProvider_models(ctx context.Context, field graphql.CollectedField, obj *model.ModelProvider) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ModelProvider_models(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Models, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
+			return ec.marshalNString2ᚕstringᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ModelProvider_models(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ModelProvider", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _ModelProvider_agents(ctx context.Context, field graphql.CollectedField, obj *model.ModelProvider) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ModelProvider_agents(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.ModelProvider().Agents(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []model.Agent) graphql.Marshaler {
+			return ec.marshalNAgent2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ModelProvider_agents(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ModelProvider",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Agent(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mount_service(ctx context.Context, field graphql.CollectedField, obj *model.Mount) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -12530,6 +16937,626 @@ func (ec *executionContext) _Mount_path(ctx context.Context, field graphql.Colle
 }
 func (ec *executionContext) fieldContext_Mount_path(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Mount", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _Mutation_createAgent(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_createAgent(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().CreateAgent(ctx, fc.Args["environment"].(platform.EnvironmentID), fc.Args["name"].(string), fc.Args["harness"].(model.Harness), fc.Args["instructions"].(string), fc.Args["connectors"].([]model.AgentConnectorInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.Agent
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.Agent
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Agent) graphql.Marshaler {
+			return ec.marshalNAgent2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgent(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_createAgent(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Agent(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createAgent_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateAgent(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_updateAgent(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().UpdateAgent(ctx, fc.Args["agent"].(platform.AgentID), fc.Args["harness"].(model.Harness), fc.Args["instructions"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.Agent
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.Agent
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Agent) graphql.Marshaler {
+			return ec.marshalNAgent2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgent(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_updateAgent(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Agent(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateAgent_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_setAgentConnectors(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_setAgentConnectors(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SetAgentConnectors(ctx, fc.Args["agent"].(platform.AgentID), fc.Args["connectors"].([]model.AgentConnectorInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.Agent
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.Agent
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Agent) graphql.Marshaler {
+			return ec.marshalNAgent2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgent(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_setAgentConnectors(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Agent(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setAgentConnectors_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_setAgentNetwork(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_setAgentNetwork(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SetAgentNetwork(ctx, fc.Args["agent"].(platform.AgentID), fc.Args["allowedHosts"].([]string), fc.Args["privateNetwork"].(bool))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.Agent
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.Agent
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Agent) graphql.Marshaler {
+			return ec.marshalNAgent2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgent(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_setAgentNetwork(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Agent(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setAgentNetwork_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteAgent(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_deleteAgent(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().DeleteAgent(ctx, fc.Args["agent"].(platform.AgentID))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_deleteAgent(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteAgent_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_startAgentSession(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_startAgentSession(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().StartAgentSession(ctx, fc.Args["agent"].(platform.AgentID), fc.Args["message"].(string), fc.Args["model"].(*model.AgentModelInput), fc.Args["effort"].(*model.Effort))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.AgentSession
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.AgentSession
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.AgentSession) graphql.Marshaler {
+			return ec.marshalNAgentSession2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentSession(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_startAgentSession(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_AgentSession(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_startAgentSession_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_setAgentSessionModel(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_setAgentSessionModel(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SetAgentSessionModel(ctx, fc.Args["session"].(platform.AgentSessionID), fc.Args["model"].(model.AgentModelInput), fc.Args["effort"].(model.Effort))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.AgentSession
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.AgentSession
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.AgentSession) graphql.Marshaler {
+			return ec.marshalNAgentSession2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentSession(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_setAgentSessionModel(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_AgentSession(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setAgentSessionModel_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_sendAgentMessage(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_sendAgentMessage(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SendAgentMessage(ctx, fc.Args["session"].(platform.AgentSessionID), fc.Args["message"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.AgentSession
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.AgentSession
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.AgentSession) graphql.Marshaler {
+			return ec.marshalNAgentSession2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentSession(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_sendAgentMessage(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_AgentSession(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_sendAgentMessage_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_answerAgentApproval(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_answerAgentApproval(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().AnswerAgentApproval(ctx, fc.Args["session"].(platform.AgentSessionID), fc.Args["approval"].(string), fc.Args["decision"].(model.AgentApprovalDecision))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.AgentSession
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.AgentSession
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.AgentSession) graphql.Marshaler {
+			return ec.marshalNAgentSession2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentSession(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_answerAgentApproval(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_AgentSession(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_answerAgentApproval_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_stopAgentSession(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_stopAgentSession(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().StopAgentSession(ctx, fc.Args["session"].(platform.AgentSessionID))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.AgentSession
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.AgentSession
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.AgentSession) graphql.Marshaler {
+			return ec.marshalNAgentSession2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentSession(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_stopAgentSession(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_AgentSession(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_stopAgentSession_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
 }
 
 func (ec *executionContext) _Mutation_createApiToken(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -13031,6 +18058,254 @@ func (ec *executionContext) fieldContext_Mutation_completePlanCheckout(ctx conte
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_completePlanCheckout_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_createConnector(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_createConnector(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().CreateConnector(ctx, fc.Args["name"].(string), fc.Args["url"].(string), fc.Args["credential"].(*string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_ADMIN")
+				if err != nil {
+					var zeroVal *model.Connector
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.Connector
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Connector) graphql.Marshaler {
+			return ec.marshalNConnector2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐConnector(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_createConnector(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Connector(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createConnector_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_replaceConnectorCredential(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_replaceConnectorCredential(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().ReplaceConnectorCredential(ctx, fc.Args["connector"].(platform.ConnectorID), fc.Args["credential"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_ADMIN")
+				if err != nil {
+					var zeroVal *model.Connector
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.Connector
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Connector) graphql.Marshaler {
+			return ec.marshalNConnector2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐConnector(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_replaceConnectorCredential(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Connector(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_replaceConnectorCredential_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_refreshConnector(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_refreshConnector(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().RefreshConnector(ctx, fc.Args["connector"].(platform.ConnectorID))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_ADMIN")
+				if err != nil {
+					var zeroVal *model.Connector
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.Connector
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Connector) graphql.Marshaler {
+			return ec.marshalNConnector2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐConnector(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_refreshConnector(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Connector(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_refreshConnector_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteConnector(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_deleteConnector(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().DeleteConnector(ctx, fc.Args["connector"].(platform.ConnectorID))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_ADMIN")
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_deleteConnector(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteConnector_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -13837,6 +19112,254 @@ func (ec *executionContext) fieldContext_Mutation_deleteKeyValueStore(ctx contex
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_deleteKeyValueStore_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_createModelProvider(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_createModelProvider(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().CreateModelProvider(ctx, fc.Args["name"].(string), fc.Args["api"].(model.ModelAPI), fc.Args["url"].(*string), fc.Args["apiKey"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_ADMIN")
+				if err != nil {
+					var zeroVal *model.ModelProvider
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.ModelProvider
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.ModelProvider) graphql.Marshaler {
+			return ec.marshalNModelProvider2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐModelProvider(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_createModelProvider(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ModelProvider(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createModelProvider_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_replaceModelProviderKey(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_replaceModelProviderKey(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().ReplaceModelProviderKey(ctx, fc.Args["provider"].(platform.ModelProviderID), fc.Args["apiKey"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_ADMIN")
+				if err != nil {
+					var zeroVal *model.ModelProvider
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.ModelProvider
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.ModelProvider) graphql.Marshaler {
+			return ec.marshalNModelProvider2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐModelProvider(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_replaceModelProviderKey(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ModelProvider(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_replaceModelProviderKey_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_refreshModelProvider(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_refreshModelProvider(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().RefreshModelProvider(ctx, fc.Args["provider"].(platform.ModelProviderID))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_ADMIN")
+				if err != nil {
+					var zeroVal *model.ModelProvider
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.ModelProvider
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.ModelProvider) graphql.Marshaler {
+			return ec.marshalNModelProvider2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐModelProvider(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_refreshModelProvider(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ModelProvider(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_refreshModelProvider_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteModelProvider(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_deleteModelProvider(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().DeleteModelProvider(ctx, fc.Args["provider"].(platform.ModelProviderID))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_ADMIN")
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_deleteModelProvider(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteModelProvider_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -16263,6 +21786,254 @@ func (ec *executionContext) fieldContext_Project_environments(_ context.Context,
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_agent(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_agent(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().Agent(ctx, fc.Args["id"].(platform.AgentID))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.Agent
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.Agent
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Agent) graphql.Marshaler {
+			return ec.marshalNAgent2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgent(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_agent(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Agent(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_agent_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_agentModels(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_agentModels(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().AgentModels(ctx, fc.Args["agent"].(platform.AgentID))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal []model.AgentModel
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal []model.AgentModel
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v []model.AgentModel) graphql.Marshaler {
+			return ec.marshalNAgentModel2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentModelᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_agentModels(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_AgentModel(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_agentModels_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_agentAudit(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_agentAudit(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().AgentAudit(ctx, fc.Args["agent"].(platform.AgentID), fc.Args["kinds"].([]model.AgentAuditKind), fc.Args["since"].(*time.Time))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal []model.AgentAuditEntry
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal []model.AgentAuditEntry
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v []model.AgentAuditEntry) graphql.Marshaler {
+			return ec.marshalNAgentAuditEntry2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentAuditEntryᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_agentAudit(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_AgentAuditEntry(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_agentAudit_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_agentSession(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_agentSession(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().AgentSession(ctx, fc.Args["id"].(platform.AgentSessionID))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.AgentSession
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.AgentSession
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.AgentSession) graphql.Marshaler {
+			return ec.marshalNAgentSession2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentSession(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_agentSession(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_AgentSession(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_agentSession_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_apiTokens(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -16459,6 +22230,118 @@ func (ec *executionContext) fieldContext_Query_usageSummary(_ context.Context, f
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_UsageSummary(ctx, field)
 		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_connectors(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_connectors(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().Connectors(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal []model.Connector
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal []model.Connector
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v []model.Connector) graphql.Marshaler {
+			return ec.marshalNConnector2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐConnectorᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_connectors(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Connector(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_connector(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_connector(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().Connector(ctx, fc.Args["id"].(platform.ConnectorID))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.Connector
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.Connector
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Connector) graphql.Marshaler {
+			return ec.marshalNConnector2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐConnector(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_connector(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Connector(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_connector_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -17209,6 +23092,118 @@ func (ec *executionContext) fieldContext_Query_keyValueStoreCredentials(ctx cont
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_keyValueStoreCredentials_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_modelProviders(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_modelProviders(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().ModelProviders(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal []model.ModelProvider
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal []model.ModelProvider
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v []model.ModelProvider) graphql.Marshaler {
+			return ec.marshalNModelProvider2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐModelProviderᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_modelProviders(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ModelProvider(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_modelProvider(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_modelProvider(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().ModelProvider(ctx, fc.Args["id"].(platform.ModelProviderID))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.ModelProvider
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.ModelProvider
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.ModelProvider) graphql.Marshaler {
+			return ec.marshalNModelProvider2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐModelProvider(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_modelProvider(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ModelProvider(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_modelProvider_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -20311,6 +26306,68 @@ func (ec *executionContext) fieldContext_SharedVariable_value(_ context.Context,
 	return graphql.NewScalarFieldContext("SharedVariable", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
+func (ec *executionContext) _Subscription_agentSessionEvents(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
+	return graphql.ResolveFieldStream(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Subscription_agentSessionEvents(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Subscription().AgentSessionEvents(ctx, fc.Args["session"].(platform.AgentSessionID), fc.Args["after"].(*string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal model.AgentSessionEvent
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal model.AgentSessionEvent
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v model.AgentSessionEvent) graphql.Marshaler {
+			return ec.marshalNAgentSessionEvent2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentSessionEvent(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Subscription_agentSessionEvents(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Subscription",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type AgentSessionEvent does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Subscription_agentSessionEvents_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Subscription_serviceLogs(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
 	return graphql.ResolveFieldStream(
 		ctx,
@@ -22933,6 +28990,129 @@ func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, o
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputAgentConnectorInput(ctx context.Context, obj any) (model.AgentConnectorInput, error) {
+	var it model.AgentConnectorInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"connector", "approval", "hiddenTools"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "connector":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("connector"))
+			data, err := ec.unmarshalNConnectorID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐConnectorID(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Connector = data
+		case "approval":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("approval"))
+			data, err := ec.unmarshalNApproval2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐApproval(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Approval = data
+		case "hiddenTools":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("hiddenTools"))
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalOString2ᚕstringᚄ(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "max=256,dive,min=1,max=128")
+				if err != nil {
+					var zeroVal []string
+					return zeroVal, err
+				}
+				if ec.Directives.Constraint == nil {
+					var zeroVal []string
+					return zeroVal, errors.New("directive constraint is not implemented")
+				}
+				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
+			}
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.([]string); ok {
+				it.HiddenTools = data
+			} else if tmp == nil {
+				it.HiddenTools = nil
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be []string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputAgentModelInput(ctx context.Context, obj any) (model.AgentModelInput, error) {
+	var it model.AgentModelInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"provider", "name"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "provider":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("provider"))
+			data, err := ec.unmarshalNModelProviderID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐModelProviderID(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Provider = data
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=256")
+				if err != nil {
+					var zeroVal string
+					return zeroVal, err
+				}
+				if ec.Directives.Constraint == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive constraint is not implemented")
+				}
+				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
+			}
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(string); ok {
+				it.Name = data
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputAutoscalingInput(ctx context.Context, obj any) (model.AutoscalingInput, error) {
 	var it model.AutoscalingInput
 	if obj == nil {
@@ -24289,6 +30469,61 @@ func (ec *executionContext) unmarshalInputVariableInput(ctx context.Context, obj
 
 // region    ************************** interface.gotpl ***************************
 
+func (ec *executionContext) _AgentSessionEvent(ctx context.Context, sel ast.SelectionSet, obj model.AgentSessionEvent) graphql.Marshaler {
+	switch obj := (obj).(type) {
+	case nil:
+		return graphql.Null
+	case model.AgentUserMessage:
+		return ec._AgentUserMessage(ctx, sel, &obj)
+	case *model.AgentUserMessage:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._AgentUserMessage(ctx, sel, obj)
+	case model.AgentTurnEnd:
+		return ec._AgentTurnEnd(ctx, sel, &obj)
+	case *model.AgentTurnEnd:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._AgentTurnEnd(ctx, sel, obj)
+	case model.AgentToolCall:
+		return ec._AgentToolCall(ctx, sel, &obj)
+	case *model.AgentToolCall:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._AgentToolCall(ctx, sel, obj)
+	case model.AgentNotice:
+		return ec._AgentNotice(ctx, sel, &obj)
+	case *model.AgentNotice:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._AgentNotice(ctx, sel, obj)
+	case model.AgentMessage:
+		return ec._AgentMessage(ctx, sel, &obj)
+	case *model.AgentMessage:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._AgentMessage(ctx, sel, obj)
+	case model.AgentApproval:
+		return ec._AgentApproval(ctx, sel, &obj)
+	case *model.AgentApproval:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._AgentApproval(ctx, sel, obj)
+	default:
+		if typedObj, ok := obj.(graphql.Marshaler); ok {
+			return typedObj
+		} else {
+			panic(fmt.Errorf("unexpected type %T; non-generated variants of AgentSessionEvent must implement graphql.Marshaler", obj))
+		}
+	}
+}
+
 func (ec *executionContext) _VariableSource(ctx context.Context, sel ast.SelectionSet, obj model.VariableSource) graphql.Marshaler {
 	switch obj := (obj).(type) {
 	case nil:
@@ -24333,6 +30568,778 @@ func (ec *executionContext) _VariableSource(ctx context.Context, sel ast.Selecti
 // endregion ************************** interface.gotpl ***************************
 
 // region    **************************** object.gotpl ****************************
+
+var agentImplementors = []string{"Agent"}
+
+func (ec *executionContext) _Agent(ctx context.Context, sel ast.SelectionSet, obj *model.Agent) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, agentImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Agent")
+		case "id":
+			out.Values[i] = ec._Agent_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "name":
+			out.Values[i] = ec._Agent_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "harness":
+			out.Values[i] = ec._Agent_harness(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "instructions":
+			out.Values[i] = ec._Agent_instructions(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "status":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Agent_status(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.IsDeferred() {
+				deferredFieldSet.AddField(field)
+				fieldIndex := len(deferredFieldSet.Values) - 1
+				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, deferredFieldSet)
+				})
+
+				for _, deferrable := range field.Deferrables {
+					view, ok := deferLabelToView[deferrable.Label]
+					if !ok {
+						view = deferredFieldSet.NewView()
+						deferLabelToView[deferrable.Label] = view
+					}
+					view.AddIndices(fieldIndex)
+				}
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "connectors":
+			out.Values[i] = ec._Agent_connectors(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "allowedHosts":
+			out.Values[i] = ec._Agent_allowedHosts(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "privateNetwork":
+			out.Values[i] = ec._Agent_privateNetwork(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "sessions":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Agent_sessions(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.IsDeferred() {
+				deferredFieldSet.AddField(field)
+				fieldIndex := len(deferredFieldSet.Values) - 1
+				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, deferredFieldSet)
+				})
+
+				for _, deferrable := range field.Deferrables {
+					view, ok := deferLabelToView[deferrable.Label]
+					if !ok {
+						view = deferredFieldSet.NewView()
+						deferLabelToView[deferrable.Label] = view
+					}
+					view.AddIndices(fieldIndex)
+				}
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var agentApprovalImplementors = []string{"AgentApproval", "AgentSessionEvent"}
+
+func (ec *executionContext) _AgentApproval(ctx context.Context, sel ast.SelectionSet, obj *model.AgentApproval) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, agentApprovalImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AgentApproval")
+		case "id":
+			out.Values[i] = ec._AgentApproval_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "time":
+			out.Values[i] = ec._AgentApproval_time(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "approval":
+			out.Values[i] = ec._AgentApproval_approval(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "callId":
+			out.Values[i] = ec._AgentApproval_callId(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "title":
+			out.Values[i] = ec._AgentApproval_title(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "status":
+			out.Values[i] = ec._AgentApproval_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "decidedBy":
+			out.Values[i] = ec._AgentApproval_decidedBy(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var agentAuditEntryImplementors = []string{"AgentAuditEntry"}
+
+func (ec *executionContext) _AgentAuditEntry(ctx context.Context, sel ast.SelectionSet, obj *model.AgentAuditEntry) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, agentAuditEntryImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AgentAuditEntry")
+		case "time":
+			out.Values[i] = ec._AgentAuditEntry_time(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "kind":
+			out.Values[i] = ec._AgentAuditEntry_kind(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "modelProvider":
+			out.Values[i] = ec._AgentAuditEntry_modelProvider(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "connector":
+			out.Values[i] = ec._AgentAuditEntry_connector(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "target":
+			out.Values[i] = ec._AgentAuditEntry_target(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "inputTokens":
+			out.Values[i] = ec._AgentAuditEntry_inputTokens(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "outputTokens":
+			out.Values[i] = ec._AgentAuditEntry_outputTokens(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "result":
+			out.Values[i] = ec._AgentAuditEntry_result(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var agentConnectorImplementors = []string{"AgentConnector"}
+
+func (ec *executionContext) _AgentConnector(ctx context.Context, sel ast.SelectionSet, obj *model.AgentConnector) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, agentConnectorImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AgentConnector")
+		case "connector":
+			out.Values[i] = ec._AgentConnector_connector(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "approval":
+			out.Values[i] = ec._AgentConnector_approval(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "hiddenTools":
+			out.Values[i] = ec._AgentConnector_hiddenTools(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var agentMessageImplementors = []string{"AgentMessage", "AgentSessionEvent"}
+
+func (ec *executionContext) _AgentMessage(ctx context.Context, sel ast.SelectionSet, obj *model.AgentMessage) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, agentMessageImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AgentMessage")
+		case "id":
+			out.Values[i] = ec._AgentMessage_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "time":
+			out.Values[i] = ec._AgentMessage_time(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "text":
+			out.Values[i] = ec._AgentMessage_text(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var agentModelImplementors = []string{"AgentModel"}
+
+func (ec *executionContext) _AgentModel(ctx context.Context, sel ast.SelectionSet, obj *model.AgentModel) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, agentModelImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AgentModel")
+		case "provider":
+			out.Values[i] = ec._AgentModel_provider(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._AgentModel_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var agentNoticeImplementors = []string{"AgentNotice", "AgentSessionEvent"}
+
+func (ec *executionContext) _AgentNotice(ctx context.Context, sel ast.SelectionSet, obj *model.AgentNotice) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, agentNoticeImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AgentNotice")
+		case "id":
+			out.Values[i] = ec._AgentNotice_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "time":
+			out.Values[i] = ec._AgentNotice_time(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "severity":
+			out.Values[i] = ec._AgentNotice_severity(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "title":
+			out.Values[i] = ec._AgentNotice_title(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "description":
+			out.Values[i] = ec._AgentNotice_description(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var agentSessionImplementors = []string{"AgentSession"}
+
+func (ec *executionContext) _AgentSession(ctx context.Context, sel ast.SelectionSet, obj *model.AgentSession) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, agentSessionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AgentSession")
+		case "id":
+			out.Values[i] = ec._AgentSession_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "title":
+			out.Values[i] = ec._AgentSession_title(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "startedBy":
+			out.Values[i] = ec._AgentSession_startedBy(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "startedAt":
+			out.Values[i] = ec._AgentSession_startedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "model":
+			out.Values[i] = ec._AgentSession_model(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "effort":
+			out.Values[i] = ec._AgentSession_effort(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "status":
+			out.Values[i] = ec._AgentSession_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "events":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._AgentSession_events(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.IsDeferred() {
+				deferredFieldSet.AddField(field)
+				fieldIndex := len(deferredFieldSet.Values) - 1
+				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, deferredFieldSet)
+				})
+
+				for _, deferrable := range field.Deferrables {
+					view, ok := deferLabelToView[deferrable.Label]
+					if !ok {
+						view = deferredFieldSet.NewView()
+						deferLabelToView[deferrable.Label] = view
+					}
+					view.AddIndices(fieldIndex)
+				}
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var agentToolCallImplementors = []string{"AgentToolCall", "AgentSessionEvent"}
+
+func (ec *executionContext) _AgentToolCall(ctx context.Context, sel ast.SelectionSet, obj *model.AgentToolCall) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, agentToolCallImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AgentToolCall")
+		case "id":
+			out.Values[i] = ec._AgentToolCall_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "time":
+			out.Values[i] = ec._AgentToolCall_time(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "callId":
+			out.Values[i] = ec._AgentToolCall_callId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "connector":
+			out.Values[i] = ec._AgentToolCall_connector(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "tool":
+			out.Values[i] = ec._AgentToolCall_tool(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "title":
+			out.Values[i] = ec._AgentToolCall_title(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "status":
+			out.Values[i] = ec._AgentToolCall_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "input":
+			out.Values[i] = ec._AgentToolCall_input(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "output":
+			out.Values[i] = ec._AgentToolCall_output(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var agentTurnEndImplementors = []string{"AgentTurnEnd", "AgentSessionEvent"}
+
+func (ec *executionContext) _AgentTurnEnd(ctx context.Context, sel ast.SelectionSet, obj *model.AgentTurnEnd) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, agentTurnEndImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AgentTurnEnd")
+		case "id":
+			out.Values[i] = ec._AgentTurnEnd_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "time":
+			out.Values[i] = ec._AgentTurnEnd_time(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "reason":
+			out.Values[i] = ec._AgentTurnEnd_reason(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "error":
+			out.Values[i] = ec._AgentTurnEnd_error(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var agentUserMessageImplementors = []string{"AgentUserMessage", "AgentSessionEvent"}
+
+func (ec *executionContext) _AgentUserMessage(ctx context.Context, sel ast.SelectionSet, obj *model.AgentUserMessage) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, agentUserMessageImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AgentUserMessage")
+		case "id":
+			out.Values[i] = ec._AgentUserMessage_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "time":
+			out.Values[i] = ec._AgentUserMessage_time(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "author":
+			out.Values[i] = ec._AgentUserMessage_author(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "text":
+			out.Values[i] = ec._AgentUserMessage_text(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
 
 var apiTokenImplementors = []string{"ApiToken"}
 
@@ -24969,6 +31976,155 @@ func (ec *executionContext) _Commit(ctx context.Context, sel ast.SelectionSet, o
 			}
 		case "url":
 			out.Values[i] = ec._Commit_url(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var connectorImplementors = []string{"Connector"}
+
+func (ec *executionContext) _Connector(ctx context.Context, sel ast.SelectionSet, obj *model.Connector) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, connectorImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Connector")
+		case "id":
+			out.Values[i] = ec._Connector_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "name":
+			out.Values[i] = ec._Connector_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "url":
+			out.Values[i] = ec._Connector_url(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "credentialHint":
+			out.Values[i] = ec._Connector_credentialHint(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "status":
+			out.Values[i] = ec._Connector_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "checkedAt":
+			out.Values[i] = ec._Connector_checkedAt(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "tools":
+			out.Values[i] = ec._Connector_tools(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "agents":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Connector_agents(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.IsDeferred() {
+				deferredFieldSet.AddField(field)
+				fieldIndex := len(deferredFieldSet.Values) - 1
+				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, deferredFieldSet)
+				})
+
+				for _, deferrable := range field.Deferrables {
+					view, ok := deferLabelToView[deferrable.Label]
+					if !ok {
+						view = deferredFieldSet.NewView()
+						deferLabelToView[deferrable.Label] = view
+					}
+					view.AddIndices(fieldIndex)
+				}
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var connectorToolImplementors = []string{"ConnectorTool"}
+
+func (ec *executionContext) _ConnectorTool(ctx context.Context, sel ast.SelectionSet, obj *model.ConnectorTool) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, connectorToolImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ConnectorTool")
+		case "name":
+			out.Values[i] = ec._ConnectorTool_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "description":
+			out.Values[i] = ec._ConnectorTool_description(ctx, field, obj)
 			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
@@ -26494,6 +33650,44 @@ func (ec *executionContext) _Environment(ctx context.Context, sel ast.SelectionS
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "agents":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Environment_agents(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.IsDeferred() {
+				deferredFieldSet.AddField(field)
+				fieldIndex := len(deferredFieldSet.Values) - 1
+				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, deferredFieldSet)
+				})
+
+				for _, deferrable := range field.Deferrables {
+					view, ok := deferLabelToView[deferrable.Label]
+					if !ok {
+						view = deferredFieldSet.NewView()
+						deferLabelToView[deferrable.Label] = view
+					}
+					view.AddIndices(fieldIndex)
+				}
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "keyValueStores":
 			field := field
 
@@ -27151,6 +34345,117 @@ func (ec *executionContext) _MetricSeries(ctx context.Context, sel ast.Selection
 	return out
 }
 
+var modelProviderImplementors = []string{"ModelProvider"}
+
+func (ec *executionContext) _ModelProvider(ctx context.Context, sel ast.SelectionSet, obj *model.ModelProvider) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, modelProviderImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ModelProvider")
+		case "id":
+			out.Values[i] = ec._ModelProvider_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "name":
+			out.Values[i] = ec._ModelProvider_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "api":
+			out.Values[i] = ec._ModelProvider_api(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "url":
+			out.Values[i] = ec._ModelProvider_url(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "keyHint":
+			out.Values[i] = ec._ModelProvider_keyHint(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "status":
+			out.Values[i] = ec._ModelProvider_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "checkedAt":
+			out.Values[i] = ec._ModelProvider_checkedAt(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "models":
+			out.Values[i] = ec._ModelProvider_models(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "agents":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._ModelProvider_agents(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.IsDeferred() {
+				deferredFieldSet.AddField(field)
+				fieldIndex := len(deferredFieldSet.Values) - 1
+				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, deferredFieldSet)
+				})
+
+				for _, deferrable := range field.Deferrables {
+					view, ok := deferLabelToView[deferrable.Label]
+					if !ok {
+						view = deferredFieldSet.NewView()
+						deferLabelToView[deferrable.Label] = view
+					}
+					view.AddIndices(fieldIndex)
+				}
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
 var mountImplementors = []string{"Mount"}
 
 func (ec *executionContext) _Mount(ctx context.Context, sel ast.SelectionSet, obj *model.Mount) graphql.Marshaler {
@@ -27214,6 +34519,76 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Mutation")
+		case "createAgent":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createAgent(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateAgent":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateAgent(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "setAgentConnectors":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setAgentConnectors(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "setAgentNetwork":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setAgentNetwork(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteAgent":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteAgent(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "startAgentSession":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_startAgentSession(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "setAgentSessionModel":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setAgentSessionModel(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "sendAgentMessage":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_sendAgentMessage(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "answerAgentApproval":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_answerAgentApproval(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "stopAgentSession":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_stopAgentSession(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "createApiToken":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createApiToken(ctx, field)
@@ -27266,6 +34641,34 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "completePlanCheckout":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_completePlanCheckout(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createConnector":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createConnector(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "replaceConnectorCredential":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_replaceConnectorCredential(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "refreshConnector":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_refreshConnector(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteConnector":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteConnector(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -27357,6 +34760,34 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "deleteKeyValueStore":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_deleteKeyValueStore(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createModelProvider":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createModelProvider(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "replaceModelProviderKey":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_replaceModelProviderKey(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "refreshModelProvider":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_refreshModelProvider(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteModelProvider":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteModelProvider(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -27752,6 +35183,94 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Query")
+		case "agent":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_agent(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "agentModels":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_agentModels(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "agentAudit":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_agentAudit(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "agentSession":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_agentSession(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "apiTokens":
 			field := field
 
@@ -27829,6 +35348,50 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				}()
 				res = ec._Query_usageSummary(ctx, field)
 				if res == graphql.RequiredNull {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "connectors":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_connectors(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "connector":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_connector(ctx, field)
+				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
 				return res
@@ -28114,6 +35677,50 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_keyValueStoreCredentials(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "modelProviders":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_modelProviders(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "modelProvider":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_modelProvider(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -29709,6 +37316,8 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 	}
 
 	switch fields[0].Name {
+	case "agentSessionEvents":
+		return ec._Subscription_agentSessionEvents(ctx, fields[0])
 	case "serviceLogs":
 		return ec._Subscription_serviceLogs(ctx, fields[0])
 	case "buildLogs":
@@ -30745,6 +38354,296 @@ func (ec *executionContext) unmarshalNAddServiceInput2githubᚗcomᚋzeitlosᚋl
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) marshalNAgent2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgent(ctx context.Context, sel ast.SelectionSet, v model.Agent) graphql.Marshaler {
+	return ec._Agent(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNAgent2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentᚄ(ctx context.Context, sel ast.SelectionSet, v []model.Agent) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNAgent2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgent(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNAgent2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgent(ctx context.Context, sel ast.SelectionSet, v *model.Agent) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._Agent(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNAgentApprovalDecision2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentApprovalDecision(ctx context.Context, v any) (model.AgentApprovalDecision, error) {
+	var res model.AgentApprovalDecision
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNAgentApprovalDecision2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentApprovalDecision(ctx context.Context, sel ast.SelectionSet, v model.AgentApprovalDecision) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalNAgentApprovalStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentApprovalStatus(ctx context.Context, v any) (model.AgentApprovalStatus, error) {
+	var res model.AgentApprovalStatus
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNAgentApprovalStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentApprovalStatus(ctx context.Context, sel ast.SelectionSet, v model.AgentApprovalStatus) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) marshalNAgentAuditEntry2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentAuditEntry(ctx context.Context, sel ast.SelectionSet, v model.AgentAuditEntry) graphql.Marshaler {
+	return ec._AgentAuditEntry(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNAgentAuditEntry2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentAuditEntryᚄ(ctx context.Context, sel ast.SelectionSet, v []model.AgentAuditEntry) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNAgentAuditEntry2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentAuditEntry(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalNAgentAuditKind2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentAuditKind(ctx context.Context, v any) (model.AgentAuditKind, error) {
+	var res model.AgentAuditKind
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNAgentAuditKind2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentAuditKind(ctx context.Context, sel ast.SelectionSet, v model.AgentAuditKind) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalNAgentAuditResult2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentAuditResult(ctx context.Context, v any) (model.AgentAuditResult, error) {
+	var res model.AgentAuditResult
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNAgentAuditResult2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentAuditResult(ctx context.Context, sel ast.SelectionSet, v model.AgentAuditResult) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) marshalNAgentConnector2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentConnector(ctx context.Context, sel ast.SelectionSet, v model.AgentConnector) graphql.Marshaler {
+	return ec._AgentConnector(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNAgentConnector2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentConnectorᚄ(ctx context.Context, sel ast.SelectionSet, v []model.AgentConnector) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNAgentConnector2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentConnector(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalNAgentConnectorInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentConnectorInput(ctx context.Context, v any) (model.AgentConnectorInput, error) {
+	res, err := ec.unmarshalInputAgentConnectorInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNAgentConnectorInput2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentConnectorInputᚄ(ctx context.Context, v any) ([]model.AgentConnectorInput, error) {
+	vSlice := graphql.CoerceList(v)
+	var err error
+	res := make([]model.AgentConnectorInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNAgentConnectorInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentConnectorInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalNAgentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐAgentID(ctx context.Context, v any) (platform.AgentID, error) {
+	var res platform.AgentID
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNAgentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐAgentID(ctx context.Context, sel ast.SelectionSet, v platform.AgentID) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) marshalNAgentModel2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentModel(ctx context.Context, sel ast.SelectionSet, v model.AgentModel) graphql.Marshaler {
+	return ec._AgentModel(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNAgentModel2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentModelᚄ(ctx context.Context, sel ast.SelectionSet, v []model.AgentModel) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNAgentModel2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentModel(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNAgentModel2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentModel(ctx context.Context, sel ast.SelectionSet, v *model.AgentModel) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AgentModel(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNAgentModelInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentModelInput(ctx context.Context, v any) (model.AgentModelInput, error) {
+	res, err := ec.unmarshalInputAgentModelInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNAgentNoticeSeverity2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentNoticeSeverity(ctx context.Context, v any) (model.AgentNoticeSeverity, error) {
+	var res model.AgentNoticeSeverity
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNAgentNoticeSeverity2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentNoticeSeverity(ctx context.Context, sel ast.SelectionSet, v model.AgentNoticeSeverity) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) marshalNAgentSession2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentSession(ctx context.Context, sel ast.SelectionSet, v model.AgentSession) graphql.Marshaler {
+	return ec._AgentSession(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNAgentSession2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentSessionᚄ(ctx context.Context, sel ast.SelectionSet, v []model.AgentSession) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNAgentSession2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentSession(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNAgentSession2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentSession(ctx context.Context, sel ast.SelectionSet, v *model.AgentSession) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AgentSession(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNAgentSessionEvent2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentSessionEvent(ctx context.Context, sel ast.SelectionSet, v model.AgentSessionEvent) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AgentSessionEvent(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNAgentSessionEvent2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentSessionEventᚄ(ctx context.Context, sel ast.SelectionSet, v []model.AgentSessionEvent) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNAgentSessionEvent2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentSessionEvent(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalNAgentSessionID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐAgentSessionID(ctx context.Context, v any) (platform.AgentSessionID, error) {
+	var res platform.AgentSessionID
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNAgentSessionID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐAgentSessionID(ctx context.Context, sel ast.SelectionSet, v platform.AgentSessionID) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalNAgentSessionStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentSessionStatus(ctx context.Context, v any) (model.AgentSessionStatus, error) {
+	var res model.AgentSessionStatus
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNAgentSessionStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentSessionStatus(ctx context.Context, sel ast.SelectionSet, v model.AgentSessionStatus) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalNAgentStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentStatus(ctx context.Context, v any) (model.AgentStatus, error) {
+	var res model.AgentStatus
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNAgentStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentStatus(ctx context.Context, sel ast.SelectionSet, v model.AgentStatus) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalNAgentToolCallStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentToolCallStatus(ctx context.Context, v any) (model.AgentToolCallStatus, error) {
+	var res model.AgentToolCallStatus
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNAgentToolCallStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentToolCallStatus(ctx context.Context, sel ast.SelectionSet, v model.AgentToolCallStatus) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalNAgentTurnEndReason2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentTurnEndReason(ctx context.Context, v any) (model.AgentTurnEndReason, error) {
+	var res model.AgentTurnEndReason
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNAgentTurnEndReason2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentTurnEndReason(ctx context.Context, sel ast.SelectionSet, v model.AgentTurnEndReason) graphql.Marshaler {
+	return v
+}
+
 func (ec *executionContext) marshalNApiToken2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAPIToken(ctx context.Context, sel ast.SelectionSet, v model.APIToken) graphql.Marshaler {
 	return ec._ApiToken(ctx, sel, &v)
 }
@@ -30773,6 +38672,16 @@ func (ec *executionContext) marshalNApiToken2ᚖgithubᚗcomᚋzeitlosᚋlucity�
 		return graphql.Null
 	}
 	return ec._ApiToken(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNApproval2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐApproval(ctx context.Context, v any) (model.Approval, error) {
+	var res model.Approval
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNApproval2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐApproval(ctx context.Context, sel ast.SelectionSet, v model.Approval) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) unmarshalNBackupStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBackupStatus(ctx context.Context, v any) (model.BackupStatus, error) {
@@ -31011,6 +38920,66 @@ func (ec *executionContext) marshalNCommit2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋ
 	return ec._Commit(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNConnector2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐConnector(ctx context.Context, sel ast.SelectionSet, v model.Connector) graphql.Marshaler {
+	return ec._Connector(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNConnector2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐConnectorᚄ(ctx context.Context, sel ast.SelectionSet, v []model.Connector) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNConnector2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐConnector(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNConnector2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐConnector(ctx context.Context, sel ast.SelectionSet, v *model.Connector) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._Connector(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNConnectorID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐConnectorID(ctx context.Context, v any) (platform.ConnectorID, error) {
+	var res platform.ConnectorID
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNConnectorID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐConnectorID(ctx context.Context, sel ast.SelectionSet, v platform.ConnectorID) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) marshalNConnectorTool2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐConnectorTool(ctx context.Context, sel ast.SelectionSet, v model.ConnectorTool) graphql.Marshaler {
+	return ec._ConnectorTool(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNConnectorTool2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐConnectorToolᚄ(ctx context.Context, sel ast.SelectionSet, v []model.ConnectorTool) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNConnectorTool2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐConnectorTool(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
 func (ec *executionContext) unmarshalNCreateApiTokenInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐCreateAPITokenInput(ctx context.Context, v any) (model.CreateAPITokenInput, error) {
 	res, err := ec.unmarshalInputCreateApiTokenInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -31054,6 +39023,16 @@ func (ec *executionContext) marshalNCreatedApiToken2ᚖgithubᚗcomᚋzeitlosᚋ
 		return graphql.Null
 	}
 	return ec._CreatedApiToken(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNCredentialStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐCredentialStatus(ctx context.Context, v any) (model.CredentialStatus, error) {
+	var res model.CredentialStatus
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNCredentialStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐCredentialStatus(ctx context.Context, sel ast.SelectionSet, v model.CredentialStatus) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) marshalNDatabase2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabase(ctx context.Context, sel ast.SelectionSet, v model.Database) graphql.Marshaler {
@@ -31471,6 +39450,16 @@ func (ec *executionContext) marshalNDnsStatus2githubᚗcomᚋzeitlosᚋlucityᚋ
 	return v
 }
 
+func (ec *executionContext) unmarshalNEffort2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐEffort(ctx context.Context, v any) (model.Effort, error) {
+	var res model.Effort
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNEffort2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐEffort(ctx context.Context, sel ast.SelectionSet, v model.Effort) graphql.Marshaler {
+	return v
+}
+
 func (ec *executionContext) marshalNEjectArtifact2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐEjectArtifact(ctx context.Context, sel ast.SelectionSet, v *model.EjectArtifact) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -31615,6 +39604,16 @@ func (ec *executionContext) marshalNGitHubRepository2ᚕgithubᚗcomᚋzeitlos�
 	}
 
 	return ret
+}
+
+func (ec *executionContext) unmarshalNHarness2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐHarness(ctx context.Context, v any) (model.Harness, error) {
+	var res model.Harness
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNHarness2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐHarness(ctx context.Context, sel ast.SelectionSet, v model.Harness) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) unmarshalNID2string(ctx context.Context, v any) (string, error) {
@@ -31807,6 +39806,56 @@ func (ec *executionContext) marshalNMetricWindow2githubᚗcomᚋzeitlosᚋlucity
 func (ec *executionContext) unmarshalNMetricsRange2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricsRange(ctx context.Context, v any) (model.MetricsRange, error) {
 	res, err := ec.unmarshalInputMetricsRange(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNModelApi2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐModelAPI(ctx context.Context, v any) (model.ModelAPI, error) {
+	var res model.ModelAPI
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNModelApi2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐModelAPI(ctx context.Context, sel ast.SelectionSet, v model.ModelAPI) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) marshalNModelProvider2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐModelProvider(ctx context.Context, sel ast.SelectionSet, v model.ModelProvider) graphql.Marshaler {
+	return ec._ModelProvider(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNModelProvider2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐModelProviderᚄ(ctx context.Context, sel ast.SelectionSet, v []model.ModelProvider) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNModelProvider2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐModelProvider(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNModelProvider2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐModelProvider(ctx context.Context, sel ast.SelectionSet, v *model.ModelProvider) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ModelProvider(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNModelProviderID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐModelProviderID(ctx context.Context, v any) (platform.ModelProviderID, error) {
+	var res platform.ModelProviderID
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNModelProviderID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐModelProviderID(ctx context.Context, sel ast.SelectionSet, v platform.ModelProviderID) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) unmarshalNPlan2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐPlan(ctx context.Context, v any) (model.Plan, error) {
@@ -32771,6 +40820,67 @@ func (ec *executionContext) marshalN__TypeKind2string(ctx context.Context, sel a
 	return res
 }
 
+func (ec *executionContext) unmarshalOAgentAuditKind2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentAuditKindᚄ(ctx context.Context, v any) ([]model.AgentAuditKind, error) {
+	if v == nil {
+		return nil, nil
+	}
+	vSlice := graphql.CoerceList(v)
+	var err error
+	res := make([]model.AgentAuditKind, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNAgentAuditKind2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentAuditKind(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalOAgentAuditKind2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentAuditKindᚄ(ctx context.Context, sel ast.SelectionSet, v []model.AgentAuditKind) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNAgentAuditKind2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentAuditKind(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalOAgentConnectorInput2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentConnectorInputᚄ(ctx context.Context, v any) ([]model.AgentConnectorInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	vSlice := graphql.CoerceList(v)
+	var err error
+	res := make([]model.AgentConnectorInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNAgentConnectorInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentConnectorInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalOAgentModelInput2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAgentModelInput(ctx context.Context, v any) (*model.AgentModelInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputAgentModelInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalOAutoscalingInput2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAutoscalingInput(ctx context.Context, v any) (*model.AutoscalingInput, error) {
 	if v == nil {
 		return nil, nil
@@ -32860,6 +40970,22 @@ func (ec *executionContext) marshalODeployment2ᚖgithubᚗcomᚋzeitlosᚋlucit
 	return ec._Deployment(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalOEffort2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐEffort(ctx context.Context, v any) (*model.Effort, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.Effort)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOEffort2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐEffort(ctx context.Context, sel ast.SelectionSet, v *model.Effort) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
+}
+
 func (ec *executionContext) unmarshalOEnvironmentID2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐEnvironmentID(ctx context.Context, v any) (*platform.EnvironmentID, error) {
 	if v == nil {
 		return nil, nil
@@ -32913,6 +41039,24 @@ func (ec *executionContext) unmarshalOHealthCheckInput2ᚖgithubᚗcomᚋzeitlos
 	}
 	res, err := ec.unmarshalInputHealthCheckInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOID2ᚖstring(ctx context.Context, v any) (*string, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalID(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOID2ᚖstring(ctx context.Context, sel ast.SelectionSet, v *string) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalID(*v)
+	return res
 }
 
 func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v any) (*int, error) {
@@ -33162,6 +41306,13 @@ func (ec *executionContext) marshalOVulnerabilityReport2ᚖgithubᚗcomᚋzeitlo
 		return graphql.Null
 	}
 	return ec._VulnerabilityReport(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOWorkspaceMember2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐWorkspaceMember(ctx context.Context, sel ast.SelectionSet, v *model.WorkspaceMember) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._WorkspaceMember(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalO__EnumValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValueᚄ(ctx context.Context, sel ast.SelectionSet, v []introspection.EnumValue) graphql.Marshaler {

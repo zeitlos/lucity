@@ -17,6 +17,7 @@ import (
 	"github.com/zeitlos/lucity/charts"
 	"github.com/zeitlos/lucity/pkg/billing"
 	"github.com/zeitlos/lucity/pkg/bunny"
+	"github.com/zeitlos/lucity/pkg/deployer"
 	helmDeployer "github.com/zeitlos/lucity/pkg/deployer/helm"
 	"github.com/zeitlos/lucity/pkg/deployer/values"
 	"github.com/zeitlos/lucity/pkg/domains"
@@ -98,6 +99,12 @@ type Config struct {
 	DatabaseBackupEndpoint string `envconfig:"DATABASE_BACKUP_S3_ENDPOINT"`
 	DatabaseBackupBucket   string `envconfig:"DATABASE_BACKUP_S3_BUCKET"`
 	EdgeHeaderEnforced     bool   `envconfig:"EDGE_HEADER_ENFORCED" default:"false"`
+
+	// Agents, the same settings as the conductor's.
+	AgentsEnabled   bool   `envconfig:"AGENTS_ENABLED" default:"false"`
+	AgentsNamespace string `envconfig:"AGENTS_NAMESPACE" default:"lucity-agents"`
+	AgentImage      string `envconfig:"AGENT_IMAGE"`
+	AgentGatewayURL string `envconfig:"AGENT_GATEWAY_URL" default:"http://lucity-agent-gateway.lucity-agents.svc.cluster.local"`
 }
 
 func main() {
@@ -133,6 +140,31 @@ func main() {
 
 	chartRef.Metadata.Version = version.String()
 
+	var agents helmDeployer.AgentConfig
+
+	if config.AgentsEnabled {
+		if config.AgentImage == "" {
+			slog.Error("AGENTS_ENABLED requires AGENT_IMAGE")
+			os.Exit(1)
+		}
+
+		workspaceChart, err := helmDeployer.LoadChartFromFS(charts.LucityWorkspace, "lucity-workspace")
+
+		if err != nil {
+			slog.Error("failed to load lucity-workspace chart", "error", err)
+			os.Exit(1)
+		}
+
+		workspaceChart.Metadata.Version = version.String()
+
+		agents = helmDeployer.AgentConfig{
+			Image:          config.AgentImage,
+			GatewayURL:     config.AgentGatewayURL,
+			Namespace:      config.AgentsNamespace,
+			WorkspaceChart: workspaceChart,
+		}
+	}
+
 	ctx, cancel := graceful.Context()
 	defer cancel()
 
@@ -143,7 +175,7 @@ func main() {
 		Enabled:  config.DatabaseBackupEnabled,
 		Endpoint: config.DatabaseBackupEndpoint,
 		Bucket:   config.DatabaseBackupBucket,
-	}, config.RegistryPullURL, config.WorkloadDefaultPlacement, helmDeployer.WithEdgeHeader(config.EdgeHeaderEnforced), helmDeployer.WithHTTPSListener(config.GatewayHTTPSListener), helmDeployer.WithReleaseCache(releaseCache))
+	}, config.RegistryPullURL, config.WorkloadDefaultPlacement, agents, helmDeployer.WithEdgeHeader(config.EdgeHeaderEnforced), helmDeployer.WithHTTPSListener(config.GatewayHTTPSListener), helmDeployer.WithReleaseCache(releaseCache))
 
 	if err != nil {
 		slog.Error("failed to create deployer client", "error", err)
@@ -205,7 +237,13 @@ func main() {
 
 	directory := workspaces.New(logto.New(config.LogtoEndpoint, config.LogtoM2MAppID, config.LogtoM2MAppSecret), platformClient, workspaceMaxAge)
 
-	releaseWorker := releases.New(environmentClient, deployerClient.Environments(), directory, billingClient, config.WorkloadDefaultPlacement, config.WorkloadPaidPlacement, config.Interval, config.DryRun)
+	var workspaceReleases deployer.WorkspaceClient
+
+	if config.AgentsEnabled {
+		workspaceReleases = deployerClient.Workspaces()
+	}
+
+	releaseWorker := releases.New(environmentClient, deployerClient.Environments(), workspaceReleases, directory, billingClient, config.WorkloadDefaultPlacement, config.WorkloadPaidPlacement, config.Interval, config.DryRun)
 	domainWorker := customdomains.New(domainsClient, directory, pendingDomainInterval, domainSyncInterval)
 
 	slog.Info("stagehand started", "version", Version, "interval", config.Interval, "dry_run", config.DryRun, "max_concurrent_releases", config.MaxConcurrentReleases, "max_concurrent_builds", config.MaxConcurrentBuilds)

@@ -1,0 +1,269 @@
+{{- range $name, $agent := .Values.agents }}
+{{- $fullname := printf "%s-agent-%s" (include "lucity-app.fullname" $) $name }}
+{{- $selector := dict "lucity.dev/agent" $name "app.kubernetes.io/instance" $.Release.Name }}
+{{- $connectors := list }}
+{{- range $connector, $grant := $agent.connectors }}
+{{- $connectors = append $connectors (dict "name" $connector "approval" $grant.approval) }}
+{{- end }}
+{{- $config := dict "harness" $agent.harness "connectors" $connectors | toJson }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $fullname }}
+  labels:
+    {{- include "lucity-app.agentLabels" (dict "root" $ "name" $name) | nindent 4 }}
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $fullname }}
+  labels:
+    {{- include "lucity-app.agentLabels" (dict "root" $ "name" $name) | nindent 4 }}
+type: Opaque
+stringData:
+  key: {{ required (printf "agent %s needs a key" $name) $agent.key | quote }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullname }}
+  labels:
+    {{- include "lucity-app.agentLabels" (dict "root" $ "name" $name) | nindent 4 }}
+data:
+  agent.json: {{ $config | quote }}
+  instructions.md: {{ $agent.instructions | default "" | quote }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $fullname }}
+  labels:
+    {{- include "lucity-app.agentLabels" (dict "root" $ "name" $name) | nindent 4 }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: {{ $agent.storage.size | default "10Gi" }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}
+  labels:
+    {{- include "lucity-app.agentLabels" (dict "root" $ "name" $name) | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- toYaml $selector | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}
+  labels:
+    {{- include "lucity-app.agentLabels" (dict "root" $ "name" $name) | nindent 4 }}
+spec:
+  replicas: {{ if $.Values.suspended }}0{{ else }}1{{ end }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- toYaml $selector | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "lucity-app.agentLabels" (dict "root" $ "name" $name) | nindent 8 }}
+        app.kubernetes.io/instance: {{ $.Release.Name }}
+      annotations:
+        checksum/config: {{ printf "%s\n%s\n%s" $config $agent.instructions $agent.key | sha256sum }}
+        {{- with $.Values.commonAnnotations }}{{- toYaml . | nindent 8 }}{{- end }}
+    spec:
+      hostUsers: false
+      serviceAccountName: {{ $fullname }}
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 30
+      {{- with $.Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $.Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $.Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: configure
+          image: {{ required "agentRuntime.image is required for agents" $.Values.agentRuntime.image | quote }}
+          imagePullPolicy: IfNotPresent
+          args:
+            - configure
+          env:
+            - name: AGENT_GATEWAY_URL
+              value: {{ $.Values.agentRuntime.gateway.url | quote }}
+            - name: AGENT_GATEWAY_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $fullname }}
+                  key: key
+            - name: HOME
+              value: /data/home
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+            - name: config
+              mountPath: /etc/agent
+              readOnly: true
+            - name: harness
+              mountPath: /etc/harness
+      containers:
+        - name: agent
+          image: {{ required "agentRuntime.image is required for agents" $.Values.agentRuntime.image | quote }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: AGENT_GATEWAY_URL
+              value: {{ required "agentRuntime.gateway.url is required for agents" $.Values.agentRuntime.gateway.url | quote }}
+            - name: AGENT_GATEWAY_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $fullname }}
+                  key: key
+            - name: HOME
+              value: /data/home
+          readinessProbe:
+            httpGet:
+              path: /status
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          {{- with $agent.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+            - name: config
+              mountPath: /etc/agent
+              readOnly: true
+            - name: harness
+              mountPath: /etc/harness
+              readOnly: true
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ $fullname }}
+        - name: tmp
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: {{ $fullname }}
+        - name: harness
+          emptyDir: {}
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: {{ $fullname }}
+  labels:
+    {{- include "lucity-app.agentLabels" (dict "root" $ "name" $name) | nindent 4 }}
+spec:
+  endpointSelector:
+    matchLabels:
+      {{- toYaml $selector | nindent 6 }}
+  ingress:
+    - fromEntities:
+        - kube-apiserver
+        - host
+        - remote-node
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+            app.kubernetes.io/name: konnectivity-agent
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: ANY
+          rules:
+            dns:
+              - matchPattern: "*"
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: {{ required "agentRuntime.gateway.namespace is required for agents" $.Values.agentRuntime.gateway.namespace }}
+            gateway.networking.k8s.io/gateway-name: {{ required "agentRuntime.gateway.name is required for agents" $.Values.agentRuntime.gateway.name }}
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+    {{- with $agent.network.allowedHosts }}
+    - toFQDNs:
+        {{- range . }}
+        {{- if hasPrefix "*." . }}
+        - matchPattern: {{ . | quote }}
+        {{- else }}
+        - matchName: {{ . | quote }}
+        {{- end }}
+        {{- end }}
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+            - port: "80"
+              protocol: TCP
+    {{- end }}
+    {{- if $agent.network.privateNetwork }}
+    - toEndpoints:
+        - {}
+    {{- end }}
+{{- end }}

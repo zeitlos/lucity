@@ -1,0 +1,143 @@
+enum AgentSessionStatus {
+  IDLE
+  WORKING
+  WAITING_FOR_APPROVAL
+}
+
+enum AgentToolCallStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+  """Someone in the workspace denied the call."""
+  DENIED
+}
+
+enum AgentApprovalStatus {
+  PENDING
+  ALLOWED
+  DENIED
+}
+
+enum AgentApprovalDecision {
+  """Allows this one call."""
+  ALLOW_ONCE
+  DENY
+}
+
+enum AgentTurnEndReason {
+  """The agent finished its turn."""
+  COMPLETED
+  """Someone stopped the session."""
+  STOPPED
+  FAILED
+}
+
+"""One conversation with an agent. Every member of the workspace can see it and take part."""
+type AgentSession {
+  id: AgentSessionID!
+  title: String!
+  """Who started the session. Null once that person has left the workspace."""
+  startedBy: WorkspaceMember
+  startedAt: Time!
+  """The model of the next turn."""
+  model: AgentModel!
+  effort: Effort!
+  status: AgentSessionStatus!
+  """Everything that happened in the session, oldest first."""
+  events: [AgentSessionEvent!]! @goField(forceResolver: true)
+}
+
+"""Something that happened in a session. Events with the same `callId` or `approval` describe the same call or approval, and the later one replaces the earlier one."""
+union AgentSessionEvent = AgentUserMessage | AgentMessage | AgentToolCall | AgentApproval | AgentNotice | AgentTurnEnd
+
+enum AgentNoticeSeverity {
+  INFO
+  WARNING
+  ERROR
+}
+
+"""Something the harness flags about the session rather than says as the agent, like a model fallback or a safety stop."""
+type AgentNotice {
+  id: ID!
+  time: Time!
+  severity: AgentNoticeSeverity!
+  title: String!
+  description: String
+}
+
+"""A message someone in the workspace sent to the agent."""
+type AgentUserMessage {
+  """The event's position in the session. Pass it as `after` to continue from here."""
+  id: ID!
+  time: Time!
+  """Null once that person has left the workspace."""
+  author: WorkspaceMember
+  text: String!
+}
+
+"""Text the agent wrote."""
+type AgentMessage {
+  id: ID!
+  time: Time!
+  text: String!
+}
+
+"""A tool the agent called."""
+type AgentToolCall {
+  id: ID!
+  time: Time!
+  callId: String!
+  """The connector the tool belongs to. Null for the harness's own tools, such as editing a file."""
+  connector: String
+  tool: String!
+  title: String!
+  status: AgentToolCallStatus!
+  """The arguments, as JSON."""
+  input: String
+  output: String
+}
+
+"""A tool call that waits for, or got, a decision from someone in the workspace."""
+type AgentApproval {
+  id: ID!
+  time: Time!
+  """Pass this to `answerAgentApproval`."""
+  approval: ID!
+  """The tool call that needs the approval."""
+  callId: String
+  title: String!
+  status: AgentApprovalStatus!
+  """Null while pending, or once that person has left the workspace."""
+  decidedBy: WorkspaceMember
+}
+
+"""The agent ended its turn and waits for the next message."""
+type AgentTurnEnd {
+  id: ID!
+  time: Time!
+  reason: AgentTurnEndReason!
+  error: String
+}
+
+extend type Query {
+  """One session, with its events."""
+  agentSession(id: AgentSessionID!): AgentSession! @hasRole(role: WORKSPACE_MEMBER)
+}
+
+extend type Mutation {
+  """Starts a session with a first message. `model` and `effort` default to the agent's last choice."""
+  startAgentSession(agent: AgentID!, message: String! @constraint(constraint: "min=1,max=65536"), model: AgentModelInput, effort: Effort): AgentSession! @hasRole(role: WORKSPACE_MEMBER)
+  """Changes the model and effort of a session, from its next turn on."""
+  setAgentSessionModel(session: AgentSessionID!, model: AgentModelInput!, effort: Effort!): AgentSession! @hasRole(role: WORKSPACE_MEMBER)
+  """Sends a message to a session. While the agent works, it reads the message after its current turn."""
+  sendAgentMessage(session: AgentSessionID!, message: String! @constraint(constraint: "min=1,max=65536")): AgentSession! @hasRole(role: WORKSPACE_MEMBER)
+  """Allows or denies a pending tool call."""
+  answerAgentApproval(session: AgentSessionID!, approval: ID! @constraint(constraint: "min=1,max=128"), decision: AgentApprovalDecision!): AgentSession! @hasRole(role: WORKSPACE_MEMBER)
+  """Stops the current turn of a session."""
+  stopAgentSession(session: AgentSessionID!): AgentSession! @hasRole(role: WORKSPACE_MEMBER)
+}
+
+extend type Subscription {
+  """The events of a session, starting after the event `after`, or from the beginning without it, and following new ones."""
+  agentSessionEvents(session: AgentSessionID!, after: ID @constraint(constraint: "max=64")): AgentSessionEvent! @hasRole(role: WORKSPACE_MEMBER)
+}

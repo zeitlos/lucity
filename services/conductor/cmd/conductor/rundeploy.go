@@ -82,7 +82,7 @@ func runDeploy() {
 	ctx, cancel := context.WithTimeout(context.Background(), buildWaitTimeout)
 	defer cancel()
 
-	k8sClient, _, _, err := buildKubeClients()
+	k8sClient, _, _, _, err := buildKubeClients()
 
 	if err != nil {
 		log.Error("failed to build kube clients", "error", err)
@@ -137,7 +137,7 @@ func runDeploy() {
 		Enabled:  config.DatabaseBackupEnabled,
 		Endpoint: config.DatabaseBackupEndpoint,
 		Bucket:   config.DatabaseBackupBucket,
-	}, config.RegistryPullURL, config.WorkloadDefaultPlacement, helmDeployer.WithEdgeHeader(config.EdgeHeaderEnforced), helmDeployer.WithHTTPSListener(config.GatewayHTTPSListener))
+	}, config.RegistryPullURL, config.WorkloadDefaultPlacement, helmDeployer.AgentConfig{}, helmDeployer.WithEdgeHeader(config.EdgeHeaderEnforced), helmDeployer.WithHTTPSListener(config.GatewayHTTPSListener))
 
 	if err != nil {
 		log.Error("deploy: failed to create deployer client", "error", err)

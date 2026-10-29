@@ -4,7 +4,7 @@ import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
 import { graphql } from '@/gql';
-import { ServiceStatus, DatabaseStatus, ReleaseStatus, RolloutStatus, ScanStatus } from '@/gql/graphql';
+import { AgentStatus, ServiceStatus, DatabaseStatus, ReleaseStatus, RolloutStatus, ScanStatus } from '@/gql/graphql';
 
 const EnvironmentDocument = graphql(`
   query Environment($environment: EnvironmentID!) {
@@ -235,6 +235,31 @@ const EnvironmentDefaultCommandsDocument = graphql(`
   }
 `);
 
+const EnvironmentAgentsDocument = graphql(`
+  query EnvironmentAgents($environment: EnvironmentID!) {
+    environment(environment: $environment) {
+      id
+      agents {
+        id
+        name
+        harness
+        instructions
+        status
+        allowedHosts
+        privateNetwork
+        connectors {
+          approval
+          hiddenTools
+          connector {
+            id
+            name
+          }
+        }
+      }
+    }
+  }
+`);
+
 const ProjectEnvironmentsDocument = graphql(`
   query ProjectEnvironments($id: ProjectID!) {
     project(id: $id) {
@@ -260,6 +285,7 @@ import DatabasePanel from '@/components/panel/DatabasePanel.vue';
 import KeyValueStorePanel from '@/components/panel/KeyValueStorePanel.vue';
 import BucketPanel from '@/components/panel/BucketPanel.vue';
 import VolumePanel from '@/components/panel/VolumePanel.vue';
+import AgentPanel from '@/components/panel/AgentPanel.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import CreateCommandPalette from '@/components/CreateCommandPalette.vue';
 import MountVolumeDialog from '@/components/MountVolumeDialog.vue';
@@ -347,6 +373,26 @@ watch(activeImageDigests, (current, previous) => {
 });
 
 const environment = computed(() => result.value?.environment ?? null);
+
+const agentsBusy = ref(false);
+
+const { result: agentsResult, refetch: refetchAgents } = useQuery(
+  EnvironmentAgentsDocument,
+  () => ({ environment: environmentId.value }),
+  () => ({ pollInterval: agentsBusy.value ? 3000 : 10000 }),
+);
+
+const agents = computed(() => agentsResult.value?.environment?.agents ?? []);
+
+const AGENT_BUSY_STATUSES = new Set<AgentStatus>([
+  AgentStatus.Starting,
+  AgentStatus.Working,
+  AgentStatus.WaitingForApproval,
+]);
+
+watch(agents, (list) => {
+  agentsBusy.value = list.some(agent => AGENT_BUSY_STATUSES.has(agent.status));
+});
 
 // Load sibling environments for the env switcher
 const { result: projectResult } = useQuery(
@@ -618,6 +664,13 @@ const selectedVolume = computed(() => {
   return activeEnvVolumes.value.find(v => v.id === currentPanel.value!.id) ?? null;
 });
 
+const selectedAgent = computed(() => {
+  if (!currentPanel.value || currentPanel.value.type !== 'agent') return null;
+  return agents.value.find(a => a.id === currentPanel.value!.id) ?? null;
+});
+
+const serviceNames = computed(() => activeEnvServices.value.map(s => s.name));
+
 // Services that already hold a mounted volume (one volume per service)
 const mountedServiceIds = computed(() =>
   activeEnvVolumes.value
@@ -648,6 +701,12 @@ function handleResourceRemoved() {
 
 function handleCreateFromPalette() {
   refetch();
+  refetchAgents();
+}
+
+function handleAgentRemoved() {
+  closePanel();
+  refetchAgents();
 }
 
 const hasResources = computed(() =>
@@ -655,7 +714,8 @@ const hasResources = computed(() =>
   activeEnvDatabases.value.length > 0 ||
   activeEnvKeyValueStores.value.length > 0 ||
   activeEnvBuckets.value.length > 0 ||
-  activeEnvVolumes.value.length > 0,
+  activeEnvVolumes.value.length > 0 ||
+  agents.value.length > 0,
 );
 
 const drawer = computed(() => route.params.drawer);
@@ -747,6 +807,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
                 :key-value-stores="activeEnvKeyValueStores"
                 :buckets="activeEnvBuckets"
                 :volumes="activeEnvVolumes"
+                :agents="agents"
                 :environment-id="environmentId"
                 @create="paletteOpen = true"
                 @deploy-completed="refetch()"
@@ -868,6 +929,21 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
               @volume-removed="handleResourceRemoved"
               @mount="openMountDialog(selectedVolume.id)"
               @refetch="refetch()"
+            />
+          </div>
+        </Transition>
+
+        <Transition name="slide-panel">
+          <div
+            v-if="isOpen && selectedAgent"
+            class="absolute inset-y-3 right-0 w-[55%]"
+          >
+            <AgentPanel
+              :agent="selectedAgent"
+              :environment-name="environment.name"
+              :service-names="serviceNames"
+              @close="closePanel"
+              @agent-removed="handleAgentRemoved"
             />
           </div>
         </Transition>

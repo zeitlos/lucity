@@ -606,11 +606,11 @@ victoria-metrics-alert:
                 annotations:
                   summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} has not been scheduled for 10m"
               - alert: TenantPodsUnschedulable
-                expr: count(kube_pod_status_scheduled{condition="false", namespace!~"kube-system|kube-public|kube-node-lease|lucity-system|lucity-builds|cert-manager|cilium-secrets|default|external-dns|flexplane-observability|ingress-nginx|otel-system"} == 1) >= 5
+                expr: count(kube_pod_status_scheduled{condition="false", namespace!~"kube-system|kube-public|kube-node-lease|lucity-system|lucity-builds|cert-manager|cilium-secrets|default|external-dns|flexplane-observability|ingress-nginx|otel-system"} == 1)
                 for: 30m
                 labels: { severity: warning }
                 annotations:
-                  summary: "{{ $value | humanize }} tenant pods cannot be scheduled: a node pool is out of pod slots, memory or volume slots"
+                  summary: "{{ $value | humanize }} tenant pod(s) cannot be scheduled: a node pool is out of pod slots, memory or volume slots"
               # WaitForFirstConsumer claims stay Pending until volume creation
               # succeeds, so a claim with a waiting pod means provisioning is
               # stuck: usually the Hetzner project volume limit.
@@ -993,6 +993,38 @@ hcloud-exporter:
       memory: 32Mi
     limits:
       memory: 128Mi
+
+# -- agentgateway CRDs, needed before the lucity chart enables agents
+agentgateway-crds:
+  enabled: false
+
+# -- agentgateway controller. The lucity chart's agents section creates the
+#    Gateway, its policies and network policies in the agents namespace.
+agentgateway:
+  enabled: false
+  istio:
+    enabled: false
+  rbac:
+    gatewayNamespaces:
+      - lucity-agents
+  # -- The controller's own namespace (its xDS certificate), the agents
+  #    namespace, and every environment namespace so the gateway can tell
+  #    which namespace a call comes from
+  discoveryNamespaceSelectors:
+    - matchLabels:
+        kubernetes.io/metadata.name: lucity-system
+    - matchLabels:
+        kubernetes.io/metadata.name: lucity-agents
+    - matchExpressions:
+        - key: lucity.dev/workspace
+          operator: Exists
+  controller:
+    extraEnv:
+      AGW_BACKEND_REF_GRANT_MODE: route-and-policy
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
 
 # -- Vertical Pod Autoscaler, sizes tenant pod requests from observed usage
 vertical-pod-autoscaler:

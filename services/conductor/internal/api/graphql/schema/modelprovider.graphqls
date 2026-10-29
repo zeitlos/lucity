@@ -1,0 +1,52 @@
+"""The API a model provider speaks."""
+enum ModelApi {
+  ANTHROPIC
+  OPENAI
+  """Any API that speaks OpenAI's chat completions, such as Infomaniak, Scaleway or Mistral. Needs a `url`."""
+  OPENAI_COMPATIBLE
+}
+
+"""The outcome of the last check of a credential."""
+enum CredentialStatus {
+  VALID
+  """The service turned the credential down."""
+  REJECTED
+  """The service couldn't be reached, or didn't answer as expected."""
+  UNREACHABLE
+}
+
+"""A model API connected to the workspace. Every agent in the workspace can use it, as far as its harness supports the API."""
+type ModelProvider {
+  id: ModelProviderID!
+  name: String!
+  api: ModelApi!
+  """The base URL of the API."""
+  url: String!
+  """The last four characters of the key. The key itself is never returned."""
+  keyHint: String
+  status: CredentialStatus!
+  """When the key was last checked."""
+  checkedAt: Time
+  """The models the provider listed at the last check."""
+  models: [String!]!
+  """The agents whose harness can use this provider."""
+  agents: [Agent!]! @goField(forceResolver: true)
+}
+
+extend type Query {
+  """The model providers connected to the workspace."""
+  modelProviders: [ModelProvider!]! @hasRole(role: WORKSPACE_MEMBER)
+  """One model provider."""
+  modelProvider(id: ModelProviderID!): ModelProvider! @hasRole(role: WORKSPACE_MEMBER)
+}
+
+extend type Mutation {
+  """Connects a model provider. The key is checked by listing the provider's models, and a provider that can't be reached or turns the key down is not stored. `url` is required for `OPENAI_COMPATIBLE`, must use https, and is fixed for the other APIs."""
+  createModelProvider(name: String! @constraint(constraint: "resource_name,min=2,max=32"), api: ModelApi!, url: String @constraint(constraint: "max=512"), apiKey: String! @constraint(constraint: "min=1,max=4096")): ModelProvider! @hasRole(role: WORKSPACE_ADMIN)
+  """Replaces the key of a model provider, after checking the new one."""
+  replaceModelProviderKey(provider: ModelProviderID!, apiKey: String! @constraint(constraint: "min=1,max=4096")): ModelProvider! @hasRole(role: WORKSPACE_ADMIN)
+  """Checks the key again and refreshes the list of models."""
+  refreshModelProvider(provider: ModelProviderID!): ModelProvider! @hasRole(role: WORKSPACE_ADMIN)
+  """Disconnects a model provider. Agents lose access to its models right away."""
+  deleteModelProvider(provider: ModelProviderID!): Boolean! @hasRole(role: WORKSPACE_ADMIN)
+}

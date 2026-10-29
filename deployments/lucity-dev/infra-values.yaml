@@ -283,3 +283,9 @@ otelCollector:
     enabled: true
   deployment:
     enabled: true
+
+agentgateway-crds:
+  enabled: true
+
+agentgateway:
+  enabled: true

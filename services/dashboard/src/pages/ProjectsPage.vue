@@ -85,6 +85,9 @@ import { useAuth } from '@/composables/useAuth';
 import ContextRail from '@/components/ContextRail.vue';
 import WorkspaceMembersDrawer from '@/components/drawer/WorkspaceMembersDrawer.vue';
 import ApiTokensDrawer from '@/components/drawer/ApiTokensDrawer.vue';
+import ConnectionsDrawer from '@/components/drawer/ConnectionsDrawer.vue';
+import ConnectorDrawer from '@/components/drawer/ConnectorDrawer.vue';
+import ModelProviderDrawer from '@/components/drawer/ModelProviderDrawer.vue';
 import WorkspaceBillingDrawer from '@/components/drawer/WorkspaceBillingDrawer.vue';
 import WorkspaceSettingsDrawer from '@/components/drawer/WorkspaceSettingsDrawer.vue';
 
@@ -99,20 +102,27 @@ const githubConnected = computed(() => ghResult.value?.githubConnected ?? false)
 const paletteOpen = ref(false);
 const initialPaletteView = ref<'main' | 'github-repos'>('main');
 
-const { isWorkspaceAdmin } = useAuth();
+const { isWorkspaceAdmin, activeWorkspace } = useAuth();
 const { result: workspaceResult, refetch: refetchWorkspace } = useQuery(WorkspaceDocument);
 const workspace = computed(() => workspaceResult.value?.workspace ?? null);
 
 const drawer = computed(() => route.params.drawer);
+const connection = computed(() => (route.name === 'connection'
+  ? { kind: String(route.params.kind), name: String(route.params.name) }
+  : null));
 const drawerTitles: Record<string, string> = {
   'members': 'Members',
+  'connections': 'Connections',
   'api-tokens': 'API tokens',
   'billing': 'Billing',
   'settings': 'Workspace settings',
 };
 
 const railItems = computed(() => workspaceNavItems(isWorkspaceAdmin.value));
-const activeKey = computed(() => (typeof drawer.value === 'string' && drawer.value ? drawer.value : 'projects'));
+const activeKey = computed(() => {
+  if (connection.value) return 'connections';
+  return typeof drawer.value === 'string' && drawer.value ? drawer.value : 'projects';
+});
 
 function closeDrawer() {
   router.push({ name: 'projects' });
@@ -347,6 +357,44 @@ onKeyStroke('/', (event) => {
                 :is-admin="isWorkspaceAdmin"
                 @close="closeDrawer"
                 @changed="refetchWorkspace()"
+              />
+            </div>
+          </Transition>
+
+          <Transition name="slide-drawer" mode="out-in">
+            <div
+              v-if="workspace && drawer === 'connections'"
+              key="connections"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
+            >
+              <ConnectionsDrawer
+                :workspace-name="workspace.name"
+                :is-admin="isWorkspaceAdmin"
+                @close="closeDrawer"
+              />
+            </div>
+            <div
+              v-else-if="connection?.kind === 'model-providers'"
+              :key="`model-providers/${connection.name}`"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
+            >
+              <ModelProviderDrawer
+                :workspace="activeWorkspace"
+                :name="connection.name"
+                :is-admin="isWorkspaceAdmin"
+                @close="closeDrawer"
+              />
+            </div>
+            <div
+              v-else-if="connection?.kind === 'connectors'"
+              :key="`connectors/${connection.name}`"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
+            >
+              <ConnectorDrawer
+                :workspace="activeWorkspace"
+                :name="connection.name"
+                :is-admin="isWorkspaceAdmin"
+                @close="closeDrawer"
               />
             </div>
           </Transition>

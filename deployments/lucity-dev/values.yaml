@@ -121,3 +121,7 @@ exporter:
     OVH_APPLICATION_KEY: EXPORTER_OVH_APPLICATION_KEY
     OVH_APPLICATION_SECRET: EXPORTER_OVH_APPLICATION_SECRET
     OVH_CONSUMER_KEY: EXPORTER_OVH_CONSUMER_KEY
+
+agents:
+  enabled: true
+  logsURL: http://lucity-infra-victoria-logs-single-server.lucity-system.svc:9428

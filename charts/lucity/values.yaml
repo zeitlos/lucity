@@ -239,3 +239,36 @@ docs:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+
+# -- Agent workspaces: the shared gateway that agents reach models and
+#    connectors through, and the runner image of agent pods. Needs the
+#    agentgateway controller and CRDs from lucity-infra.
+agents:
+  enabled: false
+  namespace: lucity-agents
+  image:
+    repository: ghcr.io/zeitlos/lucity/agent
+    tag: ""
+  gateway:
+    replicas: 2
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    # -- Address ranges the gateway never connects to, so a connector URL
+    #    can't reach into the cluster or the cloud metadata service
+    privateCIDRs:
+      - 10.0.0.0/8
+      - 172.16.0.0/12
+      - 192.168.0.0/16
+      - 100.64.0.0/10
+      - 169.254.0.0/16
+      - 127.0.0.0/8
+      - fc00::/7
+      - fe80::/10
+      - ::1/128
+  # -- VictoriaLogs URL the conductor reads agent audit logs from
+  logsURL: ""

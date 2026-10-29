@@ -1,0 +1,56 @@
+# Lucity workspace chart: configuration that belongs to a workspace rather than
+# to one of its environments. One release per workspace.
+#
+# workspace: acme
+#
+# modelProviders:                              # reachable by every agent of the workspace
+#   anthropic:
+#     api: anthropic                           # anthropic | openai | openaiCompatible
+#     url: https://api.anthropic.com
+#     credential: <api key>
+#     status: valid                            # valid | rejected | unreachable, from the last check
+#     checkedAt: "2026-10-28T14:05:00Z"
+#     models: [claude-sonnet-5-5]
+#   infomaniak:
+#     api: openaiCompatible                    # any API that speaks chat completions
+#     url: https://api.infomaniak.com/2/ai/48/openai/v1
+#     credential: <api key>
+#
+# connectors:                                  # remote MCP servers, reachable by the agents granted them
+#   linear:
+#     url: https://mcp.linear.app/mcp
+#     credential: <token>                      # optional, sent as a bearer token
+#     status: valid
+#     checkedAt: "2026-10-28T14:05:00Z"
+#     tools:
+#       - name: create_issue
+#         description: Create a new issue
+#
+# agents:                                      # keyed by project/environment/agent
+#   shop/production/ops-agent:
+#     keyHash: sha256:<hex of the agent's gateway key>
+#     namespace: <the environment's namespace>  # the only namespace the key is accepted from
+#     connectors: [linear]
+#     hiddenTools:
+#       linear: [delete_issue]
+#
+# Model providers, connectors and agents go through the shared agent gateway,
+# which only reads routes, backends, policies and credentials from its own
+# namespace, so the release is installed there. Every model provider and
+# connector becomes a Secret, a backend, an HTTPRoute and a policy named
+# <workspace>.model.<name> or <workspace>.connector.<name>, served under
+# /<workspace>/models/<name>/ and /<workspace>/connectors/<name>/. Every agent
+# becomes a key entry the gateway authenticates against.
+
+workspace: ""
+
+# The agent gateway and the listener the routes attach to.
+gateway:
+  name: lucity-agent-gateway
+  listener: http
+
+modelProviders: {}
+
+connectors: {}
+
+agents: {}

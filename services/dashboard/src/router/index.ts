@@ -27,8 +27,13 @@ const router = createRouter({
           component: ProjectsPage,
         },
         {
-          path: ':drawer(members|api-tokens|billing|settings)',
+          path: ':drawer(members|connections|api-tokens|billing|settings)',
           name: 'workspace',
+          component: ProjectsPage,
+        },
+        {
+          path: 'connections/:kind(model-providers|connectors)/:name',
+          name: 'connection',
           component: ProjectsPage,
         },
         {

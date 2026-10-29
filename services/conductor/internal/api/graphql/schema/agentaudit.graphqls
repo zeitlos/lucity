@@ -1,0 +1,33 @@
+enum AgentAuditKind {
+  """A call to a model."""
+  MODEL
+  """A call to a connector."""
+  TOOL
+}
+
+enum AgentAuditResult {
+  OK
+  """Refused because the agent isn't allowed to make the call."""
+  DENIED
+  FAILED
+}
+
+"""One call an agent made to a model provider or a connector."""
+type AgentAuditEntry {
+  time: Time!
+  kind: AgentAuditKind!
+  """The model provider, for a model call."""
+  modelProvider: String
+  """The connector, for a tool call."""
+  connector: String
+  """The model of a model call, or the tool or method of a tool call."""
+  target: String!
+  inputTokens: Int
+  outputTokens: Int
+  result: AgentAuditResult!
+}
+
+extend type Query {
+  """The calls an agent made to model providers and connectors, newest first, from the last 24 hours unless `since` says otherwise. At most 500 entries."""
+  agentAudit(agent: AgentID!, kinds: [AgentAuditKind!], since: Time): [AgentAuditEntry!]! @hasRole(role: WORKSPACE_MEMBER)
+}

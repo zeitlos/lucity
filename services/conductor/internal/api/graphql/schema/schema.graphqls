@@ -36,6 +36,14 @@ scalar ScanID
 scalar ReleaseID
 """A variable that a database, key-value store, bucket or shared variable provides. Take the ids from `availableVariables`."""
 scalar VariableID
+"""A model provider connected to a workspace, as `workspace/provider`. For example `acme/anthropic`."""
+scalar ModelProviderID
+"""A connector connected to a workspace, as `workspace/connector`. For example `acme/linear`."""
+scalar ConnectorID
+"""An agent, as `workspace/project/environment/agent`. For example `acme/shop/production/ops-agent`."""
+scalar AgentID
+"""A session of an agent, as the agent id followed by the session. For example `acme/shop/production/ops-agent/s-q7m2xk`."""
+scalar AgentSessionID
 
 enum Role {
   ANONYMOUS

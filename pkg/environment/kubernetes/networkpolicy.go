@@ -60,7 +60,11 @@ func buildNetworkPolicy(namespace, platformNamespace, podCIDR, serviceCIDR strin
 			},
 		},
 		Spec: networkingv1.NetworkPolicySpec{
-			PodSelector: metav1.LabelSelector{},
+			PodSelector: metav1.LabelSelector{
+				MatchExpressions: []metav1.LabelSelectorRequirement{
+					{Key: pkglabels.Agent, Operator: metav1.LabelSelectorOpDoesNotExist},
+				},
+			},
 			PolicyTypes: []networkingv1.PolicyType{
 				networkingv1.PolicyTypeIngress,
 				networkingv1.PolicyTypeEgress,

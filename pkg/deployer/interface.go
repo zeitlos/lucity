@@ -20,6 +20,8 @@ type Interface interface {
 	KeyValueStores() KeyValueStoreClient
 	Volumes() VolumeClient
 	Environments() EnvironmentClient
+	Agents() AgentClient
+	Workspaces() WorkspaceClient
 }
 
 type ServiceClient interface {
@@ -81,6 +83,34 @@ type EnvironmentClient interface {
 	State(ctx context.Context, id platform.EnvironmentID) (*EnvironmentState, error)
 	SetState(ctx context.Context, id platform.EnvironmentID, state EnvironmentState) (RevisionID, error)
 	Export(ctx context.Context, id platform.EnvironmentID) ([]byte, error)
+}
+
+// AgentClient changes the agents of an environment release.
+type AgentClient interface {
+	Agents(ctx context.Context, env platform.EnvironmentID) (map[string]values.Agent, error)
+	Create(ctx context.Context, env platform.EnvironmentID, name string, agent values.Agent) (RevisionID, error)
+	Update(ctx context.Context, id platform.AgentID, harness values.Harness, instructions string) (RevisionID, error)
+	SetConnectors(ctx context.Context, id platform.AgentID, connectors map[string]values.AgentConnector) (RevisionID, error)
+	SetNetwork(ctx context.Context, id platform.AgentID, network values.AgentNetwork) (RevisionID, error)
+	Delete(ctx context.Context, id platform.AgentID) error
+}
+
+// WorkspaceClient changes a workspace release: configuration that belongs to
+// a workspace rather than to one of its environments, such as its model
+// providers and connectors, and the gateway keys and grants of its agents.
+type WorkspaceClient interface {
+	Workspace(ctx context.Context, workspace string) (*values.Workspace, error)
+	SetModelProvider(ctx context.Context, id platform.ModelProviderID, provider values.ModelProvider) error
+	DeleteModelProvider(ctx context.Context, id platform.ModelProviderID) error
+	SetConnector(ctx context.Context, id platform.ConnectorID, connector values.Connector) error
+	DeleteConnector(ctx context.Context, id platform.ConnectorID) error
+	SetAgentGrant(ctx context.Context, id platform.AgentID, grant values.AgentGrant) error
+	DeleteAgentGrant(ctx context.Context, id platform.AgentID) error
+	Delete(ctx context.Context, workspace string) error
+
+	Workspaces(ctx context.Context) ([]string, error)
+	Outdated(ctx context.Context, workspace string) (bool, error)
+	Upgrade(ctx context.Context, workspace string) error
 }
 
 // EnvironmentState is what stagehand converges on a release: where its

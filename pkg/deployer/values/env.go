@@ -14,6 +14,8 @@ type Env struct {
 	SharedVariableLabels  map[string]string     `yaml:"sharedVariableLabels,omitempty"`
 	Databases             Databases             `yaml:"databases"`
 	Volumes               map[string]Volume     `yaml:"volumes,omitempty"`
+	AgentRuntime          AgentRuntime          `yaml:"agentRuntime"`
+	Agents                map[string]Agent      `yaml:"agents,omitempty"`
 	Gateway               Gateway               `yaml:"gateway"`
 	VerticalPodAutoscaler VerticalPodAutoscaler `yaml:"verticalPodAutoscaler"`
 	Placement             `yaml:",inline"`
