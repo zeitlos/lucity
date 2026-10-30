@@ -164,6 +164,11 @@ type ComplexityRoot struct {
 		TargetCPU   func(childComplexity int) int
 	}
 
+	BasicCapability struct {
+		Availability func(childComplexity int) int
+		Plan         func(childComplexity int) int
+	}
+
 	BillingPortalUrl struct {
 		URL func(childComplexity int) int
 	}
@@ -227,7 +232,14 @@ type ComplexityRoot struct {
 	}
 
 	Capabilities struct {
-		Agents func(childComplexity int) int
+		Agents         func(childComplexity int) int
+		Buckets        func(childComplexity int) int
+		CustomDomains  func(childComplexity int) int
+		Databases      func(childComplexity int) int
+		KeyValueStores func(childComplexity int) int
+		Members        func(childComplexity int) int
+		Services       func(childComplexity int) int
+		Volumes        func(childComplexity int) int
 	}
 
 	CheckoutSession struct {
@@ -238,6 +250,14 @@ type ComplexityRoot struct {
 		Message func(childComplexity int) int
 		Sha     func(childComplexity int) int
 		URL     func(childComplexity int) int
+	}
+
+	ComputeCapability struct {
+		Availability func(childComplexity int) int
+		CPU          func(childComplexity int) int
+		Memory       func(childComplexity int) int
+		Plan         func(childComplexity int) int
+		Replicas     func(childComplexity int) int
 	}
 
 	Connector struct {
@@ -254,6 +274,18 @@ type ComplexityRoot struct {
 	ConnectorTool struct {
 		Description func(childComplexity int) int
 		Name        func(childComplexity int) int
+	}
+
+	CountCapability struct {
+		Availability func(childComplexity int) int
+		Limit        func(childComplexity int) int
+		Plan         func(childComplexity int) int
+		Upgrades     func(childComplexity int) int
+	}
+
+	CountUpgrade struct {
+		Limit func(childComplexity int) int
+		Plan  func(childComplexity int) int
 	}
 
 	CreatedApiToken struct {
@@ -302,6 +334,14 @@ type ComplexityRoot struct {
 		LatestRestorePoint   func(childComplexity int) int
 		RetentionDays        func(childComplexity int) int
 		Schedule             func(childComplexity int) int
+	}
+
+	DatabaseCapability struct {
+		Availability func(childComplexity int) int
+		CPU          func(childComplexity int) int
+		Memory       func(childComplexity int) int
+		Plan         func(childComplexity int) int
+		Storage      func(childComplexity int) int
 	}
 
 	DatabaseColumn struct {
@@ -529,82 +569,103 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		AddCustomDomain            func(childComplexity int, service platform.ServiceID, hostname string, redirectTo *string) int
-		AddDatabaseAllowRule       func(childComplexity int, database platform.DatabaseID, rule model.DatabaseAllowRuleInput) int
-		AddService                 func(childComplexity int, environment platform.EnvironmentID, input model.AddServiceInput) int
-		AnswerAgentApproval        func(childComplexity int, session platform.AgentSessionID, approval string, decision model.AgentApprovalDecision) int
-		BillingPortalURL           func(childComplexity int) int
-		BucketObjectUploadURL      func(childComplexity int, bucket platform.BucketID, key string) int
-		CompletePlanCheckout       func(childComplexity int, sessionID string) int
-		CompleteWorkspaceCheckout  func(childComplexity int, sessionID string) int
-		CreateAPIToken             func(childComplexity int, input model.CreateAPITokenInput) int
-		CreateAgent                func(childComplexity int, environment platform.EnvironmentID, name string, harness model.Harness, instructions string, connectors []model.AgentConnectorInput) int
-		CreateBucket               func(childComplexity int, input model.CreateBucketInput) int
-		CreateConnector            func(childComplexity int, name string, url string, credential *string) int
-		CreateDatabase             func(childComplexity int, input model.CreateDatabaseInput) int
-		CreateDatabaseBackup       func(childComplexity int, database platform.DatabaseID) int
-		CreateEnvironment          func(childComplexity int, input model.CreateEnvironmentInput) int
-		CreateKeyValueStore        func(childComplexity int, input model.CreateKeyValueStoreInput) int
-		CreateModelProvider        func(childComplexity int, name string, api model.ModelAPI, url *string, apiKey string) int
-		CreateProject              func(childComplexity int, input model.CreateProjectInput) int
-		CreateVolume               func(childComplexity int, environment platform.EnvironmentID, name string, size string) int
-		CreateWorkspaceCheckout    func(childComplexity int, input model.CreateWorkspaceCheckoutInput) int
-		DeleteAgent                func(childComplexity int, agent platform.AgentID) int
-		DeleteBucket               func(childComplexity int, bucket platform.BucketID) int
-		DeleteBucketObject         func(childComplexity int, bucket platform.BucketID, key string) int
-		DeleteConnector            func(childComplexity int, connector platform.ConnectorID) int
-		DeleteDatabase             func(childComplexity int, database platform.DatabaseID) int
-		DeleteEnvironment          func(childComplexity int, environment platform.EnvironmentID) int
-		DeleteKeyValueStore        func(childComplexity int, keyValueStore platform.KeyValueStoreID) int
-		DeleteModelProvider        func(childComplexity int, provider platform.ModelProviderID) int
-		DeleteProject              func(childComplexity int, id platform.ProjectID) int
-		DeleteVolume               func(childComplexity int, volume platform.VolumeID) int
-		DeleteWorkspace            func(childComplexity int) int
-		Deploy                     func(childComplexity int, service platform.ServiceID, gitRef *string) int
-		ExecuteQuery               func(childComplexity int, database platform.DatabaseID, query string) int
-		ExpandVolume               func(childComplexity int, volume platform.VolumeID, size string) int
-		ExposeDatabase             func(childComplexity int, database platform.DatabaseID) int
-		GenerateDomain             func(childComplexity int, service platform.ServiceID) int
-		InviteMember               func(childComplexity int, input model.InviteMemberInput) int
-		MountVolume                func(childComplexity int, volume platform.VolumeID, service platform.ServiceID, path string) int
-		RefreshConnector           func(childComplexity int, connector platform.ConnectorID) int
-		RefreshModelProvider       func(childComplexity int, provider platform.ModelProviderID) int
-		RemoveDatabaseAllowRule    func(childComplexity int, database platform.DatabaseID, rangeArg string) int
-		RemoveDomain               func(childComplexity int, service platform.ServiceID, hostname string) int
-		RemoveMember               func(childComplexity int, userID string) int
-		RemoveService              func(childComplexity int, service platform.ServiceID) int
-		ReplaceConnectorCredential func(childComplexity int, connector platform.ConnectorID, credential string) int
-		ReplaceModelProviderKey    func(childComplexity int, provider platform.ModelProviderID, apiKey string) int
-		RestoreDatabase            func(childComplexity int, input model.RestoreDatabaseInput) int
-		RevokeAPIToken             func(childComplexity int, id string) int
-		Rollback                   func(childComplexity int, deployment platform.DeploymentID) int
-		SelectPlan                 func(childComplexity int, plan model.Plan) int
-		SendAgentMessage           func(childComplexity int, session platform.AgentSessionID, message string) int
-		SetAgentConnectors         func(childComplexity int, agent platform.AgentID, connectors []model.AgentConnectorInput) int
-		SetAgentNetwork            func(childComplexity int, agent platform.AgentID, allowedHosts []string, privateNetwork bool) int
-		SetAgentSessionModel       func(childComplexity int, session platform.AgentSessionID, model model.AgentModelInput, effort model.Effort) int
-		SetAutoDeploy              func(childComplexity int, service platform.ServiceID, enabled bool) int
-		SetBucketPublic            func(childComplexity int, bucket platform.BucketID, public bool) int
-		SetCIDeploy                func(childComplexity int, service platform.ServiceID, enabled bool) int
-		SetCustomStartCommand      func(childComplexity int, service platform.ServiceID, command string) int
-		SetDatabaseResources       func(childComplexity int, database platform.DatabaseID, resources model.ResourcesInput) int
-		SetDatabaseStorage         func(childComplexity int, database platform.DatabaseID, size string) int
-		SetEnvironmentResources    func(childComplexity int, input model.SetEnvironmentResourcesInput) int
-		SetServiceBranch           func(childComplexity int, service platform.ServiceID, branch *string) int
-		SetServiceHealthCheck      func(childComplexity int, service platform.ServiceID, healthCheck *model.HealthCheckInput) int
-		SetServicePort             func(childComplexity int, service platform.ServiceID, port *int) int
-		SetServiceResources        func(childComplexity int, service platform.ServiceID, resources model.ResourcesInput) int
-		SetServiceScaling          func(childComplexity int, input model.SetServiceScalingInput) int
-		SetServiceUser             func(childComplexity int, service platform.ServiceID, user *int) int
-		SetServiceVariables        func(childComplexity int, service platform.ServiceID, variables []model.ServiceVariableInput) int
-		SetSharedVariables         func(childComplexity int, environment platform.EnvironmentID, variables []model.VariableInput) int
-		StartAgentSession          func(childComplexity int, agent platform.AgentID, message string, model *model.AgentModelInput, effort *model.Effort) int
-		StopAgentSession           func(childComplexity int, session platform.AgentSessionID) int
-		UnexposeDatabase           func(childComplexity int, database platform.DatabaseID) int
-		UnmountVolume              func(childComplexity int, volume platform.VolumeID) int
-		UpdateAgent                func(childComplexity int, agent platform.AgentID, harness model.Harness, instructions string) int
-		UpdateMemberRole           func(childComplexity int, input model.UpdateMemberRoleInput) int
-		UpdateWorkspace            func(childComplexity int, input model.UpdateWorkspaceInput) int
+		AddCustomDomain               func(childComplexity int, service platform.ServiceID, hostname string, redirectTo *string) int
+		AddDatabaseAllowRule          func(childComplexity int, database platform.DatabaseID, rule model.DatabaseAllowRuleInput) int
+		AddPaymentMethod              func(childComplexity int, returnPath string) int
+		AddService                    func(childComplexity int, environment platform.EnvironmentID, input model.AddServiceInput) int
+		AnswerAgentApproval           func(childComplexity int, session platform.AgentSessionID, approval string, decision model.AgentApprovalDecision) int
+		BillingPortalURL              func(childComplexity int) int
+		BucketObjectUploadURL         func(childComplexity int, bucket platform.BucketID, key string) int
+		CompletePaymentMethodCheckout func(childComplexity int, sessionID string) int
+		CompletePlanCheckout          func(childComplexity int, sessionID string) int
+		CompleteWorkspaceCheckout     func(childComplexity int, sessionID string) int
+		CreateAPIToken                func(childComplexity int, input model.CreateAPITokenInput) int
+		CreateAgent                   func(childComplexity int, environment platform.EnvironmentID, name string, harness model.Harness, instructions string, connectors []model.AgentConnectorInput) int
+		CreateBucket                  func(childComplexity int, input model.CreateBucketInput) int
+		CreateConnector               func(childComplexity int, name string, url string, credential *string) int
+		CreateDatabase                func(childComplexity int, input model.CreateDatabaseInput) int
+		CreateDatabaseBackup          func(childComplexity int, database platform.DatabaseID) int
+		CreateEnvironment             func(childComplexity int, input model.CreateEnvironmentInput) int
+		CreateKeyValueStore           func(childComplexity int, input model.CreateKeyValueStoreInput) int
+		CreateModelProvider           func(childComplexity int, name string, api model.ModelAPI, url *string, apiKey string) int
+		CreateProject                 func(childComplexity int, input model.CreateProjectInput) int
+		CreateVolume                  func(childComplexity int, environment platform.EnvironmentID, name string, size string) int
+		CreateWorkspaceCheckout       func(childComplexity int, input model.CreateWorkspaceCheckoutInput) int
+		DeleteAgent                   func(childComplexity int, agent platform.AgentID) int
+		DeleteBucket                  func(childComplexity int, bucket platform.BucketID) int
+		DeleteBucketObject            func(childComplexity int, bucket platform.BucketID, key string) int
+		DeleteConnector               func(childComplexity int, connector platform.ConnectorID) int
+		DeleteDatabase                func(childComplexity int, database platform.DatabaseID) int
+		DeleteEnvironment             func(childComplexity int, environment platform.EnvironmentID) int
+		DeleteKeyValueStore           func(childComplexity int, keyValueStore platform.KeyValueStoreID) int
+		DeleteModelProvider           func(childComplexity int, provider platform.ModelProviderID) int
+		DeleteProject                 func(childComplexity int, id platform.ProjectID) int
+		DeleteVolume                  func(childComplexity int, volume platform.VolumeID) int
+		DeleteWorkspace               func(childComplexity int) int
+		Deploy                        func(childComplexity int, service platform.ServiceID, gitRef *string) int
+		ExecuteQuery                  func(childComplexity int, database platform.DatabaseID, query string) int
+		ExpandVolume                  func(childComplexity int, volume platform.VolumeID, size string) int
+		ExposeDatabase                func(childComplexity int, database platform.DatabaseID) int
+		GenerateDomain                func(childComplexity int, service platform.ServiceID) int
+		InviteMember                  func(childComplexity int, input model.InviteMemberInput) int
+		MountVolume                   func(childComplexity int, volume platform.VolumeID, service platform.ServiceID, path string) int
+		RefreshConnector              func(childComplexity int, connector platform.ConnectorID) int
+		RefreshModelProvider          func(childComplexity int, provider platform.ModelProviderID) int
+		RemoveDatabaseAllowRule       func(childComplexity int, database platform.DatabaseID, rangeArg string) int
+		RemoveDomain                  func(childComplexity int, service platform.ServiceID, hostname string) int
+		RemoveMember                  func(childComplexity int, userID string) int
+		RemoveService                 func(childComplexity int, service platform.ServiceID) int
+		ReplaceConnectorCredential    func(childComplexity int, connector platform.ConnectorID, credential string) int
+		ReplaceModelProviderKey       func(childComplexity int, provider platform.ModelProviderID, apiKey string) int
+		RestoreDatabase               func(childComplexity int, input model.RestoreDatabaseInput) int
+		RevokeAPIToken                func(childComplexity int, id string) int
+		Rollback                      func(childComplexity int, deployment platform.DeploymentID) int
+		SelectPlan                    func(childComplexity int, plan model.Plan) int
+		SendAgentMessage              func(childComplexity int, session platform.AgentSessionID, message string) int
+		SetAgentConnectors            func(childComplexity int, agent platform.AgentID, connectors []model.AgentConnectorInput) int
+		SetAgentNetwork               func(childComplexity int, agent platform.AgentID, allowedHosts []string, privateNetwork bool) int
+		SetAgentSessionModel          func(childComplexity int, session platform.AgentSessionID, model model.AgentModelInput, effort model.Effort) int
+		SetAutoDeploy                 func(childComplexity int, service platform.ServiceID, enabled bool) int
+		SetBucketPublic               func(childComplexity int, bucket platform.BucketID, public bool) int
+		SetCIDeploy                   func(childComplexity int, service platform.ServiceID, enabled bool) int
+		SetCustomStartCommand         func(childComplexity int, service platform.ServiceID, command string) int
+		SetDatabaseResources          func(childComplexity int, database platform.DatabaseID, resources model.ResourcesInput) int
+		SetDatabaseStorage            func(childComplexity int, database platform.DatabaseID, size string) int
+		SetEnvironmentResources       func(childComplexity int, input model.SetEnvironmentResourcesInput) int
+		SetServiceBranch              func(childComplexity int, service platform.ServiceID, branch *string) int
+		SetServiceHealthCheck         func(childComplexity int, service platform.ServiceID, healthCheck *model.HealthCheckInput) int
+		SetServicePort                func(childComplexity int, service platform.ServiceID, port *int) int
+		SetServiceResources           func(childComplexity int, service platform.ServiceID, resources model.ResourcesInput) int
+		SetServiceScaling             func(childComplexity int, input model.SetServiceScalingInput) int
+		SetServiceUser                func(childComplexity int, service platform.ServiceID, user *int) int
+		SetServiceVariables           func(childComplexity int, service platform.ServiceID, variables []model.ServiceVariableInput) int
+		SetSharedVariables            func(childComplexity int, environment platform.EnvironmentID, variables []model.VariableInput) int
+		StartAgentSession             func(childComplexity int, agent platform.AgentID, message string, model *model.AgentModelInput, effort *model.Effort) int
+		StopAgentSession              func(childComplexity int, session platform.AgentSessionID) int
+		UnexposeDatabase              func(childComplexity int, database platform.DatabaseID) int
+		UnmountVolume                 func(childComplexity int, volume platform.VolumeID) int
+		UpdateAgent                   func(childComplexity int, agent platform.AgentID, harness model.Harness, instructions string) int
+		UpdateMemberRole              func(childComplexity int, input model.UpdateMemberRoleInput) int
+		UpdateWorkspace               func(childComplexity int, input model.UpdateWorkspaceInput) int
+	}
+
+	PlanLimits struct {
+		CPU               func(childComplexity int) int
+		CustomDomains     func(childComplexity int) int
+		DatabaseStorage   func(childComplexity int) int
+		KeyValueStoreSize func(childComplexity int) int
+		Members           func(childComplexity int) int
+		Memory            func(childComplexity int) int
+		Replicas          func(childComplexity int) int
+		VolumeSize        func(childComplexity int) int
+		Volumes           func(childComplexity int) int
+	}
+
+	PlanOffer struct {
+		Currency   func(childComplexity int) int
+		Limits     func(childComplexity int) int
+		Plan       func(childComplexity int) int
+		PriceCents func(childComplexity int) int
 	}
 
 	PlanSelection struct {
@@ -616,6 +677,17 @@ type ComplexityRoot struct {
 		Environments func(childComplexity int) int
 		ID           func(childComplexity int) int
 		Name         func(childComplexity int) int
+	}
+
+	QuantityLimit struct {
+		Max      func(childComplexity int) int
+		Min      func(childComplexity int) int
+		Upgrades func(childComplexity int) int
+	}
+
+	QuantityUpgrade struct {
+		Max  func(childComplexity int) int
+		Plan func(childComplexity int) int
 	}
 
 	Query struct {
@@ -650,6 +722,7 @@ type ComplexityRoot struct {
 		Me                       func(childComplexity int) int
 		ModelProvider            func(childComplexity int, id platform.ModelProviderID) int
 		ModelProviders           func(childComplexity int) int
+		Plans                    func(childComplexity int) int
 		Project                  func(childComplexity int, id platform.ProjectID) int
 		Projects                 func(childComplexity int) int
 		RepositoryBranches       func(childComplexity int, repositoryURL string) int
@@ -783,6 +856,12 @@ type ComplexityRoot struct {
 	SharedVariable struct {
 		Key   func(childComplexity int) int
 		Value func(childComplexity int) int
+	}
+
+	StorageCapability struct {
+		Availability func(childComplexity int) int
+		Plan         func(childComplexity int) int
+		Size         func(childComplexity int) int
 	}
 
 	Subscription struct {
@@ -926,6 +1005,8 @@ type MutationResolver interface {
 	SelectPlan(ctx context.Context, plan model.Plan) (*model.PlanSelection, error)
 	BillingPortalURL(ctx context.Context) (*model.BillingPortalURL, error)
 	CompletePlanCheckout(ctx context.Context, sessionID string) (*model.BillingSubscription, error)
+	AddPaymentMethod(ctx context.Context, returnPath string) (*model.CheckoutSession, error)
+	CompletePaymentMethodCheckout(ctx context.Context, sessionID string) (*model.Workspace, error)
 	CreateConnector(ctx context.Context, name string, url string, credential *string) (*model.Connector, error)
 	ReplaceConnectorCredential(ctx context.Context, connector platform.ConnectorID, credential string) (*model.Connector, error)
 	RefreshConnector(ctx context.Context, connector platform.ConnectorID) (*model.Connector, error)
@@ -994,6 +1075,7 @@ type QueryResolver interface {
 	Me(ctx context.Context) (*model.User, error)
 	Subscription(ctx context.Context) (*model.BillingSubscription, error)
 	UsageSummary(ctx context.Context) (*model.UsageSummary, error)
+	Plans(ctx context.Context) ([]model.PlanOffer, error)
 	Connectors(ctx context.Context) ([]model.Connector, error)
 	Connector(ctx context.Context, id platform.ConnectorID) (*model.Connector, error)
 	Database(ctx context.Context, id platform.DatabaseID) (*model.Database, error)
@@ -1502,6 +1584,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.AutoscalingSettings.TargetCPU(childComplexity), true
 
+	case "BasicCapability.availability":
+		if e.ComplexityRoot.BasicCapability.Availability == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BasicCapability.Availability(childComplexity), true
+	case "BasicCapability.plan":
+		if e.ComplexityRoot.BasicCapability.Plan == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BasicCapability.Plan(childComplexity), true
+
 	case "BillingPortalUrl.url":
 		if e.ComplexityRoot.BillingPortalUrl.URL == nil {
 			break
@@ -1727,6 +1822,48 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Capabilities.Agents(childComplexity), true
+	case "Capabilities.buckets":
+		if e.ComplexityRoot.Capabilities.Buckets == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Capabilities.Buckets(childComplexity), true
+	case "Capabilities.customDomains":
+		if e.ComplexityRoot.Capabilities.CustomDomains == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Capabilities.CustomDomains(childComplexity), true
+	case "Capabilities.databases":
+		if e.ComplexityRoot.Capabilities.Databases == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Capabilities.Databases(childComplexity), true
+	case "Capabilities.keyValueStores":
+		if e.ComplexityRoot.Capabilities.KeyValueStores == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Capabilities.KeyValueStores(childComplexity), true
+	case "Capabilities.members":
+		if e.ComplexityRoot.Capabilities.Members == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Capabilities.Members(childComplexity), true
+	case "Capabilities.services":
+		if e.ComplexityRoot.Capabilities.Services == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Capabilities.Services(childComplexity), true
+	case "Capabilities.volumes":
+		if e.ComplexityRoot.Capabilities.Volumes == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Capabilities.Volumes(childComplexity), true
 
 	case "CheckoutSession.url":
 		if e.ComplexityRoot.CheckoutSession.URL == nil {
@@ -1753,6 +1890,37 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Commit.URL(childComplexity), true
+
+	case "ComputeCapability.availability":
+		if e.ComplexityRoot.ComputeCapability.Availability == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ComputeCapability.Availability(childComplexity), true
+	case "ComputeCapability.cpu":
+		if e.ComplexityRoot.ComputeCapability.CPU == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ComputeCapability.CPU(childComplexity), true
+	case "ComputeCapability.memory":
+		if e.ComplexityRoot.ComputeCapability.Memory == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ComputeCapability.Memory(childComplexity), true
+	case "ComputeCapability.plan":
+		if e.ComplexityRoot.ComputeCapability.Plan == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ComputeCapability.Plan(childComplexity), true
+	case "ComputeCapability.replicas":
+		if e.ComplexityRoot.ComputeCapability.Replicas == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ComputeCapability.Replicas(childComplexity), true
 
 	case "Connector.agents":
 		if e.ComplexityRoot.Connector.Agents == nil {
@@ -1815,6 +1983,44 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ConnectorTool.Name(childComplexity), true
+
+	case "CountCapability.availability":
+		if e.ComplexityRoot.CountCapability.Availability == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CountCapability.Availability(childComplexity), true
+	case "CountCapability.limit":
+		if e.ComplexityRoot.CountCapability.Limit == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CountCapability.Limit(childComplexity), true
+	case "CountCapability.plan":
+		if e.ComplexityRoot.CountCapability.Plan == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CountCapability.Plan(childComplexity), true
+	case "CountCapability.upgrades":
+		if e.ComplexityRoot.CountCapability.Upgrades == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CountCapability.Upgrades(childComplexity), true
+
+	case "CountUpgrade.limit":
+		if e.ComplexityRoot.CountUpgrade.Limit == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CountUpgrade.Limit(childComplexity), true
+	case "CountUpgrade.plan":
+		if e.ComplexityRoot.CountUpgrade.Plan == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CountUpgrade.Plan(childComplexity), true
 
 	case "CreatedApiToken.apiToken":
 		if e.ComplexityRoot.CreatedApiToken.APIToken == nil {
@@ -2023,6 +2229,37 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.DatabaseBackups.Schedule(childComplexity), true
+
+	case "DatabaseCapability.availability":
+		if e.ComplexityRoot.DatabaseCapability.Availability == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseCapability.Availability(childComplexity), true
+	case "DatabaseCapability.cpu":
+		if e.ComplexityRoot.DatabaseCapability.CPU == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseCapability.CPU(childComplexity), true
+	case "DatabaseCapability.memory":
+		if e.ComplexityRoot.DatabaseCapability.Memory == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseCapability.Memory(childComplexity), true
+	case "DatabaseCapability.plan":
+		if e.ComplexityRoot.DatabaseCapability.Plan == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseCapability.Plan(childComplexity), true
+	case "DatabaseCapability.storage":
+		if e.ComplexityRoot.DatabaseCapability.Storage == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseCapability.Storage(childComplexity), true
 
 	case "DatabaseColumn.name":
 		if e.ComplexityRoot.DatabaseColumn.Name == nil {
@@ -2914,6 +3151,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.AddDatabaseAllowRule(childComplexity, args["database"].(platform.DatabaseID), args["rule"].(model.DatabaseAllowRuleInput)), true
+	case "Mutation.addPaymentMethod":
+		if e.ComplexityRoot.Mutation.AddPaymentMethod == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_addPaymentMethod_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.AddPaymentMethod(childComplexity, args["returnPath"].(string)), true
 	case "Mutation.addService":
 		if e.ComplexityRoot.Mutation.AddService == nil {
 			break
@@ -2953,6 +3201,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.BucketObjectUploadURL(childComplexity, args["bucket"].(platform.BucketID), args["key"].(string)), true
+	case "Mutation.completePaymentMethodCheckout":
+		if e.ComplexityRoot.Mutation.CompletePaymentMethodCheckout == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_completePaymentMethodCheckout_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.CompletePaymentMethodCheckout(childComplexity, args["sessionId"].(string)), true
 	case "Mutation.completePlanCheckout":
 		if e.ComplexityRoot.Mutation.CompletePlanCheckout == nil {
 			break
@@ -3719,6 +3978,86 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Mutation.UpdateWorkspace(childComplexity, args["input"].(model.UpdateWorkspaceInput)), true
 
+	case "PlanLimits.cpu":
+		if e.ComplexityRoot.PlanLimits.CPU == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PlanLimits.CPU(childComplexity), true
+	case "PlanLimits.customDomains":
+		if e.ComplexityRoot.PlanLimits.CustomDomains == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PlanLimits.CustomDomains(childComplexity), true
+	case "PlanLimits.databaseStorage":
+		if e.ComplexityRoot.PlanLimits.DatabaseStorage == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PlanLimits.DatabaseStorage(childComplexity), true
+	case "PlanLimits.keyValueStoreSize":
+		if e.ComplexityRoot.PlanLimits.KeyValueStoreSize == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PlanLimits.KeyValueStoreSize(childComplexity), true
+	case "PlanLimits.members":
+		if e.ComplexityRoot.PlanLimits.Members == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PlanLimits.Members(childComplexity), true
+	case "PlanLimits.memory":
+		if e.ComplexityRoot.PlanLimits.Memory == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PlanLimits.Memory(childComplexity), true
+	case "PlanLimits.replicas":
+		if e.ComplexityRoot.PlanLimits.Replicas == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PlanLimits.Replicas(childComplexity), true
+	case "PlanLimits.volumeSize":
+		if e.ComplexityRoot.PlanLimits.VolumeSize == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PlanLimits.VolumeSize(childComplexity), true
+	case "PlanLimits.volumes":
+		if e.ComplexityRoot.PlanLimits.Volumes == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PlanLimits.Volumes(childComplexity), true
+
+	case "PlanOffer.currency":
+		if e.ComplexityRoot.PlanOffer.Currency == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PlanOffer.Currency(childComplexity), true
+	case "PlanOffer.limits":
+		if e.ComplexityRoot.PlanOffer.Limits == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PlanOffer.Limits(childComplexity), true
+	case "PlanOffer.plan":
+		if e.ComplexityRoot.PlanOffer.Plan == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PlanOffer.Plan(childComplexity), true
+	case "PlanOffer.priceCents":
+		if e.ComplexityRoot.PlanOffer.PriceCents == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PlanOffer.PriceCents(childComplexity), true
+
 	case "PlanSelection.checkoutUrl":
 		if e.ComplexityRoot.PlanSelection.CheckoutURL == nil {
 			break
@@ -3750,6 +4089,38 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Project.Name(childComplexity), true
+
+	case "QuantityLimit.max":
+		if e.ComplexityRoot.QuantityLimit.Max == nil {
+			break
+		}
+
+		return e.ComplexityRoot.QuantityLimit.Max(childComplexity), true
+	case "QuantityLimit.min":
+		if e.ComplexityRoot.QuantityLimit.Min == nil {
+			break
+		}
+
+		return e.ComplexityRoot.QuantityLimit.Min(childComplexity), true
+	case "QuantityLimit.upgrades":
+		if e.ComplexityRoot.QuantityLimit.Upgrades == nil {
+			break
+		}
+
+		return e.ComplexityRoot.QuantityLimit.Upgrades(childComplexity), true
+
+	case "QuantityUpgrade.max":
+		if e.ComplexityRoot.QuantityUpgrade.Max == nil {
+			break
+		}
+
+		return e.ComplexityRoot.QuantityUpgrade.Max(childComplexity), true
+	case "QuantityUpgrade.plan":
+		if e.ComplexityRoot.QuantityUpgrade.Plan == nil {
+			break
+		}
+
+		return e.ComplexityRoot.QuantityUpgrade.Plan(childComplexity), true
 
 	case "Query.apiTokens":
 		if e.ComplexityRoot.Query.APITokens == nil {
@@ -4058,6 +4429,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.ModelProviders(childComplexity), true
+	case "Query.plans":
+		if e.ComplexityRoot.Query.Plans == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.Plans(childComplexity), true
 	case "Query.project":
 		if e.ComplexityRoot.Query.Project == nil {
 			break
@@ -4642,6 +5019,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.SharedVariable.Value(childComplexity), true
 
+	case "StorageCapability.availability":
+		if e.ComplexityRoot.StorageCapability.Availability == nil {
+			break
+		}
+
+		return e.ComplexityRoot.StorageCapability.Availability(childComplexity), true
+	case "StorageCapability.plan":
+		if e.ComplexityRoot.StorageCapability.Plan == nil {
+			break
+		}
+
+		return e.ComplexityRoot.StorageCapability.Plan(childComplexity), true
+	case "StorageCapability.size":
+		if e.ComplexityRoot.StorageCapability.Size == nil {
+			break
+		}
+
+		return e.ComplexityRoot.StorageCapability.Size(childComplexity), true
+
 	case "Subscription.agentSessionEvents":
 		if e.ComplexityRoot.Subscription.AgentSessionEvents == nil {
 			break
@@ -5118,7 +5514,7 @@ func newExecutionContext(
 	}
 }
 
-//go:embed "schema/agent.graphqls" "schema/agentaudit.graphqls" "schema/agentsession.graphqls" "schema/apitoken.graphqls" "schema/auth.graphqls" "schema/backup.graphqls" "schema/billing.graphqls" "schema/connector.graphqls" "schema/database.graphqls" "schema/databasemetrics.graphqls" "schema/eject.graphqls" "schema/environment.graphqls" "schema/github.graphqls" "schema/keyvaluestore.graphqls" "schema/logs.graphqls" "schema/metrics.graphqls" "schema/modelprovider.graphqls" "schema/objectstorage.graphqls" "schema/project.graphqls" "schema/registry.graphqls" "schema/release.graphqls" "schema/scan.graphqls" "schema/schema.graphqls" "schema/service.graphqls" "schema/variable.graphqls" "schema/volume.graphqls" "schema/vulnerability.graphqls" "schema/workspace.graphqls"
+//go:embed "schema/agent.graphqls" "schema/agentaudit.graphqls" "schema/agentsession.graphqls" "schema/apitoken.graphqls" "schema/auth.graphqls" "schema/backup.graphqls" "schema/billing.graphqls" "schema/capabilities.graphqls" "schema/connector.graphqls" "schema/database.graphqls" "schema/databasemetrics.graphqls" "schema/eject.graphqls" "schema/environment.graphqls" "schema/github.graphqls" "schema/keyvaluestore.graphqls" "schema/logs.graphqls" "schema/metrics.graphqls" "schema/modelprovider.graphqls" "schema/objectstorage.graphqls" "schema/project.graphqls" "schema/registry.graphqls" "schema/release.graphqls" "schema/scan.graphqls" "schema/schema.graphqls" "schema/service.graphqls" "schema/variable.graphqls" "schema/volume.graphqls" "schema/vulnerability.graphqls" "schema/workspace.graphqls"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -5137,6 +5533,7 @@ var sources = []*ast.Source{
 	{Name: "schema/auth.graphqls", Input: sourceData("schema/auth.graphqls"), BuiltIn: false},
 	{Name: "schema/backup.graphqls", Input: sourceData("schema/backup.graphqls"), BuiltIn: false},
 	{Name: "schema/billing.graphqls", Input: sourceData("schema/billing.graphqls"), BuiltIn: false},
+	{Name: "schema/capabilities.graphqls", Input: sourceData("schema/capabilities.graphqls"), BuiltIn: false},
 	{Name: "schema/connector.graphqls", Input: sourceData("schema/connector.graphqls"), BuiltIn: false},
 	{Name: "schema/database.graphqls", Input: sourceData("schema/database.graphqls"), BuiltIn: false},
 	{Name: "schema/databasemetrics.graphqls", Input: sourceData("schema/databasemetrics.graphqls"), BuiltIn: false},
@@ -5281,6 +5678,16 @@ func (ec *executionContext) childFields_AutoscalingSettings(ctx context.Context,
 	return nil, fmt.Errorf("no field named %q was found under type AutoscalingSettings", field.Name)
 }
 
+func (ec *executionContext) childFields_BasicCapability(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "availability":
+		return ec.fieldContext_BasicCapability_availability(ctx, field)
+	case "plan":
+		return ec.fieldContext_BasicCapability_plan(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type BasicCapability", field.Name)
+}
+
 func (ec *executionContext) childFields_BillingPortalUrl(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "url":
@@ -5397,8 +5804,22 @@ func (ec *executionContext) childFields_Build(ctx context.Context, field graphql
 
 func (ec *executionContext) childFields_Capabilities(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
+	case "services":
+		return ec.fieldContext_Capabilities_services(ctx, field)
+	case "databases":
+		return ec.fieldContext_Capabilities_databases(ctx, field)
+	case "keyValueStores":
+		return ec.fieldContext_Capabilities_keyValueStores(ctx, field)
+	case "volumes":
+		return ec.fieldContext_Capabilities_volumes(ctx, field)
+	case "buckets":
+		return ec.fieldContext_Capabilities_buckets(ctx, field)
 	case "agents":
 		return ec.fieldContext_Capabilities_agents(ctx, field)
+	case "members":
+		return ec.fieldContext_Capabilities_members(ctx, field)
+	case "customDomains":
+		return ec.fieldContext_Capabilities_customDomains(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Capabilities", field.Name)
 }
@@ -5421,6 +5842,22 @@ func (ec *executionContext) childFields_Commit(ctx context.Context, field graphq
 		return ec.fieldContext_Commit_url(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Commit", field.Name)
+}
+
+func (ec *executionContext) childFields_ComputeCapability(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "availability":
+		return ec.fieldContext_ComputeCapability_availability(ctx, field)
+	case "plan":
+		return ec.fieldContext_ComputeCapability_plan(ctx, field)
+	case "cpu":
+		return ec.fieldContext_ComputeCapability_cpu(ctx, field)
+	case "memory":
+		return ec.fieldContext_ComputeCapability_memory(ctx, field)
+	case "replicas":
+		return ec.fieldContext_ComputeCapability_replicas(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ComputeCapability", field.Name)
 }
 
 func (ec *executionContext) childFields_Connector(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -5453,6 +5890,30 @@ func (ec *executionContext) childFields_ConnectorTool(ctx context.Context, field
 		return ec.fieldContext_ConnectorTool_description(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type ConnectorTool", field.Name)
+}
+
+func (ec *executionContext) childFields_CountCapability(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "availability":
+		return ec.fieldContext_CountCapability_availability(ctx, field)
+	case "plan":
+		return ec.fieldContext_CountCapability_plan(ctx, field)
+	case "limit":
+		return ec.fieldContext_CountCapability_limit(ctx, field)
+	case "upgrades":
+		return ec.fieldContext_CountCapability_upgrades(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type CountCapability", field.Name)
+}
+
+func (ec *executionContext) childFields_CountUpgrade(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "plan":
+		return ec.fieldContext_CountUpgrade_plan(ctx, field)
+	case "limit":
+		return ec.fieldContext_CountUpgrade_limit(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type CountUpgrade", field.Name)
 }
 
 func (ec *executionContext) childFields_CreatedApiToken(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -5549,6 +6010,22 @@ func (ec *executionContext) childFields_DatabaseBackups(ctx context.Context, fie
 		return ec.fieldContext_DatabaseBackups_backups(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type DatabaseBackups", field.Name)
+}
+
+func (ec *executionContext) childFields_DatabaseCapability(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "availability":
+		return ec.fieldContext_DatabaseCapability_availability(ctx, field)
+	case "plan":
+		return ec.fieldContext_DatabaseCapability_plan(ctx, field)
+	case "cpu":
+		return ec.fieldContext_DatabaseCapability_cpu(ctx, field)
+	case "memory":
+		return ec.fieldContext_DatabaseCapability_memory(ctx, field)
+	case "storage":
+		return ec.fieldContext_DatabaseCapability_storage(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type DatabaseCapability", field.Name)
 }
 
 func (ec *executionContext) childFields_DatabaseColumn(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -5979,6 +6456,44 @@ func (ec *executionContext) childFields_Mount(ctx context.Context, field graphql
 	return nil, fmt.Errorf("no field named %q was found under type Mount", field.Name)
 }
 
+func (ec *executionContext) childFields_PlanLimits(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "cpu":
+		return ec.fieldContext_PlanLimits_cpu(ctx, field)
+	case "memory":
+		return ec.fieldContext_PlanLimits_memory(ctx, field)
+	case "replicas":
+		return ec.fieldContext_PlanLimits_replicas(ctx, field)
+	case "volumes":
+		return ec.fieldContext_PlanLimits_volumes(ctx, field)
+	case "volumeSize":
+		return ec.fieldContext_PlanLimits_volumeSize(ctx, field)
+	case "databaseStorage":
+		return ec.fieldContext_PlanLimits_databaseStorage(ctx, field)
+	case "keyValueStoreSize":
+		return ec.fieldContext_PlanLimits_keyValueStoreSize(ctx, field)
+	case "members":
+		return ec.fieldContext_PlanLimits_members(ctx, field)
+	case "customDomains":
+		return ec.fieldContext_PlanLimits_customDomains(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type PlanLimits", field.Name)
+}
+
+func (ec *executionContext) childFields_PlanOffer(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "plan":
+		return ec.fieldContext_PlanOffer_plan(ctx, field)
+	case "priceCents":
+		return ec.fieldContext_PlanOffer_priceCents(ctx, field)
+	case "currency":
+		return ec.fieldContext_PlanOffer_currency(ctx, field)
+	case "limits":
+		return ec.fieldContext_PlanOffer_limits(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type PlanOffer", field.Name)
+}
+
 func (ec *executionContext) childFields_PlanSelection(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "subscription":
@@ -5999,6 +6514,28 @@ func (ec *executionContext) childFields_Project(ctx context.Context, field graph
 		return ec.fieldContext_Project_environments(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Project", field.Name)
+}
+
+func (ec *executionContext) childFields_QuantityLimit(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "min":
+		return ec.fieldContext_QuantityLimit_min(ctx, field)
+	case "max":
+		return ec.fieldContext_QuantityLimit_max(ctx, field)
+	case "upgrades":
+		return ec.fieldContext_QuantityLimit_upgrades(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type QuantityLimit", field.Name)
+}
+
+func (ec *executionContext) childFields_QuantityUpgrade(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "plan":
+		return ec.fieldContext_QuantityUpgrade_plan(ctx, field)
+	case "max":
+		return ec.fieldContext_QuantityUpgrade_max(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type QuantityUpgrade", field.Name)
 }
 
 func (ec *executionContext) childFields_QueryResult(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -6233,6 +6770,18 @@ func (ec *executionContext) childFields_SharedVariable(ctx context.Context, fiel
 		return ec.fieldContext_SharedVariable_value(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type SharedVariable", field.Name)
+}
+
+func (ec *executionContext) childFields_StorageCapability(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "availability":
+		return ec.fieldContext_StorageCapability_availability(ctx, field)
+	case "plan":
+		return ec.fieldContext_StorageCapability_plan(ctx, field)
+	case "size":
+		return ec.fieldContext_StorageCapability_size(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type StorageCapability", field.Name)
 }
 
 func (ec *executionContext) childFields_UsageSummary(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -6700,6 +7249,58 @@ func (ec *executionContext) field_Mutation_addDatabaseAllowRule_args(ctx context
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_addPaymentMethod_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+
+	arg0, err := ec.field_Mutation_addPaymentMethod_argsReturnPath(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["returnPath"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_addPaymentMethod_argsReturnPath(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("returnPath"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["returnPath"]
+		if !ok {
+			var zeroVal string
+			return zeroVal, nil
+		}
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=512")
+		if err != nil {
+			var zeroVal string
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal string
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(string); ok {
+		return data, nil
+	} else {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
+	}
+}
+
 func (ec *executionContext) field_Mutation_addService_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -6826,6 +7427,58 @@ func (ec *executionContext) field_Mutation_bucketObjectUploadUrl_argsKey(
 
 	directive1 := func(ctx context.Context) (any, error) {
 		constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=1024")
+		if err != nil {
+			var zeroVal string
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal string
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(string); ok {
+		return data, nil
+	} else {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
+	}
+}
+
+func (ec *executionContext) field_Mutation_completePaymentMethodCheckout_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+
+	arg0, err := ec.field_Mutation_completePaymentMethodCheckout_argsSessionID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["sessionId"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_completePaymentMethodCheckout_argsSessionID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("sessionId"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["sessionId"]
+		if !ok {
+			var zeroVal string
+			return zeroVal, nil
+		}
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=255")
 		if err != nil {
 			var zeroVal string
 			return zeroVal, err
@@ -11601,6 +12254,52 @@ func (ec *executionContext) fieldContext_AutoscalingSettings_targetCpu(_ context
 	return graphql.NewScalarFieldContext("AutoscalingSettings", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
+func (ec *executionContext) _BasicCapability_availability(ctx context.Context, field graphql.CollectedField, obj *model.BasicCapability) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BasicCapability_availability(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Availability, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.Availability) graphql.Marshaler {
+			return ec.marshalNAvailability2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAvailability(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_BasicCapability_availability(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("BasicCapability", field, false, false, errors.New("field of type Availability does not have child fields"))
+}
+
+func (ec *executionContext) _BasicCapability_plan(ctx context.Context, field graphql.CollectedField, obj *model.BasicCapability) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BasicCapability_plan(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Plan, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Plan) graphql.Marshaler {
+			return ec.marshalOPlan2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐPlan(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_BasicCapability_plan(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("BasicCapability", field, false, false, errors.New("field of type Plan does not have child fields"))
+}
+
 func (ec *executionContext) _BillingPortalUrl_url(ctx context.Context, field graphql.CollectedField, obj *model.BillingPortalURL) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -12424,6 +13123,166 @@ func (ec *executionContext) fieldContext_Build_finishedAt(_ context.Context, fie
 	return graphql.NewScalarFieldContext("Build", field, false, false, errors.New("field of type Time does not have child fields"))
 }
 
+func (ec *executionContext) _Capabilities_services(ctx context.Context, field graphql.CollectedField, obj *model.Capabilities) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Capabilities_services(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Services, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.ComputeCapability) graphql.Marshaler {
+			return ec.marshalNComputeCapability2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐComputeCapability(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Capabilities_services(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Capabilities",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ComputeCapability(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Capabilities_databases(ctx context.Context, field graphql.CollectedField, obj *model.Capabilities) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Capabilities_databases(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Databases, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.DatabaseCapability) graphql.Marshaler {
+			return ec.marshalNDatabaseCapability2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseCapability(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Capabilities_databases(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Capabilities",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_DatabaseCapability(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Capabilities_keyValueStores(ctx context.Context, field graphql.CollectedField, obj *model.Capabilities) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Capabilities_keyValueStores(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.KeyValueStores, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.StorageCapability) graphql.Marshaler {
+			return ec.marshalNStorageCapability2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐStorageCapability(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Capabilities_keyValueStores(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Capabilities",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_StorageCapability(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Capabilities_volumes(ctx context.Context, field graphql.CollectedField, obj *model.Capabilities) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Capabilities_volumes(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Volumes, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.StorageCapability) graphql.Marshaler {
+			return ec.marshalNStorageCapability2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐStorageCapability(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Capabilities_volumes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Capabilities",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_StorageCapability(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Capabilities_buckets(ctx context.Context, field graphql.CollectedField, obj *model.Capabilities) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Capabilities_buckets(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Buckets, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.BasicCapability) graphql.Marshaler {
+			return ec.marshalNBasicCapability2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBasicCapability(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Capabilities_buckets(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Capabilities",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_BasicCapability(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Capabilities_agents(ctx context.Context, field graphql.CollectedField, obj *model.Capabilities) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -12436,15 +13295,88 @@ func (ec *executionContext) _Capabilities_agents(ctx context.Context, field grap
 			return obj.Agents, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
-			return ec.marshalNBoolean2bool(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v *model.BasicCapability) graphql.Marshaler {
+			return ec.marshalNBasicCapability2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBasicCapability(ctx, selections, v)
 		},
 		true,
 		true,
 	)
 }
 func (ec *executionContext) fieldContext_Capabilities_agents(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Capabilities", field, false, false, errors.New("field of type Boolean does not have child fields"))
+	fc = &graphql.FieldContext{
+		Object:     "Capabilities",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_BasicCapability(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Capabilities_members(ctx context.Context, field graphql.CollectedField, obj *model.Capabilities) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Capabilities_members(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Members, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.CountCapability) graphql.Marshaler {
+			return ec.marshalNCountCapability2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐCountCapability(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Capabilities_members(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Capabilities",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_CountCapability(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Capabilities_customDomains(ctx context.Context, field graphql.CollectedField, obj *model.Capabilities) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Capabilities_customDomains(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CustomDomains, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.CountCapability) graphql.Marshaler {
+			return ec.marshalNCountCapability2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐCountCapability(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Capabilities_customDomains(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Capabilities",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_CountCapability(ctx, field)
+		},
+	}
+	return fc, nil
 }
 
 func (ec *executionContext) _CheckoutSession_url(ctx context.Context, field graphql.CollectedField, obj *model.CheckoutSession) (ret graphql.Marshaler) {
@@ -12537,6 +13469,139 @@ func (ec *executionContext) _Commit_url(ctx context.Context, field graphql.Colle
 }
 func (ec *executionContext) fieldContext_Commit_url(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Commit", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _ComputeCapability_availability(ctx context.Context, field graphql.CollectedField, obj *model.ComputeCapability) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ComputeCapability_availability(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Availability, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.Availability) graphql.Marshaler {
+			return ec.marshalNAvailability2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAvailability(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ComputeCapability_availability(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ComputeCapability", field, false, false, errors.New("field of type Availability does not have child fields"))
+}
+
+func (ec *executionContext) _ComputeCapability_plan(ctx context.Context, field graphql.CollectedField, obj *model.ComputeCapability) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ComputeCapability_plan(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Plan, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Plan) graphql.Marshaler {
+			return ec.marshalOPlan2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐPlan(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_ComputeCapability_plan(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ComputeCapability", field, false, false, errors.New("field of type Plan does not have child fields"))
+}
+
+func (ec *executionContext) _ComputeCapability_cpu(ctx context.Context, field graphql.CollectedField, obj *model.ComputeCapability) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ComputeCapability_cpu(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CPU, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.QuantityLimit) graphql.Marshaler {
+			return ec.marshalNQuantityLimit2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐQuantityLimit(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ComputeCapability_cpu(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ComputeCapability",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_QuantityLimit(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ComputeCapability_memory(ctx context.Context, field graphql.CollectedField, obj *model.ComputeCapability) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ComputeCapability_memory(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Memory, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.QuantityLimit) graphql.Marshaler {
+			return ec.marshalNQuantityLimit2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐQuantityLimit(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ComputeCapability_memory(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ComputeCapability",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_QuantityLimit(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ComputeCapability_replicas(ctx context.Context, field graphql.CollectedField, obj *model.ComputeCapability) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ComputeCapability_replicas(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Replicas, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ComputeCapability_replicas(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ComputeCapability", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
 func (ec *executionContext) _Connector_id(ctx context.Context, field graphql.CollectedField, obj *model.Connector) (ret graphql.Marshaler) {
@@ -12785,6 +13850,153 @@ func (ec *executionContext) _ConnectorTool_description(ctx context.Context, fiel
 }
 func (ec *executionContext) fieldContext_ConnectorTool_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("ConnectorTool", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _CountCapability_availability(ctx context.Context, field graphql.CollectedField, obj *model.CountCapability) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CountCapability_availability(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Availability, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.Availability) graphql.Marshaler {
+			return ec.marshalNAvailability2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAvailability(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CountCapability_availability(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CountCapability", field, false, false, errors.New("field of type Availability does not have child fields"))
+}
+
+func (ec *executionContext) _CountCapability_plan(ctx context.Context, field graphql.CollectedField, obj *model.CountCapability) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CountCapability_plan(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Plan, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Plan) graphql.Marshaler {
+			return ec.marshalOPlan2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐPlan(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_CountCapability_plan(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CountCapability", field, false, false, errors.New("field of type Plan does not have child fields"))
+}
+
+func (ec *executionContext) _CountCapability_limit(ctx context.Context, field graphql.CollectedField, obj *model.CountCapability) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CountCapability_limit(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Limit, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *int) graphql.Marshaler {
+			return ec.marshalOInt2ᚖint(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_CountCapability_limit(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CountCapability", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _CountCapability_upgrades(ctx context.Context, field graphql.CollectedField, obj *model.CountCapability) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CountCapability_upgrades(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Upgrades, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []model.CountUpgrade) graphql.Marshaler {
+			return ec.marshalNCountUpgrade2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐCountUpgradeᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CountCapability_upgrades(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CountCapability",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_CountUpgrade(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CountUpgrade_plan(ctx context.Context, field graphql.CollectedField, obj *model.CountUpgrade) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CountUpgrade_plan(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Plan, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.Plan) graphql.Marshaler {
+			return ec.marshalNPlan2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐPlan(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CountUpgrade_plan(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CountUpgrade", field, false, false, errors.New("field of type Plan does not have child fields"))
+}
+
+func (ec *executionContext) _CountUpgrade_limit(ctx context.Context, field graphql.CollectedField, obj *model.CountUpgrade) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CountUpgrade_limit(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Limit, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *int) graphql.Marshaler {
+			return ec.marshalOInt2ᚖint(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_CountUpgrade_limit(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CountUpgrade", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
 func (ec *executionContext) _CreatedApiToken_apiToken(ctx context.Context, field graphql.CollectedField, obj *model.CreatedAPIToken) (ret graphql.Marshaler) {
@@ -13616,6 +14828,148 @@ func (ec *executionContext) fieldContext_DatabaseBackups_backups(_ context.Conte
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_DatabaseBackup(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DatabaseCapability_availability(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseCapability) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseCapability_availability(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Availability, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.Availability) graphql.Marshaler {
+			return ec.marshalNAvailability2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAvailability(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseCapability_availability(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DatabaseCapability", field, false, false, errors.New("field of type Availability does not have child fields"))
+}
+
+func (ec *executionContext) _DatabaseCapability_plan(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseCapability) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseCapability_plan(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Plan, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Plan) graphql.Marshaler {
+			return ec.marshalOPlan2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐPlan(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseCapability_plan(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DatabaseCapability", field, false, false, errors.New("field of type Plan does not have child fields"))
+}
+
+func (ec *executionContext) _DatabaseCapability_cpu(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseCapability) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseCapability_cpu(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CPU, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.QuantityLimit) graphql.Marshaler {
+			return ec.marshalNQuantityLimit2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐQuantityLimit(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseCapability_cpu(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DatabaseCapability",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_QuantityLimit(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DatabaseCapability_memory(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseCapability) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseCapability_memory(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Memory, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.QuantityLimit) graphql.Marshaler {
+			return ec.marshalNQuantityLimit2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐQuantityLimit(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseCapability_memory(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DatabaseCapability",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_QuantityLimit(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DatabaseCapability_storage(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseCapability) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseCapability_storage(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Storage, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.QuantityLimit) graphql.Marshaler {
+			return ec.marshalNQuantityLimit2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐQuantityLimit(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseCapability_storage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DatabaseCapability",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_QuantityLimit(ctx, field)
 		},
 	}
 	return fc, nil
@@ -18119,6 +19473,144 @@ func (ec *executionContext) fieldContext_Mutation_completePlanCheckout(ctx conte
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_addPaymentMethod(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_addPaymentMethod(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().AddPaymentMethod(ctx, fc.Args["returnPath"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.AllowSuspended == nil {
+					var zeroVal *model.CheckoutSession
+					return zeroVal, errors.New("directive allowSuspended is not implemented")
+				}
+				return ec.Directives.AllowSuspended(ctx, nil, directive0)
+			}
+			directive2 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_ADMIN")
+				if err != nil {
+					var zeroVal *model.CheckoutSession
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.CheckoutSession
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive1, role)
+			}
+
+			next = directive2
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.CheckoutSession) graphql.Marshaler {
+			return ec.marshalNCheckoutSession2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐCheckoutSession(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_addPaymentMethod(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_CheckoutSession(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_addPaymentMethod_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_completePaymentMethodCheckout(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_completePaymentMethodCheckout(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().CompletePaymentMethodCheckout(ctx, fc.Args["sessionId"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.AllowSuspended == nil {
+					var zeroVal *model.Workspace
+					return zeroVal, errors.New("directive allowSuspended is not implemented")
+				}
+				return ec.Directives.AllowSuspended(ctx, nil, directive0)
+			}
+			directive2 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_ADMIN")
+				if err != nil {
+					var zeroVal *model.Workspace
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.Workspace
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive1, role)
+			}
+
+			next = directive2
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Workspace) graphql.Marshaler {
+			return ec.marshalNWorkspace2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐWorkspace(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_completePaymentMethodCheckout(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Workspace(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_completePaymentMethodCheckout_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_createConnector(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -21708,6 +23200,314 @@ func (ec *executionContext) fieldContext_Mutation_updateMemberRole(ctx context.C
 	return fc, nil
 }
 
+func (ec *executionContext) _PlanLimits_cpu(ctx context.Context, field graphql.CollectedField, obj *model.PlanLimits) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_PlanLimits_cpu(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CPU, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_PlanLimits_cpu(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("PlanLimits", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _PlanLimits_memory(ctx context.Context, field graphql.CollectedField, obj *model.PlanLimits) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_PlanLimits_memory(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Memory, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_PlanLimits_memory(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("PlanLimits", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _PlanLimits_replicas(ctx context.Context, field graphql.CollectedField, obj *model.PlanLimits) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_PlanLimits_replicas(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Replicas, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_PlanLimits_replicas(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("PlanLimits", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _PlanLimits_volumes(ctx context.Context, field graphql.CollectedField, obj *model.PlanLimits) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_PlanLimits_volumes(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Volumes, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_PlanLimits_volumes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("PlanLimits", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _PlanLimits_volumeSize(ctx context.Context, field graphql.CollectedField, obj *model.PlanLimits) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_PlanLimits_volumeSize(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.VolumeSize, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_PlanLimits_volumeSize(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("PlanLimits", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _PlanLimits_databaseStorage(ctx context.Context, field graphql.CollectedField, obj *model.PlanLimits) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_PlanLimits_databaseStorage(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.DatabaseStorage, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_PlanLimits_databaseStorage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("PlanLimits", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _PlanLimits_keyValueStoreSize(ctx context.Context, field graphql.CollectedField, obj *model.PlanLimits) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_PlanLimits_keyValueStoreSize(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.KeyValueStoreSize, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_PlanLimits_keyValueStoreSize(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("PlanLimits", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _PlanLimits_members(ctx context.Context, field graphql.CollectedField, obj *model.PlanLimits) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_PlanLimits_members(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Members, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *int) graphql.Marshaler {
+			return ec.marshalOInt2ᚖint(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_PlanLimits_members(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("PlanLimits", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _PlanLimits_customDomains(ctx context.Context, field graphql.CollectedField, obj *model.PlanLimits) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_PlanLimits_customDomains(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CustomDomains, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *int) graphql.Marshaler {
+			return ec.marshalOInt2ᚖint(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_PlanLimits_customDomains(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("PlanLimits", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _PlanOffer_plan(ctx context.Context, field graphql.CollectedField, obj *model.PlanOffer) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_PlanOffer_plan(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Plan, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Plan) graphql.Marshaler {
+			return ec.marshalOPlan2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐPlan(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_PlanOffer_plan(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("PlanOffer", field, false, false, errors.New("field of type Plan does not have child fields"))
+}
+
+func (ec *executionContext) _PlanOffer_priceCents(ctx context.Context, field graphql.CollectedField, obj *model.PlanOffer) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_PlanOffer_priceCents(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.PriceCents, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_PlanOffer_priceCents(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("PlanOffer", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _PlanOffer_currency(ctx context.Context, field graphql.CollectedField, obj *model.PlanOffer) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_PlanOffer_currency(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Currency, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_PlanOffer_currency(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("PlanOffer", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _PlanOffer_limits(ctx context.Context, field graphql.CollectedField, obj *model.PlanOffer) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_PlanOffer_limits(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Limits, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.PlanLimits) graphql.Marshaler {
+			return ec.marshalNPlanLimits2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐPlanLimits(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_PlanOffer_limits(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PlanOffer",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_PlanLimits(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _PlanSelection_subscription(ctx context.Context, field graphql.CollectedField, obj *model.PlanSelection) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -21839,6 +23639,130 @@ func (ec *executionContext) fieldContext_Project_environments(_ context.Context,
 		},
 	}
 	return fc, nil
+}
+
+func (ec *executionContext) _QuantityLimit_min(ctx context.Context, field graphql.CollectedField, obj *model.QuantityLimit) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_QuantityLimit_min(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Min, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_QuantityLimit_min(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("QuantityLimit", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _QuantityLimit_max(ctx context.Context, field graphql.CollectedField, obj *model.QuantityLimit) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_QuantityLimit_max(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Max, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_QuantityLimit_max(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("QuantityLimit", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _QuantityLimit_upgrades(ctx context.Context, field graphql.CollectedField, obj *model.QuantityLimit) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_QuantityLimit_upgrades(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Upgrades, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []model.QuantityUpgrade) graphql.Marshaler {
+			return ec.marshalNQuantityUpgrade2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐQuantityUpgradeᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_QuantityLimit_upgrades(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "QuantityLimit",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_QuantityUpgrade(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _QuantityUpgrade_plan(ctx context.Context, field graphql.CollectedField, obj *model.QuantityUpgrade) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_QuantityUpgrade_plan(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Plan, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.Plan) graphql.Marshaler {
+			return ec.marshalNPlan2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐPlan(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_QuantityUpgrade_plan(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("QuantityUpgrade", field, false, false, errors.New("field of type Plan does not have child fields"))
+}
+
+func (ec *executionContext) _QuantityUpgrade_max(ctx context.Context, field graphql.CollectedField, obj *model.QuantityUpgrade) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_QuantityUpgrade_max(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Max, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_QuantityUpgrade_max(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("QuantityUpgrade", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _Query_agent(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -22284,6 +24208,56 @@ func (ec *executionContext) fieldContext_Query_usageSummary(_ context.Context, f
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_UsageSummary(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_plans(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_plans(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().Plans(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal []model.PlanOffer
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal []model.PlanOffer
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v []model.PlanOffer) graphql.Marshaler {
+			return ec.marshalNPlanOffer2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐPlanOfferᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_plans(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_PlanOffer(ctx, field)
 		},
 	}
 	return fc, nil
@@ -26359,6 +28333,84 @@ func (ec *executionContext) _SharedVariable_value(ctx context.Context, field gra
 }
 func (ec *executionContext) fieldContext_SharedVariable_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("SharedVariable", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _StorageCapability_availability(ctx context.Context, field graphql.CollectedField, obj *model.StorageCapability) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_StorageCapability_availability(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Availability, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.Availability) graphql.Marshaler {
+			return ec.marshalNAvailability2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAvailability(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_StorageCapability_availability(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("StorageCapability", field, false, false, errors.New("field of type Availability does not have child fields"))
+}
+
+func (ec *executionContext) _StorageCapability_plan(ctx context.Context, field graphql.CollectedField, obj *model.StorageCapability) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_StorageCapability_plan(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Plan, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Plan) graphql.Marshaler {
+			return ec.marshalOPlan2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐPlan(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_StorageCapability_plan(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("StorageCapability", field, false, false, errors.New("field of type Plan does not have child fields"))
+}
+
+func (ec *executionContext) _StorageCapability_size(ctx context.Context, field graphql.CollectedField, obj *model.StorageCapability) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_StorageCapability_size(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Size, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.QuantityLimit) graphql.Marshaler {
+			return ec.marshalNQuantityLimit2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐQuantityLimit(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_StorageCapability_size(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StorageCapability",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_QuantityLimit(ctx, field)
+		},
+	}
+	return fc, nil
 }
 
 func (ec *executionContext) _Subscription_agentSessionEvents(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
@@ -30611,6 +32663,54 @@ func (ec *executionContext) _AgentSessionEvent(ctx context.Context, sel ast.Sele
 	}
 }
 
+func (ec *executionContext) _Capability(ctx context.Context, sel ast.SelectionSet, obj model.Capability) graphql.Marshaler {
+	switch obj := (obj).(type) {
+	case nil:
+		return graphql.Null
+	case model.StorageCapability:
+		return ec._StorageCapability(ctx, sel, &obj)
+	case *model.StorageCapability:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._StorageCapability(ctx, sel, obj)
+	case model.DatabaseCapability:
+		return ec._DatabaseCapability(ctx, sel, &obj)
+	case *model.DatabaseCapability:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._DatabaseCapability(ctx, sel, obj)
+	case model.CountCapability:
+		return ec._CountCapability(ctx, sel, &obj)
+	case *model.CountCapability:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._CountCapability(ctx, sel, obj)
+	case model.ComputeCapability:
+		return ec._ComputeCapability(ctx, sel, &obj)
+	case *model.ComputeCapability:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._ComputeCapability(ctx, sel, obj)
+	case model.BasicCapability:
+		return ec._BasicCapability(ctx, sel, &obj)
+	case *model.BasicCapability:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._BasicCapability(ctx, sel, obj)
+	default:
+		if typedObj, ok := obj.(graphql.Marshaler); ok {
+			return typedObj
+		} else {
+			panic(fmt.Errorf("unexpected type %T; non-generated variants of Capability must implement graphql.Marshaler", obj))
+		}
+	}
+}
+
 func (ec *executionContext) _VariableSource(ctx context.Context, sel ast.SelectionSet, obj model.VariableSource) graphql.Marshaler {
 	switch obj := (obj).(type) {
 	case nil:
@@ -31529,6 +33629,49 @@ func (ec *executionContext) _AutoscalingSettings(ctx context.Context, sel ast.Se
 	return out
 }
 
+var basicCapabilityImplementors = []string{"BasicCapability", "Capability"}
+
+func (ec *executionContext) _BasicCapability(ctx context.Context, sel ast.SelectionSet, obj *model.BasicCapability) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, basicCapabilityImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("BasicCapability")
+		case "availability":
+			out.Values[i] = ec._BasicCapability_availability(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "plan":
+			out.Values[i] = ec._BasicCapability_plan(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
 var billingPortalUrlImplementors = []string{"BillingPortalUrl"}
 
 func (ec *executionContext) _BillingPortalUrl(ctx context.Context, sel ast.SelectionSet, obj *model.BillingPortalURL) graphql.Marshaler {
@@ -32013,8 +34156,43 @@ func (ec *executionContext) _Capabilities(ctx context.Context, sel ast.Selection
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Capabilities")
+		case "services":
+			out.Values[i] = ec._Capabilities_services(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "databases":
+			out.Values[i] = ec._Capabilities_databases(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "keyValueStores":
+			out.Values[i] = ec._Capabilities_keyValueStores(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "volumes":
+			out.Values[i] = ec._Capabilities_volumes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "buckets":
+			out.Values[i] = ec._Capabilities_buckets(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "agents":
 			out.Values[i] = ec._Capabilities_agents(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "members":
+			out.Values[i] = ec._Capabilities_members(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "customDomains":
+			out.Values[i] = ec._Capabilities_customDomains(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -32102,6 +34280,64 @@ func (ec *executionContext) _Commit(ctx context.Context, sel ast.SelectionSet, o
 		case "url":
 			out.Values[i] = ec._Commit_url(ctx, field, obj)
 			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var computeCapabilityImplementors = []string{"ComputeCapability", "Capability"}
+
+func (ec *executionContext) _ComputeCapability(ctx context.Context, sel ast.SelectionSet, obj *model.ComputeCapability) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, computeCapabilityImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ComputeCapability")
+		case "availability":
+			out.Values[i] = ec._ComputeCapability_availability(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "plan":
+			out.Values[i] = ec._ComputeCapability_plan(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "cpu":
+			out.Values[i] = ec._ComputeCapability_cpu(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "memory":
+			out.Values[i] = ec._ComputeCapability_memory(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "replicas":
+			out.Values[i] = ec._ComputeCapability_replicas(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
 		default:
@@ -32250,6 +34486,102 @@ func (ec *executionContext) _ConnectorTool(ctx context.Context, sel ast.Selectio
 			}
 		case "description":
 			out.Values[i] = ec._ConnectorTool_description(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var countCapabilityImplementors = []string{"CountCapability", "Capability"}
+
+func (ec *executionContext) _CountCapability(ctx context.Context, sel ast.SelectionSet, obj *model.CountCapability) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, countCapabilityImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CountCapability")
+		case "availability":
+			out.Values[i] = ec._CountCapability_availability(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "plan":
+			out.Values[i] = ec._CountCapability_plan(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "limit":
+			out.Values[i] = ec._CountCapability_limit(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "upgrades":
+			out.Values[i] = ec._CountCapability_upgrades(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var countUpgradeImplementors = []string{"CountUpgrade"}
+
+func (ec *executionContext) _CountUpgrade(ctx context.Context, sel ast.SelectionSet, obj *model.CountUpgrade) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, countUpgradeImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CountUpgrade")
+		case "plan":
+			out.Values[i] = ec._CountUpgrade_plan(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "limit":
+			out.Values[i] = ec._CountUpgrade_limit(ctx, field, obj)
 			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
@@ -32745,6 +35077,64 @@ func (ec *executionContext) _DatabaseBackups(ctx context.Context, sel ast.Select
 			}
 		case "backups":
 			out.Values[i] = ec._DatabaseBackups_backups(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var databaseCapabilityImplementors = []string{"DatabaseCapability", "Capability"}
+
+func (ec *executionContext) _DatabaseCapability(ctx context.Context, sel ast.SelectionSet, obj *model.DatabaseCapability) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, databaseCapabilityImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DatabaseCapability")
+		case "availability":
+			out.Values[i] = ec._DatabaseCapability_availability(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "plan":
+			out.Values[i] = ec._DatabaseCapability_plan(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "cpu":
+			out.Values[i] = ec._DatabaseCapability_cpu(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "memory":
+			out.Values[i] = ec._DatabaseCapability_memory(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "storage":
+			out.Values[i] = ec._DatabaseCapability_storage(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -34770,6 +37160,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "addPaymentMethod":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_addPaymentMethod(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "completePaymentMethodCheckout":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_completePaymentMethodCheckout(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "createConnector":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createConnector(ctx, field)
@@ -35197,6 +37601,137 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 	return out
 }
 
+var planLimitsImplementors = []string{"PlanLimits"}
+
+func (ec *executionContext) _PlanLimits(ctx context.Context, sel ast.SelectionSet, obj *model.PlanLimits) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, planLimitsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PlanLimits")
+		case "cpu":
+			out.Values[i] = ec._PlanLimits_cpu(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "memory":
+			out.Values[i] = ec._PlanLimits_memory(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "replicas":
+			out.Values[i] = ec._PlanLimits_replicas(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "volumes":
+			out.Values[i] = ec._PlanLimits_volumes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "volumeSize":
+			out.Values[i] = ec._PlanLimits_volumeSize(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "databaseStorage":
+			out.Values[i] = ec._PlanLimits_databaseStorage(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "keyValueStoreSize":
+			out.Values[i] = ec._PlanLimits_keyValueStoreSize(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "members":
+			out.Values[i] = ec._PlanLimits_members(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "customDomains":
+			out.Values[i] = ec._PlanLimits_customDomains(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var planOfferImplementors = []string{"PlanOffer"}
+
+func (ec *executionContext) _PlanOffer(ctx context.Context, sel ast.SelectionSet, obj *model.PlanOffer) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, planOfferImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PlanOffer")
+		case "plan":
+			out.Values[i] = ec._PlanOffer_plan(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "priceCents":
+			out.Values[i] = ec._PlanOffer_priceCents(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "currency":
+			out.Values[i] = ec._PlanOffer_currency(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "limits":
+			out.Values[i] = ec._PlanOffer_limits(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
 var planSelectionImplementors = []string{"PlanSelection"}
 
 func (ec *executionContext) _PlanSelection(ctx context.Context, sel ast.SelectionSet, obj *model.PlanSelection) graphql.Marshaler {
@@ -35264,6 +37799,97 @@ func (ec *executionContext) _Project(ctx context.Context, sel ast.SelectionSet, 
 			}
 		case "environments":
 			out.Values[i] = ec._Project_environments(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var quantityLimitImplementors = []string{"QuantityLimit"}
+
+func (ec *executionContext) _QuantityLimit(ctx context.Context, sel ast.SelectionSet, obj *model.QuantityLimit) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, quantityLimitImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("QuantityLimit")
+		case "min":
+			out.Values[i] = ec._QuantityLimit_min(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "max":
+			out.Values[i] = ec._QuantityLimit_max(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "upgrades":
+			out.Values[i] = ec._QuantityLimit_upgrades(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var quantityUpgradeImplementors = []string{"QuantityUpgrade"}
+
+func (ec *executionContext) _QuantityUpgrade(ctx context.Context, sel ast.SelectionSet, obj *model.QuantityUpgrade) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, quantityUpgradeImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("QuantityUpgrade")
+		case "plan":
+			out.Values[i] = ec._QuantityUpgrade_plan(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "max":
+			out.Values[i] = ec._QuantityUpgrade_max(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -35473,6 +38099,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				}()
 				res = ec._Query_usageSummary(ctx, field)
 				if res == graphql.RequiredNull {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "plans":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_plans(ctx, field)
+				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
 				return res
@@ -37428,6 +40076,54 @@ func (ec *executionContext) _SharedVariable(ctx context.Context, sel ast.Selecti
 	return out
 }
 
+var storageCapabilityImplementors = []string{"StorageCapability", "Capability"}
+
+func (ec *executionContext) _StorageCapability(ctx context.Context, sel ast.SelectionSet, obj *model.StorageCapability) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, storageCapabilityImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("StorageCapability")
+		case "availability":
+			out.Values[i] = ec._StorageCapability_availability(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "plan":
+			out.Values[i] = ec._StorageCapability_plan(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "size":
+			out.Values[i] = ec._StorageCapability_size(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
 var subscriptionImplementors = []string{"Subscription"}
 
 func (ec *executionContext) _Subscription(ctx context.Context, sel ast.SelectionSet) func(ctx context.Context) graphql.Marshaler {
@@ -38847,6 +41543,16 @@ func (ec *executionContext) marshalNApproval2githubᚗcomᚋzeitlosᚋlucityᚋs
 	return v
 }
 
+func (ec *executionContext) unmarshalNAvailability2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAvailability(ctx context.Context, v any) (model.Availability, error) {
+	var res model.Availability
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNAvailability2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAvailability(ctx context.Context, sel ast.SelectionSet, v model.Availability) graphql.Marshaler {
+	return v
+}
+
 func (ec *executionContext) unmarshalNBackupStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBackupStatus(ctx context.Context, v any) (model.BackupStatus, error) {
 	var res model.BackupStatus
 	err := res.UnmarshalGQL(v)
@@ -38865,6 +41571,16 @@ func (ec *executionContext) unmarshalNBackupTrigger2githubᚗcomᚋzeitlosᚋluc
 
 func (ec *executionContext) marshalNBackupTrigger2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBackupTrigger(ctx context.Context, sel ast.SelectionSet, v model.BackupTrigger) graphql.Marshaler {
 	return v
+}
+
+func (ec *executionContext) marshalNBasicCapability2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBasicCapability(ctx context.Context, sel ast.SelectionSet, v *model.BasicCapability) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._BasicCapability(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNBillingPortalUrl2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBillingPortalURL(ctx context.Context, sel ast.SelectionSet, v *model.BillingPortalURL) graphql.Marshaler {
@@ -39093,6 +41809,16 @@ func (ec *executionContext) marshalNCommit2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋ
 	return ec._Commit(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNComputeCapability2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐComputeCapability(ctx context.Context, sel ast.SelectionSet, v *model.ComputeCapability) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ComputeCapability(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNConnector2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐConnector(ctx context.Context, sel ast.SelectionSet, v model.Connector) graphql.Marshaler {
 	return ec._Connector(ctx, sel, &v)
 }
@@ -39142,6 +41868,36 @@ func (ec *executionContext) marshalNConnectorTool2ᚕgithubᚗcomᚋzeitlosᚋlu
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
 		return ec.marshalNConnectorTool2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐConnectorTool(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNCountCapability2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐCountCapability(ctx context.Context, sel ast.SelectionSet, v *model.CountCapability) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CountCapability(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNCountUpgrade2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐCountUpgrade(ctx context.Context, sel ast.SelectionSet, v model.CountUpgrade) graphql.Marshaler {
+	return ec._CountUpgrade(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNCountUpgrade2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐCountUpgradeᚄ(ctx context.Context, sel ast.SelectionSet, v []model.CountUpgrade) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNCountUpgrade2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐCountUpgrade(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -39301,6 +42057,16 @@ func (ec *executionContext) marshalNDatabaseBackups2ᚖgithubᚗcomᚋzeitlosᚋ
 		return graphql.Null
 	}
 	return ec._DatabaseBackups(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNDatabaseCapability2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseCapability(ctx context.Context, sel ast.SelectionSet, v *model.DatabaseCapability) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DatabaseCapability(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNDatabaseColumn2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseColumn(ctx context.Context, sel ast.SelectionSet, v model.DatabaseColumn) graphql.Marshaler {
@@ -40041,6 +42807,36 @@ func (ec *executionContext) marshalNPlan2githubᚗcomᚋzeitlosᚋlucityᚋservi
 	return v
 }
 
+func (ec *executionContext) marshalNPlanLimits2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐPlanLimits(ctx context.Context, sel ast.SelectionSet, v *model.PlanLimits) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._PlanLimits(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNPlanOffer2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐPlanOffer(ctx context.Context, sel ast.SelectionSet, v model.PlanOffer) graphql.Marshaler {
+	return ec._PlanOffer(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNPlanOffer2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐPlanOfferᚄ(ctx context.Context, sel ast.SelectionSet, v []model.PlanOffer) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNPlanOffer2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐPlanOffer(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
 func (ec *executionContext) marshalNPlanSelection2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐPlanSelection(ctx context.Context, sel ast.SelectionSet, v *model.PlanSelection) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -40099,6 +42895,36 @@ func (ec *executionContext) unmarshalNProtocol2githubᚗcomᚋzeitlosᚋlucity�
 
 func (ec *executionContext) marshalNProtocol2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐProtocol(ctx context.Context, sel ast.SelectionSet, v model.Protocol) graphql.Marshaler {
 	return v
+}
+
+func (ec *executionContext) marshalNQuantityLimit2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐQuantityLimit(ctx context.Context, sel ast.SelectionSet, v *model.QuantityLimit) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._QuantityLimit(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNQuantityUpgrade2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐQuantityUpgrade(ctx context.Context, sel ast.SelectionSet, v model.QuantityUpgrade) graphql.Marshaler {
+	return ec._QuantityUpgrade(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNQuantityUpgrade2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐQuantityUpgradeᚄ(ctx context.Context, sel ast.SelectionSet, v []model.QuantityUpgrade) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNQuantityUpgrade2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐQuantityUpgrade(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) marshalNQueryResult2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐQueryResult(ctx context.Context, sel ast.SelectionSet, v *model.QueryResult) graphql.Marshaler {
@@ -40468,6 +43294,16 @@ func (ec *executionContext) unmarshalNSourceProvider2githubᚗcomᚋzeitlosᚋlu
 
 func (ec *executionContext) marshalNSourceProvider2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐSourceProvider(ctx context.Context, sel ast.SelectionSet, v model.SourceProvider) graphql.Marshaler {
 	return v
+}
+
+func (ec *executionContext) marshalNStorageCapability2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐStorageCapability(ctx context.Context, sel ast.SelectionSet, v *model.StorageCapability) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._StorageCapability(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v any) (string, error) {

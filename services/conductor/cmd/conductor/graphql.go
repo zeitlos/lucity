@@ -256,6 +256,25 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 			return presented
 		}
 
+		if gate, ok := conductor.AsGateError(err); ok {
+			extensions := map[string]interface{}{"code": string(gate.Availability)}
+
+			if gate.Plan.Paid() {
+				extensions["plan"] = strings.ToUpper(string(gate.Plan))
+			}
+
+			return &gqlerror.Error{Message: gate.Message, Path: presented.Path, Locations: presented.Locations, Extensions: extensions}
+		}
+
+		if errors.Is(err, conductor.ErrPrepaidCard) {
+			return &gqlerror.Error{
+				Message:    "That card is prepaid. Use a debit or credit card, or choose a plan, which accepts prepaid cards. Nothing was charged.",
+				Path:       presented.Path,
+				Locations:  presented.Locations,
+				Extensions: map[string]interface{}{"code": "PREPAID_CARD"},
+			}
+		}
+
 		var userErr *usererror.Error
 		if errors.As(err, &userErr) {
 			return &gqlerror.Error{Message: userErr.Error(), Path: presented.Path, Locations: presented.Locations}

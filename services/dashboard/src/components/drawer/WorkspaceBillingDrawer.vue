@@ -61,6 +61,8 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Status } from '@/components/ui/status';
 import { failureToast } from '@/components/ui/sonner';
+import { useCapabilities } from '@/composables/useCapabilities';
+import { useGate } from '@/composables/useGate';
 
 defineProps<{
   isAdmin: boolean;
@@ -69,6 +71,9 @@ defineProps<{
 const emit = defineEmits<{
   (e: 'close'): void;
 }>();
+
+const { cardRequired } = useCapabilities();
+const { open: openGate } = useGate();
 
 const { result: subResult, loading: subLoading, error: subError, refetch: refetchSubscription } = useQuery(SubscriptionDocument);
 const subscription = computed(() => subResult.value?.subscription);
@@ -158,6 +163,17 @@ async function handleOpenPortal() {
     </div>
 
     <div v-else class="space-y-6">
+      <section v-if="cardRequired && isAdmin" class="space-y-2.5">
+        <h3 class="text-sm font-medium text-muted-foreground">Payment method</h3>
+        <div class="flex items-center gap-3 rounded-lg border p-3">
+          <CreditCard :size="18" class="shrink-0 text-muted-foreground" />
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-medium">No card on file</p>
+            <p class="text-xs text-status-warn">Needed before you can create anything</p>
+          </div>
+          <Button variant="outline" class="shrink-0" @click="openGate({ kind: 'card' })">Add card</Button>
+        </div>
+      </section>
       <section v-if="!hasPlan && isAdmin" class="space-y-4 rounded-lg border p-4">
         <div>
           <h3 class="text-sm font-medium text-foreground">Choose a plan to continue</h3>

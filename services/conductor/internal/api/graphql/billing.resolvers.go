@@ -72,6 +72,32 @@ func (r *mutationResolver) CompletePlanCheckout(ctx context.Context, sessionID s
 	return convertBillingSubscription(res), nil
 }
 
+// AddPaymentMethod is the resolver for the addPaymentMethod field.
+func (r *mutationResolver) AddPaymentMethod(ctx context.Context, returnPath string) (*model.CheckoutSession, error) {
+	ws, err := tenant.FromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	url, err := r.Conductor.AddPaymentMethod(ctx, ws, returnPath)
+	if err != nil {
+		return nil, err
+	}
+	return &model.CheckoutSession{URL: url}, nil
+}
+
+// CompletePaymentMethodCheckout is the resolver for the completePaymentMethodCheckout field.
+func (r *mutationResolver) CompletePaymentMethodCheckout(ctx context.Context, sessionID string) (*model.Workspace, error) {
+	ws, err := tenant.FromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	res, err := r.Conductor.CompletePaymentMethodCheckout(ctx, ws, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	return convertWorkspaceDetails(res), nil
+}
+
 // Subscription is the resolver for the subscription field.
 func (r *queryResolver) Subscription(ctx context.Context) (*model.BillingSubscription, error) {
 	ws, err := tenant.FromContext(ctx)
@@ -96,4 +122,17 @@ func (r *queryResolver) UsageSummary(ctx context.Context) (*model.UsageSummary, 
 		return nil, err
 	}
 	return new(convertUsageSummary(*res)), nil
+}
+
+// Plans is the resolver for the plans field.
+func (r *queryResolver) Plans(ctx context.Context) ([]model.PlanOffer, error) {
+	offers, err := r.Conductor.PlanOffers(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]model.PlanOffer, 0, len(offers))
+	for _, offer := range offers {
+		result = append(result, convertPlanOffer(offer))
+	}
+	return result, nil
 }

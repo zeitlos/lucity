@@ -6,6 +6,7 @@ import { Undo2 } from '@lucide/vue';
 import { useTheme } from '@/composables/useTheme';
 import { useDiscardPrompt } from '@/composables/useUnsavedChanges';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
+import GateDialog from '@/components/GateDialog.vue';
 import AnnouncementBanner from '@/components/AnnouncementBanner.vue';
 import VersionFooter from '@/components/VersionFooter.vue';
 
@@ -29,5 +30,6 @@ const discardPrompt = useDiscardPrompt();
       @update:open="(value) => { if (!value) discardPrompt.answer(false) }"
       @confirm="discardPrompt.answer(true)"
     />
+    <GateDialog />
   </TooltipProvider>
 </template>

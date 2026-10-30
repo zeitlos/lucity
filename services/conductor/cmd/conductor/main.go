@@ -202,7 +202,9 @@ type Config struct {
 	AgentsNamespace string `envconfig:"AGENTS_NAMESPACE" default:"lucity-agents"`
 	AgentImage      string `envconfig:"AGENT_IMAGE"`
 	AgentGatewayURL string `envconfig:"AGENT_GATEWAY_URL" default:"http://lucity-agent-gateway.lucity-agents.svc.cluster.local"`
-	VictoriaLogsURL string `envconfig:"VICTORIA_LOGS_URL"`
+
+	CardGateAccountAge time.Duration `envconfig:"CARD_GATE_ACCOUNT_AGE" default:"2160h"`
+	VictoriaLogsURL    string        `envconfig:"VICTORIA_LOGS_URL"`
 }
 
 func main() {
@@ -520,6 +522,7 @@ func main() {
 		MaxQueuedReleases:    config.MaxQueuedReleases,
 		PaidPlacement:        workloadPaidPlacement,
 		AgentsEnabled:        config.AgentsEnabled,
+		CardGateAccountAge:   config.CardGateAccountAge,
 		BackupArchive: backuparchive.New(backuparchive.Config{
 			Endpoint:        config.DatabaseBackupEndpoint,
 			Bucket:          config.DatabaseBackupBucket,

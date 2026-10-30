@@ -9,6 +9,7 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/platform"
+	"github.com/zeitlos/lucity/pkg/usererror"
 )
 
 type KeyValueStoreID = platform.KeyValueStoreID
@@ -33,6 +34,16 @@ func (c *Client) KeyValueStore(ctx context.Context, id KeyValueStoreID) (*KeyVal
 func (c *Client) CreateKeyValueStore(ctx context.Context, environment platform.EnvironmentID, name, size string) (*KeyValueStore, error) {
 	const version = "8"
 
+	capabilities, err := c.Capabilities(ctx, environment.Workspace)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := capabilities.KeyValueStores.allow("Creating a key-value store"); err != nil {
+		return nil, err
+	}
+
 	if size == "" {
 		size = "1Gi"
 	}
@@ -40,7 +51,11 @@ func (c *Client) CreateKeyValueStore(ctx context.Context, environment platform.E
 	parsedSize, err := resource.ParseQuantity(size)
 
 	if err != nil {
-		return nil, fmt.Errorf("parse size: %w", err)
+		return nil, usererror.Errorf("invalid size %q", size)
+	}
+
+	if err := capabilities.KeyValueStores.Size.check("Size", parsedSize, nil); err != nil {
+		return nil, err
 	}
 
 	if _, err := c.deployer.KeyValueStores().Create(ctx, environment, name, deployer.KeyValueStoreSpec{

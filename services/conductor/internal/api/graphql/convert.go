@@ -3,8 +3,10 @@ package graphql
 import (
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/zeitlos/lucity/pkg/auth"
+	"github.com/zeitlos/lucity/pkg/billing"
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/hostname"
 	"github.com/zeitlos/lucity/pkg/platform"
@@ -460,7 +462,109 @@ func convertWorkspaceDetails(ws *conductor.WorkspaceDetails) *model.Workspace {
 }
 
 func convertCapabilities(c conductor.Capabilities) *model.Capabilities {
-	return &model.Capabilities{Agents: c.Agents}
+	return &model.Capabilities{
+		Services: &model.ComputeCapability{
+			Availability: model.Availability(c.Services.Availability),
+			Plan:         convertGatePlan(c.Services.Gate),
+			CPU:          convertQuantityLimit(c.Services.CPU),
+			Memory:       convertQuantityLimit(c.Services.Memory),
+			Replicas:     c.Services.Replicas,
+		},
+		Databases: &model.DatabaseCapability{
+			Availability: model.Availability(c.Databases.Availability),
+			Plan:         convertGatePlan(c.Databases.Gate),
+			CPU:          convertQuantityLimit(c.Databases.CPU),
+			Memory:       convertQuantityLimit(c.Databases.Memory),
+			Storage:      convertQuantityLimit(c.Databases.Storage),
+		},
+		KeyValueStores: convertStorageCapability(c.KeyValueStores),
+		Volumes:        convertStorageCapability(c.Volumes),
+		Buckets:        convertBasicCapability(c.Buckets),
+		Agents:         convertBasicCapability(c.Agents),
+		Members:        convertCountCapability(c.Members),
+		CustomDomains:  convertCountCapability(c.CustomDomains),
+	}
+}
+
+func convertBasicCapability(gate conductor.Gate) *model.BasicCapability {
+	return &model.BasicCapability{Availability: model.Availability(gate.Availability), Plan: convertGatePlan(gate)}
+}
+
+func convertStorageCapability(c conductor.StorageCapability) *model.StorageCapability {
+	return &model.StorageCapability{
+		Availability: model.Availability(c.Availability),
+		Plan:         convertGatePlan(c.Gate),
+		Size:         convertQuantityLimit(c.Size),
+	}
+}
+
+func convertCountCapability(c conductor.CountCapability) *model.CountCapability {
+	upgrades := make([]model.CountUpgrade, 0, len(c.Upgrades))
+
+	for _, upgrade := range c.Upgrades {
+		upgrades = append(upgrades, model.CountUpgrade{Plan: convertBillingPlan(upgrade.Plan), Limit: convertCount(upgrade.Limit)})
+	}
+
+	return &model.CountCapability{
+		Availability: model.Availability(c.Availability),
+		Plan:         convertGatePlan(c.Gate),
+		Limit:        convertCount(c.Limit),
+		Upgrades:     upgrades,
+	}
+}
+
+func convertQuantityLimit(l conductor.QuantityLimit) *model.QuantityLimit {
+	upgrades := make([]model.QuantityUpgrade, 0, len(l.Upgrades))
+
+	for _, upgrade := range l.Upgrades {
+		upgrades = append(upgrades, model.QuantityUpgrade{Plan: convertBillingPlan(upgrade.Plan), Max: upgrade.Max.String()})
+	}
+
+	return &model.QuantityLimit{Min: l.Min.String(), Max: l.Max.String(), Upgrades: upgrades}
+}
+
+func convertGatePlan(gate conductor.Gate) *model.Plan {
+	if gate.Availability != conductor.PlanRequired || !gate.Plan.Paid() {
+		return nil
+	}
+
+	return new(convertBillingPlan(gate.Plan))
+}
+
+func convertBillingPlan(plan billing.Plan) model.Plan {
+	return convertPlan(strings.ToUpper(string(plan)))
+}
+
+func convertCount(count int) *int {
+	if count == billing.Unlimited {
+		return nil
+	}
+
+	return new(count)
+}
+
+func convertPlanOffer(offer conductor.PlanOffer) model.PlanOffer {
+	result := model.PlanOffer{
+		PriceCents: int(offer.Price.AmountCents),
+		Currency:   strings.ToUpper(offer.Price.Currency),
+		Limits: &model.PlanLimits{
+			CPU:               offer.Limits.CPU.String(),
+			Memory:            offer.Limits.Memory.String(),
+			Replicas:          offer.Limits.Replicas,
+			Volumes:           offer.Limits.Volumes,
+			VolumeSize:        offer.Limits.VolumeSize.String(),
+			DatabaseStorage:   offer.Limits.DatabaseStorage.String(),
+			KeyValueStoreSize: offer.Limits.KeyValueStoreSize.String(),
+			Members:           convertCount(offer.Limits.Members),
+			CustomDomains:     convertCount(offer.Limits.CustomDomains),
+		},
+	}
+
+	if offer.Plan.Paid() {
+		result.Plan = new(convertBillingPlan(offer.Plan))
+	}
+
+	return result
 }
 
 func convertWorkspaceMember(m *conductor.WorkspaceMember) *model.WorkspaceMember {

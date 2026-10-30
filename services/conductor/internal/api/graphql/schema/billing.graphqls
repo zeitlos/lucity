@@ -35,6 +35,28 @@ type BillingPortalUrl {
   url: String!
 }
 
+"""What a plan includes. Sizes are quantities such as `16Gi`, and a null count means unlimited."""
+type PlanLimits {
+  cpu: String!
+  memory: String!
+  replicas: Int!
+  volumes: Boolean!
+  volumeSize: String!
+  databaseStorage: String!
+  keyValueStoreSize: String!
+  members: Int
+  customDomains: Int
+}
+
+"""A plan with what it includes and what it costs a month."""
+type PlanOffer {
+  """Null for the free tier."""
+  plan: Plan
+  priceCents: Int!
+  currency: String!
+  limits: PlanLimits!
+}
+
 """The outcome of choosing a plan: the subscription now on it, or a checkout to complete first when the workspace has no card on file."""
 type PlanSelection {
   subscription: BillingSubscription
@@ -46,6 +68,8 @@ extend type Query {
   subscription: BillingSubscription @hasRole(role: WORKSPACE_MEMBER)
   """The costs of the current billing period so far, in cents. Null when the workspace has never had a subscription."""
   usageSummary: UsageSummary @hasRole(role: WORKSPACE_MEMBER)
+  """Every plan with what it includes and costs, the free tier first. Empty without billing."""
+  plans: [PlanOffer!]! @hasRole(role: WORKSPACE_MEMBER)
 }
 
 extend type Mutation {
@@ -57,4 +81,8 @@ extend type Mutation {
   billingPortalUrl: BillingPortalUrl! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
   """Completes the checkout a plan selection started, puts the workspace on the plan and returns the subscription."""
   completePlanCheckout(sessionId: String!): BillingSubscription! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
+  """Starts a checkout that saves a card for the workspace without charging it, and returns its URL. `returnPath` is the dashboard path to come back to."""
+  addPaymentMethod(returnPath: String! @constraint(constraint: "min=1,max=512")): CheckoutSession! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
+  """Confirms a finished card checkout. A prepaid card is removed again and refused with the code `PREPAID_CARD`."""
+  completePaymentMethodCheckout(sessionId: String! @constraint(constraint: "min=1,max=255")): Workspace! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
 }

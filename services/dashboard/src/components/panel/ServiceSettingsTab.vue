@@ -21,7 +21,13 @@ import {
   Protocol,
   ResourceTier,
   TlsStatus,
+  Availability,
 } from '@/gql/graphql';
+import { useCapabilities } from '@/composables/useCapabilities';
+import { useGate } from '@/composables/useGate';
+import GateTag from '@/components/GateTag.vue';
+import { aboveLimit, gatedChoices, planTitle } from '@/lib/capabilities';
+import { formatCpuQuantity, formatStorage } from '@/lib/format';
 
 const RemoveServiceDocument = graphql(`
   mutation RemoveService($service: ServiceID!) {
@@ -689,6 +695,7 @@ async function handleAddCustomDomain() {
     closeAddDomain();
     recordsHost.value = hostname;
     emit('refetch');
+    refetchCapabilities();
   } catch (e: unknown) {
     failureToast('Failed to add custom domain', e);
   }
@@ -704,6 +711,7 @@ async function handleRemoveDomain(hostname: string) {
 
     domainToRemove.value = null;
     emit('refetch');
+    refetchCapabilities();
   } catch (e: unknown) {
     failureToast('Failed to remove domain', e);
   } finally {
@@ -837,6 +845,31 @@ const selectedMemory = ref('');
 const resourcesSaving = ref(false);
 
 const { mutate: setResourcesMutate } = useMutation(SetServiceResourcesDocument);
+
+const { capabilities, refetch: refetchCapabilities } = useCapabilities();
+const { openFor, pick } = useGate();
+
+const cpuChoices = computed(() => gatedChoices(cpuOptions, capabilities.value?.services.cpu, resources.value?.cpu));
+const memoryChoices = computed(() => gatedChoices(memoryOptions, capabilities.value?.services.memory, resources.value?.memory));
+const cpuAboveLimit = computed(() => aboveLimit(capabilities.value?.services.cpu, resources.value?.cpu));
+const memoryAboveLimit = computed(() => aboveLimit(capabilities.value?.services.memory, resources.value?.memory));
+
+const newDomainGated = computed(() => capabilities.value?.customDomains.availability === Availability.PlanRequired);
+const domainGated = computed(() => !isDomainUpdate.value && newDomainGated.value);
+
+function addDomainClicked() {
+  const gate = capabilities.value?.customDomains;
+  if (domainGated.value && gate?.plan && openFor(gate, `Another custom domain needs the ${planTitle(gate.plan)} plan`)) return;
+  handleAddCustomDomain();
+}
+
+function pickCpu(value: unknown) {
+  pick(cpuChoices.value, value, v => { selectedCpu.value = v; });
+}
+
+function pickMemory(value: unknown) {
+  pick(memoryChoices.value, value, v => { selectedMemory.value = v; });
+}
 
 function discardResources() {
   selectedCpu.value = resources.value?.cpu ?? '';
@@ -1498,8 +1531,14 @@ async function handleRemoveService() {
                 </p>
                 <div class="flex justify-end gap-2">
                   <Button variant="ghost" @click="closeAddDomain">Cancel</Button>
-                  <Button :pending="addingCustomDomain" :disabled="!canAddDomain" @click="handleAddCustomDomain">
+                  <Button
+                    :variant="domainGated ? 'upgrade' : 'default'"
+                    :pending="addingCustomDomain"
+                    :disabled="!canAddDomain"
+                    @click="addDomainClicked"
+                  >
                     {{ addingCustomDomain ? (isDomainUpdate ? 'Updating…' : 'Adding…') : isDomainUpdate ? 'Update domain' : 'Add domain' }}
+                    <GateTag v-if="domainGated" inverse :plan="capabilities?.customDomains.plan" />
                   </Button>
                 </div>
               </div>
@@ -1834,19 +1873,23 @@ async function handleRemoveService() {
               <Cpu :size="16" class="shrink-0 text-muted-foreground" />
               <div class="min-w-0 flex-1">
                 <p class="text-sm font-medium text-foreground">CPU</p>
-                <p class="text-xs text-muted-foreground">Limit per instance</p>
+                <p v-if="cpuAboveLimit" class="text-xs text-status-warn">Above the plan's limit of {{ formatCpuQuantity(capabilities!.services.cpu.max) }}, so it can only shrink</p>
+                <p v-else class="text-xs text-muted-foreground">Limit per instance</p>
               </div>
-              <Select v-model="selectedCpu">
+              <Select :model-value="selectedCpu" @update:model-value="pickCpu">
                 <SelectTrigger class="h-8 w-36">
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem
-                    v-for="option in cpuOptions"
+                    v-for="option in cpuChoices"
                     :key="option.value"
                     :value="option.value"
                   >
-                    {{ option.label }}
+                    <span class="flex w-full items-center justify-between gap-3">
+                      {{ option.label }}
+                      <GateTag v-if="option.state.kind === 'plan'" :plan="option.state.plan" />
+                    </span>
                   </SelectItem>
                 </SelectContent>
               </Select>
@@ -1855,19 +1898,23 @@ async function handleRemoveService() {
               <MemoryStick :size="16" class="shrink-0 text-muted-foreground" />
               <div class="min-w-0 flex-1">
                 <p class="text-sm font-medium text-foreground">Memory</p>
-                <p class="text-xs text-muted-foreground">Limit per instance</p>
+                <p v-if="memoryAboveLimit" class="text-xs text-status-warn">Above the plan's limit of {{ formatStorage(capabilities!.services.memory.max) }}, so it can only shrink</p>
+                <p v-else class="text-xs text-muted-foreground">Limit per instance</p>
               </div>
-              <Select v-model="selectedMemory">
+              <Select :model-value="selectedMemory" @update:model-value="pickMemory">
                 <SelectTrigger class="h-8 w-36">
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem
-                    v-for="option in memoryOptions"
+                    v-for="option in memoryChoices"
                     :key="option.value"
                     :value="option.value"
                   >
-                    {{ option.label }}
+                    <span class="flex w-full items-center justify-between gap-3">
+                      {{ option.label }}
+                      <GateTag v-if="option.state.kind === 'plan'" :plan="option.state.plan" />
+                    </span>
                   </SelectItem>
                 </SelectContent>
               </Select>

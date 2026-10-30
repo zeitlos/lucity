@@ -100,11 +100,11 @@ extend type Query {
 }
 
 extend type Mutation {
-  """Creates a PostgreSQL database in an environment. `size` defaults to `16Gi`, and CPU and memory to `500m` and `512Mi`."""
+  """Creates a PostgreSQL database in an environment. `size` defaults to `16Gi` or the plan's maximum when that is lower, and CPU and memory to `500m` and `512Mi`. Everything stays within the limits in `Workspace.capabilities`."""
   createDatabase(input: CreateDatabaseInput!): Database! @hasRole(role: WORKSPACE_MEMBER)
-  """Sets the CPU (250m to 4) and memory (256Mi to 16Gi) of a database."""
+  """Sets the CPU and memory of a database, within the limits in `Workspace.capabilities`."""
   setDatabaseResources(database: DatabaseID!, resources: ResourcesInput!): Database! @hasRole(role: WORKSPACE_MEMBER)
-  """Grows the storage of a database to `size`, such as `32Gi`, up to 128Gi. Storage can't shrink."""
+  """Grows the storage of a database to `size`, such as `32Gi`, within the limits in `Workspace.capabilities`. Storage can't shrink."""
   setDatabaseStorage(database: DatabaseID!, size: String!): Database! @hasRole(role: WORKSPACE_MEMBER)
   """Deletes a database and all of its data."""
   deleteDatabase(database: DatabaseID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)

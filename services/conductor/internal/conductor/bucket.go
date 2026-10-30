@@ -25,6 +25,16 @@ func (c *Client) Bucket(ctx context.Context, id BucketID) (*Bucket, error) {
 }
 
 func (c *Client) CreateBucket(ctx context.Context, environment platform.EnvironmentID, name string) (*Bucket, error) {
+	capabilities, err := c.Capabilities(ctx, environment.Workspace)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := capabilities.Buckets.allow("Creating a bucket"); err != nil {
+		return nil, err
+	}
+
 	existing, err := c.objectStorage.Buckets(ctx, environment, false)
 
 	if err != nil {

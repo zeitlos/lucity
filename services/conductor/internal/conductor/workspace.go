@@ -119,7 +119,23 @@ func (c *Client) DeleteWorkspace(ctx context.Context, id string) (bool, error) {
 }
 
 func (c *Client) InviteMember(ctx context.Context, workspaceID, email string, role auth.WorkspaceRole) (*WorkspaceMember, error) {
+	capabilities, err := c.freshCapabilities(ctx, workspaceID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if capabilities.Members.Availability == Unavailable {
+		return nil, usererror.New("a personal workspace is just for you, create a workspace to work with others")
+	}
+
+	if err := capabilities.Members.allow("Inviting members"); err != nil {
+		return nil, err
+	}
+
 	member, err := c.directory.InviteMember(ctx, workspaceID, email, role)
+
+	c.forgetCapabilities(workspaceID)
 
 	if err != nil {
 		return nil, err
@@ -144,6 +160,8 @@ func (c *Client) RemoveMember(ctx context.Context, workspaceID, userID string) (
 	if err := c.directory.RemoveMember(ctx, workspaceID, userID); err != nil {
 		return false, err
 	}
+
+	c.forgetCapabilities(workspaceID)
 
 	slog.InfoContext(ctx, "member removed", "user_id", userID)
 

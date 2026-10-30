@@ -29,7 +29,7 @@ type ModelProvider struct {
 }
 
 func (c *Client) workspaceRelease(ctx context.Context, workspace string) (*values.Workspace, error) {
-	if !c.Capabilities(ctx, workspace).Agents {
+	if !c.agentsEnabled() {
 		return values.NewWorkspace(workspace), nil
 	}
 

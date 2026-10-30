@@ -21,6 +21,14 @@ type AgentSessionEvent interface {
 	IsAgentSessionEvent()
 }
 
+// Something a workspace may use, and what unlocks it when it can't yet.
+type Capability interface {
+	IsCapability()
+	GetAvailability() Availability
+	// The cheapest plan that unlocks it, when `availability` is `PLAN_REQUIRED`.
+	GetPlan() *Plan
+}
+
 type VariableSource interface {
 	IsVariableSource()
 }
@@ -204,6 +212,17 @@ type AutoscalingSettings struct {
 	TargetCPU   int `json:"targetCpu"`
 }
 
+type BasicCapability struct {
+	Availability Availability `json:"availability"`
+	Plan         *Plan        `json:"plan,omitempty"`
+}
+
+func (BasicCapability) IsCapability()                      {}
+func (this BasicCapability) GetAvailability() Availability { return this.Availability }
+
+// The cheapest plan that unlocks it, when `availability` is `PLAN_REQUIRED`.
+func (this BasicCapability) GetPlan() *Plan { return this.Plan }
+
 type BillingPortalURL struct {
 	URL string `json:"url"`
 }
@@ -268,10 +287,16 @@ type Build struct {
 	FinishedAt *time.Time       `json:"finishedAt,omitempty"`
 }
 
-// What a workspace can use on this platform.
+// What a workspace can create, how large, and what unlocks the rest.
 type Capabilities struct {
-	// Whether the workspace can create and run agents.
-	Agents bool `json:"agents"`
+	Services       *ComputeCapability  `json:"services"`
+	Databases      *DatabaseCapability `json:"databases"`
+	KeyValueStores *StorageCapability  `json:"keyValueStores"`
+	Volumes        *StorageCapability  `json:"volumes"`
+	Buckets        *BasicCapability    `json:"buckets"`
+	Agents         *BasicCapability    `json:"agents"`
+	Members        *CountCapability    `json:"members"`
+	CustomDomains  *CountCapability    `json:"customDomains"`
 }
 
 type CheckoutSession struct {
@@ -283,6 +308,22 @@ type Commit struct {
 	Message string  `json:"message"`
 	URL     *string `json:"url,omitempty"`
 }
+
+// Creating services, and the CPU, memory and replicas of one.
+type ComputeCapability struct {
+	Availability Availability   `json:"availability"`
+	Plan         *Plan          `json:"plan,omitempty"`
+	CPU          *QuantityLimit `json:"cpu"`
+	Memory       *QuantityLimit `json:"memory"`
+	// The most replicas one service may run, the autoscaling maximum included.
+	Replicas int `json:"replicas"`
+}
+
+func (ComputeCapability) IsCapability()                      {}
+func (this ComputeCapability) GetAvailability() Availability { return this.Availability }
+
+// The cheapest plan that unlocks it, when `availability` is `PLAN_REQUIRED`.
+func (this ComputeCapability) GetPlan() *Plan { return this.Plan }
 
 // A set of tools connected to the workspace, such as Linear or Sentry. Agents reach a connector only once they are granted it, and never see its credential.
 type Connector struct {
@@ -305,6 +346,28 @@ type Connector struct {
 type ConnectorTool struct {
 	Name        string  `json:"name"`
 	Description *string `json:"description,omitempty"`
+}
+
+// Something counted across the workspace. `availability` already accounts for how many exist.
+type CountCapability struct {
+	Availability Availability `json:"availability"`
+	Plan         *Plan        `json:"plan,omitempty"`
+	// How many the plan allows. Null means unlimited.
+	Limit    *int           `json:"limit,omitempty"`
+	Upgrades []CountUpgrade `json:"upgrades"`
+}
+
+func (CountCapability) IsCapability()                      {}
+func (this CountCapability) GetAvailability() Availability { return this.Availability }
+
+// The cheapest plan that unlocks it, when `availability` is `PLAN_REQUIRED`.
+func (this CountCapability) GetPlan() *Plan { return this.Plan }
+
+// A higher count that another plan allows.
+type CountUpgrade struct {
+	Plan Plan `json:"plan"`
+	// Null means unlimited.
+	Limit *int `json:"limit,omitempty"`
 }
 
 type CreateAPITokenInput struct {
@@ -415,6 +478,21 @@ type DatabaseBackups struct {
 	LastBackupAt         *time.Time       `json:"lastBackupAt,omitempty"`
 	Backups              []DatabaseBackup `json:"backups"`
 }
+
+// Creating databases, and the CPU, memory and storage of one.
+type DatabaseCapability struct {
+	Availability Availability   `json:"availability"`
+	Plan         *Plan          `json:"plan,omitempty"`
+	CPU          *QuantityLimit `json:"cpu"`
+	Memory       *QuantityLimit `json:"memory"`
+	Storage      *QuantityLimit `json:"storage"`
+}
+
+func (DatabaseCapability) IsCapability()                      {}
+func (this DatabaseCapability) GetAvailability() Availability { return this.Availability }
+
+// The cheapest plan that unlocks it, when `availability` is `PLAN_REQUIRED`.
+func (this DatabaseCapability) GetPlan() *Plan { return this.Plan }
 
 type DatabaseColumn struct {
 	Name       string `json:"name"`
@@ -683,6 +761,28 @@ type Mount struct {
 type Mutation struct {
 }
 
+// What a plan includes. Sizes are quantities such as `16Gi`, and a null count means unlimited.
+type PlanLimits struct {
+	CPU               string `json:"cpu"`
+	Memory            string `json:"memory"`
+	Replicas          int    `json:"replicas"`
+	Volumes           bool   `json:"volumes"`
+	VolumeSize        string `json:"volumeSize"`
+	DatabaseStorage   string `json:"databaseStorage"`
+	KeyValueStoreSize string `json:"keyValueStoreSize"`
+	Members           *int   `json:"members,omitempty"`
+	CustomDomains     *int   `json:"customDomains,omitempty"`
+}
+
+// A plan with what it includes and what it costs a month.
+type PlanOffer struct {
+	// Null for the free tier.
+	Plan       *Plan       `json:"plan,omitempty"`
+	PriceCents int         `json:"priceCents"`
+	Currency   string      `json:"currency"`
+	Limits     *PlanLimits `json:"limits"`
+}
+
 // The outcome of choosing a plan: the subscription now on it, or a checkout to complete first when the workspace has no card on file.
 type PlanSelection struct {
 	Subscription *BillingSubscription `json:"subscription,omitempty"`
@@ -693,6 +793,20 @@ type Project struct {
 	ID           platform.ProjectID `json:"id"`
 	Name         string             `json:"name"`
 	Environments []Environment      `json:"environments"`
+}
+
+// The smallest and largest value the workspace may set, as quantities such as `250m` or `16Gi`, with the plans that allow more.
+type QuantityLimit struct {
+	Min string `json:"min"`
+	Max string `json:"max"`
+	// Higher maximums on other plans, cheapest first. Empty on the top plan and without billing.
+	Upgrades []QuantityUpgrade `json:"upgrades"`
+}
+
+// A higher maximum that another plan allows.
+type QuantityUpgrade struct {
+	Plan Plan   `json:"plan"`
+	Max  string `json:"max"`
 }
 
 type Query struct {
@@ -862,6 +976,19 @@ type SharedVariable struct {
 	Value string `json:"value"`
 }
 
+// Creating volumes or key-value stores, and the size of one.
+type StorageCapability struct {
+	Availability Availability   `json:"availability"`
+	Plan         *Plan          `json:"plan,omitempty"`
+	Size         *QuantityLimit `json:"size"`
+}
+
+func (StorageCapability) IsCapability()                      {}
+func (this StorageCapability) GetAvailability() Availability { return this.Availability }
+
+// The cheapest plan that unlocks it, when `availability` is `PLAN_REQUIRED`.
+func (this StorageCapability) GetPlan() *Plan { return this.Plan }
+
 type Subscription struct {
 }
 
@@ -945,7 +1072,7 @@ type Workspace struct {
 	Personal  bool              `json:"personal"`
 	Suspended bool              `json:"suspended"`
 	Members   []WorkspaceMember `json:"members"`
-	// What the workspace can use. Anything reported unavailable is refused.
+	// What the workspace can create, how large, and what unlocks the rest. Anything it doesn't allow is refused.
 	Capabilities *Capabilities `json:"capabilities"`
 }
 
@@ -1540,6 +1667,70 @@ func (e *Approval) UnmarshalJSON(b []byte) error {
 }
 
 func (e Approval) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// Whether a workspace can use something now, and what unlocks it otherwise.
+type Availability string
+
+const (
+	// It can be used.
+	AvailabilityAvailable Availability = "AVAILABLE"
+	// A higher plan unlocks it. `plan` names the cheapest one.
+	AvailabilityPlanRequired Availability = "PLAN_REQUIRED"
+	// A card on file unlocks it.
+	AvailabilityPaymentMethodRequired Availability = "PAYMENT_METHOD_REQUIRED"
+	// It isn't offered here.
+	AvailabilityUnavailable Availability = "UNAVAILABLE"
+)
+
+var AllAvailability = []Availability{
+	AvailabilityAvailable,
+	AvailabilityPlanRequired,
+	AvailabilityPaymentMethodRequired,
+	AvailabilityUnavailable,
+}
+
+func (e Availability) IsValid() bool {
+	switch e {
+	case AvailabilityAvailable, AvailabilityPlanRequired, AvailabilityPaymentMethodRequired, AvailabilityUnavailable:
+		return true
+	}
+	return false
+}
+
+func (e Availability) String() string {
+	return string(e)
+}
+
+func (e *Availability) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = Availability(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid Availability", str)
+	}
+	return nil
+}
+
+func (e Availability) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *Availability) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e Availability) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

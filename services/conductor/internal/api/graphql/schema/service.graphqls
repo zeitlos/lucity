@@ -200,7 +200,7 @@ extend type Mutation {
   setServiceHealthCheck(service: ServiceID!, healthCheck: HealthCheckInput): Service! @hasRole(role: WORKSPACE_MEMBER)
   """Runs a fixed number of `replicas`, or with `autoscaling` enabled, scales between a minimum and a maximum to hold CPU at the target percentage. A service with a mounted volume runs a single instance."""
   setServiceScaling(input: SetServiceScalingInput!): Service! @hasRole(role: WORKSPACE_MEMBER)
-  """Sets the CPU (250m to 4) and memory (256Mi to 16Gi) of a service. The service rolls out again on the image it is already running."""
+  """Sets the CPU and memory of a service, within the limits in `Workspace.capabilities`. The service rolls out again on the image it is already running."""
   setServiceResources(service: ServiceID!, resources: ResourcesInput!): Service! @hasRole(role: WORKSPACE_MEMBER)
   """Sets the user id an image-based service runs as, which also becomes its group and the owner of its mounted volumes. Leave it out to go back to the image's default. Services built from source can't set it."""
   setServiceUser(service: ServiceID!, user: Int @constraint(constraint: "min=0,max=65535")): Service! @hasRole(role: WORKSPACE_MEMBER)

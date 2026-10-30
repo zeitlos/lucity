@@ -11,6 +11,11 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { failureToast } from '@/components/ui/sonner';
 import type { Service } from '@/composables/useEnvironment';
+import { useCapabilities } from '@/composables/useCapabilities';
+import { useGate } from '@/composables/useGate';
+import GateTag from '@/components/GateTag.vue';
+import { nextUpgrade, planTitle, stepState } from '@/lib/capabilities';
+import { Availability } from '@/gql/graphql';
 
 const DeleteVolumeDocument = graphql(`
   mutation DeleteVolume($volume: VolumeID!) {
@@ -61,7 +66,25 @@ const mountedServiceName = computed(() => {
   return props.services.find(s => s.id === props.volume.mount!.service)?.name ?? 'Unknown service';
 });
 
-const volumeSizes = ['10Gi', '16Gi', '32Gi', '64Gi', '128Gi'];
+const { capabilities } = useCapabilities();
+const { openFor } = useGate();
+
+const volumeSizes = computed(() => {
+  const all = ['10Gi', '16Gi', '32Gi', '64Gi', '128Gi'];
+  const allowed = all.filter(size => stepState(capabilities.value?.volumes.size, size, props.volume.size).kind === 'available');
+  return allowed.length ? allowed : all.slice(0, 1);
+});
+
+const sizeUpgrade = computed(() => {
+  const upgrade = nextUpgrade(capabilities.value?.volumes.size);
+  if (!upgrade || parseGib(upgrade.max) <= parseGib(volumeSizes.value[volumeSizes.value.length - 1]!)) return undefined;
+  return upgrade;
+});
+
+function upgradeSize() {
+  const upgrade = sizeUpgrade.value;
+  if (upgrade) openFor({ availability: Availability.PlanRequired, plan: upgrade.plan }, `Larger volumes need the ${planTitle(upgrade.plan)} plan`);
+}
 
 const parseGib = (size: string) => {
   const match = /^(\d+)(Gi|Ti)$/.exec(size);
@@ -71,14 +94,14 @@ const parseGib = (size: string) => {
 const currentSize = computed(() => props.volume.size);
 
 const minIndex = computed(() => {
-  const index = volumeSizes.findIndex(size => parseGib(size) >= parseGib(currentSize.value));
-  return index === -1 ? volumeSizes.length - 1 : index;
+  const index = volumeSizes.value.findIndex(size => parseGib(size) >= parseGib(currentSize.value));
+  return index === -1 ? volumeSizes.value.length - 1 : index;
 });
 
 const selectedSize = ref(props.volume.size);
 
 function discardStorage() {
-  selectedSize.value = volumeSizes[minIndex.value]!;
+  selectedSize.value = volumeSizes.value[minIndex.value]!;
 }
 
 watch(currentSize, discardStorage, { immediate: true });
@@ -216,9 +239,14 @@ async function handleDelete() {
                 :step="1"
                 @update:model-value="selectedSize = volumeSizes[$event?.[0] ?? minIndex]!"
               />
-              <div class="flex justify-between text-xs text-muted-foreground tabular-nums">
+              <div class="flex items-center justify-between text-xs text-muted-foreground tabular-nums">
                 <span>{{ formatStorage(volume.size) }}</span>
-                <span>{{ formatStorage(volumeSizes[volumeSizes.length - 1]!) }}</span>
+                <span class="flex items-center gap-2">
+                  {{ formatStorage(volumeSizes[volumeSizes.length - 1]!) }}
+                  <button v-if="sizeUpgrade" type="button" @click="upgradeSize">
+                    <GateTag :plan="sizeUpgrade.plan" :label="`${formatStorage(sizeUpgrade.max)} on ${planTitle(sizeUpgrade.plan)}`" />
+                  </button>
+                </span>
               </div>
             </div>
           </fieldset>

@@ -59,7 +59,7 @@ var agentResources = values.Resources{
 }
 
 func (c *Client) Agents(ctx context.Context, environment EnvironmentID) ([]Agent, error) {
-	if !c.Capabilities(ctx, environment.Workspace).Agents {
+	if !c.agentsEnabled() {
 		return []Agent{}, nil
 	}
 
@@ -93,7 +93,7 @@ func (c *Client) Agent(ctx context.Context, id AgentID) (*Agent, error) {
 }
 
 func (c *Client) loadAgent(ctx context.Context, id AgentID) (values.Agent, *values.Workspace, error) {
-	if !c.Capabilities(ctx, id.Workspace).Agents {
+	if !c.agentsEnabled() {
 		return values.Agent{}, nil, usererror.Errorf("agent %q not found", id.Name)
 	}
 
@@ -199,8 +199,18 @@ func toAgent(id AgentID, agent values.Agent, ws *values.Workspace) Agent {
 }
 
 func (c *Client) CreateAgent(ctx context.Context, environment EnvironmentID, name string, harness values.Harness, instructions string, connectors []AgentConnectorSpec) (*Agent, error) {
-	if !c.Capabilities(ctx, environment.Workspace).Agents {
+	if !c.agentsEnabled() {
 		return nil, usererror.New("agents are not enabled on this platform")
+	}
+
+	capabilities, err := c.Capabilities(ctx, environment.Workspace)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := capabilities.Agents.allow("Creating an agent"); err != nil {
+		return nil, err
 	}
 
 	id := AgentID{Workspace: environment.Workspace, Project: environment.Project, Environment: environment.Name, Name: name}
@@ -309,7 +319,7 @@ func (c *Client) SetAgentNetwork(ctx context.Context, id AgentID, allowedHosts [
 // gone before its key stops working, and treats either part already being
 // gone as done.
 func (c *Client) DeleteAgent(ctx context.Context, id AgentID) (bool, error) {
-	if !c.Capabilities(ctx, id.Workspace).Agents {
+	if !c.agentsEnabled() {
 		return false, usererror.Errorf("agent %q not found", id.Name)
 	}
 

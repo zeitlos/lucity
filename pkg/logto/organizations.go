@@ -54,6 +54,7 @@ type OrganizationMember struct {
 	Avatar     string                  `json:"avatar,omitempty"`
 	OrgRoles   []OrganizationRole      `json:"organizationRoles,omitempty"`
 	Identities map[string]UserIdentity `json:"identities,omitempty"`
+	CreatedAt  int64                   `json:"createdAt,omitempty"`
 }
 
 // Organization returns a single organization by its Logto internal ID.

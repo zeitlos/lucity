@@ -4,9 +4,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import IconButton from '@/components/IconButton.vue';
 import { devicon } from '@/lib/devicons';
 import { ref, computed, watch, nextTick } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useQuery, useMutation, useApolloClient } from '@vue/apollo-composable';
-import { FolderPlus, FolderGit2, Plus, Lock, Globe, ArrowLeft, Search, ChevronDown, ChevronRight, Container, Star, Award, HardDrive, Braces, CornerDownLeft, Check, Bot } from '@lucide/vue';
+import { FolderPlus, FolderGit2, Plus, Lock, Globe, ArrowLeft, Search, ChevronDown, ChevronRight, Container, Star, Award, HardDrive, Braces, CornerDownLeft, Check, Bot, CreditCard } from '@lucide/vue';
 import Spinner from '@/components/LoadingSpinner.vue';
 import type { Component } from 'vue';
 import BucketIcon from '@/components/BucketIcon.vue';
@@ -161,6 +161,10 @@ const CreateAgentDocument = graphql(`
 import { useEnvironment } from '@/composables/useEnvironment';
 import { useGitHubInstall } from '@/composables/useGitHubInstall';
 import { useCapabilities } from '@/composables/useCapabilities';
+import { useGate } from '@/composables/useGate';
+import GateTag from '@/components/GateTag.vue';
+import { stepState, nextUpgrade, usable, planTitle, type Gate } from '@/lib/capabilities';
+import { Availability } from '@/gql/graphql';
 import { failureToast } from '@/components/ui/sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -181,6 +185,7 @@ const emit = defineEmits<{
 }>();
 
 const router = useRouter();
+const route = useRoute();
 const { resolveClient } = useApolloClient();
 const { activeEnvironment } = useEnvironment();
 
@@ -728,8 +733,19 @@ async function handleCreateBucket() {
 // Create volume (within environment context)
 const { mutate: createVolumeMutate, loading: creatingVolume } = useMutation(CreateVolumeDocument);
 const newVolumeName = ref('');
-const volumeSizes = ['10Gi', '16Gi', '32Gi', '64Gi', '128Gi'];
+const allVolumeSizes = ['10Gi', '16Gi', '32Gi', '64Gi', '128Gi'];
+const volumeSizes = computed(() => {
+  const allowed = allVolumeSizes.filter(size => stepState(capabilities.value?.volumes.size, size).kind === 'available');
+  return allowed.length ? allowed : allVolumeSizes.slice(0, 1);
+});
+const volumeUpgrade = computed(() => nextUpgrade(capabilities.value?.volumes.size));
 const newVolumeSize = ref('10Gi');
+
+function upgradeVolumeSize() {
+  const upgrade = volumeUpgrade.value;
+  if (!upgrade) return;
+  if (openFor({ availability: Availability.PlanRequired, plan: upgrade.plan }, `Larger volumes need the ${planTitle(upgrade.plan)} plan`)) close();
+}
 const volumeStep = ref<'name' | 'size'>('name');
 
 async function handleCreateVolume() {
@@ -1009,15 +1025,53 @@ type PaletteItem = {
   icon?: Component;
   iconSrc?: string;
   action: () => void;
+  gate?: Gate;
 };
 
-const { agents } = useCapabilities();
+const { agents, capabilities } = useCapabilities();
+const { open: openGate, openFor } = useGate();
+
+const resumePath = computed(() => router.resolve({
+  path: route.path,
+  query: { ...route.query, new: props.context === 'projects' ? 'project' : 'resource' },
+}).fullPath);
+
+function gated(item: PaletteItem, gate: Gate | undefined, title: string): PaletteItem {
+  if (usable(gate)) return item;
+
+  return {
+    ...item,
+    gate,
+    action: () => {
+      if (gate?.availability === Availability.PaymentMethodRequired) {
+        close();
+        openGate({ kind: 'card', returnPath: resumePath.value });
+        return;
+      }
+
+      if (openFor(gate, title)) close();
+    },
+  };
+}
+
+const cardLine = computed(() => {
+  const items = mainItems.value;
+  return items.length > 0
+    && items.every(i => !!i.gate)
+    && items.some(i => i.gate?.availability === Availability.PaymentMethodRequired);
+});
+
+function addCardFromLine() {
+  close();
+  openGate({ kind: 'card', returnPath: resumePath.value });
+}
 
 const mainItems = computed(() => {
+  const caps = capabilities.value;
   const items: PaletteItem[] = props.context === 'projects'
     ? [
-        { id: 'github-repo', label: 'GitHub repository', icon: GithubIcon, action: () => { view.value = 'github-repos'; } },
-        { id: 'container-image', label: 'Container image', iconSrc: devicon('docker'), action: () => { view.value = 'container-image'; } },
+        gated({ id: 'github-repo', label: 'GitHub repository', icon: GithubIcon, action: () => { view.value = 'github-repos'; } }, caps?.services, 'Services need a plan'),
+        gated({ id: 'container-image', label: 'Container image', iconSrc: devicon('docker'), action: () => { view.value = 'container-image'; } }, caps?.services, 'Services need a plan'),
         { id: 'empty-project', label: 'Empty project', icon: FolderPlus, action: () => {
           pendingRepo.value = null;
           pendingImage.value = null;
@@ -1028,13 +1082,13 @@ const mainItems = computed(() => {
         } },
       ]
     : [
-        { id: 'github-repo', label: 'GitHub repository', icon: GithubIcon, action: () => { view.value = 'github-repos'; } },
-        { id: 'container-image', label: 'Container image', iconSrc: devicon('docker'), action: () => { view.value = 'container-image'; } },
-        { id: 'database', label: 'PostgreSQL', iconSrc: devicon('postgresql'), action: () => { view.value = 'database'; } },
-        { id: 'keyValueStore', label: 'Redis', iconSrc: devicon('redis'), action: () => { view.value = 'keyValueStore'; } },
-        { id: 'bucket', label: 'Bucket', icon: BucketIcon, action: () => { view.value = 'bucket'; } },
-        { id: 'volume', label: 'Volume', icon: HardDrive, action: () => { volumeStep.value = 'name'; view.value = 'volume'; } },
-        ...(agents.value ? [{ id: 'agent', label: 'Agent', icon: Bot, action: startAgent }] : []),
+        gated({ id: 'github-repo', label: 'GitHub repository', icon: GithubIcon, action: () => { view.value = 'github-repos'; } }, caps?.services, 'Services need a plan'),
+        gated({ id: 'container-image', label: 'Container image', iconSrc: devicon('docker'), action: () => { view.value = 'container-image'; } }, caps?.services, 'Services need a plan'),
+        gated({ id: 'database', label: 'PostgreSQL', iconSrc: devicon('postgresql'), action: () => { view.value = 'database'; } }, caps?.databases, 'Databases need a plan'),
+        gated({ id: 'keyValueStore', label: 'Redis', iconSrc: devicon('redis'), action: () => { view.value = 'keyValueStore'; } }, caps?.keyValueStores, 'Key-value stores need a plan'),
+        gated({ id: 'bucket', label: 'Bucket', icon: BucketIcon, action: () => { view.value = 'bucket'; } }, caps?.buckets, 'Buckets need a plan'),
+        gated({ id: 'volume', label: 'Volume', icon: HardDrive, action: () => { volumeStep.value = 'name'; view.value = 'volume'; } }, caps?.volumes, `Volumes need the ${caps?.volumes.plan ? planTitle(caps.volumes.plan) : 'Hobby'} plan`),
+        ...(agents.value ? [gated({ id: 'agent', label: 'Agent', icon: Bot, action: startAgent }, caps?.agents, 'Agents need a plan')] : []),
       ];
 
   if (!search.value) return items;
@@ -1074,6 +1128,11 @@ void activeEnvironment;
                 placeholder="What would you like to create?"
                 class="flex h-12 w-full bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground"
               />            </div>
+            <div v-if="cardLine" class="flex items-center gap-3 border-b bg-muted/50 px-3 py-2.5">
+              <CreditCard :size="16" class="shrink-0 text-muted-foreground" />
+              <p class="flex-1 text-xs text-muted-foreground">Add a card to start creating. Nothing is charged.</p>
+              <Button variant="outline" size="xs" @click="addCardFromLine">Add card</Button>
+            </div>
             <div class="p-1">
               <p class="px-2 py-1.5 text-xs font-medium text-muted-foreground">Create</p>
               <button
@@ -1087,7 +1146,9 @@ void activeEnvironment;
               >
                 <img v-if="item.iconSrc" :src="item.iconSrc" :width="20" :height="20" class="shrink-0" alt="" />
                 <component v-else-if="item.icon" :is="item.icon" :size="20" class="text-muted-foreground" />
-                {{ item.label }}
+                <span class="flex-1 text-left">{{ item.label }}</span>
+                <GateTag v-if="item.gate?.availability === Availability.PlanRequired" :plan="item.gate.plan" />
+                <GateTag v-else-if="item.gate?.availability === Availability.PaymentMethodRequired && !cardLine" card />
               </button>
               <p v-if="mainItems.length === 0" class="px-2 py-6 text-center text-sm text-muted-foreground">
                 No results found.
@@ -1460,9 +1521,14 @@ void activeEnvironment;
                   :step="1"
                   @update:model-value="newVolumeSize = volumeSizes[$event?.[0] ?? 0]!"
                 />
-                <div class="flex justify-between text-xs text-muted-foreground tabular-nums">
+                <div class="flex items-center justify-between text-xs text-muted-foreground tabular-nums">
                   <span>{{ formatStorage(volumeSizes[0]!) }}</span>
-                  <span>{{ formatStorage(volumeSizes[volumeSizes.length - 1]!) }}</span>
+                  <span class="flex items-center gap-2">
+                    {{ formatStorage(volumeSizes[volumeSizes.length - 1]!) }}
+                    <button v-if="volumeUpgrade" type="button" @click="upgradeVolumeSize">
+                      <GateTag :plan="volumeUpgrade.plan" :label="`${formatStorage(volumeUpgrade.max)} on ${planTitle(volumeUpgrade.plan)}`" />
+                    </button>
+                  </span>
                 </div>
                 <p class="text-xs text-muted-foreground">Volumes can be grown later, but not shrunk.</p>
               </div>

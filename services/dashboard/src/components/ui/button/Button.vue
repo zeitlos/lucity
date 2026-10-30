@@ -13,6 +13,7 @@ export const buttonVariants = cva(
         ghost: 'hover:bg-muted hover:text-foreground',
         link: 'text-primary underline-offset-4 hover:underline',
         accent: 'bg-accent-pop text-accent-pop-foreground shadow-[var(--shadow-accent-button)] hover:brightness-[0.92]',
+        upgrade: 'btn-blueprint bg-violet-600 text-white hover:bg-violet-700 active:bg-violet-800 dark:bg-violet-500 dark:hover:bg-violet-600',
       },
       size: {
         'default': 'h-9 px-4',

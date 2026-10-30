@@ -696,6 +696,14 @@ function openMountDialog(volumeId: string) {
 // Command palette
 const paletteOpen = ref(false);
 
+watch(() => route.query.new, (value) => {
+  if (value !== 'resource') return;
+  paletteOpen.value = true;
+  const query = { ...route.query };
+  delete query.new;
+  router.replace({ query });
+}, { immediate: true });
+
 function handleResourceRemoved() {
   closePanel();
   refetch();

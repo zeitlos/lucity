@@ -9,6 +9,11 @@ import { useQuery, useMutation } from '@vue/apollo-composable';
 import { Trash2, Database, Server, HardDrive, Cpu, MemoryStick } from '@lucide/vue';
 import { graphql } from '@/gql';
 import type { ResourcesInput } from '@/gql/graphql';
+import { useCapabilities } from '@/composables/useCapabilities';
+import { useGate } from '@/composables/useGate';
+import GateTag from '@/components/GateTag.vue';
+import { aboveLimit, gatedChoices } from '@/lib/capabilities';
+import { formatCpuQuantity, formatStorage } from '@/lib/format';
 
 const DatabaseResourcesDocument = graphql(`
   query DatabaseResources($database: DatabaseID!) {
@@ -92,6 +97,7 @@ const memoryOptions = [
 ];
 
 const storageOptions = [
+  { value: '10Gi', gib: 10, label: '10 GB' },
   { value: '16Gi', gib: 16, label: '16 GB' },
   { value: '32Gi', gib: 32, label: '32 GB' },
   { value: '64Gi', gib: 64, label: '64 GB' },
@@ -148,9 +154,31 @@ const parseGib = (size: string) => {
   const match = /^(\d+)(Gi|Ti)$/.exec(size);
   return match ? Number(match[1]) * (match[2] === 'Ti' ? 1024 : 1) : 0;
 };
-const availableStorageOptions = computed(() =>
+const { capabilities } = useCapabilities();
+const { pick } = useGate();
+
+const cpuChoices = computed(() => gatedChoices(cpuOptions, capabilities.value?.databases.cpu, resources.value?.cpu));
+const memoryChoices = computed(() => gatedChoices(memoryOptions, capabilities.value?.databases.memory, resources.value?.memory));
+const cpuAboveLimit = computed(() => aboveLimit(capabilities.value?.databases.cpu, resources.value?.cpu));
+const memoryAboveLimit = computed(() => aboveLimit(capabilities.value?.databases.memory, resources.value?.memory));
+
+const availableStorageOptions = computed(() => gatedChoices(
   storageOptions.filter(option => option.gib >= parseGib(currentSize.value)),
-);
+  capabilities.value?.databases.storage,
+  currentSize.value,
+));
+
+function pickCpu(value: unknown) {
+  pick(cpuChoices.value, value, v => { selectedCpu.value = v; });
+}
+
+function pickMemory(value: unknown) {
+  pick(memoryChoices.value, value, v => { selectedMemory.value = v; });
+}
+
+function pickStorage(value: unknown) {
+  pick(availableStorageOptions.value, value, v => { selectedStorage.value = v; });
+}
 
 const selectedStorage = ref('');
 const storageSaving = ref(false);
@@ -246,19 +274,23 @@ async function handleDelete() {
               <Cpu :size="16" class="shrink-0 text-muted-foreground" />
               <div class="min-w-0 flex-1">
                 <p class="text-sm font-medium text-foreground">CPU</p>
-                <p class="text-xs text-muted-foreground">Limit per instance</p>
+                <p v-if="cpuAboveLimit" class="text-xs text-status-warn">Above the plan's limit of {{ formatCpuQuantity(capabilities!.databases.cpu.max) }}, so it can only shrink</p>
+                <p v-else class="text-xs text-muted-foreground">Limit per instance</p>
               </div>
-              <Select v-model="selectedCpu">
+              <Select :model-value="selectedCpu" @update:model-value="pickCpu">
                 <SelectTrigger class="h-8 w-36">
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem
-                    v-for="option in cpuOptions"
+                    v-for="option in cpuChoices"
                     :key="option.value"
                     :value="option.value"
                   >
-                    {{ option.label }}
+                    <span class="flex w-full items-center justify-between gap-3">
+                      {{ option.label }}
+                      <GateTag v-if="option.state.kind === 'plan'" :plan="option.state.plan" />
+                    </span>
                   </SelectItem>
                 </SelectContent>
               </Select>
@@ -267,19 +299,23 @@ async function handleDelete() {
               <MemoryStick :size="16" class="shrink-0 text-muted-foreground" />
               <div class="min-w-0 flex-1">
                 <p class="text-sm font-medium text-foreground">Memory</p>
-                <p class="text-xs text-muted-foreground">Limit per instance</p>
+                <p v-if="memoryAboveLimit" class="text-xs text-status-warn">Above the plan's limit of {{ formatStorage(capabilities!.databases.memory.max) }}, so it can only shrink</p>
+                <p v-else class="text-xs text-muted-foreground">Limit per instance</p>
               </div>
-              <Select v-model="selectedMemory">
+              <Select :model-value="selectedMemory" @update:model-value="pickMemory">
                 <SelectTrigger class="h-8 w-36">
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem
-                    v-for="option in memoryOptions"
+                    v-for="option in memoryChoices"
                     :key="option.value"
                     :value="option.value"
                   >
-                    {{ option.label }}
+                    <span class="flex w-full items-center justify-between gap-3">
+                      {{ option.label }}
+                      <GateTag v-if="option.state.kind === 'plan'" :plan="option.state.plan" />
+                    </span>
                   </SelectItem>
                 </SelectContent>
               </Select>
@@ -311,7 +347,7 @@ async function handleDelete() {
                 <p class="text-sm font-medium text-foreground">Disk</p>
                 <p class="text-xs text-muted-foreground">Volume per instance</p>
               </div>
-              <Select v-model="selectedStorage">
+              <Select :model-value="selectedStorage" @update:model-value="pickStorage">
                 <SelectTrigger class="h-8 w-36">
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
@@ -321,7 +357,10 @@ async function handleDelete() {
                     :key="option.value"
                     :value="option.value"
                   >
-                    {{ option.label }}
+                    <span class="flex w-full items-center justify-between gap-3">
+                      {{ option.label }}
+                      <GateTag v-if="option.state.kind === 'plan'" :plan="option.state.plan" />
+                    </span>
                   </SelectItem>
                 </SelectContent>
               </Select>

@@ -69,6 +69,14 @@ func (c *Client) SelectPlan(ctx context.Context, customerID, workspace string, p
 	}
 
 	if !hasPaymentMethod {
+		hasPaymentMethod, err = c.promoteCard(ctx, customerID)
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if !hasPaymentMethod {
 		url, err := c.checkout(ctx, customerID, workspace, price, live, checkout)
 
 		if err != nil {

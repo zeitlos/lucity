@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 )
 
 type User struct {
@@ -47,6 +48,21 @@ func (c *Client) UserByEmail(ctx context.Context, email string) (*User, error) {
 type UserIdentity struct {
 	UserID  string                 `json:"userId"`
 	Details map[string]interface{} `json:"details,omitempty"`
+}
+
+// CreatedAt returns when the account behind the identity was created, as the
+// provider reported it at sign-in. It is false when the provider sent none.
+func (i UserIdentity) CreatedAt() (time.Time, bool) {
+	raw, _ := i.Details["rawData"].(map[string]interface{})
+	info, _ := raw["userInfo"].(map[string]interface{})
+	created, _ := info["created_at"].(string)
+	createdAt, err := time.Parse(time.RFC3339, created)
+
+	if err != nil {
+		return time.Time{}, false
+	}
+
+	return createdAt, true
 }
 
 // SocialLogin returns the login/username from the user's social identity.

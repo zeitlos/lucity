@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
-import { ref } from 'vue';
-import { useMutation } from '@vue/apollo-composable';
+import { computed, ref } from 'vue';
+import { useMutation, useQuery } from '@vue/apollo-composable';
 import { Shield, User as UserIcon, Trash2 } from '@lucide/vue';
 import { graphql } from '@/gql';
-import { WorkspaceRole } from '@/gql/graphql';
+import { Availability, WorkspaceRole } from '@/gql/graphql';
+import { useCapabilities } from '@/composables/useCapabilities';
+import { useGate } from '@/composables/useGate';
+import GateTag from '@/components/GateTag.vue';
+import { planTitle } from '@/lib/capabilities';
 
 const InviteMemberDocument = graphql(`
   mutation InviteMember($input: InviteMemberInput!) {
@@ -20,6 +24,14 @@ const InviteMemberDocument = graphql(`
 const RemoveMemberDocument = graphql(`
   mutation RemoveMember($userId: ID!) {
     removeMember(userId: $userId)
+  }
+`);
+
+const MembersPlanDocument = graphql(`
+  query MembersPlan {
+    subscription {
+      plan
+    }
   }
 `);
 
@@ -68,7 +80,26 @@ const inviteEmail = ref('');
 const inviteRole = ref<WorkspaceRole>(WorkspaceRole.User);
 const { mutate: inviteMutate, loading: inviting } = useMutation(InviteMemberDocument);
 
+const { capabilities, refetch: refetchCapabilities } = useCapabilities();
+const { openFor } = useGate();
+const personal = computed(() => capabilities.value?.members.availability === Availability.Unavailable);
+const inviteGated = computed(() => capabilities.value?.members.availability === Availability.PlanRequired);
+
+const { result: planResult } = useQuery(MembersPlanDocument, null, () => ({ enabled: inviteGated.value, errorPolicy: 'all' }));
+const gatedLine = computed(() => {
+  const members = capabilities.value?.members;
+  if (!members?.plan) return '';
+  const plan = planResult.value?.subscription?.plan;
+  const current = plan ? planTitle(plan) : 'Trial';
+  const upgrade = members.upgrades.find(u => u.plan === members.plan);
+  const room = members.limit === 1 ? `${current} is for one person.` : `${current} includes ${members.limit} members.`;
+  const more = upgrade?.limit == null ? 'adds as many members as you need' : `includes ${upgrade.limit} members`;
+  return `${room} ${planTitle(members.plan)} ${more}.`;
+});
+
 async function handleInvite() {
+  const gate = capabilities.value?.members;
+  if (inviteGated.value && gate?.plan && openFor(gate, `Inviting members needs the ${planTitle(gate.plan)} plan`)) return;
   if (!inviteEmail.value.trim()) return;
   try {
     await inviteMutate({
@@ -79,6 +110,7 @@ async function handleInvite() {
     inviteRole.value = WorkspaceRole.User;
     await refreshToken();
     emit('changed');
+    refetchCapabilities();
   } catch (e: unknown) {
     failureToast('Failed to invite member', e);
   }
@@ -94,6 +126,7 @@ async function handleRemoveMember() {
     memberToRemove.value = null;
     await refreshToken();
     emit('changed');
+    refetchCapabilities();
   } catch (e: unknown) {
     failureToast('Failed to remove member', e);
   }
@@ -125,19 +158,35 @@ function initial(member: { email: string; name?: string | null }) {
     @close="emit('close')"
   >
     <div class="space-y-5">
-      <form v-if="isAdmin" class="space-y-2" @submit.prevent="handleInvite">
+      <p v-if="personal" class="text-sm text-muted-foreground">
+        "{{ props.workspace.name }}" is your personal workspace, so only you can be in it. To work with others, create a new workspace from the workspace menu.
+      </p>
+      <p v-else-if="!isAdmin" class="text-sm text-muted-foreground">
+        Only admins can invite people.
+      </p>
+      <div v-else-if="inviteGated" class="flex items-center justify-between gap-4">
+        <p class="text-sm text-muted-foreground">{{ gatedLine }}</p>
+        <Button variant="upgrade" class="shrink-0" @click="handleInvite">
+          Invite
+          <GateTag inverse :plan="capabilities?.members.plan" />
+        </Button>
+      </div>
+      <form v-else class="space-y-2" @submit.prevent="handleInvite">
         <Label for="invite-email" class="text-sm text-muted-foreground">Invite by email</Label>
-        <div class="flex items-center gap-2">
+        <div
+          class="flex h-9 items-center rounded-md border border-input bg-background pr-1 ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
+          :class="inviting && 'opacity-50'"
+        >
           <Input
             id="invite-email"
             v-model="inviteEmail"
             type="email"
             placeholder="user@example.com"
-            class="h-9 min-w-0 flex-1"
+            class="h-full min-w-0 flex-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-100"
             :disabled="inviting"
           />
-          <Select v-model="inviteRole">
-            <SelectTrigger class="h-9 w-28 shrink-0" aria-label="Role">
+          <Select v-model="inviteRole" :disabled="inviting">
+            <SelectTrigger class="h-7 w-auto shrink-0 gap-1 rounded-sm border-0 bg-muted px-2 text-xs focus:ring-0 focus:ring-offset-0 disabled:opacity-100" aria-label="Role">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -145,14 +194,13 @@ function initial(member: { email: string; name?: string | null }) {
               <SelectItem :value="WorkspaceRole.Admin">Admin</SelectItem>
             </SelectContent>
           </Select>
-          <Button type="submit" class="shrink-0" :pending="inviting" :disabled="!inviteEmail.trim()">
+        </div>
+        <div class="flex justify-end">
+          <Button type="submit" :pending="inviting" :disabled="!inviteEmail.trim()">
             {{ inviting ? 'Inviting…' : 'Invite' }}
           </Button>
         </div>
       </form>
-      <p v-else class="text-xs text-muted-foreground">
-        Only admins can invite people.
-      </p>
 
       <div class="-mx-4 divide-y border-y">
         <div

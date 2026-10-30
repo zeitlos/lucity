@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"strings"
 	"time"
 
@@ -118,6 +119,8 @@ func (c *Client) SelectPlan(ctx context.Context, ws, plan string) (*PlanSelectio
 		CancelURL:  c.config.DashboardURL + "/workspace/settings?tab=billing",
 	})
 
+	c.forgetCapabilities(ws)
+
 	if err != nil {
 		return nil, err
 	}
@@ -140,6 +143,8 @@ func (c *Client) CompletePlanCheckout(ctx context.Context, ws, sessionID string)
 
 	subscription, err := c.billing.CompleteCheckout(ctx, customerID, ws, sessionID)
 
+	c.forgetCapabilities(ws)
+
 	if err != nil {
 		return nil, err
 	}
@@ -151,6 +156,55 @@ func (c *Client) CompletePlanCheckout(ctx context.Context, ws, sessionID string)
 	c.resume(ctx, ws, customerID)
 
 	return convertSubscription(subscription), nil
+}
+
+// AddPaymentMethod starts a checkout that saves a card for the workspace
+// without charging it, and returns its URL.
+func (c *Client) AddPaymentMethod(ctx context.Context, ws, returnPath string) (string, error) {
+	customerID, err := c.billingCustomer(ctx, ws)
+
+	if err != nil {
+		return "", err
+	}
+
+	if !strings.HasPrefix(returnPath, "/") || strings.HasPrefix(returnPath, "//") {
+		returnPath = "/"
+	}
+
+	checkoutURL, err := c.billing.PaymentMethodCheckout(ctx, customerID, ws, billing.Checkout{
+		SuccessURL: c.config.DashboardURL + "/checkout/card-success?session_id={CHECKOUT_SESSION_ID}&return=" + url.QueryEscape(returnPath),
+		CancelURL:  c.config.DashboardURL + returnPath,
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	slog.InfoContext(ctx, "card checkout started", "workspace", ws)
+
+	return checkoutURL, nil
+}
+
+// CompletePaymentMethodCheckout confirms a finished card checkout. A prepaid
+// card is removed again and reported with ErrPrepaidCard.
+func (c *Client) CompletePaymentMethodCheckout(ctx context.Context, ws, sessionID string) (*WorkspaceDetails, error) {
+	customerID, err := c.billingCustomer(ctx, ws)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = c.billing.CompletePaymentMethodCheckout(ctx, customerID, sessionID)
+
+	c.forgetCapabilities(ws)
+
+	if err != nil {
+		return nil, err
+	}
+
+	slog.InfoContext(ctx, "card added", "workspace", ws)
+
+	return c.Workspace(ctx, ws)
 }
 
 func (c *Client) BillingPortalURL(ctx context.Context, ws string) (string, error) {

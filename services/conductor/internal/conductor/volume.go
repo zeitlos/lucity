@@ -27,10 +27,24 @@ func (c *Client) Volume(ctx context.Context, id VolumeID) (*Volume, error) {
 }
 
 func (c *Client) CreateVolume(ctx context.Context, environment platform.EnvironmentID, name, size string) (*Volume, error) {
+	capabilities, err := c.Capabilities(ctx, environment.Workspace)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := capabilities.Volumes.allow("Volumes"); err != nil {
+		return nil, err
+	}
+
 	parsedSize, err := resource.ParseQuantity(size)
 
 	if err != nil {
-		return nil, fmt.Errorf("parse size: %w", err)
+		return nil, usererror.Errorf("invalid storage size %q", size)
+	}
+
+	if err := capabilities.Volumes.Size.check("Size", parsedSize, nil); err != nil {
+		return nil, err
 	}
 
 	if _, err := c.deployer.Volumes().Create(ctx, environment, name, parsedSize); err != nil {
@@ -65,6 +79,16 @@ func (c *Client) ExpandVolume(ctx context.Context, volume platform.VolumeID, siz
 
 	if current.Status != platform.VolumeReady {
 		return nil, usererror.Errorf("volume %q can't grow until a running service uses it, because its disk is only created then. To change the size now, delete the volume and create it again", volume.Name)
+	}
+
+	capabilities, err := c.Capabilities(ctx, volume.Workspace)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := capabilities.Volumes.Size.check("Size", parsedSize, &current.Size); err != nil {
+		return nil, err
 	}
 
 	if _, err := c.deployer.Volumes().Expand(ctx, volume, parsedSize); err != nil {

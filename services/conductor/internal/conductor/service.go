@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 
 	containername "github.com/google/go-containerregistry/pkg/name"
@@ -27,8 +28,6 @@ import (
 var (
 	minServiceCPU        = resource.MustParse("250m")
 	minServiceMemory     = resource.MustParse("256Mi")
-	maxServiceCPU        = resource.MustParse("4")
-	maxServiceMemory     = resource.MustParse("16Gi")
 	defaultServiceCPU    = resources.DefaultCPULimit
 	defaultServiceMemory = resources.DefaultMemoryLimit
 )
@@ -132,7 +131,17 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 		memory = defaultServiceMemory.String()
 	}
 
-	resources, err := validateServiceResources(cpu, memory)
+	capabilities, err := c.Capabilities(ctx, environmentID.Workspace)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := capabilities.Services.allow("Creating a service"); err != nil {
+		return nil, err
+	}
+
+	resources, err := validateResources(cpu, memory, capabilities.Services.CPU, capabilities.Services.Memory, nil)
 
 	if err != nil {
 		return nil, err
@@ -329,7 +338,19 @@ func (c *Client) SetCIDeploy(ctx context.Context, svc platform.ServiceID, enable
 }
 
 func (c *Client) SetServiceResources(ctx context.Context, service platform.ServiceID, cpu, memory string) (*Service, error) {
-	spec, err := validateServiceResources(cpu, memory)
+	capabilities, err := c.Capabilities(ctx, service.Workspace)
+
+	if err != nil {
+		return nil, err
+	}
+
+	current, err := c.platform.Service(ctx, service)
+
+	if err != nil {
+		return nil, err
+	}
+
+	spec, err := validateResources(cpu, memory, capabilities.Services.CPU, capabilities.Services.Memory, &current.Resources)
 
 	if err != nil {
 		return nil, err
@@ -454,6 +475,26 @@ func (c *Client) AddCustomDomain(ctx context.Context, serviceID platform.Service
 		}
 	}
 
+	current, err := c.platform.Service(ctx, serviceID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !slices.ContainsFunc(current.Endpoints, func(endpoint platform.Endpoint) bool { return endpoint.Host == hostname }) {
+		capabilities, err := c.freshCapabilities(ctx, serviceID.Workspace)
+
+		if err != nil {
+			return nil, err
+		}
+
+		if err := capabilities.CustomDomains.allow("Another custom domain"); err != nil {
+			return nil, err
+		}
+	}
+
+	defer c.forgetCapabilities(serviceID.Workspace)
+
 	if _, err := c.deployer.Services().AddDomain(ctx, serviceID, hostname, deployer.DomainOptions{RedirectTo: redirectTo, OwnListener: true}); err != nil {
 		return nil, err
 	}
@@ -482,12 +523,9 @@ func (c *Client) RemoveDomain(ctx context.Context, serviceID platform.ServiceID,
 	}
 
 	c.domains.Unregister(ctx, serviceID.Workspace, hostname)
+	c.forgetCapabilities(serviceID.Workspace)
 
 	return c.Service(ctx, serviceID)
-}
-
-func validateServiceResources(cpu, memory string) (deployer.Resources, error) {
-	return validateResources(cpu, memory, minServiceCPU, maxServiceCPU, minServiceMemory, maxServiceMemory)
 }
 
 // deriveServiceName extracts a service name from an image reference.
