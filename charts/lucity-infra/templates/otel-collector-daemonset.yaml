@@ -109,6 +109,16 @@ spec:
                   action: keep
                 - target_label: instance
                   replacement: kube-state-metrics.kube-system.svc.cluster.local:8080
+              metric_relabel_configs:
+                - source_labels: [__name__]
+                  regex: kube_pod_(spec_volumes_persistentvolumeclaims_info|status_phase|status_scheduled|container_status_restarts_total|container_status_waiting_reason|container_status_last_terminated_reason|container_resource_requests|init_container_resource_requests|init_container_info)
+                  target_label: __tmp_keep
+                  replacement: "1"
+                - source_labels: [__name__, __tmp_keep]
+                  regex: kube_(pod|job)_.+;
+                  action: drop
+                - regex: __tmp_keep
+                  action: labeldrop
             - job_name: cilium-agent
               scrape_interval: 30s
               {{- include "lucity-infra.otel.nodeLocalPods" "kube-system" | nindent 14 }}
