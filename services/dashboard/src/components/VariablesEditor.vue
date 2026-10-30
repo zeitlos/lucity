@@ -140,17 +140,17 @@ function referenceInfo(row: VariableRow) {
     <Skeleton class="h-9 w-full" />
   </div>
 
-  <fieldset v-else ref="root" :disabled="disabled" class="min-w-0 space-y-2">
+  <fieldset v-else ref="root" :disabled="disabled" class="min-w-0 space-y-4 sm:space-y-2">
     <div
       v-for="(row, index) in rows"
       :key="index"
-      class="flex items-center gap-2"
+      class="flex flex-wrap items-center gap-x-2 gap-y-1.5"
     >
       <Input
         v-model="row.key"
         placeholder="KEY"
         aria-label="Key"
-        class="w-2/5 shrink-0 font-mono text-sm"
+        class="w-full shrink-0 font-mono text-sm sm:w-2/5"
         @input="changed"
         @paste="onPasteKey($event, index)"
       />

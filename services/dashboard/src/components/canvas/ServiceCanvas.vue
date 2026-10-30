@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import IconButton from '@/components/IconButton.vue';
 import { computed, watch, ref, onMounted, toRef } from 'vue';
-import { VueFlow, useVueFlow, PanOnScrollMode } from '@vue-flow/core';
+import { VueFlow, useVueFlow, PanOnScrollMode, getRectOfNodes } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
 import { Plus, Scan, WandSparkles } from '@lucide/vue';
 import { usePanel } from '@/composables/usePanel';
@@ -43,7 +43,7 @@ const { statusMap, failureMap } = useCanvasReleaseStatus(
   () => emit('deploy-completed'),
 );
 
-const { fitView, findNode, setCenter, dimensions, onNodeDragStop } = useVueFlow({
+const { getNodes, setViewport, findNode, setCenter, dimensions, onNodeDragStop } = useVueFlow({
   id: 'service-canvas',
 });
 
@@ -192,8 +192,21 @@ function handleNodeClick(event: { node: { id: string; type: string; data: { name
   }
 }
 
+const canvasInset = { x: 16, y: 68 };
+
+function axisOffset(start: number, size: number, viewport: number, inset: number) {
+  if (size + 2 * inset <= viewport) return (viewport - size) / 2 - start;
+  return inset - start;
+}
+
 function handleFitView() {
-  fitView({ padding: 0.3, maxZoom: 1 });
+  const bounds = getRectOfNodes(getNodes.value);
+  const { width, height } = dimensions.value;
+  setViewport({
+    x: axisOffset(bounds.x, bounds.width, width, canvasInset.x),
+    y: axisOffset(bounds.y, bounds.height, height, canvasInset.y),
+    zoom: 1,
+  });
 }
 
 function handleResetLayout() {

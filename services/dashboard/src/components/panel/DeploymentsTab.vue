@@ -477,14 +477,14 @@ watch(
           <div
             v-for="step in activeSteps"
             :key="step.key"
-            class="flex items-center gap-3 py-2"
+            class="flex items-center gap-2 py-2 sm:gap-3"
           >
-            <div class="flex w-21 shrink-0 flex-col">
+            <div class="flex w-16 shrink-0 flex-col sm:w-21">
               <span class="text-sm font-medium text-foreground">{{ step.label }}</span>
               <span v-if="stepDuration(step)" class="text-xs text-muted-foreground">{{ stepDuration(step) }}</span>
             </div>
             <span
-              class="flex w-36 shrink-0 items-center gap-1.5 text-sm"
+              class="flex shrink-0 items-center gap-1.5 text-sm sm:w-36"
               :style="{ color: stepColor(step.status) }"
             >
               <component
@@ -593,14 +593,14 @@ watch(
               <div
                 v-for="step in releaseSteps(release)"
                 :key="step.key"
-                class="flex items-center gap-3 py-2"
+                class="flex items-center gap-2 py-2 sm:gap-3"
               >
-                <div class="flex w-21 shrink-0 flex-col">
+                <div class="flex w-16 shrink-0 flex-col sm:w-21">
                   <span class="text-sm font-medium text-foreground">{{ step.label }}</span>
                   <span v-if="stepDuration(step)" class="text-xs text-muted-foreground">{{ stepDuration(step) }}</span>
                 </div>
                 <span
-                  class="flex w-36 shrink-0 items-center gap-1.5 text-sm"
+                  class="flex shrink-0 items-center gap-1.5 text-sm sm:w-36"
                   :style="{ color: stepColor(step.status) }"
                 >
                   <component
