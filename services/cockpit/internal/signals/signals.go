@@ -34,7 +34,7 @@ type Workspace struct {
 
 const (
 	sharedCommitWorkspaces = 3
-	youngAccountAge        = 30 * 24 * time.Hour
+	youngAccountAge        = 90 * 24 * time.Hour
 )
 
 var deniedImages = []string{

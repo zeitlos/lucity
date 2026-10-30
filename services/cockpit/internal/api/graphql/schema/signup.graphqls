@@ -1,0 +1,10 @@
+"""The signups in the hour that starts at `start`."""
+type SignupHour {
+  start: Time!
+  count: Int!
+}
+
+extend type Query {
+  """Signups per hour from the hour of `since` until now, oldest first, reaching back at most 100 days. Hours without metrics are left out."""
+  signups(since: Time!): [SignupHour!]!
+}

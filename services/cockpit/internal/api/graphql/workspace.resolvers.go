@@ -7,6 +7,7 @@ package graphql
 
 import (
 	"context"
+	"time"
 
 	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/to"
@@ -55,4 +56,15 @@ func (r *queryResolver) EnvironmentLogs(ctx context.Context, id string, lines in
 	}
 
 	return r.Cockpit.EnvironmentLogs(ctx, environmentID, int64(lines))
+}
+
+// WorkspaceStandings is the resolver for the workspaceStandings field.
+func (r *queryResolver) WorkspaceStandings(ctx context.Context, since time.Time) ([]model.WorkspaceStanding, error) {
+	standings, err := r.Cockpit.WorkspaceStandings(ctx, since)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return convertWorkspaceStandings(standings), nil
 }

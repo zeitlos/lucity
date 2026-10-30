@@ -61,6 +61,12 @@ type Signal struct {
 	Detail string     `json:"detail"`
 }
 
+// The signups in the hour that starts at `start`.
+type SignupHour struct {
+	Start time.Time `json:"start"`
+	Count int       `json:"count"`
+}
+
 // A tenant of the platform, with what it runs and what points at abuse.
 type Workspace struct {
 	ID        string    `json:"id"`
@@ -93,6 +99,14 @@ type WorkspaceResult struct {
 	WorkspaceID string `json:"workspaceID"`
 	// Why the change failed. Null when it succeeded.
 	Error *string `json:"error,omitempty"`
+}
+
+// How many workspaces were in each billing standing at `at`.
+type WorkspaceStanding struct {
+	At      time.Time `json:"at"`
+	Good    int       `json:"good"`
+	Billing int       `json:"billing"`
+	Abuse   int       `json:"abuse"`
 }
 
 type Plan string

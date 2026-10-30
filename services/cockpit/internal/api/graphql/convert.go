@@ -123,6 +123,31 @@ func convertResults(results []cockpit.Result) []model.WorkspaceResult {
 	return converted
 }
 
+func convertSignupHours(hours []cockpit.SignupHour) []model.SignupHour {
+	converted := make([]model.SignupHour, 0, len(hours))
+
+	for _, hour := range hours {
+		converted = append(converted, model.SignupHour{Start: hour.Start, Count: hour.Count})
+	}
+
+	return converted
+}
+
+func convertWorkspaceStandings(standings []cockpit.WorkspaceStanding) []model.WorkspaceStanding {
+	converted := make([]model.WorkspaceStanding, 0, len(standings))
+
+	for _, standing := range standings {
+		converted = append(converted, model.WorkspaceStanding{
+			At:      standing.At,
+			Good:    standing.Good,
+			Billing: standing.Billing,
+			Abuse:   standing.Abuse,
+		})
+	}
+
+	return converted
+}
+
 func convertPlan(plan billing.Plan) model.Plan {
 	switch plan {
 	case billing.PlanHobby:

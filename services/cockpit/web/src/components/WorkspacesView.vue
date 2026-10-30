@@ -7,6 +7,7 @@ import FilterBar from '@/components/FilterBar.vue';
 import MarkAbuseDialog from '@/components/MarkAbuseDialog.vue';
 import ResultToast from '@/components/ResultToast.vue';
 import SignalIcons from '@/components/SignalIcons.vue';
+import TrendCharts from '@/components/TrendCharts.vue';
 import WorkspacePeek from '@/components/WorkspacePeek.vue';
 import { Plan } from '@/gql/graphql';
 import { age, gigabytes, loadedTime, memory, relativeTime } from '@/lib/format';
@@ -251,40 +252,56 @@ function onKeydown(event: KeyboardEvent) {
   }
 }
 
-onMounted(() => window.addEventListener('keydown', onKeydown));
-onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
+const filterBar = useTemplateRef<HTMLElement>('filterBar');
+const filterBarHeight = ref(48);
+const filterBarObserver = new ResizeObserver(([entry]) => {
+  filterBarHeight.value = entry!.borderBoxSize[0]!.blockSize;
+});
+
+onMounted(() => {
+  window.addEventListener('keydown', onKeydown);
+  filterBarObserver.observe(filterBar.value!);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeydown);
+  filterBarObserver.disconnect();
+});
 </script>
 
 <template>
   <main class="relative flex min-h-0 flex-1 flex-col bg-card">
-    <div class="flex min-h-12 flex-wrap items-center gap-3 px-4 py-2">
-      <FilterBar v-model="filters" :workspaces="workspaces" />
-      <div class="flex-1" />
-      <label class="flex h-8 min-w-[280px] items-center gap-2 rounded-sm border bg-background px-2.5 text-muted-foreground">
-        <Search class="size-3.5" aria-hidden="true" />
-        <span class="sr-only">Filter workspaces</span>
-        <input
-          ref="searchInput"
-          v-model="search"
-          type="search"
-          placeholder="Search workspaces"
-          class="min-w-0 flex-1 bg-transparent text-foreground outline-none"
-        >
-        <kbd class="rounded-xs border px-1.5 font-mono">/</kbd>
-      </label>
-    </div>
-
     <div class="relative flex min-h-0 flex-1 flex-col">
-      <div v-if="error && !list" class="m-4 rounded-sm border border-status-danger/40 px-4 py-3">
-        <p class="font-medium text-status-danger">Workspaces could not be loaded</p>
-        <p class="mt-1 text-muted-foreground">{{ error.message }}</p>
-      </div>
+      <div class="min-h-0 flex-1 overflow-auto">
+        <TrendCharts :loaded-at="list?.loadedAt" />
 
-      <div v-else class="min-h-0 flex-1 overflow-auto">
-        <div class="min-w-[1240px]">
+        <div ref="filterBar" class="sticky top-0 left-0 z-20 flex min-h-12 flex-wrap items-center gap-3 bg-card px-4 py-2">
+          <FilterBar v-model="filters" :workspaces="workspaces" />
+          <div class="flex-1" />
+          <label class="flex h-8 min-w-[280px] items-center gap-2 rounded-sm border bg-background px-2.5 text-muted-foreground">
+            <Search class="size-3.5" aria-hidden="true" />
+            <span class="sr-only">Filter workspaces</span>
+            <input
+              ref="searchInput"
+              v-model="search"
+              type="search"
+              placeholder="Search workspaces"
+              class="min-w-0 flex-1 bg-transparent text-foreground outline-none"
+            >
+            <kbd class="rounded-xs border px-1.5 font-mono">/</kbd>
+          </label>
+        </div>
+
+        <div v-if="error && !list" class="sticky left-0 m-4 rounded-sm border border-status-danger/40 px-4 py-3">
+          <p class="font-medium text-status-danger">Workspaces could not be loaded</p>
+          <p class="mt-1 text-muted-foreground">{{ error.message }}</p>
+        </div>
+
+        <div v-else class="min-w-[1240px]">
           <div
-            class="sticky top-0 z-10 grid h-9 items-center gap-x-3 border-y bg-sidebar px-4 text-muted-foreground"
+            class="sticky z-10 grid h-9 items-center gap-x-3 border-y bg-sidebar px-4 text-muted-foreground"
             :class="columns"
+            :style="{ top: `${filterBarHeight}px` }"
           >
             <input
               type="checkbox"

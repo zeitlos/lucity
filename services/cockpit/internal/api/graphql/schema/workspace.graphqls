@@ -97,6 +97,16 @@ extend type Query {
   cachedWorkspaces: WorkspaceList
   """The last lines of every running pod in the environment."""
   environmentLogs(id: ID!, lines: Int! = 100 @constraint(constraint: "min=1,max=1000")): [String!]!
+  """Workspaces per standing at every full hour after `since` and once more now, oldest first, reaching back at most 100 days. Hours without metrics are left out."""
+  workspaceStandings(since: Time!): [WorkspaceStanding!]!
+}
+
+"""How many workspaces were in each billing standing at `at`."""
+type WorkspaceStanding {
+  at: Time!
+  good: Int!
+  billing: Int!
+  abuse: Int!
 }
 
 extend type Mutation {

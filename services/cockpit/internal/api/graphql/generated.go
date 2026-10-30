@@ -74,10 +74,12 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		CachedWorkspaces func(childComplexity int) int
-		Environment      func(childComplexity int) int
-		EnvironmentLogs  func(childComplexity int, id string, lines int) int
-		Workspaces       func(childComplexity int) int
+		CachedWorkspaces   func(childComplexity int) int
+		Environment        func(childComplexity int) int
+		EnvironmentLogs    func(childComplexity int, id string, lines int) int
+		Signups            func(childComplexity int, since time.Time) int
+		WorkspaceStandings func(childComplexity int, since time.Time) int
+		Workspaces         func(childComplexity int) int
 	}
 
 	Service struct {
@@ -91,6 +93,11 @@ type ComplexityRoot struct {
 		Detail func(childComplexity int) int
 		Kind   func(childComplexity int) int
 		Strong func(childComplexity int) int
+	}
+
+	SignupHour struct {
+		Count func(childComplexity int) int
+		Start func(childComplexity int) int
 	}
 
 	Workspace struct {
@@ -118,6 +125,13 @@ type ComplexityRoot struct {
 		Error       func(childComplexity int) int
 		WorkspaceID func(childComplexity int) int
 	}
+
+	WorkspaceStanding struct {
+		Abuse   func(childComplexity int) int
+		At      func(childComplexity int) int
+		Billing func(childComplexity int) int
+		Good    func(childComplexity int) int
+	}
 }
 
 // endregion ***************************** api!.gotpl *****************************
@@ -130,9 +144,11 @@ type MutationResolver interface {
 }
 type QueryResolver interface {
 	Environment(ctx context.Context) (string, error)
+	Signups(ctx context.Context, since time.Time) ([]model.SignupHour, error)
 	Workspaces(ctx context.Context) (*model.WorkspaceList, error)
 	CachedWorkspaces(ctx context.Context) (*model.WorkspaceList, error)
 	EnvironmentLogs(ctx context.Context, id string, lines int) ([]string, error)
+	WorkspaceStandings(ctx context.Context, since time.Time) ([]model.WorkspaceStanding, error)
 }
 
 // endregion ************************** generated!.gotpl **************************
@@ -306,6 +322,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Query.EnvironmentLogs(childComplexity, args["id"].(string), args["lines"].(int)), true
 
+	case "Query.signups":
+		if e.ComplexityRoot.Query.Signups == nil {
+			break
+		}
+
+		args, err := ec.field_Query_signups_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.Signups(childComplexity, args["since"].(time.Time)), true
+	case "Query.workspaceStandings":
+		if e.ComplexityRoot.Query.WorkspaceStandings == nil {
+			break
+		}
+
+		args, err := ec.field_Query_workspaceStandings_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.WorkspaceStandings(childComplexity, args["since"].(time.Time)), true
 	case "Query.workspaces":
 		if e.ComplexityRoot.Query.Workspaces == nil {
 			break
@@ -356,6 +394,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Signal.Strong(childComplexity), true
+
+	case "SignupHour.count":
+		if e.ComplexityRoot.SignupHour.Count == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SignupHour.Count(childComplexity), true
+	case "SignupHour.start":
+		if e.ComplexityRoot.SignupHour.Start == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SignupHour.Start(childComplexity), true
 
 	case "Workspace.abuse":
 		if e.ComplexityRoot.Workspace.Abuse == nil {
@@ -462,6 +513,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.WorkspaceResult.WorkspaceID(childComplexity), true
 
+	case "WorkspaceStanding.abuse":
+		if e.ComplexityRoot.WorkspaceStanding.Abuse == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WorkspaceStanding.Abuse(childComplexity), true
+	case "WorkspaceStanding.at":
+		if e.ComplexityRoot.WorkspaceStanding.At == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WorkspaceStanding.At(childComplexity), true
+	case "WorkspaceStanding.billing":
+		if e.ComplexityRoot.WorkspaceStanding.Billing == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WorkspaceStanding.Billing(childComplexity), true
+	case "WorkspaceStanding.good":
+		if e.ComplexityRoot.WorkspaceStanding.Good == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WorkspaceStanding.Good(childComplexity), true
+
 	}
 	return 0, false
 }
@@ -543,7 +619,7 @@ func newExecutionContext(
 	}
 }
 
-//go:embed "schema/schema.graphqls" "schema/workspace.graphqls"
+//go:embed "schema/schema.graphqls" "schema/signup.graphqls" "schema/workspace.graphqls"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -556,6 +632,7 @@ func sourceData(filename string) string {
 
 var sources = []*ast.Source{
 	{Name: "schema/schema.graphqls", Input: sourceData("schema/schema.graphqls"), BuiltIn: false},
+	{Name: "schema/signup.graphqls", Input: sourceData("schema/signup.graphqls"), BuiltIn: false},
 	{Name: "schema/workspace.graphqls", Input: sourceData("schema/workspace.graphqls"), BuiltIn: false},
 }
 var parsedSchema = gqlparser.MustLoadSchema(sources...)
@@ -648,6 +725,16 @@ func (ec *executionContext) childFields_Signal(ctx context.Context, field graphq
 	return nil, fmt.Errorf("no field named %q was found under type Signal", field.Name)
 }
 
+func (ec *executionContext) childFields_SignupHour(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "start":
+		return ec.fieldContext_SignupHour_start(ctx, field)
+	case "count":
+		return ec.fieldContext_SignupHour_count(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type SignupHour", field.Name)
+}
+
 func (ec *executionContext) childFields_Workspace(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "id":
@@ -698,6 +785,20 @@ func (ec *executionContext) childFields_WorkspaceResult(ctx context.Context, fie
 		return ec.fieldContext_WorkspaceResult_error(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type WorkspaceResult", field.Name)
+}
+
+func (ec *executionContext) childFields_WorkspaceStanding(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "at":
+		return ec.fieldContext_WorkspaceStanding_at(ctx, field)
+	case "good":
+		return ec.fieldContext_WorkspaceStanding_good(ctx, field)
+	case "billing":
+		return ec.fieldContext_WorkspaceStanding_billing(ctx, field)
+	case "abuse":
+		return ec.fieldContext_WorkspaceStanding_abuse(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type WorkspaceStanding", field.Name)
 }
 
 func (ec *executionContext) childFields___Directive(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -979,6 +1080,34 @@ func (ec *executionContext) field_Query_environmentLogs_argsLines(
 		var zeroVal int
 		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be int`, tmp))
 	}
+}
+
+func (ec *executionContext) field_Query_signups_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "since",
+		func(ctx context.Context, v any) (time.Time, error) {
+			return ec.unmarshalNTime2timeᚐTime(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["since"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_workspaceStandings_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "since",
+		func(ctx context.Context, v any) (time.Time, error) {
+			return ec.unmarshalNTime2timeᚐTime(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["since"] = arg0
+	return args, nil
 }
 
 func (ec *executionContext) field___Directive_args_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
@@ -1561,6 +1690,50 @@ func (ec *executionContext) fieldContext_Query_environment(_ context.Context, fi
 	return graphql.NewScalarFieldContext("Query", field, true, true, errors.New("field of type String does not have child fields"))
 }
 
+func (ec *executionContext) _Query_signups(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_signups(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().Signups(ctx, fc.Args["since"].(time.Time))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []model.SignupHour) graphql.Marshaler {
+			return ec.marshalNSignupHour2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋcockpitᚋinternalᚋapiᚋgraphqlᚋmodelᚐSignupHourᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_signups(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_SignupHour(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_signups_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_workspaces(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -1663,6 +1836,50 @@ func (ec *executionContext) fieldContext_Query_environmentLogs(ctx context.Conte
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_environmentLogs_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_workspaceStandings(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_workspaceStandings(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().WorkspaceStandings(ctx, fc.Args["since"].(time.Time))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []model.WorkspaceStanding) graphql.Marshaler {
+			return ec.marshalNWorkspaceStanding2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋcockpitᚋinternalᚋapiᚋgraphqlᚋmodelᚐWorkspaceStandingᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_workspaceStandings(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_WorkspaceStanding(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_workspaceStandings_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -1904,6 +2121,52 @@ func (ec *executionContext) _Signal_detail(ctx context.Context, field graphql.Co
 }
 func (ec *executionContext) fieldContext_Signal_detail(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Signal", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _SignupHour_start(ctx context.Context, field graphql.CollectedField, obj *model.SignupHour) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_SignupHour_start(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Start, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_SignupHour_start(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("SignupHour", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _SignupHour_count(ctx context.Context, field graphql.CollectedField, obj *model.SignupHour) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_SignupHour_count(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Count, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_SignupHour_count(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("SignupHour", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
 func (ec *executionContext) _Workspace_id(ctx context.Context, field graphql.CollectedField, obj *model.Workspace) (ret graphql.Marshaler) {
@@ -2340,6 +2603,98 @@ func (ec *executionContext) _WorkspaceResult_error(ctx context.Context, field gr
 }
 func (ec *executionContext) fieldContext_WorkspaceResult_error(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("WorkspaceResult", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _WorkspaceStanding_at(ctx context.Context, field graphql.CollectedField, obj *model.WorkspaceStanding) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WorkspaceStanding_at(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.At, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_WorkspaceStanding_at(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("WorkspaceStanding", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _WorkspaceStanding_good(ctx context.Context, field graphql.CollectedField, obj *model.WorkspaceStanding) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WorkspaceStanding_good(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Good, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_WorkspaceStanding_good(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("WorkspaceStanding", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _WorkspaceStanding_billing(ctx context.Context, field graphql.CollectedField, obj *model.WorkspaceStanding) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WorkspaceStanding_billing(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Billing, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_WorkspaceStanding_billing(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("WorkspaceStanding", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _WorkspaceStanding_abuse(ctx context.Context, field graphql.CollectedField, obj *model.WorkspaceStanding) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WorkspaceStanding_abuse(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Abuse, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_WorkspaceStanding_abuse(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("WorkspaceStanding", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
 func (ec *executionContext) ___Directive_name(ctx context.Context, field graphql.CollectedField, obj *introspection.Directive) (ret graphql.Marshaler) {
@@ -3723,6 +4078,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "signups":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_signups(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "workspaces":
 			field := field
 
@@ -3777,6 +4154,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_environmentLogs(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "workspaceStandings":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_workspaceStandings(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -3901,6 +4300,49 @@ func (ec *executionContext) _Signal(ctx context.Context, sel ast.SelectionSet, o
 			}
 		case "detail":
 			out.Values[i] = ec._Signal_detail(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var signupHourImplementors = []string{"SignupHour"}
+
+func (ec *executionContext) _SignupHour(ctx context.Context, sel ast.SelectionSet, obj *model.SignupHour) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, signupHourImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("SignupHour")
+		case "start":
+			out.Values[i] = ec._SignupHour_start(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "count":
+			out.Values[i] = ec._SignupHour_count(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -4086,6 +4528,59 @@ func (ec *executionContext) _WorkspaceResult(ctx context.Context, sel ast.Select
 		case "error":
 			out.Values[i] = ec._WorkspaceResult_error(ctx, field, obj)
 			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var workspaceStandingImplementors = []string{"WorkspaceStanding"}
+
+func (ec *executionContext) _WorkspaceStanding(ctx context.Context, sel ast.SelectionSet, obj *model.WorkspaceStanding) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, workspaceStandingImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("WorkspaceStanding")
+		case "at":
+			out.Values[i] = ec._WorkspaceStanding_at(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "good":
+			out.Values[i] = ec._WorkspaceStanding_good(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "billing":
+			out.Values[i] = ec._WorkspaceStanding_billing(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "abuse":
+			out.Values[i] = ec._WorkspaceStanding_abuse(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
 		default:
@@ -4678,6 +5173,26 @@ func (ec *executionContext) marshalNSignalKind2githubᚗcomᚋzeitlosᚋlucity�
 	return v
 }
 
+func (ec *executionContext) marshalNSignupHour2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋcockpitᚋinternalᚋapiᚋgraphqlᚋmodelᚐSignupHour(ctx context.Context, sel ast.SelectionSet, v model.SignupHour) graphql.Marshaler {
+	return ec._SignupHour(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNSignupHour2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋcockpitᚋinternalᚋapiᚋgraphqlᚋmodelᚐSignupHourᚄ(ctx context.Context, sel ast.SelectionSet, v []model.SignupHour) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNSignupHour2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋcockpitᚋinternalᚋapiᚋgraphqlᚋmodelᚐSignupHour(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v any) (string, error) {
 	res, err := graphql.UnmarshalString(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -4778,6 +5293,26 @@ func (ec *executionContext) marshalNWorkspaceResult2ᚕgithubᚗcomᚋzeitlosᚋ
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
 		return ec.marshalNWorkspaceResult2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋcockpitᚋinternalᚋapiᚋgraphqlᚋmodelᚐWorkspaceResult(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNWorkspaceStanding2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋcockpitᚋinternalᚋapiᚋgraphqlᚋmodelᚐWorkspaceStanding(ctx context.Context, sel ast.SelectionSet, v model.WorkspaceStanding) graphql.Marshaler {
+	return ec._WorkspaceStanding(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNWorkspaceStanding2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋcockpitᚋinternalᚋapiᚋgraphqlᚋmodelᚐWorkspaceStandingᚄ(ctx context.Context, sel ast.SelectionSet, v []model.WorkspaceStanding) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNWorkspaceStanding2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋcockpitᚋinternalᚋapiᚋgraphqlᚋmodelᚐWorkspaceStanding(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
