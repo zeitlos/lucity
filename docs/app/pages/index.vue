@@ -14,31 +14,31 @@ useSeo({
 
 <template>
   <section class="mx-auto px-6 mt-48 max-sm:mt-12 flex flex-col gap-16 3xl:grid 3xl:grid-cols-12 3xl:items-end 3xl:gap-24">
-    <h1 class="font-display text-4xl/[1.15] sm:text-5xl/[1.1] md:text-6xl/[1.1] lg:text-7xl/22 text-neutral-800 dark:text-neutral-100 3xl:col-span-5 3xl:mb-24">
-      The Deployment Platform<br>
-      that is a <span class="squiggle squiggle-joy">joy to use</span>,<br>
-      <span class="squiggle squiggle-grow">built to grow</span>, and always<br>
+    <h1 class="font-display text-4xl/[1.15] sm:text-5xl/[1.1] md:text-6xl/[1.1] lg:text-7xl/22 text-neutral-800 max-sm:text-balance dark:text-neutral-100 3xl:col-span-5 3xl:mb-24">
+      The Deployment Platform <br class="max-sm:hidden">
+      that is a <span class="squiggle squiggle-joy">joy to use</span>, <br class="max-sm:hidden">
+      <span class="squiggle squiggle-grow">built to grow</span>, and always <br class="max-sm:hidden">
       <span class="squiggle squiggle-keep">yours to keep</span>.
     </h1>
 
     <HeroDemo class="w-full 3xl:col-span-7" />
   </section>
 
-  <TechCarousel class="mt-32" />
+  <TechCarousel class="mt-20 sm:mt-32" />
 
-  <FounderLetter class="mt-32" />
+  <FounderLetter class="mt-20 sm:mt-32" />
 
-  <TestimonialQuote class="mt-40" />
+  <TestimonialQuote class="mt-24 sm:mt-40" />
 
-  <DeploymentTrilemma class="mt-40" />
+  <DeploymentTrilemma class="mt-24 sm:mt-40" />
 
   <LucityBend class="mt-12" />
 
-  <BentoGrid class="mt-40" />
+  <BentoGrid class="mt-24 sm:mt-40" />
 
-  <FooterCta class="mt-40" />
+  <FooterCta class="mt-24 sm:mt-40" />
 
-  <SiteFooter class="mt-24" />
+  <SiteFooter class="mt-12 sm:mt-24" />
 </template>
 
 <style scoped>

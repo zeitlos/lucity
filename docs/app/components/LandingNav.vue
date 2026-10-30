@@ -26,16 +26,16 @@ onBeforeUnmount(() => window.removeEventListener('scroll', onScroll));
       <div class="nav-blur__tint" />
     </div>
 
-    <div class="relative grid grid-cols-3 items-center xl:grid-cols-3">
+    <div class="relative grid grid-cols-[auto_1fr] items-center gap-4 xl:grid-cols-3 xl:gap-0">
       <NuxtLink to="/" class="flex items-center">
-        <LandingLogo :tucked="tucked" class="text-3xl text-neutral-900 dark:text-neutral-100" />
+        <LandingLogo :tucked="tucked" class="text-2xl min-[360px]:text-3xl text-neutral-900 dark:text-neutral-100" />
       </NuxtLink>
 
       <p class="hidden justify-center text-lg text-neutral-600 xl:flex dark:text-neutral-400">
         Built in Switzerland, hosted in the EU
       </p>
 
-      <div class="flex items-center justify-end gap-4 md:gap-6 col-span-2 xl:col-span-1">
+      <div class="flex items-center justify-end gap-4 md:gap-6">
         <a :href="signInUrl" class="hidden text-lg text-neutral-600 transition-colors hover:text-neutral-900 sm:inline dark:text-neutral-400 dark:hover:text-neutral-100">
           Sign in
         </a>

@@ -91,14 +91,15 @@ watch(visible, (v) => {
    The card's overflow:hidden (on .bento-card in BentoGrid) clips the rest. */
 .bento-table-wrap {
   position: absolute;
-  bottom: -120px;
-  right: -140px;
+  bottom: -148px;
+  left: 28px;
   z-index: 1;
 }
 
 @media (min-width: 640px) {
   .bento-table-wrap {
     bottom: -140px;
+    left: auto;
     right: -160px;
   }
 }

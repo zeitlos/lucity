@@ -68,7 +68,7 @@ watch(visible, (v) => {
 /* Fixed height — prevents the grid from shifting when the
    tool pills and license badge animate in. */
 .bento-opensource {
-  height: 180px;
+  height: 200px;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -79,9 +79,15 @@ watch(visible, (v) => {
   overflow: visible;
 }
 
+@media (min-width: 640px) {
+  .bento-opensource {
+    height: 180px;
+  }
+}
+
 .bento-tools-grid {
   display: grid;
-  grid-template-columns: repeat(3, auto);
+  grid-template-columns: repeat(2, auto);
   gap: 10px;
   justify-content: center;
   position: relative;
@@ -90,6 +96,7 @@ watch(visible, (v) => {
 
 @media (min-width: 640px) {
   .bento-tools-grid {
+    grid-template-columns: repeat(3, auto);
     gap: 12px;
   }
 }
