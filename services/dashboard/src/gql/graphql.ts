@@ -464,7 +464,8 @@ export enum SubscriptionStatus {
   Canceled = 'CANCELED',
   Incomplete = 'INCOMPLETE',
   PastDue = 'PAST_DUE',
-  Trialing = 'TRIALING'
+  Trialing = 'TRIALING',
+  TrialEnded = 'TRIAL_ENDED'
 }
 
 export enum TlsStatus {

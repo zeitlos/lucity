@@ -1393,6 +1393,8 @@ func convertSubscriptionStatus(status string) model.SubscriptionStatus {
 		return model.SubscriptionStatusIncomplete
 	case "TRIALING":
 		return model.SubscriptionStatusTrialing
+	case "TRIAL_ENDED":
+		return model.SubscriptionStatusTrialEnded
 	}
 
 	slog.Warn("unknown subscription status", "status", status)

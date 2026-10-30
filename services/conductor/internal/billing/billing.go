@@ -29,6 +29,7 @@ const (
 	StatusCanceled   Status = "CANCELED"
 	StatusIncomplete Status = "INCOMPLETE"
 	StatusTrialing   Status = "TRIALING"
+	StatusTrialEnded Status = "TRIAL_ENDED"
 )
 
 // Prices are the Stripe price IDs of the two plans and of every metered
@@ -157,7 +158,7 @@ func (c *Client) Subscription(ctx context.Context, customerID string) (*Subscrip
 	plan := c.billing.Plan(current)
 	view := &Subscription{
 		Plan:             plan,
-		Status:           status(current, plan),
+		Status:           status(current, plan, c.billing.Standing(current, hasPaymentMethod, time.Now())),
 		CurrentPeriodEnd: periodEnd(current),
 		CreditCents:      credit,
 		HasPaymentMethod: hasPaymentMethod,
@@ -409,7 +410,11 @@ func invoiceDefault(customer *stripe.Customer) bool {
 	return customer.InvoiceSettings != nil && customer.InvoiceSettings.DefaultPaymentMethod != nil
 }
 
-func status(subscription *stripe.Subscription, plan billing.Plan) Status {
+func status(subscription *stripe.Subscription, plan billing.Plan, standing billing.Standing) Status {
+	if standing.TrialEnded {
+		return StatusTrialEnded
+	}
+
 	switch subscription.Status {
 	case stripe.SubscriptionStatusActive:
 		if !plan.Paid() {

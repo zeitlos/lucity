@@ -67,6 +67,7 @@ const backupState: Record<BackupStatus, JobState> = {
 const subscription: Record<SubscriptionStatus, StatusView> = {
   [SubscriptionStatus.Active]: { tone: 'ok', label: 'Active' },
   [SubscriptionStatus.Trialing]: { tone: 'progress', label: 'Trial' },
+  [SubscriptionStatus.TrialEnded]: { tone: 'warn', label: 'Trial ended' },
   [SubscriptionStatus.PastDue]: { tone: 'warn', label: 'Payment due' },
   [SubscriptionStatus.Incomplete]: { tone: 'warn', label: 'Payment due' },
   [SubscriptionStatus.Canceled]: { tone: 'neutral', label: 'Cancelled' },

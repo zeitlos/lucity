@@ -22,7 +22,7 @@ const SubscriptionDocument = graphql(`
 const router = useRouter();
 const { result: subResult } = useQuery(SubscriptionDocument, null, { fetchPolicy: 'cache-and-network' });
 
-const isTrial = computed(() => subResult.value?.subscription?.status === SubscriptionStatus.Trialing);
+const trialEnded = computed(() => subResult.value?.subscription?.status === SubscriptionStatus.TrialEnded);
 
 function goToBilling() {
   router.push({ name: 'workspace', params: { drawer: 'billing' } });
@@ -32,8 +32,8 @@ function goToBilling() {
 <template>
   <div class="flex items-center justify-center gap-2 bg-destructive px-4 py-2 text-xs font-medium text-destructive-foreground">
     <AlertTriangle :size="14" class="shrink-0" />
-    <template v-if="isTrial">
-      <span>Your free credits have been used up. Upgrade to a plan to resume your workspace.</span>
+    <template v-if="trialEnded">
+      <span>Your trial has ended. Choose a plan to resume your workspace.</span>
       <button
         class="inline-flex items-center gap-1 rounded-full bg-destructive-foreground/15 px-2.5 py-0.5 text-xs font-medium transition-colors hover:bg-destructive-foreground/25"
         @click="goToBilling"

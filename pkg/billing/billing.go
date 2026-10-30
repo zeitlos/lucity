@@ -159,8 +159,9 @@ func (c *Client) Paid(subscription *stripe.Subscription) bool {
 }
 
 type Standing struct {
-	Good   bool
-	Reason string
+	Good       bool
+	Reason     string
+	TrialEnded bool
 }
 
 // Standing reports whether a workspace billed through the subscription is in
@@ -187,11 +188,11 @@ func (c *Client) Standing(subscription *stripe.Subscription, hasPaymentMethod bo
 	}
 
 	if subscription.Status == stripe.SubscriptionStatusPastDue {
-		return Standing{Reason: "trial credit used up"}
+		return Standing{Reason: "trial credit used up", TrialEnded: true}
 	}
 
 	if end := TrialEnd(subscription); !end.IsZero() && !now.Before(end) {
-		return Standing{Reason: "trial ended"}
+		return Standing{Reason: "trial ended", TrialEnded: true}
 	}
 
 	return Standing{Good: true}
