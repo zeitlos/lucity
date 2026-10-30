@@ -559,7 +559,7 @@ onUnmounted(() => { observer?.disconnect(); });
               <div class="compute-hex-mesh" />
               <div class="compute-handle">
                 <div class="compute-handle-inner">
-                  <span class="compute-brand-text">Lucity</span>
+                  <LucityWordmark class="compute-brand-text" />
                 </div>
               </div>
             </div>
@@ -1353,11 +1353,10 @@ onUnmounted(() => { observer?.disconnect(); });
 }
 
 .compute-brand-text {
-  font-family: 'Redaction 35', Georgia, serif;
-  font-size: 22px;
-  font-weight: 400;
+  height: 15px;
+  width: auto;
   color: oklch(0.40 0.01 55);
-  text-shadow: 0 1px 0 oklch(1 0 0 / 0.3);
+  filter: drop-shadow(0 1px 0 oklch(1 0 0 / 0.3));
 }
 
 .compute-port {
@@ -1701,7 +1700,7 @@ onUnmounted(() => { observer?.disconnect(); });
 
 .dark .rack-wrapper .compute-brand-text {
   color: oklch(0.62 0.01 55);
-  text-shadow: 0 1px 0 oklch(0 0 0 / 0.5);
+  filter: drop-shadow(0 1px 0 oklch(0 0 0 / 0.5));
 }
 
 .dark .rack-wrapper .compute-led {

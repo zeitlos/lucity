@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, nextTick } from 'vue';
 import BaseLogo from '@/components/BaseLogo.vue';
+import BaseWordmark from '@/components/BaseWordmark.vue';
 import { LOGO_HEIGHT, LOGO_PATH, LOGO_WIDTH } from '@/lib/logo';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -232,12 +233,12 @@ onMounted(async () => {
             <CardHeader>
               <CardTitle>Lockup</CardTitle>
               <CardDescription>
-                Mark and wordmark in Redaction 35
+                Mark and wordmark in a customized Mona Sans Display
               </CardDescription>
             </CardHeader>
-            <CardContent class="flex h-40 items-center justify-center gap-[30px]">
+            <CardContent class="flex h-40 items-center justify-center gap-[21px]">
               <BaseLogo :size="35" />
-              <span class="font-wordmark text-4xl leading-none text-foreground">Lucity</span>
+              <BaseWordmark :size="35" class="text-foreground" />
             </CardContent>
           </Card>
 

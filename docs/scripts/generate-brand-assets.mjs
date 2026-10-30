@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Generates the Lucity logo lockups, favicons, app icons and the social
- * preview image from public/logo-mark.svg and the Redaction wordmark font.
+ * preview image from public/logo-mark.svg and public/logo-wordmark.svg.
  * The favicons and the touch icon are also written to the dashboard.
  *
  * Requires woff2_decompress, rsvg-convert and magick on PATH
@@ -33,6 +33,12 @@ const [markWidth, markHeight] = markSource.match(/viewBox="0 0 ([\d.]+) ([\d.]+)
 const markPath = markSource.match(/ d="([^"]+)"/)[1];
 const markColor = markSource.match(/fill="(#[0-9a-fA-F]{6})"/)[1];
 
+const wordmarkSource = readFileSync(join(publicDir, 'logo-wordmark.svg'), 'utf8');
+const [wordmarkTop, wordmarkWidth, wordmarkHeight] = wordmarkSource.match(/viewBox="0 (-[\d.]+) ([\d.]+) ([\d.]+)"/).slice(1).map(Number);
+const wordmarkPath = wordmarkSource.match(/ d="([^"]+)"/)[1];
+const wordmarkScale = markHeight / -wordmarkTop;
+const wordmarkX = markWidth + markHeight * 0.61;
+
 function font(file) {
   const source = join(work, file);
   copyFileSync(join(publicDir, 'fonts', file), source);
@@ -50,6 +56,10 @@ function svg([x, y, width, height], body) {
 function mark(fill, x = 0, y = 0, scale = 1) {
   const transform = x || y || scale !== 1 ? ` transform="translate(${n(x)} ${n(y)}) scale(${+scale.toFixed(4)})"` : '';
   return `<path${transform} d="${markPath}" fill="${fill}"/>`;
+}
+
+function wordmark(fill) {
+  return `<path transform="translate(${n(wordmarkX)} ${n(markHeight)}) scale(${+wordmarkScale.toFixed(5)})" d="${wordmarkPath}" fill="${fill}"/>`;
 }
 
 function pathData({ commands }) {
@@ -70,12 +80,6 @@ function centeredText(face, value, center, baseline, size, fill, opacity) {
   return text(face, value, center - face.getAdvanceWidth(value, size) / 2, baseline, size, fill, opacity);
 }
 
-function lineBoxBaseline(face, size) {
-  const { ascender, descender } = face.tables.hhea;
-  const unit = size / face.unitsPerEm;
-  return (size - (ascender - descender) * unit) / 2 + ascender * unit;
-}
-
 function rasterize(source, width, height, output) {
   const input = join(work, 'raster.svg');
   writeFileSync(input, source);
@@ -91,21 +95,15 @@ function target(...parts) {
   return path;
 }
 
-const wordmarkFace = font('Redaction_35-Regular.woff2');
 const headlineFace = font('Redaction_20-Regular.woff2');
 const sansFace = font('MonaSans-Variable.woff2');
 sansFace.variation.set({ wght: 400 });
 
-const wordmarkSize = markHeight / 0.98;
-const wordmarkX = markWidth + wordmarkSize * 20 / 24;
-const wordmarkBaseline = (markHeight - wordmarkSize) / 2 + lineBoxBaseline(wordmarkFace, wordmarkSize);
-const wordmarkBox = wordmarkFace.getPath('Lucity', wordmarkX, wordmarkBaseline, wordmarkSize).getBoundingBox();
-const lockupTop = Math.min(0, wordmarkBox.y1);
-const lockupBox = [0, lockupTop, wordmarkBox.x2, Math.max(markHeight, wordmarkBox.y2) - lockupTop];
+const lockupBox = [0, 0, wordmarkX + wordmarkWidth * wordmarkScale, markHeight + (wordmarkHeight + wordmarkTop) * wordmarkScale];
 const lockupPngHeight = 240;
 
 for (const [name, color, fill, readme] of [['light', ink, markColor, 'logo.svg'], ['dark', paper, markDark, 'logo-dark.svg']]) {
-  const lockup = svg(lockupBox, [mark(fill), text(wordmarkFace, 'Lucity', wordmarkX, wordmarkBaseline, wordmarkSize, color)]);
+  const lockup = svg(lockupBox, [mark(fill), wordmark(color)]);
   writeFileSync(target(publicDir, `logo-${name}.svg`), lockup);
   writeFileSync(target(repoDir, 'assets', readme), lockup);
   rasterize(lockup, Math.round(lockupPngHeight * lockupBox[2] / lockupBox[3]), lockupPngHeight, target(publicDir, `logo-${name}.png`));

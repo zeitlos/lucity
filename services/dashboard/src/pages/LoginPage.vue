@@ -7,6 +7,7 @@ import { infoToast } from '@/components/ui/sonner';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import BaseLogo from '@/components/BaseLogo.vue';
+import BaseWordmark from '@/components/BaseWordmark.vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 import { useTheme } from '@/composables/useTheme';
 import alpsHarborImg from '../../assets/img/alps_harbor.webp';
@@ -131,8 +132,8 @@ onUnmounted(() => {
           </div>
 
           <!-- Wordmark -->
-          <h1 class="text-center font-wordmark text-4xl text-foreground">
-            Lucity
+          <h1 class="flex justify-center text-foreground">
+            <BaseWordmark :size="26" />
           </h1>
 
           <!-- Subtitle -->

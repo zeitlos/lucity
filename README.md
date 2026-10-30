@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
-    <img src="assets/logo.svg" alt="Lucity" width="200">
+    <img src="assets/logo.svg" alt="Lucity" width="230">
   </picture>
 </p>
 

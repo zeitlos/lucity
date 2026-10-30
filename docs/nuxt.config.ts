@@ -94,7 +94,7 @@ export default defineNuxtConfig({
             '@id': 'https://lucity.cloud/#organization',
             name: 'Lucity',
             url: 'https://lucity.cloud',
-            logo: 'https://lucity.cloud/logo-light.png?v=3',
+            logo: 'https://lucity.cloud/logo-light.png?v=4',
             description: 'The European open source alternative to Vercel, Heroku, and Railway. Deploy anything, own your stack.',
             sameAs: [
               'https://github.com/zeitlos/lucity',

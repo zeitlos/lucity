@@ -149,7 +149,7 @@ onBeforeUnmount(() => cancelAnimationFrame(frame));
     </span>
     <span class="word">
       <span class="word-clip">
-        <span class="word-text">Lucity</span>
+        <LucityWordmark class="word-text" />
       </span>
     </span>
   </span>
@@ -164,7 +164,7 @@ onBeforeUnmount(() => cancelAnimationFrame(frame));
 
 .mark {
   position: relative;
-  height: 0.98em;
+  height: 1em;
   aspect-ratio: 250 / 181;
   transform-origin: 0 50%;
 }
@@ -177,10 +177,6 @@ onBeforeUnmount(() => cancelAnimationFrame(frame));
   inset: 0;
   width: 100%;
   height: 100%;
-}
-
-.mark-draft {
-  animation: solidify 0.55s cubic-bezier(0.65, 0, 0.35, 1) 1.35s both;
 }
 
 .mark-face {
@@ -218,15 +214,14 @@ onBeforeUnmount(() => cancelAnimationFrame(frame));
 .word-clip {
   min-width: 0;
   overflow-x: clip;
-  padding-left: 0.833em;
+  padding-left: 0.61em;
   animation: word-in 0.7s cubic-bezier(0.33, 1, 0.68, 1) 1.9s both;
 }
 
 .word-text {
-  display: inline-block;
-  white-space: nowrap;
-  font-family: 'Redaction 35', Georgia, serif;
-  font-weight: 400;
+  display: block;
+  height: 1em;
+  width: auto;
   transition:
     opacity 0.3s ease 0.08s,
     translate 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -285,12 +280,6 @@ onBeforeUnmount(() => cancelAnimationFrame(frame));
 @keyframes extrude {
   from {
     clip-path: var(--face-flat);
-  }
-}
-
-@keyframes solidify {
-  from {
-    opacity: 0.2;
   }
 }
 

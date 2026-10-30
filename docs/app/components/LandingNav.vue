@@ -28,7 +28,7 @@ onBeforeUnmount(() => window.removeEventListener('scroll', onScroll));
 
     <div class="relative grid grid-cols-[auto_1fr] items-center gap-4 xl:grid-cols-3 xl:gap-0">
       <NuxtLink to="/" class="flex items-center">
-        <LandingLogo :tucked="tucked" class="text-2xl min-[360px]:text-3xl text-neutral-900 dark:text-neutral-100" />
+        <LandingLogo :tucked="tucked" class="text-2xl text-neutral-900 dark:text-neutral-100" />
       </NuxtLink>
 
       <p class="hidden justify-center text-lg text-neutral-600 xl:flex dark:text-neutral-400">

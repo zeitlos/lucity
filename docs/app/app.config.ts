@@ -78,8 +78,8 @@ export default defineAppConfig({
   header: {
     title: 'Lucity',
     logo: {
-      light: '/logo-light.svg',
-      dark: '/logo-dark.svg',
+      light: '/logo-light.svg?v=4',
+      dark: '/logo-dark.svg?v=4',
       alt: 'Lucity'
     }
   }

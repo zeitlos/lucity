@@ -56,7 +56,7 @@ const githubLink = computed(() =>
       <UContextMenu :items="logoMenu">
         <LucityLogo
           :suffix="inDocs ? 'Docs' : undefined"
-          class="text-2xl text-highlighted"
+          class="text-lg sm:text-xl text-highlighted"
         />
       </UContextMenu>
     </template>
