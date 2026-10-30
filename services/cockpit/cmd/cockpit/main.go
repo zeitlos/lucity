@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -22,19 +23,35 @@ import (
 var appIcon []byte
 
 func main() {
-	environment := flag.String("env", "dev", "platform environment to open first, dev or prod")
+	environment := flag.String("env", "", "platform environment to open first, dev or prod (default: the last one opened, else dev)")
 	deployments := flag.String("deployments", "../../deployments", "directory with the lucity-<env> secrets and values")
 	flag.Parse()
 
 	logger.Setup("info")
 
-	if !slices.Contains(knownEnvironments, *environment) {
+	if *environment != "" && !slices.Contains(knownEnvironments, *environment) {
 		slog.Error("-env must be dev or prod")
+		os.Exit(1)
+	}
+
+	configDirectory, err := os.UserConfigDir()
+
+	if err != nil {
+		slog.Error("find config directory", "error", err)
 		os.Exit(1)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	if flag.Arg(0) == "mcp" {
+		if err := serveMCP(ctx, *deployments); err != nil {
+			slog.Error("serve mcp", "error", err)
+			os.Exit(1)
+		}
+
+		return
+	}
 
 	assets, err := fs.Sub(web.Dist, "dist")
 
@@ -44,7 +61,7 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("/graphql", newEnvironments(ctx, *deployments, *environment))
+	mux.Handle("/graphql", newEnvironments(ctx, *deployments, filepath.Join(configDirectory, "lucity-cockpit", "environment"), *environment))
 	mux.Handle("/", application.AssetFileServerFS(assets))
 
 	app := application.New(application.Options{

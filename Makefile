@@ -45,17 +45,16 @@ dev-dashboard:
 dev-docs:
 	cd docs && npm run dev
 
-# Ops cockpit desktop window, opens on ENV (dev or prod) and switches in the window
-ENV ?= dev
+# Ops cockpit desktop window, opens on the environment used last (or ENV=dev|prod) and switches in the window
 cockpit:
 	cd services/cockpit/web && npm run build
-	cd services/cockpit && go run ./cmd/cockpit -env $(ENV) -deployments $(CURDIR)/deployments
+	cd services/cockpit && go run ./cmd/cockpit $(if $(ENV),-env $(ENV)) -deployments $(CURDIR)/deployments
 
 # Same window with the UI served by Vite: web/ edits hot reload, Go edits need a restart
 cockpit-dev:
 	cd services/cockpit/web && (test -d dist || npm run build)
 	(cd services/cockpit/web && exec node_modules/.bin/vite) & pid=$$!; trap "kill $$pid 2>/dev/null" EXIT; \
-	cd services/cockpit && FRONTEND_DEVSERVER_URL=http://127.0.0.1:5175 go run ./cmd/cockpit -env $(ENV) -deployments $(CURDIR)/deployments
+	cd services/cockpit && FRONTEND_DEVSERVER_URL=http://127.0.0.1:5175 go run ./cmd/cockpit $(if $(ENV),-env $(ENV)) -deployments $(CURDIR)/deployments
 
 # Lint
 lint:

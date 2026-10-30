@@ -3,8 +3,12 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
+	"os"
+	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 )
 
@@ -15,26 +19,47 @@ var knownEnvironments = []string{"dev", "prod"}
 type environments struct {
 	ctx         context.Context
 	deployments string
-	initial     string
+	statePath   string
 
 	mu       sync.Mutex
+	current  string
+	saved    string
 	handlers map[string]http.Handler
 }
 
-func newEnvironments(ctx context.Context, deployments, initial string) *environments {
+func newEnvironments(ctx context.Context, deployments, statePath, initial string) *environments {
+	saved := savedEnvironment(statePath)
+
+	if initial == "" {
+		initial = saved
+	}
+
 	return &environments{
 		ctx:         ctx,
 		deployments: deployments,
-		initial:     initial,
+		statePath:   statePath,
+		current:     initial,
+		saved:       saved,
 		handlers:    map[string]http.Handler{},
 	}
+}
+
+func savedEnvironment(statePath string) string {
+	data, err := os.ReadFile(statePath)
+	environment := strings.TrimSpace(string(data))
+
+	if err != nil || !slices.Contains(knownEnvironments, environment) {
+		return "dev"
+	}
+
+	return environment
 }
 
 func (e *environments) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	environment := r.Header.Get(environmentHeader)
 
 	if environment == "" {
-		environment = e.initial
+		environment = e.currentEnvironment()
 	}
 
 	if !slices.Contains(knownEnvironments, environment) {
@@ -49,7 +74,38 @@ func (e *environments) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	e.remember(environment)
 	handler.ServeHTTP(w, r)
+}
+
+func (e *environments) currentEnvironment() string {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	return e.current
+}
+
+func (e *environments) remember(environment string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.current = environment
+
+	if environment == e.saved {
+		return
+	}
+
+	if err := os.MkdirAll(filepath.Dir(e.statePath), 0o700); err != nil {
+		slog.Warn("remember environment", "error", err)
+		return
+	}
+
+	if err := os.WriteFile(e.statePath, []byte(environment), 0o600); err != nil {
+		slog.Warn("remember environment", "error", err)
+		return
+	}
+
+	e.saved = environment
 }
 
 func (e *environments) handler(environment string) (http.Handler, error) {
