@@ -56,7 +56,6 @@ const SetAgentNetworkDocument = graphql(`
 
 const props = defineProps<{
   agent: Agent;
-  environmentName: string;
   serviceNames: string[];
 }>();
 
@@ -268,7 +267,7 @@ const privateNetworkHint = computed(() => (props.serviceNames.length
       <div class="overflow-hidden rounded-lg border">
         <div class="flex items-center gap-3 px-4 py-3">
           <div class="min-w-0 flex-1">
-            <p class="text-sm font-medium text-foreground">Services in {{ environmentName }}</p>
+            <p class="text-sm font-medium text-foreground">Services in this environment</p>
             <p class="text-xs text-muted-foreground">{{ privateNetworkHint }}</p>
           </div>
           <Spinner v-if="togglingPrivateNetwork" :size="14" class="shrink-0 text-muted-foreground" />

@@ -370,7 +370,6 @@ onKeyStroke('/', (event) => {
               class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
             >
               <ConnectionsDrawer
-                :workspace-name="workspace.name"
                 :is-admin="isWorkspaceAdmin"
                 @close="closeDrawer"
               />

@@ -37,7 +37,6 @@ const ConnectionsDocument = graphql(`
 `);
 
 defineProps<{
-  workspaceName: string;
   isAdmin: boolean;
 }>();
 
@@ -73,7 +72,7 @@ function attention(status: CredentialStatus, credential: string) {
 
     <div class="space-y-8">
       <p class="text-sm text-muted-foreground">
-        Model providers and connectors for every project in {{ workspaceName }}. Agents use them without ever seeing a key.
+        Model providers and connectors for every project in this workspace. Agents use them without ever seeing a key.
       </p>
 
       <div v-if="loading && !result" class="space-y-8">

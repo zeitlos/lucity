@@ -109,7 +109,7 @@ const groups: { label: string; rows: { label: string; value: (limits: Limits) =>
 const route = useRoute();
 const router = useRouter();
 const { request, close } = useGate();
-const { activeWorkspace, isWorkspaceAdmin } = useAuth();
+const { isWorkspaceAdmin } = useAuth();
 
 const open = computed({
   get: () => !!request.value,
@@ -201,7 +201,7 @@ function choosePlan() {
         <DialogIcon :icon="CircleArrowUp" />
         <DialogTitle>{{ planRequest.title }}</DialogTitle>
         <DialogDescription>
-          Choose a plan for "{{ activeWorkspace }}". Its monthly fee comes back as credit for what your projects use.
+          Choose a plan for this workspace. Its monthly fee comes back as credit for what your projects use.
         </DialogDescription>
       </DialogHeader>
 
@@ -272,7 +272,7 @@ function choosePlan() {
         <DialogIcon :icon="Users" />
         <DialogTitle>{{ planRequest.title }}</DialogTitle>
         <DialogDescription>
-          Only admins of "{{ activeWorkspace }}" can change its plan. Ask one of them to upgrade to {{ planTitle(planRequest.plan) }}.
+          Only admins of this workspace can change its plan. Ask one of them to upgrade to {{ planTitle(planRequest.plan) }}.
         </DialogDescription>
       </DialogHeader>
 
@@ -296,7 +296,7 @@ function choosePlan() {
         <DialogIcon :icon="CreditCard" />
         <DialogTitle>Add a card to start creating</DialogTitle>
         <DialogDescription>
-          "{{ activeWorkspace }}" needs a card on file before it can run services, databases or other resources.
+          This workspace needs a card on file before it can run services, databases or other resources.
         </DialogDescription>
       </DialogHeader>
 

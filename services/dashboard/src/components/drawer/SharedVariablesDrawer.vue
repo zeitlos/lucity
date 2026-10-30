@@ -27,7 +27,6 @@ const SetSharedVariablesDocument = graphql(`
 
 const props = defineProps<{
   environmentId: string;
-  environmentName: string;
 }>();
 
 const emit = defineEmits<{
@@ -91,7 +90,7 @@ async function handleSave() {
       :loading="loading"
       :disabled="saving"
       empty-title="No shared variables yet"
-      :empty-description="`Services in ${environmentName} can reference them.`"
+      empty-description="Services in this environment can reference them."
       @change="hasChanges = true"
     />
 

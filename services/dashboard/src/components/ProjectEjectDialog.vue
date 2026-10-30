@@ -22,7 +22,6 @@ import { Button } from '@/components/ui/button';
 const props = defineProps<{
   open: boolean;
   projectId: string;
-  projectName: string;
 }>();
 
 const emit = defineEmits<{
@@ -107,7 +106,7 @@ async function handleEject() {
             Eject project
           </DialogTitle>
           <DialogDescription class="text-sm leading-relaxed text-muted-foreground">
-            Export <strong class="font-medium text-foreground">{{ projectName }}</strong>
+            Export this project
             as a self-contained zip you can deploy anywhere.
           </DialogDescription>
         </DialogHeader>

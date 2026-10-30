@@ -148,7 +148,6 @@ function handleEnvironmentCreated(environmentId: string) {
         up-label="Up to all projects"
         :up-to="{ name: 'projects' }"
         :project-id="project.id"
-        :project-name="project.name"
       />
 
       <div class="relative min-w-0 flex-1">

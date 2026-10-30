@@ -12,7 +12,6 @@ import AgentSettingsTab from './AgentSettingsTab.vue';
 
 defineProps<{
   agent: Agent;
-  environmentName: string;
   serviceNames: string[];
 }>();
 
@@ -52,7 +51,6 @@ const { tab: activeTab, selectTab } = useGuardedTab('chat');
         <TabsContent value="access" class="px-4 py-4">
           <AgentAccessTab
             :agent="agent"
-            :environment-name="environmentName"
             :service-names="serviceNames"
           />
         </TabsContent>

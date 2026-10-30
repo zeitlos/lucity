@@ -730,8 +730,6 @@ const hasResources = computed(() =>
 
 const drawer = computed(() => route.params.drawer);
 
-const projectName = computed(() => projectResult.value?.project?.name ?? projectId.value);
-
 const railItems = computed(() => [
   {
     key: 'canvas',
@@ -805,7 +803,6 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
           up-label="Up to project"
           :up-to="{ name: 'project', params: { projectId } }"
           :project-id="projectId"
-          :project-name="projectName"
         />
 
         <div class="relative min-w-0 flex-1">
@@ -848,7 +845,6 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
             >
               <SharedVariablesDrawer
                 :environment-id="environmentId"
-                :environment-name="environment.name"
                 @close="closeDrawer"
               />
             </div>
@@ -950,7 +946,6 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
           >
             <AgentPanel
               :agent="selectedAgent"
-              :environment-name="environment.name"
               :service-names="serviceNames"
               @close="closePanel"
               @agent-removed="handleAgentRemoved"

@@ -1367,7 +1367,7 @@ async function handleRemoveService() {
             <div class="space-y-3 border-t px-4 py-3">
               <div v-if="!platformEndpoint">
                 <p class="mb-2 text-xs text-muted-foreground">
-                  Auto-generated domain for {{ activeEnvironment?.name ?? 'this environment' }}.
+                  Auto-generated domain for this environment.
                 </p>
                 <Button
                   variant="outline"

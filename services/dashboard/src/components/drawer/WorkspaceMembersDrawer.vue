@@ -159,7 +159,7 @@ function initial(member: { email: string; name?: string | null }) {
   >
     <div class="space-y-5">
       <p v-if="personal" class="text-sm text-muted-foreground">
-        "{{ props.workspace.name }}" is your personal workspace, so only you can be in it. To work with others, create a new workspace from the workspace menu.
+        This is your personal workspace, so only you can be in it. To work with others, create a new workspace from the workspace menu.
       </p>
       <p v-else-if="!isAdmin" class="text-sm text-muted-foreground">
         Only admins can invite people.

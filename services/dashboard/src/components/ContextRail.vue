@@ -19,7 +19,6 @@ const props = defineProps<{
   upLabel?: string;
   upTo?: RouteLocationRaw;
   projectId?: string;
-  projectName?: string;
 }>();
 
 const ITEM_PITCH = 52;
@@ -125,7 +124,6 @@ const ejectOpen = ref(false);
       v-if="projectId"
       v-model:open="ejectOpen"
       :project-id="projectId"
-      :project-name="projectName ?? projectId"
     />
   </div>
 </template>
