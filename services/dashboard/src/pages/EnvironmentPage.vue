@@ -868,7 +868,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
         <Transition name="slide-panel">
           <div
             v-if="isOpen && selectedService"
-            class="absolute inset-y-3 right-0 w-[55%]"
+            class="absolute inset-y-3 right-0 left-13 md:left-auto md:w-[55%]"
           >
             <ServicePanel
               :service="selectedService"
@@ -883,7 +883,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
         <Transition name="slide-panel">
           <div
             v-if="isOpen && selectedDatabase"
-            class="absolute inset-y-3 right-0 w-[55%]"
+            class="absolute inset-y-3 right-0 left-13 md:left-auto md:w-[55%]"
           >
             <DatabasePanel
               :database="selectedDatabase"
@@ -898,7 +898,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
         <Transition name="slide-panel">
           <div
             v-if="isOpen && selectedKeyValueStore"
-            class="absolute inset-y-3 right-0 w-[55%]"
+            class="absolute inset-y-3 right-0 left-13 md:left-auto md:w-[55%]"
           >
             <KeyValueStorePanel
               :store="selectedKeyValueStore"
@@ -912,7 +912,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
         <Transition name="slide-panel">
           <div
             v-if="isOpen && selectedBucket"
-            class="absolute inset-y-3 right-0 w-[55%]"
+            class="absolute inset-y-3 right-0 left-13 md:left-auto md:w-[55%]"
           >
             <BucketPanel
               :bucket="selectedBucket"
@@ -926,7 +926,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
         <Transition name="slide-panel">
           <div
             v-if="isOpen && selectedVolume"
-            class="absolute inset-y-3 right-0 w-[55%]"
+            class="absolute inset-y-3 right-0 left-13 md:left-auto md:w-[55%]"
           >
             <VolumePanel
               :volume="selectedVolume"
@@ -942,7 +942,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
         <Transition name="slide-panel">
           <div
             v-if="isOpen && selectedAgent"
-            class="absolute inset-y-3 right-0 w-[55%]"
+            class="absolute inset-y-3 right-0 left-13 md:left-auto md:w-[55%]"
           >
             <AgentPanel
               :agent="selectedAgent"
@@ -957,8 +957,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
         <Transition name="slide-panel">
           <div
             v-if="serviceLogsPanel.isOpen.value"
-            class="absolute inset-y-3 right-0 z-10"
-            style="left: calc(45% + 12px + 2rem)"
+            class="absolute inset-y-3 right-0 left-13 z-10 md:left-[calc(45%+12px+2rem)]"
           >
             <ServiceLogsPanel
               :service-id="serviceLogsPanel.serviceId.value!"
@@ -972,8 +971,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
         <Transition name="slide-panel">
           <div
             v-if="vulnerabilitiesPanel.isOpen.value"
-            class="absolute inset-y-3 right-0 z-10"
-            style="left: calc(45% + 12px + 2rem)"
+            class="absolute inset-y-3 right-0 left-13 z-10 md:left-[calc(45%+12px+2rem)]"
           >
             <ServiceVulnerabilitiesPanel
               :service-id="vulnerabilitiesPanel.serviceId.value!"
@@ -986,8 +984,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
         <Transition name="slide-panel">
           <div
             v-if="logsPanel.isOpen.value"
-            class="absolute inset-y-3 right-0 z-10"
-            style="left: calc(45% + 12px + 2rem)"
+            class="absolute inset-y-3 right-0 left-13 z-10 md:left-[calc(45%+12px+2rem)]"
           >
             <BuildLogsPanel
               :id="logsPanel.id.value!"

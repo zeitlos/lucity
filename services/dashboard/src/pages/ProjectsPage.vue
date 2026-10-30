@@ -227,29 +227,30 @@ onKeyStroke('/', (event) => {
         <div class="relative min-w-0 flex-1">
           <div class="flex h-full flex-col overflow-hidden rounded-lg border bg-card shadow-sm">
             <PageToolbar title="Projects" :count="loading ? undefined : projects.length">
-              <div v-if="projects.length > 0" class="relative w-70">
-                <Search :size="14" class="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  ref="searchInput"
-                  v-model="search"
-                  placeholder="Search projects"
-                  class="h-8 px-8 text-sm"
-                  @keydown.escape="search = ''"
+              <div v-if="projects.length > 0" class="order-last flex w-full items-center gap-2.5 sm:order-none sm:w-auto">
+                <div class="relative flex-1 sm:w-70 sm:flex-none">
+                  <Search :size="14" class="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    ref="searchInput"
+                    v-model="search"
+                    placeholder="Search projects"
+                    class="h-8 px-8 text-sm"
+                    @keydown.escape="search = ''"
+                  />
+                  <kbd
+                    v-if="!search"
+                    class="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 rounded border bg-card px-1.5 font-sans text-xs leading-4.5 text-muted-foreground max-sm:hidden"
+                  >/</kbd>
+                </div>
+                <SegmentedControl
+                  v-model="view"
+                  label="Layout"
+                  :options="viewOptions"
                 />
-                <kbd
-                  v-if="!search"
-                  class="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 rounded border bg-card px-1.5 font-sans text-xs leading-4.5 text-muted-foreground"
-                >/</kbd>
               </div>
-              <SegmentedControl
-                v-if="projects.length > 0"
-                v-model="view"
-                label="Layout"
-                :options="viewOptions"
-              />
-              <Button @click="paletteOpen = true">
+              <Button class="max-sm:w-9 max-sm:px-0" @click="paletteOpen = true">
                 <Plus />
-                New project
+                <span class="max-sm:sr-only">New project</span>
               </Button>
             </PageToolbar>
 

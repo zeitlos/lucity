@@ -422,9 +422,9 @@ watch(
               {{ activeDeployment.commitMessage || shortCommit(activeDeployment.commit) || activeDeployment.image }}
             </p>
             <div class="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-              <RelativeTime v-if="activeDeployment.createdAt" :value="activeDeployment.createdAt" />
-              <span v-if="activeRelease?.source">&middot; via {{ providerLabels[activeRelease.source.provider] ?? activeRelease.source.provider }}</span>
-              <span v-if="activeRelease?.trigger.actor">&middot; by {{ activeRelease.trigger.actor }}</span>
+              <span v-if="activeDeployment.createdAt" class="shrink-0 whitespace-nowrap"><RelativeTime :value="activeDeployment.createdAt" /></span>
+              <span v-if="activeRelease?.source" class="shrink-0 whitespace-nowrap">&middot; via {{ providerLabels[activeRelease.source.provider] ?? activeRelease.source.provider }}</span>
+              <span v-if="activeRelease?.trigger.actor" class="truncate">&middot; by {{ activeRelease.trigger.actor }}</span>
             </div>
           </div>
 
@@ -543,9 +543,9 @@ watch(
                   {{ releaseTitle(release) }}
                 </p>
                 <div class="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <RelativeTime v-if="release.createdAt" :value="release.createdAt" />
+                  <span v-if="release.createdAt" class="shrink-0 whitespace-nowrap"><RelativeTime :value="release.createdAt" /></span>
                   <span v-else>Queued</span>
-                  <span v-if="releaseMeta(release)">&middot; {{ releaseMeta(release) }}</span>
+                  <span v-if="releaseMeta(release)" class="truncate">&middot; {{ releaseMeta(release) }}</span>
                 </div>
               </div>
 

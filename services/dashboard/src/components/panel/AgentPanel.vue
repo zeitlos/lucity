@@ -31,7 +31,7 @@ const { tab: activeTab, selectTab } = useGuardedTab('chat');
 
     <Tabs :model-value="activeTab" class="flex min-h-0 flex-1 flex-col" @update:model-value="selectTab">
       <div class="shrink-0 border-b px-4 pt-2">
-        <TabsList class="w-full border-b-0">
+        <TabsList class="w-full overflow-x-auto overflow-y-hidden border-b-0 [scrollbar-width:none]">
           <TabsTrigger value="chat">Chat</TabsTrigger>
           <TabsTrigger value="audit">Audit</TabsTrigger>
           <TabsTrigger value="access">Access</TabsTrigger>

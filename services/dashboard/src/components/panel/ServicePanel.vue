@@ -42,7 +42,7 @@ function openLogs() {
     <!-- Tab Content -->
     <Tabs :model-value="activeTab" @update:model-value="selectTab" class="flex min-h-0 flex-1 flex-col">
       <div class="shrink-0 border-b px-4 pt-2">
-        <TabsList class="w-full border-b-0">
+        <TabsList class="w-full overflow-x-auto overflow-y-hidden border-b-0 [scrollbar-width:none]">
           <TabsTrigger value="deployments">Deployments</TabsTrigger>
           <button
             class="-mb-px inline-flex items-center justify-center gap-1 whitespace-nowrap border-b-2 border-transparent px-1 pb-2.5 pt-2 text-sm font-medium text-muted-foreground transition-all hover:text-foreground disabled:pointer-events-none disabled:opacity-50"

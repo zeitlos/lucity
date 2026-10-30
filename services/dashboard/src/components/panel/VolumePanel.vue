@@ -38,7 +38,7 @@ const { tab: activeTab, selectTab } = useGuardedTab('usage');
     <!-- Tab Content -->
     <Tabs :model-value="activeTab" @update:model-value="selectTab" class="flex min-h-0 flex-1 flex-col">
       <div class="shrink-0 border-b px-4 pt-2">
-        <TabsList class="w-full border-b-0">
+        <TabsList class="w-full overflow-x-auto overflow-y-hidden border-b-0 [scrollbar-width:none]">
           <TabsTrigger value="usage">Usage</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>

@@ -153,9 +153,9 @@ function handleEnvironmentCreated(environmentId: string) {
       <div class="relative min-w-0 flex-1">
         <div class="flex h-full flex-col overflow-hidden rounded-lg border bg-card shadow-sm">
           <PageToolbar title="Environments" :count="project.environments.length">
-            <Button @click="envDialogOpen = true">
+            <Button class="max-sm:w-9 max-sm:px-0" @click="envDialogOpen = true">
               <Plus />
-              New environment
+              <span class="max-sm:sr-only">New environment</span>
             </Button>
           </PageToolbar>
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { RouterLink, RouterView, useRouter } from 'vue-router';
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
 import { BookOpen, Bug, Lightbulb, LogOut } from '@lucide/vue';
 import { useAuth } from '@/composables/useAuth';
@@ -42,6 +42,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+const route = useRoute();
 const router = useRouter();
 const { user, logout, isWorkspaceAdmin } = useAuth();
 const { workspaceColor } = useWorkspaceColor();
@@ -51,6 +52,7 @@ const { agents } = useCapabilities();
 const { result: wsResult } = useQuery(WorkspaceDocument, null, { fetchPolicy: 'cache-and-network' });
 const workspace = computed(() => wsResult.value?.workspace ?? null);
 const suspended = computed(() => workspace.value?.suspended ?? false);
+const inProject = computed(() => !!route.params.projectId);
 
 const menuWorkspaceItems = computed(() =>
   workspaceNavItems(isWorkspaceAdmin.value, agents.value).filter(item => item.key !== 'projects'),
@@ -71,10 +73,11 @@ async function handleLogout() {
     <div class="relative z-1 flex flex-1 flex-col overflow-hidden p-3 pb-0">
       <header class="flex h-13 shrink-0 items-center justify-between rounded-lg border bg-card px-4 shadow-sm">
         <!-- Left: Logo + Context Nav -->
-        <div class="flex items-center gap-3">
+        <div class="flex min-w-0 items-center gap-3">
           <RouterLink
             to="/"
-            class="flex items-center"
+            class="flex shrink-0 items-center"
+            :class="{ 'max-sm:hidden': inProject }"
             @mouseenter="flexLogo(1)"
             @mouseleave="flexLogo(0)"
             @focus="flexLogo(1)"
@@ -84,18 +87,18 @@ async function handleLogout() {
           </RouterLink>
 
           <template v-if="user">
-            <div class="h-4 w-px bg-border" />
+            <div class="h-4 w-px shrink-0 bg-border" :class="{ 'max-sm:hidden': inProject }" />
             <ContextNav />
           </template>
         </div>
 
         <!-- Right: User menu -->
-        <div class="flex items-center gap-2">
+        <div class="flex shrink-0 items-center gap-2">
           <TrialIndicator v-if="user && !suspended" />
 
-          <ThemeToggle />
+          <ThemeToggle class="max-sm:hidden" />
 
-          <div v-if="user" class="mx-1 h-4 w-px bg-border" />
+          <div v-if="user" class="mx-1 h-4 w-px bg-border max-sm:hidden" />
 
           <DropdownMenu v-if="user">
             <DropdownMenuTrigger as-child>

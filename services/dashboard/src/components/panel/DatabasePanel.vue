@@ -46,7 +46,7 @@ const { tab: activeTab, selectTab } = useGuardedTab('connect');
     <!-- Tab Content -->
     <Tabs :model-value="activeTab" @update:model-value="selectTab" class="flex min-h-0 flex-1 flex-col">
       <div class="shrink-0 border-b px-4 pt-2">
-        <TabsList class="w-full border-b-0">
+        <TabsList class="w-full overflow-x-auto overflow-y-hidden border-b-0 [scrollbar-width:none]">
           <TabsTrigger value="connect">Connect</TabsTrigger>
           <TabsTrigger value="metrics">Metrics</TabsTrigger>
           <TabsTrigger value="tables">Tables</TabsTrigger>
