@@ -68,3 +68,14 @@ func (r *queryResolver) WorkspaceStandings(ctx context.Context, since time.Time)
 
 	return convertWorkspaceStandings(standings), nil
 }
+
+// WorkspacePlans is the resolver for the workspacePlans field.
+func (r *queryResolver) WorkspacePlans(ctx context.Context, since time.Time) ([]model.WorkspacePlan, error) {
+	plans, err := r.Cockpit.WorkspacePlans(ctx, since)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return convertWorkspacePlans(plans), nil
+}

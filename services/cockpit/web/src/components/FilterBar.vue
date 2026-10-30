@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import FilterPill from '@/components/FilterPill.vue';
+import PlanHistory from '@/components/PlanHistory.vue';
 import RangeFilterPanel from '@/components/RangeFilterPanel.vue';
 import {
   choiceFilters,
@@ -80,9 +81,11 @@ function setRange(filter: RangeFilter, range: Range) {
             @change="toggle(filter, option.value)"
           >
           <component :is="option.icon" v-if="option.icon" class="size-4 text-muted-foreground" aria-hidden="true" />
+          <span v-if="option.swatch" class="size-2.5 shrink-0 rounded-[3px]" :class="option.swatch" aria-hidden="true" />
           <span class="flex-1">{{ option.label }}</span>
           <span class="text-muted-foreground">{{ count(option) }}</span>
         </label>
+        <PlanHistory v-if="filter.key === 'plan'" />
       </div>
     </FilterPill>
 

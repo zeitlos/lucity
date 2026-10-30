@@ -41,6 +41,10 @@ function trial(workspace: Workspace): boolean {
   return workspace.billing?.plan === Plan.None && workspace.billing.goodStanding;
 }
 
+function paid(workspace: Workspace): boolean {
+  return workspace.billing != null && workspace.billing.plan !== Plan.None;
+}
+
 const polling = ref(false);
 
 const { result: cached } = useQuery(CachedWorkspacesDocument);
@@ -371,7 +375,10 @@ onBeforeUnmount(() => {
             </div>
             <span class="truncate text-muted-foreground">{{ relativeTime(workspace.createdAt) }}</span>
             <SignalIcons :signals="workspace.signals" :muted="workspace.suspended" />
-            <span class="truncate" :class="trial(workspace) ? 'text-muted-foreground' : toneClass[plan(workspace).tone]">{{ plan(workspace).text }}</span>
+            <span
+              class="truncate"
+              :class="[trial(workspace) ? 'text-muted-foreground' : toneClass[plan(workspace).tone], paid(workspace) ? 'font-medium' : '']"
+            >{{ plan(workspace).text }}</span>
             <span class="flex min-w-0 items-baseline gap-1.5">
               <template v-if="owner(workspace)?.account">
                 <a
@@ -387,11 +394,11 @@ onBeforeUnmount(() => {
               <span v-else class="truncate text-muted-foreground">{{ owner(workspace)?.email ?? 'No members' }}</span>
               <span v-if="workspace.members.length > 1" class="shrink-0 text-muted-foreground">+{{ workspace.members.length - 1 }}</span>
             </span>
-            <span class="text-right tabular-nums" :class="workspace.egress7d < lowEgress ? 'text-muted-foreground' : ''">{{ gigabytes(workspace.egress7d) }}</span>
+            <span class="text-right tabular-nums" :class="workspace.egress7d < lowEgress ? 'text-muted-foreground' : 'font-medium'">{{ gigabytes(workspace.egress7d) }}</span>
             <span class="text-right tabular-nums">
               {{ workspace.runningPods }}<span v-if="workspace.pendingPods" class="text-status-warn"> +{{ workspace.pendingPods }}</span>
             </span>
-            <span class="text-right tabular-nums" :class="workspace.memoryRequested < lowMemory ? 'text-muted-foreground' : ''">{{ memory(workspace.memoryRequested) }}</span>
+            <span class="text-right tabular-nums" :class="workspace.memoryRequested < lowMemory ? 'text-muted-foreground' : 'font-medium'">{{ memory(workspace.memoryRequested) }}</span>
             <span class="truncate">
               <span :class="toneClass[status(workspace).tone]">{{ status(workspace).text }}</span>
               <span v-if="status(workspace).note" class="text-muted-foreground"> · {{ status(workspace).note }}</span>

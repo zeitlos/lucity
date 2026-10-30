@@ -95,6 +95,15 @@ type WorkspaceList struct {
 	Workspaces []Workspace `json:"workspaces"`
 }
 
+// How many workspaces were on each plan at `at`. `none` has no subscription, `trial` has one without a plan.
+type WorkspacePlan struct {
+	At    time.Time `json:"at"`
+	None  int       `json:"none"`
+	Trial int       `json:"trial"`
+	Hobby int       `json:"hobby"`
+	Pro   int       `json:"pro"`
+}
+
 type WorkspaceResult struct {
 	WorkspaceID string `json:"workspaceID"`
 	// Why the change failed. Null when it succeeded.

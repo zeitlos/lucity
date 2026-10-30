@@ -148,6 +148,22 @@ func convertWorkspaceStandings(standings []cockpit.WorkspaceStanding) []model.Wo
 	return converted
 }
 
+func convertWorkspacePlans(plans []cockpit.WorkspacePlan) []model.WorkspacePlan {
+	converted := make([]model.WorkspacePlan, 0, len(plans))
+
+	for _, plan := range plans {
+		converted = append(converted, model.WorkspacePlan{
+			At:    plan.At,
+			None:  plan.None,
+			Trial: plan.Trial,
+			Hobby: plan.Hobby,
+			Pro:   plan.Pro,
+		})
+	}
+
+	return converted
+}
+
 func convertPlan(plan billing.Plan) model.Plan {
 	switch plan {
 	case billing.PlanHobby:

@@ -65,7 +65,7 @@ function weekday(date: Date): string {
   return date.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' });
 }
 
-function shortDate(date: Date): string {
+export function shortDate(date: Date): string {
   return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 }
 

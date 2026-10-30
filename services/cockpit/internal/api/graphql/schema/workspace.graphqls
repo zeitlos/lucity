@@ -99,6 +99,17 @@ extend type Query {
   environmentLogs(id: ID!, lines: Int! = 100 @constraint(constraint: "min=1,max=1000")): [String!]!
   """Workspaces per standing at every full hour after `since` and once more now, oldest first, reaching back at most 100 days. Hours without metrics are left out."""
   workspaceStandings(since: Time!): [WorkspaceStanding!]!
+  """Workspaces per plan at every full hour after `since` and once more now, oldest first, reaching back at most 100 days. Hours without metrics are left out."""
+  workspacePlans(since: Time!): [WorkspacePlan!]!
+}
+
+"""How many workspaces were on each plan at `at`. `none` has no subscription, `trial` has one without a plan."""
+type WorkspacePlan {
+  at: Time!
+  none: Int!
+  trial: Int!
+  hobby: Int!
+  pro: Int!
 }
 
 """How many workspaces were in each billing standing at `at`."""

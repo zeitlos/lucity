@@ -15,7 +15,7 @@
     --brand-mark: #8843db;
     --destructive: oklch(0.55 0.21 25);
 
-    --status-warn: oklch(0.48 0.11 70);
+    --status-warn: oklch(0.56 0.145 50);
     --status-danger: oklch(0.50 0.19 25);
     --status-danger-background: oklch(0.92 0.045 25);
     --status-progress: oklch(0.50 0.20 300);

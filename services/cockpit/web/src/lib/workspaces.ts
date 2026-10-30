@@ -87,6 +87,7 @@ export type FilterOption = {
   value: string;
   label: string;
   icon?: Component;
+  swatch?: string;
   test: (workspace: Workspace) => boolean;
 };
 
@@ -109,8 +110,8 @@ function signal(value: string, label: string, kind: SignalKind): FilterOption {
   return { value, label, icon: signalIcons[kind], test: (workspace) => workspace.signals.some((candidate) => candidate.kind === kind) };
 }
 
-function onPlan(value: string, label: string, plan: Plan): FilterOption {
-  return { value, label, test: (workspace) => workspace.billing?.plan === plan };
+function onPlan(value: string, label: string, plan: Plan, swatch: string): FilterOption {
+  return { value, label, swatch, test: (workspace) => workspace.billing?.plan === plan };
 }
 
 export const choiceFilters: ChoiceFilter[] = [
@@ -118,10 +119,10 @@ export const choiceFilters: ChoiceFilter[] = [
     key: 'plan',
     label: 'Plan',
     options: [
-      { value: 'none', label: 'No subscription', test: (workspace) => workspace.billing == null },
-      onPlan('trial', 'Trial', Plan.None),
-      onPlan('hobby', 'Hobby', Plan.Hobby),
-      onPlan('pro', 'Pro', Plan.Pro),
+      { value: 'none', label: 'No subscription', swatch: 'bg-foreground/12', test: (workspace) => workspace.billing == null },
+      onPlan('trial', 'Trial', Plan.None, 'bg-foreground/30'),
+      onPlan('hobby', 'Hobby', Plan.Hobby, 'bg-foreground/55'),
+      onPlan('pro', 'Pro', Plan.Pro, 'bg-foreground'),
     ],
   },
   {
