@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { ChevronsUpDown } from '@lucide/vue';
-import { useQuery } from '@vue/apollo-composable';
+import { useGlobalMutationLoading, useGlobalQueryLoading, useQuery } from '@vue/apollo-composable';
 
+import BrandMark from '@/components/BrandMark.vue';
 import WorkspacesView from '@/components/WorkspacesView.vue';
 import { graphql } from '@/gql';
 import { apolloClient } from '@/lib/apollo';
@@ -12,6 +14,10 @@ const EnvironmentDocument = graphql(`
     environment
   }
 `);
+
+const queryLoading = useGlobalQueryLoading();
+const mutationLoading = useGlobalMutationLoading();
+const loading = computed(() => queryLoading.value || mutationLoading.value);
 
 const { error, onResult } = useQuery(EnvironmentDocument);
 
@@ -30,12 +36,9 @@ async function switchTo(name: string) {
 <template>
   <div class="flex h-screen flex-col">
     <header class="flex h-13 shrink-0 items-center gap-2 border-b bg-sidebar pr-4 pl-24">
-      <svg viewBox="0 0 250 181" class="h-[13px] w-[18px]" aria-hidden="true">
-        <path
-          class="fill-brand-mark"
-          d="M 130 0 L 130 76 C 130 102.64, 114.4 112, 70 112 L 60 112 C 15.6 112, 0 121.36, 0 148 L 0 181 L 169 181 L 169 148 C 169 121.36, 178.23 112, 204.5 112 L 214.5 112 C 240.77 112, 250 102.64, 250 76 L 250 0 Z"
-        />
-      </svg>
+      <BrandMark :loading="loading" />
+      <span v-if="loading" class="sr-only">Loading</span>
+      <span class="mx-1 h-4 w-px bg-border" aria-hidden="true" />
       <h1 class="font-semibold">Workspaces</h1>
       <label class="relative ml-auto flex items-center">
         <span class="sr-only">Environment</span>
