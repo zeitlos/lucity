@@ -4,7 +4,7 @@ description: How Lucity handles your data.
 ---
 
 **Effective date:** March 16, 2026
-**Last updated:** October 1, 2026
+**Last updated:** October 30, 2026
 
 This privacy policy explains how lucity.cloud ("Lucity", "we", "us") collects, uses, and protects your data.
 
@@ -36,12 +36,26 @@ When you use the platform, we process:
 
 ### Analytics
 
-We use [Rybbit](https://rybbit.com) (self-hosted) for website analytics. Rybbit is cookie-free, does not collect personal data, and does not track users across websites. No cookie consent banner is required.
+We use [Rybbit](https://rybbit.com) for analytics on lucity.cloud, covering both the website and the dashboard. Rybbit runs in our own cluster, so analytics data stays on our infrastructure.
+
+When you visit lucity.cloud, Rybbit records:
+
+- **Page views**: the pages you visit, including URL query parameters, the page title, and the referring page
+- **Technical details**: browser, operating system, device type, screen size, and language
+- **Approximate location**: country, region, and city, looked up from your IP address. The IP address itself is not stored.
+- **Outbound links and errors**: links to other sites that you click, and JavaScript errors on our pages
+- **Session replays**: a recording of what our pages display and how you interact with them (navigation, scrolling, clicks), so we can find and fix usability problems. Form inputs are masked.
+
+Visitors are counted with a pseudonymous identifier derived from a hash of your IP address and browser. Rybbit does not set cookies. It stores a random identifier in your browser's local storage and a per-session flag in session storage.
+
+When you sign in to the dashboard, we link your analytics to your account by sending Rybbit your user ID, name, email address, and active workspace. From then on, your visits to lucity.cloud in that browser, including session replays, are associated with your account until you sign out.
+
+We do not use analytics for advertising, and we do not track you across other websites.
 
 ### What We Do Not Collect
 
 - We do not read or store your application source code beyond what is needed during the build process
-- We do not use cookies for tracking
+- We do not use cookies or local storage for advertising or cross-site tracking
 - We do not build advertising profiles
 - We do not sell your data
 
@@ -50,7 +64,7 @@ We use [Rybbit](https://rybbit.com) (self-hosted) for website analytics. Rybbit 
 - **Provide the service**: run your workloads, manage deployments, process builds
 - **Billing**: calculate resource usage, process payments, send invoices
 - **Communication**: service notifications, security alerts, billing updates
-- **Improve the platform**: aggregated, anonymized usage patterns
+- **Improve the platform**: analytics and session replays, as described under Analytics
 
 ## 3. Data Processing and Storage
 
@@ -79,7 +93,7 @@ For your **account and billing data**, we are the data controller, and this poli
 - **Account data**: retained while your account is active. Deleted within 30 days of account deletion.
 - **Build artifacts and logs**: retained while the associated project exists.
 - **Billing records**: retained for 10 years as required by Swiss law (OR Art. 958f).
-- **Analytics data**: aggregated and anonymous; no personal data retained.
+- **Analytics data**: session replays are deleted after 30 days. Other analytics events, and the account details linked to them, are kept for as long as they help us compare usage over time, and are deleted on request.
 
 ## 5. Your Rights
 
