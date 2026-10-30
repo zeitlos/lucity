@@ -266,7 +266,16 @@ func (c *Client) resume(ctx context.Context, ws, customerID string) {
 	}
 
 	if abuse, _ := org.CustomData["abuse"].(bool); abuse {
-		return
+		paid, err := c.billing.Paid(ctx, customerID)
+
+		if err != nil {
+			slog.WarnContext(ctx, "resume after checkout: failed to read plan", "workspace", ws, "error", err)
+			return
+		}
+
+		if !paid {
+			return
+		}
 	}
 
 	if suspended, _ := org.CustomData["suspended"].(bool); !suspended {

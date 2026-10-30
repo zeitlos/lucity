@@ -342,6 +342,12 @@ func (w *Worker) verdicts(ctx context.Context, organizations []logto.Organizatio
 		if w.billing.Paid(subscription) {
 			verdict.paid = true
 			paid++
+
+			if verdict.reason == "abuse" {
+				verdict.judged = false
+				verdict.suspended = false
+				verdict.reason = ""
+			}
 		}
 
 		verdicts[organization.Name] = verdict
