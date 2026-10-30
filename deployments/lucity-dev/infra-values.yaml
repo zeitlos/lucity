@@ -124,6 +124,19 @@ gateway:
         mode: Terminate
         certificateRefs:
           - name: id-lucity-dev-tls
+    - name: analytics-http
+      protocol: HTTP
+      port: 80
+      hostname: p.lucity.dev
+      httpsRedirect: true
+    - name: analytics-https
+      protocol: HTTPS
+      port: 443
+      hostname: p.lucity.dev
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: p-lucity-dev-tls
 
 clusterIssuers:
   - name: letsencrypt-dns01
@@ -184,6 +197,12 @@ certificates:
       name: letsencrypt-dns01
     dnsNames:
       - id.lucity.dev
+  - name: p-lucity-dev-tls
+    secretName: p-lucity-dev-tls
+    issuerRef:
+      name: letsencrypt-dns01
+    dnsNames:
+      - p.lucity.dev
 
 plugin-barman-cloud:
   enabled: false
@@ -194,6 +213,10 @@ backups:
 rybbit:
   enabled: true
   hostname: p.lucity.dev
+  route:
+    annotations:
+      external-dns.kubernetes.io/hostname: p.lucity.dev
+    sectionName: analytics-https
   backend:
     baseUrl: "https://p.lucity.dev"
   redis:
