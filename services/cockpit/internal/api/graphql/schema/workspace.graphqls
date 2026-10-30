@@ -27,6 +27,10 @@ type Billing {
   goodStanding: Boolean!
   standingReason: String
   hasPaymentMethod: Boolean!
+  """The workspace's customer in the billing provider's dashboard."""
+  customerURL: String!
+  """The workspace's subscription in the billing provider's dashboard."""
+  subscriptionURL: String!
 }
 
 enum Plan {
@@ -36,9 +40,16 @@ enum Plan {
 }
 
 type Member {
+  """The user's ID in the identity provider, the same in every workspace they belong to."""
+  id: ID!
   name: String
   email: String
+  """The user's picture, taken from their source-control account."""
+  avatar: String
   role: String
+  signedUpAt: Time!
+  """Null when the user never signed in."""
+  lastSignInAt: Time
   """The member's source-control account. Null when there is none or it no longer exists."""
   account: Account
 }

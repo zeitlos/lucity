@@ -1,27 +1,27 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { useMutation, useQuery } from '@vue/apollo-composable';
-import { ArrowDown, ArrowUp, Ban, Copy, RefreshCw, Search, X } from '@lucide/vue';
+import { ArrowDown, ArrowUp, Ban, ChevronLeft, Copy, RefreshCw, Search, X } from '@lucide/vue';
 
 import FilterBar from '@/components/FilterBar.vue';
 import MarkAbuseDialog from '@/components/MarkAbuseDialog.vue';
 import ResultToast from '@/components/ResultToast.vue';
 import SignalIcons from '@/components/SignalIcons.vue';
 import TrendCharts from '@/components/TrendCharts.vue';
+import UserDrawer from '@/components/UserDrawer.vue';
 import WorkspacePeek from '@/components/WorkspacePeek.vue';
 import { Plan } from '@/gql/graphql';
 import { age, gigabytes, loadedTime, memory, relativeTime } from '@/lib/format';
+import { displayName, findUser } from '@/lib/users';
 import {
   CachedWorkspacesDocument,
   ClearAbuseDocument,
   MarkAbuseDocument,
   WorkspacesDocument,
   avatarStyle,
-  githubProfile,
   hasStrongSignal,
   initial,
   matches,
-  openExternal,
   owner,
   plan,
   status,
@@ -185,15 +185,49 @@ async function copyNames() {
   await navigator.clipboard.writeText(selectedWorkspaces.value.map((workspace) => workspace.id).join('\n'));
 }
 
-const peekID = ref<string | null>(null);
-const peekIndex = computed(() => visible.value.findIndex((workspace) => workspace.id === peekID.value));
-const peekWorkspace = computed(() => workspaces.value.find((workspace) => workspace.id === peekID.value) ?? null);
+type Drawer = { kind: 'workspace' | 'user'; id: string };
+
+const drawerOffsets = [0, 40, 72];
+
+const drawers = ref<Drawer[]>([]);
+const topDrawer = computed(() => drawers.value[drawers.value.length - 1] ?? null);
+const peekID = computed(() => drawers.value.filter((drawer) => drawer.kind === 'workspace').pop()?.id ?? null);
+
+const deck = computed(() => drawers.value.map((drawer, index) => {
+  const workspace = drawer.kind === 'workspace' ? workspaces.value.find((candidate) => candidate.id === drawer.id) ?? null : null;
+  const user = drawer.kind === 'user' ? findUser(workspaces.value, drawer.id) : null;
+
+  return {
+    index,
+    workspace,
+    user,
+    position: workspace ? visible.value.findIndex((candidate) => candidate.id === workspace.id) + 1 : 0,
+    offset: drawerOffsets[Math.min(drawers.value.length - 1 - index, drawerOffsets.length - 1)]!,
+    label: workspace?.id ?? (user ? displayName(user) : drawer.id),
+  };
+}));
+
+function show(drawer: Drawer) {
+  drawers.value = [drawer];
+}
+
+function openFrom(index: number, drawer: Drawer) {
+  const existing = drawers.value.findIndex((candidate, position) => position <= index && candidate.kind === drawer.kind && candidate.id === drawer.id);
+
+  drawers.value = existing >= 0 ? drawers.value.slice(0, existing + 1) : [...drawers.value.slice(0, index + 1), drawer];
+}
+
+function backTo(length: number) {
+  drawers.value = drawers.value.slice(0, length);
+}
 
 function step(offset: number) {
-  if (visible.value.length === 0) return;
+  if (topDrawer.value?.kind !== 'workspace' || visible.value.length === 0) return;
 
-  const index = Math.min(Math.max(peekIndex.value + offset, 0), visible.value.length - 1);
-  peekID.value = visible.value[index]!.id;
+  const current = visible.value.findIndex((workspace) => workspace.id === topDrawer.value!.id);
+  const index = Math.min(Math.max(current + offset, 0), visible.value.length - 1);
+
+  drawers.value = [...drawers.value.slice(0, -1), { kind: 'workspace', id: visible.value[index]!.id }];
 }
 
 const dialogWorkspaces = ref<Workspace[] | null>(null);
@@ -242,17 +276,17 @@ function retry(workspaceIDs: string[]) {
 function onKeydown(event: KeyboardEvent) {
   const target = event.target as HTMLElement | null;
 
-  if (dialogWorkspaces.value || target?.closest('input, textarea') || document.querySelector(':popover-open')) return;
+  if (dialogWorkspaces.value || target?.closest('input, textarea') || document.querySelector(':popover-open, dialog[open]')) return;
 
   if (event.key === '/') {
     event.preventDefault();
     searchInput.value?.focus();
-  } else if (peekID.value && event.key === 'j') {
+  } else if (topDrawer.value?.kind === 'workspace' && event.key === 'j') {
     step(1);
-  } else if (peekID.value && event.key === 'k') {
+  } else if (topDrawer.value?.kind === 'workspace' && event.key === 'k') {
     step(-1);
   } else if (event.key === 'Escape') {
-    peekID.value = null;
+    backTo(drawers.value.length - 1);
   }
 }
 
@@ -357,7 +391,7 @@ onBeforeUnmount(() => {
                     : 'hover:bg-background/60',
               workspace.suspended ? 'text-muted-foreground' : '',
             ]"
-            @click="peekID = workspace.id"
+            @click="show({ kind: 'workspace', id: workspace.id })"
           >
             <input
               type="checkbox"
@@ -381,17 +415,23 @@ onBeforeUnmount(() => {
             >{{ plan(workspace).text }}</span>
             <span class="flex min-w-0 items-baseline gap-1.5">
               <template v-if="owner(workspace)?.account">
-                <a
-                  :href="githubProfile(owner(workspace)!.account!.login)"
-                  class="truncate hover:underline"
+                <button
+                  type="button"
+                  class="truncate text-left hover:underline"
                   :class="youngAccount(workspace) ? '' : 'text-muted-foreground'"
-                  @click.prevent.stop="openExternal(githubProfile(owner(workspace)!.account!.login))"
-                >{{ owner(workspace)!.account!.login }}</a>
+                  @click.stop="show({ kind: 'user', id: owner(workspace)!.id })"
+                >{{ owner(workspace)!.account!.login }}</button>
                 <span class="shrink-0" :class="youngAccount(workspace) && !workspace.suspended ? 'text-status-warn' : 'text-muted-foreground'">
                   {{ age(owner(workspace)!.account!.createdAt) }}
                 </span>
               </template>
-              <span v-else class="truncate text-muted-foreground">{{ owner(workspace)?.email ?? 'No members' }}</span>
+              <button
+                v-else-if="owner(workspace)"
+                type="button"
+                class="truncate text-left text-muted-foreground hover:underline"
+                @click.stop="show({ kind: 'user', id: owner(workspace)!.id })"
+              >{{ owner(workspace)!.email ?? displayName(owner(workspace)!) }}</button>
+              <span v-else class="truncate text-muted-foreground">No members</span>
               <span v-if="workspace.members.length > 1" class="shrink-0 text-muted-foreground">+{{ workspace.members.length - 1 }}</span>
             </span>
             <span class="text-right tabular-nums" :class="workspace.egress7d < lowEgress ? 'text-muted-foreground' : 'font-medium'">{{ gigabytes(workspace.egress7d) }}</span>
@@ -413,7 +453,7 @@ onBeforeUnmount(() => {
       <div
         v-if="selected.size > 0"
         class="pointer-events-none absolute bottom-6 left-0 z-30 flex justify-center"
-        :class="peekWorkspace ? 'right-[480px]' : 'right-0'"
+        :class="drawers.length ? 'right-[480px]' : 'right-0'"
       >
         <div class="pointer-events-auto flex items-center gap-3 rounded-lg bg-foreground py-2 pr-2 pl-4 whitespace-nowrap text-background shadow-lg">
           <span class="flex flex-col gap-0.5">
@@ -438,17 +478,47 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <WorkspacePeek
-        v-if="peekWorkspace"
-        :workspace="peekWorkspace"
-        :position="peekIndex + 1"
-        :total="visible.length"
-        @close="peekID = null"
-        @previous="step(-1)"
-        @next="step(1)"
-        @mark="dialogWorkspaces = [peekWorkspace]"
-        @clear="clear([peekWorkspace.id])"
-      />
+      <TransitionGroup enter-from-class="translate-x-full" leave-to-class="translate-x-full">
+        <div
+          v-for="item in deck"
+          :key="item.index"
+          class="fixed inset-y-0 right-0 w-[480px] transition-[translate,transform] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none"
+          :style="{ zIndex: 20 + item.index, transform: `translateX(-${item.offset}px)` }"
+        >
+          <WorkspacePeek
+            v-if="item.workspace"
+            :workspace="item.workspace"
+            :position="item.position"
+            :total="visible.length"
+            :can-go-back="item.index > 0"
+            @back="backTo(item.index)"
+            @close="backTo(0)"
+            @member="openFrom(item.index, { kind: 'user', id: $event })"
+            @previous="step(-1)"
+            @next="step(1)"
+            @mark="dialogWorkspaces = [item.workspace]"
+            @clear="clear([item.workspace.id])"
+          />
+          <UserDrawer
+            v-else-if="item.user"
+            :user="item.user"
+            :can-go-back="item.index > 0"
+            @back="backTo(item.index)"
+            @close="backTo(0)"
+            @workspace="openFrom(item.index, { kind: 'workspace', id: $event })"
+          />
+          <button
+            v-if="item.index < deck.length - 1"
+            type="button"
+            class="group absolute inset-0 bg-foreground/5 transition-colors hover:bg-foreground/10"
+            :aria-label="`Back to ${item.label}`"
+            :title="`Back to ${item.label}`"
+            @click="backTo(item.index + 1)"
+          >
+            <ChevronLeft class="absolute top-1/2 left-3 size-4 -translate-y-1/2 opacity-0 transition-opacity group-hover:opacity-100" aria-hidden="true" />
+          </button>
+        </div>
+      </TransitionGroup>
 
       <MarkAbuseDialog
         v-if="dialogWorkspaces"

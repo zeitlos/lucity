@@ -12,8 +12,8 @@ export const WorkspaceFieldsDocument = graphql(`
     abuse
     abuseNote
     suspended
-    billing { plan trialEndsAt goodStanding standingReason hasPaymentMethod }
-    members { name email role account { login createdAt } }
+    billing { plan trialEndsAt goodStanding standingReason hasPaymentMethod customerURL subscriptionURL }
+    members { id name email avatar role signedUpAt lastSignInAt account { login createdAt } }
     signals { kind strong detail }
     runningPods
     pendingPods

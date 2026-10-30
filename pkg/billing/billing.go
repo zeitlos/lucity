@@ -52,6 +52,17 @@ func New(secretKey, hobbyPriceID, proPriceID string) *Client {
 	}
 }
 
+// Account returns the ID of the Stripe account the key belongs to.
+func (c *Client) Account(ctx context.Context) (string, error) {
+	account, err := c.stripe.V1Accounts.Retrieve(ctx, nil)
+
+	if err != nil {
+		return "", fmt.Errorf("retrieve account: %w", err)
+	}
+
+	return account.ID, nil
+}
+
 // Subscription returns the subscription a customer is billed through: the
 // best current one, or the newest ended one when every subscription has
 // ended. It returns nil only for a customer that never had a subscription.

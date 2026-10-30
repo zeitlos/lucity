@@ -22,6 +22,10 @@ type Billing struct {
 	GoodStanding     bool       `json:"goodStanding"`
 	StandingReason   *string    `json:"standingReason,omitempty"`
 	HasPaymentMethod bool       `json:"hasPaymentMethod"`
+	// The workspace's customer in the billing provider's dashboard.
+	CustomerURL string `json:"customerURL"`
+	// The workspace's subscription in the billing provider's dashboard.
+	SubscriptionURL string `json:"subscriptionURL"`
 }
 
 type Environment struct {
@@ -35,9 +39,16 @@ type Environment struct {
 }
 
 type Member struct {
+	// The user's ID in the identity provider, the same in every workspace they belong to.
+	ID    string  `json:"id"`
 	Name  *string `json:"name,omitempty"`
 	Email *string `json:"email,omitempty"`
-	Role  *string `json:"role,omitempty"`
+	// The user's picture, taken from their source-control account.
+	Avatar     *string   `json:"avatar,omitempty"`
+	Role       *string   `json:"role,omitempty"`
+	SignedUpAt time.Time `json:"signedUpAt"`
+	// Null when the user never signed in.
+	LastSignInAt *time.Time `json:"lastSignInAt,omitempty"`
 	// The member's source-control account. Null when there is none or it no longer exists.
 	Account *Account `json:"account,omitempty"`
 }
@@ -55,6 +66,26 @@ type Service struct {
 	Repository *string `json:"repository,omitempty"`
 }
 
+// One visit to the platform's own sites, as the web analytics recorded it.
+type Session struct {
+	ID        string    `json:"id"`
+	StartedAt time.Time `json:"startedAt"`
+	// Seconds between the first and the last event.
+	Duration  int    `json:"duration"`
+	EntryPage string `json:"entryPage"`
+	Pageviews int    `json:"pageviews"`
+	// ISO 3166-1 alpha-2 code, empty when unknown.
+	Country         string `json:"country"`
+	City            string `json:"city"`
+	Language        string `json:"language"`
+	Browser         string `json:"browser"`
+	OperatingSystem string `json:"operatingSystem"`
+	DeviceType      string `json:"deviceType"`
+	// Where the visit came from, empty for direct visits.
+	Referrer  string `json:"referrer"`
+	HasReplay bool   `json:"hasReplay"`
+}
+
 type Signal struct {
 	Kind   SignalKind `json:"kind"`
 	Strong bool       `json:"strong"`
@@ -65,6 +96,13 @@ type Signal struct {
 type SignupHour struct {
 	Start time.Time `json:"start"`
 	Count int       `json:"count"`
+}
+
+type UserSessions struct {
+	// The user's page in the web analytics, which lists these sessions and plays the recorded ones.
+	URL string `json:"url"`
+	// Newest first, at most 100.
+	Sessions []Session `json:"sessions"`
 }
 
 // A tenant of the platform, with what it runs and what points at abuse.

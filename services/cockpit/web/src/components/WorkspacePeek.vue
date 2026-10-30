@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { Ban, ChevronDown, ChevronUp, RotateCcw, X } from '@lucide/vue';
+import { Ban, ChevronDown, ChevronLeft, ChevronUp, ExternalLink, RotateCcw, X } from '@lucide/vue';
 
 import EnvironmentLogs from '@/components/EnvironmentLogs.vue';
+import GitHubIcon from '@/components/GitHubIcon.vue';
+import UserAvatar from '@/components/UserAvatar.vue';
+import { displayName } from '@/lib/users';
 import { age, bytes, day, memory, relativeTime } from '@/lib/format';
 import {
   avatarStyle,
-  githubProfile,
   initial,
   openExternal,
   owner,
@@ -25,10 +27,13 @@ const props = defineProps<{
   workspace: Workspace;
   position: number;
   total: number;
+  canGoBack: boolean;
 }>();
 
 const emit = defineEmits<{
+  back: [];
   close: [];
+  member: [id: string];
   previous: [];
   next: [];
   mark: [];
@@ -75,11 +80,11 @@ function commitURL(repository: string, commit: string): string {
 </script>
 
 <template>
-  <aside
-    class="fixed inset-y-0 right-0 z-20 flex w-[480px] flex-col border-l bg-card shadow-lg"
-    :aria-label="`Workspace ${workspace.id}`"
-  >
+  <aside class="flex h-full flex-col border-l bg-card shadow-lg" :aria-label="`Workspace ${workspace.id}`">
     <header class="flex h-13 shrink-0 items-center gap-2.5 border-b bg-sidebar pr-2.5 pl-4">
+      <button v-if="canGoBack" type="button" class="-ml-2 flex size-8 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted" aria-label="Back" @click="emit('back')">
+        <ChevronLeft class="size-4" aria-hidden="true" />
+      </button>
       <span class="flex size-6 shrink-0 items-center justify-center rounded-xs font-semibold" :style="avatarStyle(workspace.id)" aria-hidden="true">
         {{ initial(workspace.id) }}
       </span>
@@ -102,6 +107,18 @@ function commitURL(repository: string, commit: string): string {
           <dd :class="toneClass[plan(workspace).tone]">{{ plan(workspace).text }}</dd>
           <dd v-if="workspace.billing" class="text-muted-foreground">
             {{ workspace.billing.hasPaymentMethod ? 'Payment method on file' : 'No payment method' }}
+          </dd>
+          <dd v-if="workspace.billing" class="mt-1 flex gap-3">
+            <a
+              :href="workspace.billing.customerURL"
+              class="flex items-center gap-1 hover:underline"
+              @click.prevent="openExternal(workspace.billing.customerURL)"
+            >Customer <ExternalLink class="size-3.5" aria-hidden="true" /></a>
+            <a
+              :href="workspace.billing.subscriptionURL"
+              class="flex items-center gap-1 hover:underline"
+              @click.prevent="openExternal(workspace.billing.subscriptionURL)"
+            >Subscription <ExternalLink class="size-3.5" aria-hidden="true" /></a>
           </dd>
         </div>
       </dl>
@@ -146,11 +163,10 @@ function commitURL(repository: string, commit: string): string {
         </ul>
       </section>
 
-      <section class="border-b border-hairline pt-3">
-        <h3 class="flex items-baseline gap-1.5 px-4 pt-1 pb-2 font-medium">
-          Members <span class="font-normal text-muted-foreground">{{ workspace.members.length }}</span>
-        </h3>
-        <div class="grid h-8 items-center gap-x-3 border-y border-hairline bg-sidebar px-4 whitespace-nowrap text-muted-foreground" :class="memberColumns">
+      <section class="border-b border-hairline pt-4">
+        <p v-if="!workspace.members.length" class="border-t border-hairline px-4 py-2.5 text-muted-foreground">No members</p>
+        <div
+          v-else class="grid h-8 items-center gap-x-3 border-y border-hairline bg-sidebar px-4 whitespace-nowrap text-muted-foreground" :class="memberColumns">
           <span>Member</span>
           <span>Email</span>
           <span>Role</span>
@@ -158,22 +174,21 @@ function commitURL(repository: string, commit: string): string {
         </div>
         <div
           v-for="member in workspace.members"
-          :key="(member.email ?? '') + (member.account?.login ?? '')"
-          class="grid min-h-9 items-center gap-x-3 border-b border-hairline px-4 last:border-0"
+          :key="member.id"
+          class="grid min-h-10 items-center gap-x-3 border-b border-hairline px-4 last:border-0"
           :class="memberColumns"
         >
-          <a
-            v-if="member.account"
-            :href="githubProfile(member.account.login)"
-            class="truncate hover:underline"
-            @click.prevent="openExternal(githubProfile(member.account.login))"
-          >{{ member.account.login }}</a>
-          <span v-else class="truncate">{{ member.name }}</span>
+          <button type="button" class="flex min-w-0 items-center gap-2 text-left hover:underline" @click="emit('member', member.id)">
+            <UserAvatar :src="member.avatar" :label="displayName(member)" class="size-5" />
+            <span class="truncate">{{ member.account?.login ?? displayName(member) }}</span>
+          </button>
           <span class="truncate text-muted-foreground" :title="member.email ?? undefined">{{ member.email }}</span>
           <span class="text-muted-foreground">{{ member.role }}</span>
-          <span :class="youngOwner(member) ? 'text-status-warn' : 'text-muted-foreground'">
-            {{ member.account ? age(member.account.createdAt) : '' }}
+          <span v-if="member.account" class="flex items-center gap-1.5 whitespace-nowrap" :class="youngOwner(member) ? 'text-status-warn' : 'text-muted-foreground'">
+            <GitHubIcon class="size-3 shrink-0" />
+            {{ age(member.account.createdAt) }}
           </span>
+          <span v-else />
         </div>
       </section>
 

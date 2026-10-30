@@ -3,7 +3,9 @@ package cockpit
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/stripe/stripe-go/v87"
@@ -106,6 +108,8 @@ func (c *Client) load(ctx context.Context) ([]Workspace, error) {
 					GoodStanding:     standing.Good,
 					StandingReason:   standing.Reason,
 					HasPaymentMethod: methods[customer],
+					CustomerURL:      c.stripeURL(subscription.Livemode, "customers", customer),
+					SubscriptionURL:  c.stripeURL(subscription.Livemode, "subscriptions", subscription.ID),
 				}
 
 				if workspace.Billing.Plan == billing.PlanNone {
@@ -117,7 +121,17 @@ func (c *Client) load(ctx context.Context) ([]Workspace, error) {
 		fact := signals.Workspace{ID: workspace.ID, CreatedAt: workspace.CreatedAt}
 
 		for _, member := range members[organization.ID] {
-			result := Member{Name: member.Name, Email: member.Email}
+			result := Member{
+				ID:         member.ID,
+				Name:       member.Name,
+				Email:      member.Email,
+				Avatar:     member.Avatar,
+				SignedUpAt: time.UnixMilli(member.CreatedAt),
+			}
+
+			if member.LastSignInAt > 0 {
+				result.LastSignInAt = time.UnixMilli(member.LastSignInAt)
+			}
 
 			if len(member.OrgRoles) > 0 {
 				result.Role = member.OrgRoles[0].Name
@@ -164,6 +178,20 @@ func (c *Client) load(ctx context.Context) ([]Workspace, error) {
 	})
 
 	return workspaces, nil
+}
+
+func (c *Client) stripeURL(livemode bool, resource, id string) string {
+	parts := []string{"https://dashboard.stripe.com"}
+
+	if c.stripeAccount != "" {
+		parts = append(parts, c.stripeAccount)
+	}
+
+	if !livemode {
+		parts = append(parts, "test")
+	}
+
+	return strings.Join(append(parts, resource, url.PathEscape(id)), "/")
 }
 
 func unique[T comparable](values []T) []T {

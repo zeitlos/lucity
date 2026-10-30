@@ -12,6 +12,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/logto"
 	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/victoria"
+	"github.com/zeitlos/lucity/services/cockpit/internal/rybbit"
 	"github.com/zeitlos/lucity/services/cockpit/internal/signals"
 )
 
@@ -31,13 +32,18 @@ type Client struct {
 	kubernetes      kubernetes.Interface
 	metrics         *victoria.Client
 	github          *gh.Client
+	analytics       *rybbit.Client
+	stripeAccount   string
 
 	mu       sync.Mutex
 	accounts map[int64]*Account
 	parents  map[string]string
 }
 
-func New(environment, cacheDirectory string, identity *logto.Client, billing *billing.Client, kubernetes kubernetes.Interface, metrics *victoria.Client, github *gh.Client) *Client {
+// New builds the client. analytics is nil when the environment has no Rybbit
+// API key, and stripeAccount is empty when the Stripe key cannot read its
+// account.
+func New(environment, cacheDirectory string, identity *logto.Client, billing *billing.Client, kubernetes kubernetes.Interface, metrics *victoria.Client, github *gh.Client, analytics *rybbit.Client, stripeAccount string) *Client {
 	client := &Client{
 		environment:     environment,
 		snapshotPath:    filepath.Join(cacheDirectory, "workspaces-"+environment+".json"),
@@ -47,6 +53,8 @@ func New(environment, cacheDirectory string, identity *logto.Client, billing *bi
 		kubernetes:      kubernetes,
 		metrics:         metrics,
 		github:          github,
+		analytics:       analytics,
+		stripeAccount:   stripeAccount,
 		accounts:        map[int64]*Account{},
 		parents:         map[string]string{},
 	}
@@ -82,13 +90,19 @@ type Billing struct {
 	GoodStanding     bool
 	StandingReason   string
 	HasPaymentMethod bool
+	CustomerURL      string
+	SubscriptionURL  string
 }
 
 type Member struct {
-	Name    string
-	Email   string
-	Role    string
-	Account *Account
+	ID           string
+	Name         string
+	Email        string
+	Avatar       string
+	Role         string
+	SignedUpAt   time.Time
+	LastSignInAt time.Time
+	Account      *Account
 }
 
 type Account struct {

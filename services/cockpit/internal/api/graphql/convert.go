@@ -68,18 +68,51 @@ func convertBilling(b cockpit.Billing) *model.Billing {
 		GoodStanding:     b.GoodStanding,
 		StandingReason:   optional(b.StandingReason),
 		HasPaymentMethod: b.HasPaymentMethod,
+		CustomerURL:      b.CustomerURL,
+		SubscriptionURL:  b.SubscriptionURL,
 	}
 }
 
 func convertMember(member cockpit.Member) model.Member {
 	result := model.Member{
-		Name:  optional(member.Name),
-		Email: optional(member.Email),
-		Role:  optional(member.Role),
+		ID:           member.ID,
+		Name:         optional(member.Name),
+		Email:        optional(member.Email),
+		Avatar:       optional(member.Avatar),
+		Role:         optional(member.Role),
+		SignedUpAt:   member.SignedUpAt,
+		LastSignInAt: optionalTime(member.LastSignInAt),
 	}
 
 	if member.Account != nil {
 		result.Account = &model.Account{Login: member.Account.Login, CreatedAt: member.Account.CreatedAt}
+	}
+
+	return result
+}
+
+func convertUserSessions(sessions cockpit.UserSessions) *model.UserSessions {
+	result := &model.UserSessions{
+		URL:      sessions.URL,
+		Sessions: make([]model.Session, 0, len(sessions.Sessions)),
+	}
+
+	for _, session := range sessions.Sessions {
+		result.Sessions = append(result.Sessions, model.Session{
+			ID:              session.ID,
+			StartedAt:       session.StartedAt,
+			Duration:        int(session.Duration.Seconds()),
+			EntryPage:       session.EntryPage,
+			Pageviews:       session.Pageviews,
+			Country:         session.Country,
+			City:            session.City,
+			Language:        session.Language,
+			Browser:         session.Browser,
+			OperatingSystem: session.OperatingSystem,
+			DeviceType:      session.DeviceType,
+			Referrer:        session.Referrer,
+			HasReplay:       session.HasReplay,
+		})
 	}
 
 	return result

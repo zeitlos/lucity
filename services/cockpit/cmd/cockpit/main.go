@@ -75,11 +75,22 @@ func main() {
 		},
 	})
 
+	links := []string{"https://github.com/", "https://dashboard.stripe.com/"}
+
+	for _, name := range knownEnvironments {
+		if base, err := analyticsBase(filepath.Join(*deployments, "lucity-"+name)); err == nil && base != "" {
+			links = append(links, base+"/")
+		}
+	}
+
 	mux.HandleFunc("POST /open", func(w http.ResponseWriter, r *http.Request) {
 		url, err := io.ReadAll(io.LimitReader(r.Body, 2048))
+		allowed := slices.ContainsFunc(links, func(prefix string) bool {
+			return strings.HasPrefix(string(url), prefix)
+		})
 
-		if err != nil || !strings.HasPrefix(string(url), "https://github.com/") {
-			http.Error(w, "only github.com links open", http.StatusBadRequest)
+		if err != nil || !allowed {
+			http.Error(w, "only GitHub, Stripe and analytics links open", http.StatusBadRequest)
 			return
 		}
 

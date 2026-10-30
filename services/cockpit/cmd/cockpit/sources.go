@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/exec"
@@ -24,6 +25,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/logto"
 	"github.com/zeitlos/lucity/pkg/victoria"
 	"github.com/zeitlos/lucity/services/cockpit/internal/cockpit"
+	"github.com/zeitlos/lucity/services/cockpit/internal/rybbit"
 )
 
 const (
@@ -32,6 +34,7 @@ const (
 	identityPort      = 3001
 	metricsService    = "lucity-infra-victoria-metrics-single-server"
 	metricsPort       = 8428
+	analyticsSite     = 1
 )
 
 type secretsFile struct {
@@ -42,6 +45,20 @@ type valuesFile struct {
 	Conductor struct {
 		Env map[string]string `yaml:"env"`
 	} `yaml:"conductor"`
+}
+
+type infraValuesFile struct {
+	Rybbit struct {
+		Hostname string `yaml:"hostname"`
+	} `yaml:"rybbit"`
+}
+
+type infraSecretsFile struct {
+	Rybbit struct {
+		Secrets struct {
+			APIKey string `yaml:"apiKey"`
+		} `yaml:"secrets"`
+	} `yaml:"rybbit"`
 }
 
 func connect(ctx context.Context, environment, deployments string) (*cockpit.Client, error) {
@@ -109,13 +126,59 @@ func connect(ctx context.Context, environment, deployments string) (*cockpit.Cli
 	identity := logto.New(identityURL, secrets.Secrets["LOGTO_M2M_APP_ID"], secrets.Secrets["LOGTO_M2M_APP_SECRET"])
 	billingClient := billing.New(secrets.Secrets["STAGEHAND_STRIPE_SECRET_KEY"], values.Conductor.Env["STRIPE_HOBBY_PRICE_ID"], values.Conductor.Env["STRIPE_PRO_PRICE_ID"])
 
+	stripeAccount, err := billingClient.Account(ctx)
+
+	if err != nil {
+		slog.Warn("Stripe links leave out the account", "environment", environment, "error", err)
+	}
+
+	analytics, err := analyticsClient(directory)
+
+	if err != nil {
+		return nil, err
+	}
+
 	cacheDirectory, err := os.UserCacheDir()
 
 	if err != nil {
 		return nil, err
 	}
 
-	return cockpit.New(environment, filepath.Join(cacheDirectory, "lucity-cockpit"), identity, billingClient, kube, metrics, github), nil
+	return cockpit.New(environment, filepath.Join(cacheDirectory, "lucity-cockpit"), identity, billingClient, kube, metrics, github, analytics, stripeAccount), nil
+}
+
+func analyticsClient(directory string) (*rybbit.Client, error) {
+	var secrets infraSecretsFile
+
+	base, err := analyticsBase(directory)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := readYAML(filepath.Join(directory, "infra-secrets.yaml"), &secrets); err != nil {
+		return nil, err
+	}
+
+	if base == "" || secrets.Rybbit.Secrets.APIKey == "" {
+		return nil, nil
+	}
+
+	return rybbit.New(base, secrets.Rybbit.Secrets.APIKey, analyticsSite), nil
+}
+
+func analyticsBase(directory string) (string, error) {
+	var values infraValuesFile
+
+	if err := readYAML(filepath.Join(directory, "infra-values.yaml"), &values); err != nil {
+		return "", err
+	}
+
+	if values.Rybbit.Hostname == "" {
+		return "", nil
+	}
+
+	return "https://" + values.Rybbit.Hostname, nil
 }
 
 func readYAML(path string, out any) error {

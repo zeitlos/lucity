@@ -1,0 +1,33 @@
+"""One visit to the platform's own sites, as the web analytics recorded it."""
+type Session {
+  id: ID!
+  startedAt: Time!
+  """Seconds between the first and the last event."""
+  duration: Int!
+  entryPage: String!
+  pageviews: Int!
+  """ISO 3166-1 alpha-2 code, empty when unknown."""
+  country: String!
+  city: String!
+  language: String!
+  browser: String!
+  operatingSystem: String!
+  deviceType: String!
+  """Where the visit came from, empty for direct visits."""
+  referrer: String!
+  hasReplay: Boolean!
+}
+
+type UserSessions {
+  """The user's page in the web analytics, which lists these sessions and plays the recorded ones."""
+  url: String!
+  """Newest first, at most 100."""
+  sessions: [Session!]!
+}
+
+extend type Query {
+  """The sessions the web analytics recorded for a user."""
+  userSessions(userID: ID! @constraint(constraint: "required,alphanum,max=64")): UserSessions!
+  """A session's recording as a JSON array of DOM events, in the format the replay player reads. Fails when the session has none."""
+  sessionReplay(sessionID: ID! @constraint(constraint: "required,max=128,excludesall=/?#%.")): String!
+}
