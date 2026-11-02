@@ -2,7 +2,7 @@ import type { Component } from 'vue';
 import { Container, GitCommitHorizontal, GitFork, Sprout } from '@lucide/vue';
 
 import { graphql } from '@/gql';
-import { Plan, SignalKind, type WorkspaceFieldsFragment } from '@/gql/graphql';
+import { PaymentMethod, Plan, SignalKind, type WorkspaceFieldsFragment } from '@/gql/graphql';
 import { bytes, day, daysSince, daysUntil, duration, memory } from '@/lib/format';
 
 export const WorkspaceFieldsDocument = graphql(`
@@ -12,7 +12,8 @@ export const WorkspaceFieldsDocument = graphql(`
     abuse
     abuseNote
     suspended
-    billing { plan trialEndsAt goodStanding standingReason hasPaymentMethod customerURL subscriptionURL }
+    billing { plan trialEndsAt goodStanding standingReason customerURL subscriptionURL }
+    paymentMethod
     members { id name email avatar role signedUpAt lastSignInAt account { login createdAt } }
     signals { kind strong detail }
     runningPods
@@ -126,6 +127,14 @@ export const choiceFilters: ChoiceFilter[] = [
     ],
   },
   {
+    key: 'payment-method',
+    label: 'Payment method',
+    options: [
+      { value: 'on-file', label: 'On file', test: cardOnFile },
+      { value: 'none', label: 'Not on file', test: (workspace) => !cardOnFile(workspace) },
+    ],
+  },
+  {
     key: 'signals',
     label: 'Signals',
     options: [
@@ -140,7 +149,8 @@ export const choiceFilters: ChoiceFilter[] = [
     key: 'status',
     label: 'Status',
     options: [
-      { value: 'active', label: 'Active', test: (workspace) => !workspace.abuse && !workspace.suspended },
+      { value: 'active', label: 'Active', test: (workspace) => !workspace.abuse && !workspace.suspended && !cardRequired(workspace) },
+      { value: 'card-required', label: 'Card required', test: (workspace) => !workspace.abuse && !workspace.suspended && cardRequired(workspace) },
       { value: 'suspending', label: 'Suspending', test: (workspace) => workspace.abuse && !workspace.suspended },
       { value: 'suspended', label: 'Suspended', test: (workspace) => workspace.suspended },
     ],
@@ -242,7 +252,19 @@ export function status(workspace: Workspace): { text: string; note: string; tone
     return { text: 'Suspending', note: '', tone: 'progress' };
   }
 
+  if (cardRequired(workspace)) {
+    return { text: 'Card required', note: '', tone: 'warn' };
+  }
+
   return { text: 'Active', note: '', tone: 'default' };
+}
+
+export function cardRequired(workspace: Workspace): boolean {
+  return workspace.paymentMethod === PaymentMethod.Required;
+}
+
+export function cardOnFile(workspace: Workspace): boolean {
+  return workspace.paymentMethod === PaymentMethod.OnFile;
 }
 
 export function githubProfile(login: string): string {

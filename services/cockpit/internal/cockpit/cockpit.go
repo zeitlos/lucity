@@ -21,6 +21,7 @@ const (
 	abuseNoteKey = "abuseNote"
 	suspendedKey = "suspended"
 	customerKey  = "stripeCustomerId"
+	personalKey  = "personal"
 )
 
 type Client struct {
@@ -75,6 +76,7 @@ type Workspace struct {
 	AbuseNote       string
 	Suspended       bool
 	Billing         *Billing
+	PaymentMethod   PaymentMethod
 	Members         []Member
 	Signals         []signals.Signal
 	RunningPods     int
@@ -93,6 +95,16 @@ type Billing struct {
 	CustomerURL      string
 	SubscriptionURL  string
 }
+
+// PaymentMethod says whether a workspace has a payment method on file, or
+// is held back by the card gate until it adds a card.
+type PaymentMethod string
+
+const (
+	PaymentMethodNone     PaymentMethod = "none"
+	PaymentMethodOnFile   PaymentMethod = "on-file"
+	PaymentMethodRequired PaymentMethod = "required"
+)
 
 type Member struct {
 	ID           string

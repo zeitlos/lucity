@@ -45,13 +45,12 @@ type ComplexityRoot struct {
 	}
 
 	Billing struct {
-		CustomerURL      func(childComplexity int) int
-		GoodStanding     func(childComplexity int) int
-		HasPaymentMethod func(childComplexity int) int
-		Plan             func(childComplexity int) int
-		StandingReason   func(childComplexity int) int
-		SubscriptionURL  func(childComplexity int) int
-		TrialEndsAt      func(childComplexity int) int
+		CustomerURL     func(childComplexity int) int
+		GoodStanding    func(childComplexity int) int
+		Plan            func(childComplexity int) int
+		StandingReason  func(childComplexity int) int
+		SubscriptionURL func(childComplexity int) int
+		TrialEndsAt     func(childComplexity int) int
 	}
 
 	Environment struct {
@@ -140,6 +139,7 @@ type ComplexityRoot struct {
 		ID              func(childComplexity int) int
 		Members         func(childComplexity int) int
 		MemoryRequested func(childComplexity int) int
+		PaymentMethod   func(childComplexity int) int
 		PendingPods     func(childComplexity int) int
 		RunningPods     func(childComplexity int) int
 		Signals         func(childComplexity int) int
@@ -235,12 +235,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Billing.GoodStanding(childComplexity), true
-	case "Billing.hasPaymentMethod":
-		if e.ComplexityRoot.Billing.HasPaymentMethod == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Billing.HasPaymentMethod(childComplexity), true
 	case "Billing.plan":
 		if e.ComplexityRoot.Billing.Plan == nil {
 			break
@@ -664,6 +658,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Workspace.MemoryRequested(childComplexity), true
+	case "Workspace.paymentMethod":
+		if e.ComplexityRoot.Workspace.PaymentMethod == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Workspace.PaymentMethod(childComplexity), true
 	case "Workspace.pendingPods":
 		if e.ComplexityRoot.Workspace.PendingPods == nil {
 			break
@@ -895,8 +895,6 @@ func (ec *executionContext) childFields_Billing(ctx context.Context, field graph
 		return ec.fieldContext_Billing_goodStanding(ctx, field)
 	case "standingReason":
 		return ec.fieldContext_Billing_standingReason(ctx, field)
-	case "hasPaymentMethod":
-		return ec.fieldContext_Billing_hasPaymentMethod(ctx, field)
 	case "customerURL":
 		return ec.fieldContext_Billing_customerURL(ctx, field)
 	case "subscriptionURL":
@@ -1037,6 +1035,8 @@ func (ec *executionContext) childFields_Workspace(ctx context.Context, field gra
 		return ec.fieldContext_Workspace_suspended(ctx, field)
 	case "billing":
 		return ec.fieldContext_Workspace_billing(ctx, field)
+	case "paymentMethod":
+		return ec.fieldContext_Workspace_paymentMethod(ctx, field)
 	case "members":
 		return ec.fieldContext_Workspace_members(ctx, field)
 	case "signals":
@@ -1728,29 +1728,6 @@ func (ec *executionContext) _Billing_standingReason(ctx context.Context, field g
 }
 func (ec *executionContext) fieldContext_Billing_standingReason(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Billing", field, false, false, errors.New("field of type String does not have child fields"))
-}
-
-func (ec *executionContext) _Billing_hasPaymentMethod(ctx context.Context, field graphql.CollectedField, obj *model.Billing) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Billing_hasPaymentMethod(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.HasPaymentMethod, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
-			return ec.marshalNBoolean2bool(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_Billing_hasPaymentMethod(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Billing", field, false, false, errors.New("field of type Boolean does not have child fields"))
 }
 
 func (ec *executionContext) _Billing_customerURL(ctx context.Context, field graphql.CollectedField, obj *model.Billing) (ret graphql.Marshaler) {
@@ -3360,6 +3337,29 @@ func (ec *executionContext) fieldContext_Workspace_billing(_ context.Context, fi
 		},
 	}
 	return fc, nil
+}
+
+func (ec *executionContext) _Workspace_paymentMethod(ctx context.Context, field graphql.CollectedField, obj *model.Workspace) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Workspace_paymentMethod(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.PaymentMethod, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.PaymentMethod) graphql.Marshaler {
+			return ec.marshalNPaymentMethod2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋcockpitᚋinternalᚋapiᚋgraphqlᚋmodelᚐPaymentMethod(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Workspace_paymentMethod(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Workspace", field, false, false, errors.New("field of type PaymentMethod does not have child fields"))
 }
 
 func (ec *executionContext) _Workspace_members(ctx context.Context, field graphql.CollectedField, obj *model.Workspace) (ret graphql.Marshaler) {
@@ -5000,11 +5000,6 @@ func (ec *executionContext) _Billing(ctx context.Context, sel ast.SelectionSet, 
 			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
-		case "hasPaymentMethod":
-			out.Values[i] = ec._Billing_hasPaymentMethod(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "customerURL":
 			out.Values[i] = ec._Billing_customerURL(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -5807,6 +5802,11 @@ func (ec *executionContext) _Workspace(ctx context.Context, sel ast.SelectionSet
 			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
+		case "paymentMethod":
+			out.Values[i] = ec._Workspace_paymentMethod(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "members":
 			out.Values[i] = ec._Workspace_members(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -6567,6 +6567,16 @@ func (ec *executionContext) marshalNMember2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋ
 	}
 
 	return ret
+}
+
+func (ec *executionContext) unmarshalNPaymentMethod2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋcockpitᚋinternalᚋapiᚋgraphqlᚋmodelᚐPaymentMethod(ctx context.Context, v any) (model.PaymentMethod, error) {
+	var res model.PaymentMethod
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNPaymentMethod2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋcockpitᚋinternalᚋapiᚋgraphqlᚋmodelᚐPaymentMethod(ctx context.Context, sel ast.SelectionSet, v model.PaymentMethod) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) unmarshalNPlan2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋcockpitᚋinternalᚋapiᚋgraphqlᚋmodelᚐPlan(ctx context.Context, v any) (model.Plan, error) {

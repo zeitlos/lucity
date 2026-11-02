@@ -9,6 +9,7 @@ type Workspace {
   suspended: Boolean!
   """Null when the workspace has no subscription."""
   billing: Billing
+  paymentMethod: PaymentMethod!
   members: [Member!]!
   signals: [Signal!]!
   runningPods: Int!
@@ -26,7 +27,6 @@ type Billing {
   trialEndsAt: Time
   goodStanding: Boolean!
   standingReason: String
-  hasPaymentMethod: Boolean!
   """The workspace's customer in the billing provider's dashboard."""
   customerURL: String!
   """The workspace's subscription in the billing provider's dashboard."""
@@ -37,6 +37,15 @@ enum Plan {
   NONE
   HOBBY
   PRO
+}
+
+enum PaymentMethod {
+  """The customer or its subscription has a default payment method, or a card lifts the card gate."""
+  ON_FILE
+  """The card gate holds the workspace back until it adds a card that isn't prepaid. It applies to a personal workspace without a paid plan whose owner's source-control account was under 90 days old at signup. Workspaces flagged as abuse or suspended are never checked."""
+  REQUIRED
+  """Nothing is on file, and nothing is required."""
+  NONE
 }
 
 type Member {

@@ -8,6 +8,7 @@ require (
 	github.com/99designs/gqlgen v0.17.95
 	github.com/go-playground/validator/v10 v10.30.5
 	github.com/google/go-github/v92 v92.0.0
+	github.com/joho/godotenv v1.5.1
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/stripe/stripe-go/v87 v87.0.0
 	github.com/vektah/gqlparser/v2 v2.5.59

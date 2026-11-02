@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { useMutation, useQuery } from '@vue/apollo-composable';
-import { ArrowDown, ArrowUp, Ban, ChevronLeft, Copy, RefreshCw, Search, X } from '@lucide/vue';
+import { ArrowDown, ArrowUp, Ban, ChevronLeft, Copy, CreditCard, RefreshCw, Search, X } from '@lucide/vue';
 
 import FilterBar from '@/components/FilterBar.vue';
 import MarkAbuseDialog from '@/components/MarkAbuseDialog.vue';
@@ -19,6 +19,8 @@ import {
   MarkAbuseDocument,
   WorkspacesDocument,
   avatarStyle,
+  cardOnFile,
+  cardRequired,
   hasStrongSignal,
   initial,
   matches,
@@ -117,7 +119,12 @@ const sortColumns: SortColumn[] = [
   { key: 'egress', label: 'Egress 7d', numeric: true, descending: true, value: (workspace) => workspace.egress7d },
   { key: 'pods', label: 'Pods', numeric: true, descending: true, value: (workspace) => workspace.runningPods + workspace.pendingPods },
   { key: 'requests', label: 'Requests', numeric: true, descending: true, value: (workspace) => workspace.memoryRequested },
-  { key: 'status', label: 'Status', descending: true, value: (workspace) => (workspace.suspended ? 2 : workspace.abuse ? 1 : 0) },
+  {
+    key: 'status',
+    label: 'Status',
+    descending: true,
+    value: (workspace) => (workspace.suspended ? 3 : workspace.abuse ? 2 : cardRequired(workspace) ? 1 : 0),
+  },
 ];
 
 const sort = ref({ key: 'created', descending: true });
@@ -439,9 +446,20 @@ onBeforeUnmount(() => {
               {{ workspace.runningPods }}<span v-if="workspace.pendingPods" class="text-status-warn"> +{{ workspace.pendingPods }}</span>
             </span>
             <span class="text-right tabular-nums" :class="workspace.memoryRequested < lowMemory ? 'text-muted-foreground' : 'font-medium'">{{ memory(workspace.memoryRequested) }}</span>
-            <span class="truncate">
-              <span :class="toneClass[status(workspace).tone]">{{ status(workspace).text }}</span>
-              <span v-if="status(workspace).note" class="text-muted-foreground"> · {{ status(workspace).note }}</span>
+            <span class="flex min-w-0 items-center gap-2">
+              <span class="truncate">
+                <span :class="toneClass[status(workspace).tone]">{{ status(workspace).text }}</span>
+                <span v-if="status(workspace).note" class="text-muted-foreground"> · {{ status(workspace).note }}</span>
+              </span>
+              <span
+                v-if="cardOnFile(workspace)"
+                role="img"
+                aria-label="Card on file"
+                title="Card on file"
+                class="ml-auto shrink-0 text-muted-foreground"
+              >
+                <CreditCard class="size-4" aria-hidden="true" />
+              </span>
             </span>
           </div>
 
@@ -540,11 +558,24 @@ onBeforeUnmount(() => {
 
     <footer class="flex h-7 shrink-0 items-center gap-2 border-t bg-sidebar px-4 text-xs text-muted-foreground">
       <span class="shrink-0 whitespace-nowrap">{{ visible.length }} of {{ workspaces.length }}</span>
-      <span
-        class="ml-auto min-w-0 truncate"
-        :class="error && list ? 'text-status-danger' : ''"
-        :title="error && list ? error.message : undefined"
-      >{{ loadState }}</span>
+      <template v-if="error && list">
+        <button
+          type="button"
+          popovertarget="refresh-error"
+          class="ml-auto min-w-0 truncate text-status-danger underline-offset-2 hover:underline"
+          style="anchor-name: --refresh-error"
+        >{{ loadState }}</button>
+        <div
+          id="refresh-error"
+          popover
+          class="m-0 mb-1 max-w-[min(640px,calc(100vw-2rem))] rounded-lg border bg-card p-3 text-sm text-foreground shadow-lg select-text [position-area:top_span-left]"
+          style="position-anchor: --refresh-error"
+        >
+          <p class="font-medium text-status-danger">Refresh failed</p>
+          <p class="mt-1 font-mono break-words whitespace-pre-wrap text-muted-foreground">{{ error.message }}</p>
+        </div>
+      </template>
+      <span v-else class="ml-auto min-w-0 truncate">{{ loadState }}</span>
       <button
         type="button"
         class="flex size-5 items-center justify-center rounded-md hover:bg-muted hover:text-foreground disabled:opacity-50"

@@ -18,10 +18,9 @@ type Account struct {
 type Billing struct {
 	Plan Plan `json:"plan"`
 	// When the trial expires, for a workspace without a plan.
-	TrialEndsAt      *time.Time `json:"trialEndsAt,omitempty"`
-	GoodStanding     bool       `json:"goodStanding"`
-	StandingReason   *string    `json:"standingReason,omitempty"`
-	HasPaymentMethod bool       `json:"hasPaymentMethod"`
+	TrialEndsAt    *time.Time `json:"trialEndsAt,omitempty"`
+	GoodStanding   bool       `json:"goodStanding"`
+	StandingReason *string    `json:"standingReason,omitempty"`
 	// The workspace's customer in the billing provider's dashboard.
 	CustomerURL string `json:"customerURL"`
 	// The workspace's subscription in the billing provider's dashboard.
@@ -115,11 +114,12 @@ type Workspace struct {
 	// Set by stagehand once the workspace's environments are suspended.
 	Suspended bool `json:"suspended"`
 	// Null when the workspace has no subscription.
-	Billing     *Billing `json:"billing,omitempty"`
-	Members     []Member `json:"members"`
-	Signals     []Signal `json:"signals"`
-	RunningPods int      `json:"runningPods"`
-	PendingPods int      `json:"pendingPods"`
+	Billing       *Billing      `json:"billing,omitempty"`
+	PaymentMethod PaymentMethod `json:"paymentMethod"`
+	Members       []Member      `json:"members"`
+	Signals       []Signal      `json:"signals"`
+	RunningPods   int           `json:"runningPods"`
+	PendingPods   int           `json:"pendingPods"`
 	// Memory requested by running and pending pods, in bytes.
 	MemoryRequested int `json:"memoryRequested"`
 	// Bytes served through the gateway over the last seven days.
@@ -154,6 +154,66 @@ type WorkspaceStanding struct {
 	Good    int       `json:"good"`
 	Billing int       `json:"billing"`
 	Abuse   int       `json:"abuse"`
+}
+
+type PaymentMethod string
+
+const (
+	// The customer or its subscription has a default payment method, or a card lifts the card gate.
+	PaymentMethodOnFile PaymentMethod = "ON_FILE"
+	// The card gate holds the workspace back until it adds a card that isn't prepaid. It applies to a personal workspace without a paid plan whose owner's source-control account was under 90 days old at signup. Workspaces flagged as abuse or suspended are never checked.
+	PaymentMethodRequired PaymentMethod = "REQUIRED"
+	// Nothing is on file, and nothing is required.
+	PaymentMethodNone PaymentMethod = "NONE"
+)
+
+var AllPaymentMethod = []PaymentMethod{
+	PaymentMethodOnFile,
+	PaymentMethodRequired,
+	PaymentMethodNone,
+}
+
+func (e PaymentMethod) IsValid() bool {
+	switch e {
+	case PaymentMethodOnFile, PaymentMethodRequired, PaymentMethodNone:
+		return true
+	}
+	return false
+}
+
+func (e PaymentMethod) String() string {
+	return string(e)
+}
+
+func (e *PaymentMethod) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = PaymentMethod(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid PaymentMethod", str)
+	}
+	return nil
+}
+
+func (e PaymentMethod) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *PaymentMethod) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e PaymentMethod) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
 }
 
 type Plan string

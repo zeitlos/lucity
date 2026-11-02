@@ -71,6 +71,13 @@ func connect(ctx context.Context, environment, deployments string) (*cockpit.Cli
 		return nil, err
 	}
 
+	stripeKeyName := strings.ToUpper(environment) + "_STRIPE_SECRET_KEY"
+	stripeKey := os.Getenv(stripeKeyName)
+
+	if stripeKey == "" {
+		return nil, fmt.Errorf("%s is not set, see services/cockpit/.env.example", stripeKeyName)
+	}
+
 	if err := readYAML(filepath.Join(directory, "values.yaml"), &values); err != nil {
 		return nil, err
 	}
@@ -124,7 +131,7 @@ func connect(ctx context.Context, environment, deployments string) (*cockpit.Cli
 	}
 
 	identity := logto.New(identityURL, secrets.Secrets["LOGTO_M2M_APP_ID"], secrets.Secrets["LOGTO_M2M_APP_SECRET"])
-	billingClient := billing.New(secrets.Secrets["STAGEHAND_STRIPE_SECRET_KEY"], values.Conductor.Env["STRIPE_HOBBY_PRICE_ID"], values.Conductor.Env["STRIPE_PRO_PRICE_ID"])
+	billingClient := billing.New(stripeKey, values.Conductor.Env["STRIPE_HOBBY_PRICE_ID"], values.Conductor.Env["STRIPE_PRO_PRICE_ID"])
 
 	stripeAccount, err := billingClient.Account(ctx)
 

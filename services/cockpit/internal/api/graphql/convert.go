@@ -29,6 +29,7 @@ func convertWorkspace(workspace cockpit.Workspace) model.Workspace {
 		Abuse:           workspace.Abuse,
 		AbuseNote:       optional(workspace.AbuseNote),
 		Suspended:       workspace.Suspended,
+		PaymentMethod:   convertPaymentMethod(workspace.PaymentMethod),
 		Members:         []model.Member{},
 		Signals:         []model.Signal{},
 		RunningPods:     workspace.RunningPods,
@@ -63,13 +64,12 @@ func convertWorkspace(workspace cockpit.Workspace) model.Workspace {
 
 func convertBilling(b cockpit.Billing) *model.Billing {
 	return &model.Billing{
-		Plan:             convertPlan(b.Plan),
-		TrialEndsAt:      optionalTime(b.TrialEndsAt),
-		GoodStanding:     b.GoodStanding,
-		StandingReason:   optional(b.StandingReason),
-		HasPaymentMethod: b.HasPaymentMethod,
-		CustomerURL:      b.CustomerURL,
-		SubscriptionURL:  b.SubscriptionURL,
+		Plan:            convertPlan(b.Plan),
+		TrialEndsAt:     optionalTime(b.TrialEndsAt),
+		GoodStanding:    b.GoodStanding,
+		StandingReason:  optional(b.StandingReason),
+		CustomerURL:     b.CustomerURL,
+		SubscriptionURL: b.SubscriptionURL,
 	}
 }
 
@@ -205,6 +205,16 @@ func convertPlan(plan billing.Plan) model.Plan {
 		return model.PlanPro
 	}
 	return model.PlanNone
+}
+
+func convertPaymentMethod(method cockpit.PaymentMethod) model.PaymentMethod {
+	switch method {
+	case cockpit.PaymentMethodOnFile:
+		return model.PaymentMethodOnFile
+	case cockpit.PaymentMethodRequired:
+		return model.PaymentMethodRequired
+	}
+	return model.PaymentMethodNone
 }
 
 func convertSignalKind(kind signals.Kind) model.SignalKind {

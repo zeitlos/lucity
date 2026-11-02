@@ -60,6 +60,12 @@ func (c *Client) load(ctx context.Context) ([]Workspace, error) {
 		return nil, err
 	}
 
+	gates, err := c.cardGates(ctx, organizations, subscriptions, members)
+
+	if err != nil {
+		return nil, err
+	}
+
 	var githubIDs []int64
 	var repositories []string
 
@@ -99,22 +105,33 @@ func (c *Client) load(ctx context.Context) ([]Workspace, error) {
 		workspace.AbuseNote, _ = organization.CustomData[abuseNoteKey].(string)
 		workspace.Suspended, _ = organization.CustomData[suspendedKey].(bool)
 
-		if customer, _ := organization.CustomData[customerKey].(string); customer != "" {
-			if subscription := subscriptions[customer]; subscription != nil {
-				standing := c.billing.Standing(subscription, methods[customer], now)
+		customer, _ := organization.CustomData[customerKey].(string)
+		subscription := subscriptions[customer]
+		onFile := methods[customer] || subscription != nil && subscription.DefaultPaymentMethod != nil
 
-				workspace.Billing = &Billing{
-					Plan:             c.billing.Plan(subscription),
-					GoodStanding:     standing.Good,
-					StandingReason:   standing.Reason,
-					HasPaymentMethod: methods[customer],
-					CustomerURL:      c.stripeURL(subscription.Livemode, "customers", customer),
-					SubscriptionURL:  c.stripeURL(subscription.Livemode, "subscriptions", subscription.ID),
-				}
+		switch lifted, gated := gates[organization.ID]; {
+		case gated && !lifted:
+			workspace.PaymentMethod = PaymentMethodRequired
+		case lifted || onFile:
+			workspace.PaymentMethod = PaymentMethodOnFile
+		default:
+			workspace.PaymentMethod = PaymentMethodNone
+		}
 
-				if workspace.Billing.Plan == billing.PlanNone {
-					workspace.Billing.TrialEndsAt = billing.TrialEnd(subscription)
-				}
+		if subscription != nil {
+			standing := c.billing.Standing(subscription, methods[customer], now)
+
+			workspace.Billing = &Billing{
+				Plan:             c.billing.Plan(subscription),
+				GoodStanding:     standing.Good,
+				StandingReason:   standing.Reason,
+				HasPaymentMethod: methods[customer],
+				CustomerURL:      c.stripeURL(subscription.Livemode, "customers", customer),
+				SubscriptionURL:  c.stripeURL(subscription.Livemode, "subscriptions", subscription.ID),
+			}
+
+			if workspace.Billing.Plan == billing.PlanNone {
+				workspace.Billing.TrialEndsAt = billing.TrialEnd(subscription)
 			}
 		}
 

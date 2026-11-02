@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	_ "embed"
+	"errors"
 	"flag"
 	"io"
 	"io/fs"
@@ -13,6 +14,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/joho/godotenv"
 	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"github.com/zeitlos/lucity/pkg/logger"
@@ -28,6 +30,11 @@ func main() {
 	flag.Parse()
 
 	logger.Setup("info")
+
+	if err := godotenv.Load(); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		slog.Error("load .env", "error", err)
+		os.Exit(1)
+	}
 
 	if *environment != "" && !slices.Contains(knownEnvironments, *environment) {
 		slog.Error("-env must be dev or prod")

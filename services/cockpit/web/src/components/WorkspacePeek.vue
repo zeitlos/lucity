@@ -9,6 +9,7 @@ import { displayName } from '@/lib/users';
 import { age, bytes, day, memory, relativeTime } from '@/lib/format';
 import {
   avatarStyle,
+  cardOnFile,
   initial,
   openExternal,
   owner,
@@ -105,8 +106,8 @@ function commitURL(repository: string, commit: string): string {
         <div class="col-span-2 flex min-w-0 flex-col gap-0.5 px-4 py-3">
           <dt class="text-muted-foreground">Plan</dt>
           <dd :class="toneClass[plan(workspace).tone]">{{ plan(workspace).text }}</dd>
-          <dd v-if="workspace.billing" class="text-muted-foreground">
-            {{ workspace.billing.hasPaymentMethod ? 'Payment method on file' : 'No payment method' }}
+          <dd class="text-muted-foreground">
+            {{ cardOnFile(workspace) ? 'Payment method on file' : 'No payment method' }}
           </dd>
           <dd v-if="workspace.billing" class="mt-1 flex gap-3">
             <a
