@@ -260,6 +260,9 @@ rybbit:
     sectionName: analytics-https
   backend:
     baseUrl: "https://p.lucity.cloud"
+    resources:
+      limits:
+        memory: 2Gi
     nodeSelector: *platform-nodes
     tolerations: *platform-taint
   client:
