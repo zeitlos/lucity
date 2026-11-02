@@ -10,12 +10,21 @@ const appUrl = '/app';
         <p>Get a whole-ass platform that does it for you.</p>
       </div>
 
-      <a
-        :href="`${appUrl}/login`"
-        class="mt-auto self-end rounded-lg text-center max-sm:self-stretch bg-primary-500 px-7 py-4 text-xl font-semibold text-white transition-colors hover:bg-primary-600"
-      >
-        Deploy your first App
-      </a>
+      <div class="mt-auto flex flex-col-reverse gap-3 self-end max-sm:self-stretch sm:flex-row sm:gap-4">
+        <NuxtLink
+          to="/docs/quickstart"
+          class="flex items-center justify-center rounded-lg border border-white/70 bg-white/60 px-7 py-4 text-xl font-semibold text-neutral-900 backdrop-blur-sm transition-colors hover:bg-white"
+        >
+          Read the docs
+        </NuxtLink>
+        <a
+          :href="`${appUrl}/login`"
+          class="flex items-center justify-center gap-3 rounded-lg border border-transparent bg-primary-500 px-7 py-4 text-xl font-semibold text-white transition-colors hover:bg-primary-600"
+        >
+          Deploy your first app
+          <UIcon name="i-lucide-arrow-right" class="size-5.5 shrink-0" />
+        </a>
+      </div>
     </div>
   </section>
 </template>

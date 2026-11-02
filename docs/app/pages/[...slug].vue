@@ -87,9 +87,8 @@ const editLink = computed(() => {
     github.value.url,
     'edit',
     github.value.branch,
-    github.value.rootDir,
-    'content',
-    `${page.value?.stem}.${page.value?.extension}`,
+    section.value.directory,
+    `${page.value?.stem.split('/').slice(1).join('/')}.${page.value?.extension}`,
   ].filter(Boolean).join('/');
 });
 

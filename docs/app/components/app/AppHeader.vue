@@ -61,14 +61,14 @@ const githubLink = computed(() =>
       </UContextMenu>
     </template>
 
-    <template #right>
-      <UNavigationMenu
-        :items="navItems"
-        variant="link"
-        content-orientation="horizontal"
-        class="hidden lg:flex"
-      />
+    <UNavigationMenu
+      :items="navItems"
+      variant="link"
+      content-orientation="horizontal"
+      class="hidden lg:flex"
+    />
 
+    <template #right>
       <UContentSearchButton class="lg:hidden" />
 
       <UButton
@@ -78,7 +78,18 @@ const githubLink = computed(() =>
         color="neutral"
         variant="ghost"
         aria-label="GitHub"
+        class="hidden lg:inline-flex"
       />
+
+      <UButton
+        :to="`${appUrl}/login`"
+        external
+        color="neutral"
+        variant="link"
+        class="hidden whitespace-nowrap lg:inline-flex"
+      >
+        Sign in
+      </UButton>
 
       <UButton
         :to="`${appUrl}/login`"
@@ -86,7 +97,7 @@ const githubLink = computed(() =>
         color="primary"
         class="whitespace-nowrap"
       >
-        Get Started
+        Get started
       </UButton>
     </template>
 
@@ -108,14 +119,23 @@ const githubLink = computed(() =>
 
       <USeparator class="my-2" />
 
-      <div class="px-4 pb-4">
+      <div class="flex flex-col gap-2 px-4 pb-4">
+        <UButton
+          :to="`${appUrl}/login`"
+          external
+          color="neutral"
+          variant="outline"
+          block
+        >
+          Sign in
+        </UButton>
         <UButton
           :to="`${appUrl}/login`"
           external
           color="primary"
           block
         >
-          Get Started
+          Get started
         </UButton>
       </div>
 

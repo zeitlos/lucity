@@ -10,16 +10,49 @@ useSeo({
   description: 'Get your apps online and running in production, without the lock-in. Lucity is the European open source alternative to Vercel, Heroku, and Railway: the same effortless developer experience, but your whole stack stays yours to move anywhere, anytime.',
   type: 'website',
 });
+
+const appUrl = '/app';
+
+const trialPoints = [
+  '14-day free trial',
+  'CHF 5 in credits included',
+  'Built in Switzerland, hosted in the EU',
+];
 </script>
 
 <template>
   <section class="mx-auto px-6 mt-48 max-sm:mt-12 flex flex-col gap-16 3xl:grid 3xl:grid-cols-12 3xl:items-end 3xl:gap-24">
-    <h1 class="font-display text-4xl/[1.15] sm:text-5xl/[1.1] md:text-6xl/[1.1] lg:text-7xl/22 text-neutral-800 max-sm:text-balance dark:text-neutral-100 3xl:col-span-5 3xl:mb-24">
-      The Deployment Platform <br class="max-sm:hidden">
-      that is a <span class="squiggle squiggle-joy">joy to use</span>, <br class="max-sm:hidden">
-      <span class="squiggle squiggle-grow">built to grow</span>, and always <br class="max-sm:hidden">
-      <span class="squiggle squiggle-keep">yours to keep</span>.
-    </h1>
+    <div class="3xl:col-span-5 3xl:mb-24">
+      <h1 class="font-display text-4xl/[1.15] sm:text-5xl/[1.1] md:text-6xl/[1.1] lg:text-7xl/22 text-neutral-800 max-sm:text-balance dark:text-neutral-100">
+        The Deployment Platform <br class="max-sm:hidden">
+        that is a <span class="squiggle squiggle-joy">joy to use</span>, <br class="max-sm:hidden">
+        <span class="squiggle squiggle-grow">built to grow</span>, and always <br class="max-sm:hidden">
+        <span class="squiggle squiggle-keep">yours to keep</span>.
+      </h1>
+
+      <div class="mt-8 flex flex-col gap-3 sm:mt-12 sm:flex-row sm:items-center sm:gap-4">
+        <a
+          :href="`${appUrl}/login`"
+          class="flex items-center justify-center gap-3 rounded-lg border border-transparent bg-primary px-7 py-3.5 text-lg font-semibold text-white shadow-sm transition-colors hover:bg-primary-600 sm:py-4 sm:text-xl"
+        >
+          Deploy your first app
+          <UIcon name="i-lucide-arrow-right" class="size-5.5 shrink-0" />
+        </a>
+        <NuxtLink
+          to="/docs/quickstart"
+          class="flex items-center justify-center rounded-lg border border-stone-300 bg-white/50 px-7 py-3.5 text-lg font-semibold text-neutral-800 transition-colors hover:bg-white sm:py-4 sm:text-xl dark:border-stone-700 dark:bg-white/5 dark:text-neutral-100 dark:hover:bg-white/10"
+        >
+          Read the docs
+        </NuxtLink>
+      </div>
+
+      <ul class="mt-5 flex flex-wrap gap-x-7 gap-y-1.5 text-base text-stone-600 sm:mt-6 dark:text-stone-400">
+        <li v-for="point in trialPoints" :key="point" class="flex items-center gap-2">
+          <UIcon name="i-lucide-check" class="size-4.5 shrink-0 text-primary-700 dark:text-primary" />
+          {{ point }}
+        </li>
+      </ul>
+    </div>
 
     <HeroDemo class="w-full 3xl:col-span-7" />
   </section>
