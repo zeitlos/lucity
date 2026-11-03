@@ -43,6 +43,12 @@ type Interface interface {
 	ResourceAllocations(ctx context.Context) ([]ResourceAllocation, error)
 }
 
+type Changes interface {
+	// Watch signals every change to the objects behind the environment until
+	// ctx is done. A burst of changes arrives as one signal.
+	Watch(ctx context.Context, environment EnvironmentID) <-chan struct{}
+}
+
 // ResourceAllocation reports the actual resource usage of a single
 // environment, summed across all pods (requests) and PVCs. Used by the
 // billing pipeline (Cashier) to meter consumption.

@@ -868,6 +868,7 @@ type ComplexityRoot struct {
 		AgentSessionEvents func(childComplexity int, session platform.AgentSessionID, after *string) int
 		BuildLogs          func(childComplexity int, id buildjob.BuildID) int
 		DeployLogs         func(childComplexity int, id deployjob.DeployID) int
+		Environment        func(childComplexity int, environment platform.EnvironmentID) int
 		ScanLogs           func(childComplexity int, id scanjob.ScanID) int
 		ServiceLogs        func(childComplexity int, service platform.ServiceID, tailLines *int) int
 	}
@@ -1127,6 +1128,7 @@ type ServiceResolver interface {
 }
 type SubscriptionResolver interface {
 	AgentSessionEvents(ctx context.Context, session platform.AgentSessionID, after *string) (<-chan model.AgentSessionEvent, error)
+	Environment(ctx context.Context, environment platform.EnvironmentID) (<-chan *model.Environment, error)
 	ServiceLogs(ctx context.Context, service platform.ServiceID, tailLines *int) (<-chan *model.ServiceLogEntry, error)
 	BuildLogs(ctx context.Context, id buildjob.BuildID) (<-chan string, error)
 	DeployLogs(ctx context.Context, id deployjob.DeployID) (<-chan string, error)
@@ -5071,6 +5073,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Subscription.DeployLogs(childComplexity, args["id"].(deployjob.DeployID)), true
+	case "Subscription.environment":
+		if e.ComplexityRoot.Subscription.Environment == nil {
+			break
+		}
+
+		args, err := ec.field_Subscription_environment_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Subscription.Environment(childComplexity, args["environment"].(platform.EnvironmentID)), true
 	case "Subscription.scanLogs":
 		if e.ComplexityRoot.Subscription.ScanLogs == nil {
 			break
@@ -10474,6 +10487,20 @@ func (ec *executionContext) field_Subscription_deployLogs_args(ctx context.Conte
 		return nil, err
 	}
 	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Subscription_environment_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "environment",
+		func(ctx context.Context, v any) (platform.EnvironmentID, error) {
+			return ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐEnvironmentID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["environment"] = arg0
 	return args, nil
 }
 
@@ -28475,6 +28502,68 @@ func (ec *executionContext) fieldContext_Subscription_agentSessionEvents(ctx con
 	return fc, nil
 }
 
+func (ec *executionContext) _Subscription_environment(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
+	return graphql.ResolveFieldStream(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Subscription_environment(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Subscription().Environment(ctx, fc.Args["environment"].(platform.EnvironmentID))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.Environment
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.Environment
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Environment) graphql.Marshaler {
+			return ec.marshalNEnvironment2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐEnvironment(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Subscription_environment(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Subscription",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Environment(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Subscription_environment_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Subscription_serviceLogs(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
 	return graphql.ResolveFieldStream(
 		ctx,
@@ -40139,6 +40228,8 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 	switch fields[0].Name {
 	case "agentSessionEvents":
 		return ec._Subscription_agentSessionEvents(ctx, fields[0])
+	case "environment":
+		return ec._Subscription_environment(ctx, fields[0])
 	case "serviceLogs":
 		return ec._Subscription_serviceLogs(ctx, fields[0])
 	case "buildLogs":

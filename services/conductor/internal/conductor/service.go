@@ -57,7 +57,7 @@ type Plan = planner.Plan
 const defaultAutoDeployEnvironment = "development"
 
 func (c *Client) Services(ctx context.Context, environmentID EnvironmentID) ([]Service, error) {
-	return c.platform.Services(ctx, environmentID)
+	return c.cachedPlatform.Services(ctx, environmentID)
 }
 
 func (c *Client) Service(ctx context.Context, id ServiceID) (*Service, error) {

@@ -87,10 +87,14 @@ func (v *Verifier) ValidateToken(ctx context.Context, tokenString string) (*Clai
 			Email:      rawClaims.Email,
 			AvatarURL:  rawClaims.Picture,
 			Workspaces: []WorkspaceMembership{{Workspace: workspace, Role: role}},
+			ExpiresAt:  idToken.Expiry,
 		}, nil
 	}
 
-	return claimsFromRaw(rawClaims.Sub, rawClaims.Name, rawClaims.Email, rawClaims.Picture, rawClaims.Workspaces), nil
+	claims := claimsFromRaw(rawClaims.Sub, rawClaims.Name, rawClaims.Email, rawClaims.Picture, rawClaims.Workspaces)
+	claims.ExpiresAt = idToken.Expiry
+
+	return claims, nil
 }
 
 func claimsFromRaw(sub, name, email, picture string, wsClaims []workspaceClaimEntry) *Claims {

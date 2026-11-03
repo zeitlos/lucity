@@ -94,7 +94,7 @@ type DatabaseCredentials struct {
 }
 
 func (c *Client) Databases(ctx context.Context, environment EnvironmentID) ([]Database, error) {
-	return c.platform.Databases(ctx, environment)
+	return c.cachedPlatform.Databases(ctx, environment)
 }
 
 func (c *Client) Database(ctx context.Context, id DatabaseID) (*Database, error) {

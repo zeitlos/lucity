@@ -125,6 +125,31 @@ func (r *queryResolver) Environment(ctx context.Context, environment platform.En
 	return new(convertEnvironment(*env)), nil
 }
 
+// Environment is the resolver for the environment field.
+func (r *subscriptionResolver) Environment(ctx context.Context, environment platform.EnvironmentID) (<-chan *model.Environment, error) {
+	updates, err := r.Conductor.EnvironmentUpdates(ctx, environment)
+
+	if err != nil {
+		return nil, err
+	}
+
+	out := make(chan *model.Environment)
+
+	go func() {
+		defer close(out)
+
+		for env := range updates {
+			select {
+			case out <- new(convertEnvironment(env)):
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return out, nil
+}
+
 // Environment returns EnvironmentResolver implementation.
 func (r *Resolver) Environment() EnvironmentResolver { return &environmentResolver{r} }
 
