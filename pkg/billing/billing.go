@@ -164,6 +164,28 @@ func (c *Client) PaymentMethods(ctx context.Context) (map[string]bool, error) {
 	return methods, nil
 }
 
+// UsableCard reports whether the customer has a card attached that isn't
+// prepaid. It doesn't need to be the default payment method.
+func (c *Client) UsableCard(ctx context.Context, customerID string) (bool, error) {
+	params := &stripe.PaymentMethodListParams{
+		Customer: stripe.String(customerID),
+		Type:     stripe.String(string(stripe.PaymentMethodTypeCard)),
+	}
+	params.Limit = stripe.Int64(10)
+
+	for card, err := range c.stripe.V1PaymentMethods.List(ctx, params).All(ctx) {
+		if err != nil {
+			return false, fmt.Errorf("list cards of customer %s: %w", customerID, err)
+		}
+
+		if card.Card == nil || card.Card.Funding != stripe.CardFundingPrepaid {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
 // Paid reports whether a subscription is live and carries a plan price.
 func (c *Client) Paid(subscription *stripe.Subscription) bool {
 	return live(subscription.Status) && c.Plan(subscription).Paid()
