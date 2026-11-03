@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import IconButton from '@/components/IconButton.vue';
 import { computed, watch, ref, onMounted, toRef } from 'vue';
-import { VueFlow, useVueFlow, PanOnScrollMode, getRectOfNodes, type ViewportTransform } from '@vue-flow/core';
+import { VueFlow, useVueFlow, getRectOfNodes, type GraphNode, type ViewportTransform } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
 import { Plus, Scan, WandSparkles } from '@lucide/vue';
 import { usePanel } from '@/composables/usePanel';
 import { useCanvasReleaseStatus } from '@/composables/useCanvasReleaseStatus';
-import { useCanvasLayout } from '@/composables/useCanvasLayout';
+import { useCanvasLayout, firstFreeSpot, nearestFreeSpot, gridSize, type NodeRect } from '@/composables/useCanvasLayout';
 import type { Service, Database, KeyValueStore, Bucket, Volume } from '@/composables/useEnvironment';
 import type { Agent } from '@/lib/agents';
 import ServiceNode from './ServiceNode.vue';
@@ -43,7 +43,7 @@ const { statusMap, failureMap } = useCanvasReleaseStatus(
   () => emit('deploy-completed'),
 );
 
-const { getNodes, setViewport, findNode, setCenter, dimensions, viewport, onNodeDragStop } = useVueFlow({
+const { getNodes, areNodesInitialized, setViewport, findNode, setCenter, dimensions, viewport, onNodeDragStop } = useVueFlow({
   id: 'service-canvas',
 });
 
@@ -64,14 +64,30 @@ watch(
   { immediate: true },
 );
 
+const settlingNodeIds = ref<string[]>([]);
+
+function placement(nodeId: string) {
+  const position = positionFor(nodeId);
+  const settling = settlingNodeIds.value.includes(nodeId) ? 'settling' : '';
+  if (position) return { position, style: {}, class: settling };
+  return { position: { x: 0, y: 0 }, style: { visibility: 'hidden' as const }, class: '' };
+}
+
+function settle(nodeId: string) {
+  settlingNodeIds.value = [...settlingNodeIds.value, nodeId];
+  setTimeout(() => {
+    settlingNodeIds.value = settlingNodeIds.value.filter(id => id !== nodeId);
+  }, 200);
+}
+
 const nodes = computed(() => {
-  const serviceNodes = props.services.map((svc, index) => {
+  const serviceNodes = props.services.map(svc => {
     const releaseInfo = statusMap.value[svc.id];
     const mountedVolume = props.volumes.find(vol => vol.mount?.service === svc.id);
     return {
       id: svc.id,
       type: 'service',
-      position: positionFor(svc.id) ?? { x: 0, y: index * 180 },
+      ...placement(svc.id),
       data: {
         name: svc.name,
         sourceUrl: svc.sourceUrl,
@@ -96,11 +112,11 @@ const nodes = computed(() => {
     };
   });
 
-  const databaseNodes = props.databases.map((db, index) => {
+  const databaseNodes = props.databases.map(db => {
     return {
       id: db.id,
       type: 'database',
-      position: positionFor(db.id) ?? { x: 340, y: index * 220 },
+      ...placement(db.id),
       data: {
         name: db.name,
         version: db.version,
@@ -112,11 +128,11 @@ const nodes = computed(() => {
     };
   });
 
-  const keyValueStoreNodes = props.keyValueStores.map((kv, index) => {
+  const keyValueStoreNodes = props.keyValueStores.map(kv => {
     return {
       id: kv.id,
       type: 'keyValueStore',
-      position: positionFor(kv.id) ?? { x: 680, y: index * 220 },
+      ...placement(kv.id),
       data: {
         name: kv.name,
         version: kv.version,
@@ -127,11 +143,11 @@ const nodes = computed(() => {
     };
   });
 
-  const bucketNodes = props.buckets.map((bucket, index) => {
+  const bucketNodes = props.buckets.map(bucket => {
     return {
       id: bucket.id,
       type: 'bucket',
-      position: positionFor(bucket.id) ?? { x: 1020, y: index * 220 },
+      ...placement(bucket.id),
       data: {
         name: bucket.name,
         region: bucket.region,
@@ -144,11 +160,11 @@ const nodes = computed(() => {
 
   const volumeNodes = props.volumes
     .filter(volume => !volume.mount)
-    .map((volume, index) => {
+    .map(volume => {
       return {
         id: volume.id,
         type: 'volume',
-        position: positionFor(volume.id) ?? { x: 1360, y: index * 220 },
+        ...placement(volume.id),
         data: {
           name: volume.name,
         },
@@ -156,11 +172,11 @@ const nodes = computed(() => {
       };
     });
 
-  const agentNodes = props.agents.map((agent, index) => {
+  const agentNodes = props.agents.map(agent => {
     return {
       id: agent.id,
       type: 'agent',
-      position: positionFor(agent.id) ?? { x: 1700, y: index * 220 },
+      ...placement(agent.id),
       data: {
         name: agent.name,
         harness: agent.harness,
@@ -214,9 +230,31 @@ function handleResetLayout() {
   setTimeout(() => handleFitView(), 50);
 }
 
+function rectOf(node: GraphNode): NodeRect {
+  return { ...node.position, ...node.dimensions };
+}
+
+const unplacedNodeIds = computed(() => getNodes.value.filter(node => !positionFor(node.id)).map(node => node.id));
+
+function placeNewNodes() {
+  if (!areNodesInitialized.value) return;
+  const occupied = getNodes.value.filter(node => positionFor(node.id)).map(rectOf);
+  for (const node of getNodes.value) {
+    if (positionFor(node.id)) continue;
+    const position = firstFreeSpot(node.dimensions, occupied);
+    setPosition(node.id, position);
+    occupied.push({ ...position, ...node.dimensions });
+  }
+}
+
+watch([() => unplacedNodeIds.value.join('|'), areNodesInitialized], placeNewNodes);
+
 onNodeDragStop(({ nodes: draggedNodes }) => {
   for (const node of draggedNodes) {
-    setPosition(node.id, node.position);
+    const occupied = getNodes.value.filter(other => other.id !== node.id).map(rectOf);
+    const spot = nearestFreeSpot(rectOf(node), occupied);
+    if (spot.x !== node.position.x || spot.y !== node.position.y) settle(node.id);
+    setPosition(node.id, spot);
   }
 });
 
@@ -280,9 +318,8 @@ watch(
       :zoom-on-double-click="false"
       :zoom-on-pinch="false"
       :pan-on-scroll="true"
-      :pan-on-scroll-mode="PanOnScrollMode.Vertical"
       :snap-to-grid="true"
-      :snap-grid="[20, 20]"
+      :snap-grid="[gridSize, gridSize]"
       class="canvas-bg"
       @node-click="handleNodeClick"
     >
@@ -336,7 +373,7 @@ watch(
         />
       </template>
 
-      <Background variant="dots" :gap="24" :size="1" />
+      <Background variant="dots" :gap="gridSize" :size="1" :offset="0.5" />
     </VueFlow>
 
     <div class="absolute right-4 top-4 flex items-center gap-2">
@@ -368,3 +405,18 @@ watch(
     </div>
   </div>
 </template>
+
+<style scoped>
+.canvas-bg :deep(.vue-flow__node > *) {
+  transition: rotate 150ms ease, opacity 150ms ease;
+}
+
+.canvas-bg :deep(.vue-flow__node.dragging > *) {
+  rotate: 2deg;
+  opacity: 0.9;
+}
+
+.canvas-bg :deep(.vue-flow__node.settling) {
+  transition: transform 200ms ease-out;
+}
+</style>

@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { useTemplateRef } from 'vue';
 import { Handle, Position } from '@vue-flow/core';
 import { HardDrive, Plug } from '@lucide/vue';
+import { useGridHeight } from '@/composables/useGridHeight';
 
 defineProps<{
   data: {
@@ -13,6 +15,8 @@ const emit = defineEmits<{
   (e: 'select'): void;
   (e: 'mount'): void;
 }>();
+
+useGridHeight(useTemplateRef<HTMLElement>('card'));
 </script>
 
 <template>
@@ -23,7 +27,8 @@ const emit = defineEmits<{
         'hover:shadow-md',
         selected ? 'border-primary shadow-md' : 'border-border',
       ]"
-      style="width: 280px;"
+      ref="card"
+      class="w-72"
       @click="emit('select')"
     >
       <!-- Icon + name + hover mount button -->

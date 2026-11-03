@@ -2,7 +2,7 @@
 import { serviceStatus } from '@/lib/status';
 import { formatDuration } from '@/lib/format';
 import { devicon } from '@/lib/devicons';
-import { computed, ref, watch, onUnmounted } from 'vue';
+import { computed, ref, watch, onUnmounted, useTemplateRef } from 'vue';
 import { Handle, Position } from '@vue-flow/core';
 import { CircleX, ExternalLink, Globe, HardDrive } from '@lucide/vue';
 import Spinner from '@/components/LoadingSpinner.vue';
@@ -12,6 +12,7 @@ import ResourceIcon from '@/components/ResourceIcon.vue';
 import { EndpointType, ServiceStatus, type Protocol } from '@/gql/graphql';
 import type { CanvasReleaseFailure, CanvasReleasePhase } from '@/composables/useCanvasReleaseStatus';
 import { Status } from '@/components/ui/status';
+import { useGridHeight } from '@/composables/useGridHeight';
 
 interface Endpoint {
   host: string;
@@ -46,6 +47,8 @@ const emit = defineEmits<{
   (e: 'select'): void;
   (e: 'select-volume'): void;
 }>();
+
+useGridHeight(useTemplateRef<HTMLElement>('card'));
 
 const isFromRepo = computed(() => !!props.data.sourceUrl);
 
@@ -149,11 +152,12 @@ const hostUrl = computed(() => {
 
     <div
       :class="[
-        'service-node group cursor-pointer rounded-xl border px-6 py-5 shadow-sm transition duration-200',
+        'service-node group cursor-pointer rounded-xl border px-6 py-5 shadow-sm transition duration-200 flex flex-col',
         'hover:shadow-md',
         selected ? 'border-primary shadow-md' : 'border-border',
         (deployLabel || data.releaseFailure) && 'rounded-tl-none',
       ]"
+      ref="card"
       @click="emit('select')"
     >
       <div
@@ -223,8 +227,9 @@ const hostUrl = computed(() => {
         </div>
       </div>
 
+      <div class="grow basis-3" />
       <!-- Status row -->
-      <div class="mt-4 flex items-center justify-between border-t border-border/50 pt-4">
+      <div class="mt-1 flex items-center justify-between border-t border-border/50 pt-4">
         <Status :tone="status.tone" size="sm">{{ status.label }}</Status>
       </div>
 

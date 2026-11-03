@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { bucketStatus } from '@/lib/status';
-import { computed } from 'vue';
+import { computed, useTemplateRef } from 'vue';
+import { useGridHeight } from '@/composables/useGridHeight';
 import { Handle, Position } from '@vue-flow/core';
 import BucketIcon from '@/components/BucketIcon.vue';
 import { BucketStatus } from '@/gql/graphql';
@@ -20,6 +21,8 @@ const emit = defineEmits<{
   (e: 'select'): void;
 }>();
 
+useGridHeight(useTemplateRef<HTMLElement>('card'));
+
 const status = computed(() => bucketStatus(props.data.status));
 </script>
 
@@ -27,11 +30,12 @@ const status = computed(() => bucketStatus(props.data.status));
   <div class="bucket-node-wrapper">
     <div
       :class="[
-        'bucket-node group cursor-pointer rounded-xl border px-6 py-5 shadow-sm transition-all duration-200',
+        'bucket-node group cursor-pointer rounded-xl border px-6 py-5 shadow-sm transition-all duration-200 flex flex-col',
         'hover:shadow-md',
         selected ? 'border-primary shadow-md' : 'border-border',
       ]"
-      style="width: 280px;"
+      ref="card"
+      class="w-72"
       @click="emit('select')"
     >
       <!-- Header: icon + name -->
@@ -40,8 +44,9 @@ const status = computed(() => bucketStatus(props.data.status));
         <span class="truncate font-semibold text-foreground">{{ data.name }}</span>
       </div>
 
+      <div class="grow basis-3" />
       <!-- Status row -->
-      <div class="mt-4 flex items-center justify-between border-t border-border/50 pt-4">
+      <div class="mt-1 flex items-center justify-between border-t border-border/50 pt-4">
         <Status :tone="status.tone" size="sm">{{ status.label }}</Status>
       </div>
     </div>

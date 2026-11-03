@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, useTemplateRef } from 'vue';
 import { Handle, Position } from '@vue-flow/core';
 import { Bot, CircleAlert } from '@lucide/vue';
 import { AgentStatus, type Harness } from '@/gql/graphql';
@@ -9,6 +9,7 @@ import { darkTooltipClass } from '@/lib/tooltip';
 import BrandTile from '@/components/BrandTile.vue';
 import { Status } from '@/components/ui/status';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useGridHeight } from '@/composables/useGridHeight';
 
 const props = defineProps<{
   data: {
@@ -24,6 +25,8 @@ const emit = defineEmits<{
   (e: 'select'): void;
 }>();
 
+useGridHeight(useTemplateRef<HTMLElement>('card'));
+
 const status = computed(() => agentStatus(props.data.status));
 const waiting = computed(() => props.data.status === AgentStatus.WaitingForApproval);
 </script>
@@ -32,11 +35,12 @@ const waiting = computed(() => props.data.status === AgentStatus.WaitingForAppro
   <div class="w-72">
     <div
       :class="[
-        'agent-node group cursor-pointer rounded-xl border px-6 py-5 shadow-sm transition duration-200',
+        'agent-node group cursor-pointer rounded-xl border px-6 py-5 shadow-sm transition duration-200 flex flex-col',
         'hover:shadow-md',
         selected ? 'border-primary shadow-md' : 'border-border',
         waiting && 'rounded-tl-none',
       ]"
+      ref="card"
       @click="emit('select')"
     >
       <div
@@ -66,7 +70,8 @@ const waiting = computed(() => props.data.status === AgentStatus.WaitingForAppro
         {{ harnessLabel(data.harness) }}
       </div>
 
-      <div class="mt-4 flex items-center justify-between gap-3 border-t border-border/50 pt-4">
+      <div class="grow basis-3" />
+      <div class="mt-1 flex items-center justify-between gap-3 border-t border-border/50 pt-4">
         <Status :tone="status.tone" size="sm">{{ status.label }}</Status>
         <div v-if="data.connectors.length" class="flex min-w-0 items-center -space-x-1">
           <Tooltip v-for="connector in data.connectors" :key="connector">

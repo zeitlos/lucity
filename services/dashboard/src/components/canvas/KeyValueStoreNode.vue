@@ -2,7 +2,8 @@
 import { formatStorage } from '@/lib/format';
 import { databaseStatus } from '@/lib/status';
 import { devicon } from '@/lib/devicons';
-import { computed } from 'vue';
+import { computed, useTemplateRef } from 'vue';
+import { useGridHeight } from '@/composables/useGridHeight';
 import { Handle, Position } from '@vue-flow/core';
 import { DatabaseStatus } from '@/gql/graphql';
 import { Status } from '@/components/ui/status';
@@ -21,6 +22,8 @@ const emit = defineEmits<{
   (e: 'select'): void;
 }>();
 
+useGridHeight(useTemplateRef<HTMLElement>('card'));
+
 const status = computed(() => databaseStatus(props.data.status));
 </script>
 
@@ -28,11 +31,12 @@ const status = computed(() => databaseStatus(props.data.status));
   <div class="kvstore-node-wrapper">
     <div
       :class="[
-        'kvstore-node group cursor-pointer rounded-xl border px-6 py-5 shadow-sm transition-all duration-200',
+        'kvstore-node group cursor-pointer rounded-xl border px-6 py-5 shadow-sm transition-all duration-200 flex flex-col',
         'hover:shadow-md',
         selected ? 'border-primary shadow-md' : 'border-border',
       ]"
-      style="width: 280px;"
+      ref="card"
+      class="w-72"
       @click="emit('select')"
     >
       <!-- Header: icon + name -->
@@ -54,8 +58,9 @@ const status = computed(() => databaseStatus(props.data.status));
         </div>
       </div>
 
+      <div class="grow basis-3" />
       <!-- Status row -->
-      <div class="mt-4 flex items-center justify-between border-t border-border/50 pt-4">
+      <div class="mt-1 flex items-center justify-between border-t border-border/50 pt-4">
         <Status :tone="status.tone" size="sm">{{ status.label }}</Status>
         <span class="text-xs text-muted-foreground tabular-nums">{{ formatStorage(data.size) }}</span>
       </div>
