@@ -39,7 +39,7 @@ const wsLink = new GraphQLWsLink(createClient({
     'X-Lucity-Workspace': activeWorkspace.value,
   }),
   lazy: true,
-  retryAttempts: 3,
+  retryAttempts: Infinity,
 }));
 
 const splitLink = split(
@@ -57,6 +57,9 @@ export const apolloClient = new ApolloClient({
     typePolicies: {
       VulnerabilityReport: {
         merge: true,
+      },
+      Endpoint: {
+        keyFields: ['host', 'port'],
       },
     },
   }),
