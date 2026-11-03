@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import { Download } from '@lucide/vue';
 import BaseLogo from '@/components/BaseLogo.vue';
 import CopyButton from '@/components/CopyButton.vue';
 import SegmentedControl from '@/components/SegmentedControl.vue';
 import BrandAssetTile from '@/components/brand/BrandAssetTile.vue';
 import BrandSocialPreview from '@/components/brand/BrandSocialPreview.vue';
+import { Button } from '@/components/ui/button';
+import { failureToast } from '@/components/ui/sonner';
 import {
   CREAM,
   ESPRESSO,
@@ -17,6 +20,7 @@ import {
   PAPER,
   PURPLE,
   appIconAsset,
+  downloadKit,
   flatIconAsset,
   iconThemes,
   lockupAsset,
@@ -69,6 +73,25 @@ const marks = [
   { name: 'White', color: '#ffffff', background: INK },
   { name: 'Black', color: '#000000', background: '#ffffff' },
 ].map(mark => ({ ...mark, asset: markAsset(`lucity-mark-${mark.name.toLowerCase()}`, mark.color) }));
+
+const kit = [
+  ...[...lockups, ...wordmarks].map(item => ({ asset: item.asset, pngWidth: 2048 })),
+  ...iconThemes.flatMap(theme => [appIconAsset(theme), flatIconAsset(theme)]).map(asset => ({ asset, pngWidth: 1024 })),
+  ...marks.map(mark => ({ asset: mark.asset, pngWidth: 1024 })),
+];
+
+const preparing = ref(false);
+
+async function downloadAll() {
+  preparing.value = true;
+  try {
+    await downloadKit(kit);
+  } catch (error) {
+    failureToast('Failed to download the brand kit', error);
+  } finally {
+    preparing.value = false;
+  }
+}
 
 const specimenPad = 20;
 const specimenBox = `${-specimenPad} ${-specimenPad} ${LOCKUP_WIDTH + specimenPad * 2} ${LOCKUP_HEIGHT + specimenPad * 2}`;
@@ -131,16 +154,27 @@ const colors = [
 <template>
   <div class="min-h-screen bg-background">
     <div class="mx-auto max-w-5xl px-4 py-12 sm:px-8">
-      <header class="mb-16 flex items-center gap-4">
-        <BaseLogo :size="36" />
-        <div>
-          <h1 class="font-serif text-4xl text-foreground">
-            Brand
-          </h1>
-          <p class="text-muted-foreground">
-            Logos, icons, type and colors for Lucity
-          </p>
+      <header class="mb-16 flex flex-wrap items-center gap-4">
+        <div class="flex items-center gap-4">
+          <BaseLogo :size="36" />
+          <div>
+            <h1 class="font-serif text-4xl text-foreground">
+              Brand
+            </h1>
+            <p class="text-muted-foreground">
+              Logos, icons, type and colors for Lucity
+            </p>
+          </div>
         </div>
+        <Button
+          variant="outline"
+          class="ml-auto"
+          :pending="preparing"
+          @click="downloadAll"
+        >
+          <Download />
+          {{ preparing ? 'Preparing…' : 'Download all' }}
+        </Button>
       </header>
 
       <section class="mb-20">

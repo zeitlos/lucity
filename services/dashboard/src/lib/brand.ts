@@ -1,4 +1,5 @@
 import { LOGO_HEIGHT, LOGO_PATH, LOGO_WIDTH, WORDMARK_CAP, WORDMARK_PATH, WORDMARK_WIDTH } from '@/lib/logo';
+import { zip } from '@/lib/zip';
 
 export const PURPLE = '#8843db';
 export const LILAC = '#a274ee';
@@ -41,7 +42,7 @@ export function downloadSvg(asset: BrandAsset) {
   save(brandSvgUrl(asset), `${asset.file}.svg`);
 }
 
-export async function downloadPng(asset: BrandAsset, width: number) {
+async function renderPng(asset: BrandAsset, width: number) {
   const height = Math.round(width * asset.height / asset.width);
   const image = new Image();
   image.src = brandSvgUrl(asset, width, height);
@@ -50,7 +51,31 @@ export async function downloadPng(asset: BrandAsset, width: number) {
   canvas.width = width;
   canvas.height = height;
   canvas.getContext('2d')?.drawImage(image, 0, 0, width, height);
+  return canvas;
+}
+
+export async function downloadPng(asset: BrandAsset, width: number) {
+  const canvas = await renderPng(asset, width);
   save(canvas.toDataURL('image/png'), `${asset.file}.png`);
+}
+
+async function pngBytes(asset: BrandAsset, width: number) {
+  const canvas = await renderPng(asset, width);
+  const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'));
+  if (!blob) throw new Error(`${asset.file} could not be rendered.`);
+  return new Uint8Array(await blob.arrayBuffer());
+}
+
+export async function downloadKit(items: { asset: BrandAsset; pngWidth: number }[]) {
+  const encoder = new TextEncoder();
+  const pngs = await Promise.all(items.map(item => pngBytes(item.asset, item.pngWidth)));
+  const archive = zip(items.flatMap((item, i) => [
+    { name: `lucity-brand/svg/${item.asset.file}.svg`, data: encoder.encode(brandSvg(item.asset)) },
+    { name: `lucity-brand/png/${item.asset.file}.png`, data: pngs[i]! },
+  ]));
+  const url = URL.createObjectURL(archive);
+  save(url, 'lucity-brand.zip');
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 function markPath(fill: string, x = 0, y = 0, scale = 1) {
