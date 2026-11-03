@@ -16,7 +16,6 @@ function buildContext(route?: string) {
     `- **Page**: \`${route ?? window.location.pathname}\``,
     `- **Workspace**: ${activeWorkspace.value || 'unknown'}`,
     `- **Browser**: ${navigator.userAgent}`,
-    `- **Version**: ${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'}`,
     `- **Time**: ${new Date().toISOString()}`,
   ];
   return lines.join('\n');

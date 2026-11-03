@@ -367,9 +367,6 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 		w.WriteHeader(http.StatusOK)
 	})
 
-	// Version endpoint
-	mux.HandleFunc("/version", versionHandler())
-
 	// Auth endpoints
 	var ciVerifier *githubActionsVerifier
 	if githubActionsAudience != "" {
@@ -547,8 +544,7 @@ func rateLimitMiddleware(next http.Handler) http.Handler {
 	}()
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Skip rate limiting for health checks and version endpoint
-		if strings.HasPrefix(r.URL.Path, "/health") || r.URL.Path == "/version" {
+		if strings.HasPrefix(r.URL.Path, "/health") {
 			next.ServeHTTP(w, r)
 			return
 		}

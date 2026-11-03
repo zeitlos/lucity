@@ -9,7 +9,6 @@ import { useDiscardPrompt } from '@/composables/useUnsavedChanges';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import GateDialog from '@/components/GateDialog.vue';
 import AnnouncementBanner from '@/components/AnnouncementBanner.vue';
-import VersionFooter from '@/components/VersionFooter.vue';
 
 const { theme } = useTheme();
 const discardPrompt = useDiscardPrompt();
@@ -20,7 +19,6 @@ const toastsClearBar = useMediaQuery('(width < 48rem)');
   <TooltipProvider :delay-duration="150">
     <AnnouncementBanner />
     <RouterView />
-    <VersionFooter />
     <Sonner
       position="bottom-right"
       :theme="theme"

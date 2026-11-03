@@ -6,9 +6,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 ARG VITE_BASE_PATH=/
-ARG VERSION=dev
 ENV VITE_BASE_PATH=$VITE_BASE_PATH
-ENV APP_VERSION=$VERSION
 
 COPY . .
 RUN npm run build
