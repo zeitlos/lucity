@@ -29,6 +29,11 @@ const navItems = computed(() => [
 const { panelOpen } = useLogoGenerator();
 
 const logoMenu = [[{
+  label: 'Download logos',
+  icon: 'i-lucide-download',
+  to: `${appUrl}/brand`,
+  external: true,
+}, {
   label: 'Open logo generator',
   icon: 'i-lucide-pen-tool',
   onSelect: () => { panelOpen.value = true; },

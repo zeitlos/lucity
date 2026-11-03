@@ -4,6 +4,13 @@ const signInUrl = `${appUrl}/login`;
 const signUpUrl = `${appUrl}/login`;
 const githubUrl = 'https://github.com/zeitlos/lucity';
 
+const logoMenu = [[{
+  label: 'Download logos',
+  icon: 'i-lucide-download',
+  to: `${appUrl}/brand`,
+  external: true,
+}]];
+
 const links = [
   { label: 'Docs', to: '/docs/quickstart' },
   { label: 'Blog', to: '/blog' },
@@ -38,9 +45,11 @@ onBeforeUnmount(() => window.removeEventListener('scroll', onScroll));
     </div>
 
     <div class="relative grid grid-cols-[auto_1fr] items-center gap-4 lg:grid-cols-3 lg:gap-0">
-      <NuxtLink to="/" class="flex items-center">
-        <LandingLogo :tucked="tucked" class="text-2xl text-neutral-900 dark:text-neutral-100" />
-      </NuxtLink>
+      <UContextMenu :items="logoMenu">
+        <NuxtLink to="/" class="flex items-center">
+          <LandingLogo :tucked="tucked" class="text-2xl text-neutral-900 dark:text-neutral-100" />
+        </NuxtLink>
+      </UContextMenu>
 
       <nav aria-label="Main" class="hidden justify-center gap-9 lg:flex">
         <NuxtLink
