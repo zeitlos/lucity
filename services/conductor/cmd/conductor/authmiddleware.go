@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -51,10 +52,20 @@ func sessionAuth(store *sessionStore, codec *session.Codec, verifier *auth.Verif
 			store.ensure(ctx, data.SID, data.RefreshToken)
 			ctx = withSessionID(ctx, data.SID)
 
+			signOut := func(err error) {
+				slog.InfoContext(ctx, "session ended; signing out", "subject", data.Sub, "error", err)
+				codec.Clear(w)
+				next.ServeHTTP(w, r)
+			}
+
 			claims := &auth.Claims{Subject: data.Sub, Name: data.Name, Email: data.Email, AvatarURL: data.Picture}
 
 			if workspace := r.Header.Get(tenant.Header); workspace != "" {
 				orgToken, err := store.orgToken(ctx, data.SID, workspace)
+				if errors.Is(err, errNoSession) {
+					signOut(err)
+					return
+				}
 
 				if err != nil {
 					slog.WarnContext(ctx, "organization token unavailable; request will have no workspace", "workspace", workspace, "subject", data.Sub, "error", err)
@@ -65,7 +76,12 @@ func sessionAuth(store *sessionStore, codec *session.Codec, verifier *auth.Verif
 				}
 			}
 
-			if account, err := store.accountAPIToken(ctx, data.SID); err == nil {
+			account, err := store.accountAPIToken(ctx, data.SID)
+			if errors.Is(err, errNoSession) {
+				signOut(err)
+				return
+			}
+			if err == nil {
 				ctx = auth.WithToken(ctx, account)
 			}
 

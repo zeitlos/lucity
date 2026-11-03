@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -123,6 +124,10 @@ func (s *sessionStore) token(ctx context.Context, sid, cacheKey, resource, orgID
 	}
 
 	tokens, err := s.provider.Refresh(ctx, val.RefreshToken, resource, orgID, scopes)
+	if errors.Is(err, oidc.ErrInvalidGrant) {
+		_ = s.store.Delete(ctx, sid)
+		return "", fmt.Errorf("%w: %w", errNoSession, err)
+	}
 	if err != nil {
 		return "", err
 	}

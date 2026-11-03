@@ -3,12 +3,17 @@ package oidc
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
 )
+
+// ErrInvalidGrant reports that the provider rejected the grant itself: the
+// refresh token is expired, already used or revoked, so retrying cannot succeed.
+var ErrInvalidGrant = errors.New("invalid grant")
 
 type Provider struct {
 	Endpoint     string
@@ -120,6 +125,12 @@ func (p *Provider) token(ctx context.Context, form url.Values) (*Tokens, error) 
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
+		var failure struct {
+			Error string `json:"error"`
+		}
+		if json.Unmarshal(payload, &failure) == nil && failure.Error == "invalid_grant" {
+			return nil, fmt.Errorf("%w: token request returned %d: %s", ErrInvalidGrant, resp.StatusCode, strings.TrimSpace(string(payload)))
+		}
 		return nil, fmt.Errorf("token request returned %d: %s", resp.StatusCode, strings.TrimSpace(string(payload)))
 	}
 
