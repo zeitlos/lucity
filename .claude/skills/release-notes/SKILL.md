@@ -185,8 +185,8 @@ this skill:
 2. Keep the **Wide** format (1280×640, the default). Pick a background (a wallpaper or a
    brand color) and put the release in **Kicker**, like
    `Release 26.11.2`. Optionally tailor the **Headline** / **Tagline** to the release theme
-   (the default is "The PaaS you can leave." / "Open-source · Kubernetes-native ·
-   Ejectable"). Enter starts a new headline line, and the text shrinks to fit.
+   (the default is "The PaaS you can leave." / "Made in Switzerland · Hosted in the EU ·
+   Open source"). Enter starts a new headline line, and the text shrinks to fit.
 3. Click **Copy image** and paste it into the description box of the GitHub release editor.
    GitHub uploads it and inserts the `<img ... src="https://github.com/user-attachments/assets/…" />`
    tag, which replaces the `PASTE_IMAGE_URL` placeholder in the draft. **PNG** and **JPG**

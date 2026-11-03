@@ -143,7 +143,7 @@ export default defineNuxtConfig({
         { rel: 'manifest', href: '/site.webmanifest' }
       ],
       meta: [
-        { property: 'og:image', content: 'https://lucity.cloud/img/og.jpg?v=3' },
+        { property: 'og:image', content: 'https://lucity.cloud/img/og.jpg?v=4' },
         { property: 'og:image:width', content: '1280' },
         { property: 'og:image:height', content: '640' },
         { property: 'og:image:type', content: 'image/jpeg' },
@@ -152,7 +152,7 @@ export default defineNuxtConfig({
         { property: 'og:site_name', content: 'Lucity' },
         { property: 'og:locale', content: 'en' },
         { name: 'twitter:card', content: 'summary_large_image' },
-        { name: 'twitter:image', content: 'https://lucity.cloud/img/og.jpg?v=3' },
+        { name: 'twitter:image', content: 'https://lucity.cloud/img/og.jpg?v=4' },
         { name: 'twitter:image:alt', content: 'Lucity: Deploy anything. Own your stack.' },
         { name: 'theme-color', content: '#301c0e' }
       ]
