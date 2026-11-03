@@ -7,17 +7,11 @@ import IconButton from '@/components/IconButton.vue';
 import MenuIcon from '@/components/MenuIcon.vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 import TrialIndicator from '@/components/TrialIndicator.vue';
-import Spinner from '@/components/LoadingSpinner.vue';
 import CreateWorkspaceDialog from '@/components/CreateWorkspaceDialog.vue';
 import CreateEnvironmentDialog from '@/components/CreateEnvironmentDialog.vue';
 import ProjectEjectDialog from '@/components/ProjectEjectDialog.vue';
+import WorkspaceSwitchDialog from '@/components/WorkspaceSwitchDialog.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { useAuth } from '@/composables/useAuth';
 import { useCapabilities } from '@/composables/useCapabilities';
 import { useContextSwitch } from '@/composables/useContextSwitch';
@@ -46,9 +40,9 @@ const {
   activeProjectId,
   activeProjectName,
   projectEnvironments,
-  switchingWorkspace,
-  switchingWorkspaceName,
+  workspaceSwitch,
   handleWorkspaceSwitch,
+  finishWorkspaceSwitch,
   handleEnvironmentCreated,
   handleNewProject,
 } = useContextSwitch();
@@ -367,13 +361,5 @@ const newBoxClass = 'flex size-6.5 shrink-0 items-center justify-center rounded-
     :project-id="activeProjectId"
   />
 
-  <AlertDialog :open="switchingWorkspace">
-    <AlertDialogContent class="flex flex-col items-center gap-4 sm:max-w-sm">
-      <AlertDialogTitle class="sr-only">Switching workspace</AlertDialogTitle>
-      <Spinner :size="32" class="animate-spin text-muted-foreground" />
-      <AlertDialogDescription class="text-center text-sm">
-        Switching to <span class="font-medium text-foreground">{{ switchingWorkspaceName }}</span>... hang tight
-      </AlertDialogDescription>
-    </AlertDialogContent>
-  </AlertDialog>
+  <WorkspaceSwitchDialog :workspace-switch="workspaceSwitch" @finished="finishWorkspaceSwitch" />
 </template>

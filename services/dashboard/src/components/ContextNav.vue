@@ -1,15 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { Check, ChevronDown, Plus } from '@lucide/vue';
-import Spinner from '@/components/LoadingSpinner.vue';
 import { useContextSwitch } from '@/composables/useContextSwitch';
 import { useWorkspaceColor } from '@/composables/useWorkspaceColor';
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import WorkspaceSwitchDialog from '@/components/WorkspaceSwitchDialog.vue';
 import CreateWorkspaceDialog from '@/components/CreateWorkspaceDialog.vue';
 import CreateEnvironmentDialog from '@/components/CreateEnvironmentDialog.vue';
 import {
@@ -31,9 +25,9 @@ const {
   activeProjectId,
   activeProjectName,
   projectEnvironments,
-  switchingWorkspace,
-  switchingWorkspaceName,
+  workspaceSwitch,
   handleWorkspaceSwitch,
+  finishWorkspaceSwitch,
   handleProjectSwitch,
   handleEnvironmentSwitch,
   handleEnvironmentCreated,
@@ -184,13 +178,5 @@ const newBoxClass = 'flex size-6 shrink-0 items-center justify-center rounded bo
     @created="handleEnvironmentCreated"
   />
 
-  <AlertDialog :open="switchingWorkspace">
-    <AlertDialogContent class="flex flex-col items-center gap-4 sm:max-w-sm">
-      <AlertDialogTitle class="sr-only">Switching workspace</AlertDialogTitle>
-      <Spinner :size="32" class="animate-spin text-muted-foreground" />
-      <AlertDialogDescription class="text-center text-sm">
-        Switching to <span class="font-medium text-foreground">{{ switchingWorkspaceName }}</span>... hang tight
-      </AlertDialogDescription>
-    </AlertDialogContent>
-  </AlertDialog>
+  <WorkspaceSwitchDialog :workspace-switch="workspaceSwitch" @finished="finishWorkspaceSwitch" />
 </template>

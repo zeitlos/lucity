@@ -16,7 +16,7 @@ type WorkspaceMember {
 }
 
 input UpdateWorkspaceInput {
-  name: String!
+  name: String! @constraint(constraint: "min=1,max=128")
 }
 
 input InviteMemberInput {

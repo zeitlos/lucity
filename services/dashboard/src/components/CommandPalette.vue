@@ -33,14 +33,8 @@ import { graphql } from '@/gql';
 import { EndpointType } from '@/gql/graphql';
 import IconButton from '@/components/IconButton.vue';
 import ResourceIcon from '@/components/ResourceIcon.vue';
-import Spinner from '@/components/LoadingSpinner.vue';
+import WorkspaceSwitchDialog from '@/components/WorkspaceSwitchDialog.vue';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { useAuth } from '@/composables/useAuth';
 import { useCapabilities } from '@/composables/useCapabilities';
 import { useCommandPalette } from '@/composables/useCommandPalette';
@@ -199,9 +193,9 @@ const {
   activeWs,
   activeProjectId,
   activeProjectName,
-  switchingWorkspace,
-  switchingWorkspaceName,
+  workspaceSwitch,
   handleWorkspaceSwitch,
+  finishWorkspaceSwitch,
 } = useContextSwitch();
 const { activeEnvironment, activeEnvServices } = useEnvironment();
 const { currentPanel, openPanel } = usePanel();
@@ -887,15 +881,7 @@ const kbdClass = 'rounded border bg-card px-1.5 font-sans text-xs leading-4.5 te
     </Transition>
   </Teleport>
 
-  <AlertDialog :open="switchingWorkspace">
-    <AlertDialogContent class="flex flex-col items-center gap-4 sm:max-w-sm">
-      <AlertDialogTitle class="sr-only">Switching workspace</AlertDialogTitle>
-      <Spinner :size="32" class="animate-spin text-muted-foreground" />
-      <AlertDialogDescription class="text-center text-sm">
-        Switching to <span class="font-medium text-foreground">{{ switchingWorkspaceName }}</span>... hang tight
-      </AlertDialogDescription>
-    </AlertDialogContent>
-  </AlertDialog>
+  <WorkspaceSwitchDialog :workspace-switch="workspaceSwitch" @finished="finishWorkspaceSwitch" />
 </template>
 
 <style scoped>

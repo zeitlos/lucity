@@ -30,6 +30,12 @@ const ProjectsForNavDocument = graphql(`
   }
 `);
 
+export interface WorkspaceSwitch {
+  from: { id: string; name: string };
+  to: { id: string; name: string };
+  arrived: boolean;
+}
+
 /**
  * The workspace, project and environment the person is in, and the moves
  * between them that the header breadcrumb and the mobile context bar share.
@@ -62,18 +68,27 @@ export function useContextSwitch() {
     return activeProject.value?.environments ?? [];
   });
 
-  const switchingWorkspace = ref(false);
-  const switchingWorkspaceName = ref('');
+  const workspaceSwitch = ref<WorkspaceSwitch | null>(null);
 
   async function handleWorkspaceSwitch(id: string) {
     if (id === activeWorkspace.value) return;
     const ws = workspaces.value.find(w => w.id === id);
-    switchingWorkspaceName.value = ws?.name ?? id;
-    switchingWorkspace.value = true;
+    workspaceSwitch.value = {
+      from: { id: activeWorkspace.value, name: activeWs.value?.name ?? activeWorkspace.value },
+      to: { id, name: ws?.name ?? id },
+      arrived: false,
+    };
     setActiveWorkspace(id);
-    await router.push('/');
-    await apolloClient.resetStore();
-    switchingWorkspace.value = false;
+    try {
+      await router.push('/');
+      await apolloClient.resetStore();
+    } finally {
+      workspaceSwitch.value.arrived = true;
+    }
+  }
+
+  function finishWorkspaceSwitch() {
+    workspaceSwitch.value = null;
   }
 
   function handleProjectSwitch(id: string) {
@@ -119,9 +134,9 @@ export function useContextSwitch() {
     activeProject,
     activeProjectName,
     projectEnvironments,
-    switchingWorkspace,
-    switchingWorkspaceName,
+    workspaceSwitch,
     handleWorkspaceSwitch,
+    finishWorkspaceSwitch,
     handleProjectSwitch,
     handleEnvironmentSwitch,
     handleEnvironmentCreated,
