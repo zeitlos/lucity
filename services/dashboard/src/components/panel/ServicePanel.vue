@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useGuardedTab } from '@/composables/useUnsavedChanges';
 import PanelShell from '@/components/PanelShell.vue';
-import { SquareArrowOutUpRight } from '@lucide/vue';
+import { PictureInPicture2 } from '@lucide/vue';
 import ResourceIcon from '@/components/ResourceIcon.vue';
 import { useServiceLogsPanel } from '@/composables/useServiceLogsPanel';
 import type { Service } from '@/composables/useEnvironment';
@@ -49,7 +49,7 @@ function openLogs() {
             @click="openLogs"
           >
             Logs
-            <SquareArrowOutUpRight :size="11" class="opacity-50" />
+            <PictureInPicture2 :size="11" class="opacity-50" />
           </button>
           <TabsTrigger value="metrics">Metrics</TabsTrigger>
           <TabsTrigger value="variables">Variables</TabsTrigger>
