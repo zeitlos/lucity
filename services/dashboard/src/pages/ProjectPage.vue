@@ -3,7 +3,7 @@ import QueryError from '@/components/QueryError.vue';
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
-import { Layers, Plus, SlidersHorizontal } from '@lucide/vue';
+import { Plus } from '@lucide/vue';
 import { graphql } from '@/gql';
 
 const ProjectDocument = graphql(`
@@ -45,6 +45,7 @@ const ProjectDocument = graphql(`
   }
 `);
 import ContextRail from '@/components/ContextRail.vue';
+import { projectNavItems } from '@/lib/contextNav';
 import PageToolbar from '@/components/PageToolbar.vue';
 import ProjectSettingsDrawer from '@/components/drawer/ProjectSettingsDrawer.vue';
 import CreateEnvironmentDialog from '@/components/CreateEnvironmentDialog.vue';
@@ -92,20 +93,7 @@ watch(
   { immediate: true },
 );
 
-const railItems = computed(() => [
-  {
-    key: 'environments',
-    label: 'Environments',
-    icon: Layers,
-    to: { name: 'project', params: { projectId: projectId.value } },
-  },
-  {
-    key: 'settings',
-    label: 'Settings',
-    icon: SlidersHorizontal,
-    to: { name: 'project', params: { projectId: projectId.value, drawer: 'settings' } },
-  },
-]);
+const railItems = computed(() => projectNavItems(projectId.value));
 
 const activeKey = computed(() => (drawer.value === 'settings' ? 'settings' : 'environments'));
 
@@ -122,10 +110,10 @@ function handleEnvironmentCreated(environmentId: string) {
 </script>
 
 <template>
-  <div class="flex h-[calc(100vh-var(--banner-height)-52px-0.75rem-0.5rem)] flex-col">
-    <div v-if="loading && !project" class="flex flex-1 gap-3 py-3">
-      <div class="w-12" />
-      <div class="flex-1 space-y-4 rounded-lg border bg-card p-4">
+  <div class="flex min-h-0 flex-1 flex-col">
+    <div v-if="loading && !project" class="flex flex-1 gap-3 py-3 max-md:py-0">
+      <div class="w-12 max-md:hidden" />
+      <div class="flex-1 space-y-4 rounded-lg border bg-card p-4 max-md:rounded-none max-md:border-0">
         <Skeleton class="h-8 w-48" />
         <Skeleton class="h-24 w-full" />
         <Skeleton class="h-24 w-full" />
@@ -141,7 +129,7 @@ function handleEnvironmentCreated(environmentId: string) {
       />
     </div>
 
-    <div v-else-if="project" class="relative flex flex-1 py-3">
+    <div v-else-if="project" class="relative flex min-h-0 flex-1 py-3 max-md:py-0">
       <ContextRail
         :items="railItems"
         :active-key="activeKey"
@@ -151,7 +139,7 @@ function handleEnvironmentCreated(environmentId: string) {
       />
 
       <div class="relative min-w-0 flex-1">
-        <div class="flex h-full flex-col overflow-hidden rounded-lg border bg-card shadow-sm">
+        <div class="flex h-full flex-col overflow-hidden rounded-lg border bg-card shadow-sm max-md:rounded-none max-md:border-0 max-md:shadow-none">
           <PageToolbar title="Environments" :count="project.environments.length">
             <Button class="max-sm:w-9 max-sm:px-0" @click="envDialogOpen = true">
               <Plus />
@@ -159,7 +147,7 @@ function handleEnvironmentCreated(environmentId: string) {
             </Button>
           </PageToolbar>
 
-          <div class="flex-1 overflow-y-auto p-4">
+          <div class="flex-1 overflow-y-auto p-4 max-md:pb-22">
             <div
               v-if="project.environments.length > 0"
               class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
@@ -187,10 +175,19 @@ function handleEnvironmentCreated(environmentId: string) {
           </div>
         </div>
 
+        <Transition
+          enter-active-class="transition-opacity duration-200"
+          leave-active-class="transition-opacity duration-150"
+          enter-from-class="opacity-0"
+          leave-to-class="opacity-0"
+        >
+          <div v-if="drawer === 'settings'" class="absolute inset-0 z-10 bg-foreground/20 md:hidden [.dark_&]:bg-background/60" />
+        </Transition>
+
         <Transition name="slide-drawer">
           <div
             v-if="drawer === 'settings'"
-            class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
+            class="absolute inset-y-0 left-0 z-10 w-110 max-w-full max-md:top-3"
           >
             <ProjectSettingsDrawer :project="project" @close="closeDrawer" />
           </div>
@@ -220,5 +217,11 @@ function handleEnvironmentCreated(environmentId: string) {
 .slide-drawer-leave-to {
   transform: translateX(-16px);
   opacity: 0;
+}
+@media (width < 48rem) {
+  .slide-drawer-enter-from,
+  .slide-drawer-leave-to {
+    transform: translateY(16px);
+  }
 }
 </style>

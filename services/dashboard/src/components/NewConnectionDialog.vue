@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { mobileSheetClass } from '@/lib/dialog';
 import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useMutation } from '@vue/apollo-composable';
@@ -145,7 +146,7 @@ async function create() {
 
 <template>
   <Dialog v-model:open="open">
-    <DialogContent class="sm:max-w-md">
+    <DialogContent :class="[mobileSheetClass, 'sm:max-w-md']">
       <template v-if="!provider && !connector">
         <DialogHeader>
           <DialogIcon :icon="Cable" />

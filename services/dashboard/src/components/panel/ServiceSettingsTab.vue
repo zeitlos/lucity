@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { mobileSheetClass } from '@/lib/dialog';
 import CodeBlock from '@/components/CodeBlock.vue';
 import { Status } from '@/components/ui/status';
 import { certificateStatus, dnsStatus, domainStatus } from '@/lib/status';
@@ -1548,7 +1549,7 @@ async function handleRemoveService() {
       </Collapsible>
 
       <Dialog :open="!!recordsHost" @update:open="(open) => { if (!open) recordsHost = null; }">
-        <DialogContent class="sm:max-w-xl">
+        <DialogContent :class="[mobileSheetClass, 'sm:max-w-xl']">
           <DialogHeader>
             <DialogIcon :icon="Globe" />
             <DialogTitle class="font-mono">{{ recordsHost }}</DialogTitle>

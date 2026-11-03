@@ -80,7 +80,7 @@ import WelcomeCard from '@/components/WelcomeCard.vue';
 import { useOnboarding } from '@/composables/useOnboarding';
 import { useGitHubInstall } from '@/composables/useGitHubInstall';
 import { preferredEnvironment } from '@/lib/lastEnvironment';
-import { workspaceNavItems } from '@/lib/workspaceNav';
+import { workspaceNavItems } from '@/lib/contextNav';
 import { useCapabilities } from '@/composables/useCapabilities';
 import { useAuth } from '@/composables/useAuth';
 import ContextRail from '@/components/ContextRail.vue';
@@ -220,12 +220,12 @@ onKeyStroke('/', (event) => {
 </script>
 
 <template>
-    <div class="flex h-[calc(100vh-var(--banner-height)-52px-0.75rem-0.5rem)] flex-col">
-      <div class="relative flex flex-1 py-3">
+    <div class="flex min-h-0 flex-1 flex-col">
+      <div class="relative flex min-h-0 flex-1 py-3 max-md:py-0">
         <ContextRail :items="railItems" :active-key="activeKey" />
 
         <div class="relative min-w-0 flex-1">
-          <div class="flex h-full flex-col overflow-hidden rounded-lg border bg-card shadow-sm">
+          <div class="flex h-full flex-col overflow-hidden rounded-lg border bg-card shadow-sm max-md:rounded-none max-md:border-0 max-md:shadow-none">
             <PageToolbar title="Projects" :count="loading ? undefined : projects.length">
               <div v-if="projects.length > 0" class="order-last flex w-full items-center gap-2.5 sm:order-none sm:w-auto">
                 <div class="relative flex-1 sm:w-70 sm:flex-none">
@@ -254,7 +254,7 @@ onKeyStroke('/', (event) => {
               </Button>
             </PageToolbar>
 
-            <div :class="['flex-1 overflow-y-auto', showTable ? '' : 'p-4']">
+            <div :class="['flex-1 overflow-y-auto max-md:pb-22', showTable ? '' : 'p-4']">
               <div v-if="loading && view === 'list'" class="divide-y">
                 <div v-for="i in 4" :key="i" class="flex items-center gap-4 px-4 py-4">
                   <Skeleton class="h-4 w-40" />
@@ -335,10 +335,19 @@ onKeyStroke('/', (event) => {
             </div>
           </div>
 
+          <Transition
+            enter-active-class="transition-opacity duration-200"
+            leave-active-class="transition-opacity duration-150"
+            enter-from-class="opacity-0"
+            leave-to-class="opacity-0"
+          >
+            <div v-if="drawer || connection" class="absolute inset-0 z-10 bg-foreground/20 md:hidden [.dark_&]:bg-background/60" />
+          </Transition>
+
           <Transition name="slide-drawer">
             <div
               v-if="!workspace && drawer"
-              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full max-md:top-3"
             >
               <ContextDrawer :title="drawerTitles[String(drawer)] ?? ''" @close="closeDrawer">
                 <div class="space-y-3">
@@ -353,7 +362,7 @@ onKeyStroke('/', (event) => {
           <Transition name="slide-drawer">
             <div
               v-if="workspace && drawer === 'members'"
-              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full max-md:top-3"
             >
               <WorkspaceMembersDrawer
                 :workspace="workspace"
@@ -368,7 +377,7 @@ onKeyStroke('/', (event) => {
             <div
               v-if="workspace && agents && drawer === 'connections'"
               key="connections"
-              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full max-md:top-3"
             >
               <ConnectionsDrawer
                 :is-admin="isWorkspaceAdmin"
@@ -378,7 +387,7 @@ onKeyStroke('/', (event) => {
             <div
               v-else-if="agents && connection?.kind === 'model-providers'"
               :key="`model-providers/${connection.name}`"
-              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full max-md:top-3"
             >
               <ModelProviderDrawer
                 :workspace="activeWorkspace"
@@ -390,7 +399,7 @@ onKeyStroke('/', (event) => {
             <div
               v-else-if="agents && connection?.kind === 'connectors'"
               :key="`connectors/${connection.name}`"
-              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full max-md:top-3"
             >
               <ConnectorDrawer
                 :workspace="activeWorkspace"
@@ -404,7 +413,7 @@ onKeyStroke('/', (event) => {
           <Transition name="slide-drawer">
             <div
               v-if="workspace && isWorkspaceAdmin && drawer === 'api-tokens'"
-              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full max-md:top-3"
             >
               <ApiTokensDrawer @close="closeDrawer" />
             </div>
@@ -413,7 +422,7 @@ onKeyStroke('/', (event) => {
           <Transition name="slide-drawer">
             <div
               v-if="workspace && drawer === 'billing'"
-              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full max-md:top-3"
             >
               <WorkspaceBillingDrawer
                 :is-admin="isWorkspaceAdmin"
@@ -425,7 +434,7 @@ onKeyStroke('/', (event) => {
           <Transition name="slide-drawer">
             <div
               v-if="workspace && drawer === 'settings'"
-              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full max-md:top-3"
             >
               <WorkspaceSettingsDrawer
                 :workspace="workspace"
@@ -459,5 +468,11 @@ onKeyStroke('/', (event) => {
 .slide-drawer-leave-to {
   transform: translateX(-16px);
   opacity: 0;
+}
+@media (width < 48rem) {
+  .slide-drawer-enter-from,
+  .slide-drawer-leave-to {
+    transform: translateY(16px);
+  }
 }
 </style>

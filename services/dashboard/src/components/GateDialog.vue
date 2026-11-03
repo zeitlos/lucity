@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { mobileSheetClass } from '@/lib/dialog';
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useMutation, useQuery } from '@vue/apollo-composable';
@@ -196,7 +197,7 @@ function choosePlan() {
 
 <template>
   <Dialog v-model:open="open">
-    <DialogContent v-if="planRequest && comparing" class="sm:max-w-4xl">
+    <DialogContent v-if="planRequest && comparing" :class="[mobileSheetClass, 'sm:max-w-4xl']">
       <DialogHeader>
         <DialogIcon :icon="CircleArrowUp" />
         <DialogTitle>{{ planRequest.title }}</DialogTitle>
@@ -267,7 +268,7 @@ function choosePlan() {
       </DialogFooter>
     </DialogContent>
 
-    <DialogContent v-else-if="planRequest && asking" class="sm:max-w-md">
+    <DialogContent v-else-if="planRequest && asking" :class="[mobileSheetClass, 'sm:max-w-md']">
       <DialogHeader>
         <DialogIcon :icon="Users" />
         <DialogTitle>{{ planRequest.title }}</DialogTitle>
@@ -291,7 +292,7 @@ function choosePlan() {
       </DialogFooter>
     </DialogContent>
 
-    <DialogContent v-else-if="cardRequest" class="sm:max-w-md">
+    <DialogContent v-else-if="cardRequest" :class="[mobileSheetClass, 'sm:max-w-md']">
       <DialogHeader>
         <DialogIcon :icon="CreditCard" />
         <DialogTitle>Add a card to start creating</DialogTitle>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { mobileSheetClass } from '@/lib/dialog';
 import { ref, watch } from 'vue';
 import { KeyRound } from '@lucide/vue';
 import DialogIcon from '@/components/DialogIcon.vue';
@@ -37,7 +38,7 @@ watch(open, (isOpen) => {
 
 <template>
   <Dialog v-model:open="open">
-    <DialogContent class="sm:max-w-md">
+    <DialogContent :class="[mobileSheetClass, 'sm:max-w-md']">
       <form class="space-y-4" @submit.prevent="value && emit('submit', value)">
         <DialogHeader>
           <DialogIcon :icon="KeyRound" />

@@ -31,7 +31,7 @@ const ejectOpen = ref(false);
 </script>
 
 <template>
-  <div class="relative z-20 w-13 shrink-0">
+  <div class="relative z-20 w-13 shrink-0 max-md:hidden">
     <svg
       v-if="activeIndex === 0"
       class="pointer-events-none absolute left-0 top-0 overflow-visible"

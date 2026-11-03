@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { mobileSheetClass } from '@/lib/dialog';
 import DialogIcon from '@/components/DialogIcon.vue';
 import { Building2 } from '@lucide/vue';
 import { ref, computed } from 'vue';
@@ -67,7 +68,7 @@ async function handleCheckout() {
     :open="open"
     @update:open="emit('update:open', $event)"
   >
-    <DialogContent class="sm:max-w-xl">
+    <DialogContent :class="[mobileSheetClass, 'sm:max-w-xl']">
       <DialogHeader>
         <DialogIcon :icon="Building2" />
         <DialogTitle>New workspace</DialogTitle>

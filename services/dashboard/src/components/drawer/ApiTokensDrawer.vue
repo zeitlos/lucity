@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { mobileSheetClass } from '@/lib/dialog';
 import { formatDate } from '@/lib/format';
 import CopyButton from '@/components/CopyButton.vue';
 import QueryError from '@/components/QueryError.vue';
@@ -195,7 +196,7 @@ async function handleRevoke() {
     />
 
     <Dialog v-model:open="showTokenDialog">
-      <DialogContent>
+      <DialogContent :class="mobileSheetClass">
         <DialogHeader>
           <DialogIcon :icon="KeyRound" />
           <DialogTitle>API token created</DialogTitle>

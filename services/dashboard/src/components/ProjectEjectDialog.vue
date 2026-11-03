@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { mobileSheetClass } from '@/lib/dialog';
 import { ref } from 'vue';
 import { useApolloClient } from '@vue/apollo-composable';
 import {
@@ -87,7 +88,7 @@ async function handleEject() {
     :open="open"
     @update:open="emit('update:open', $event)"
   >
-    <DialogContent class="overflow-hidden p-0 sm:max-w-120">
+    <DialogContent :class="[mobileSheetClass, 'overflow-hidden p-0 sm:max-w-120']">
       <!-- Hero section with pattern background -->
       <div class="pattern-circles relative flex flex-col items-center bg-card px-8 pt-10 pb-6">
         <!-- Radial fade overlay -->

@@ -28,7 +28,7 @@ useEscapeToClose(close);
   <component
     :is="as"
     :aria-label="title"
-    class="flex h-full flex-col rounded-lg border bg-card shadow-lg"
+    class="flex h-full flex-col rounded-lg border bg-card shadow-lg max-md:rounded-b-none max-md:border-x-0 max-md:border-b-0 max-md:pb-20"
   >
     <header class="flex shrink-0 items-center gap-3 border-b px-4 py-3">
         <slot name="leading" />

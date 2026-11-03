@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { mobileSheetClass } from '@/lib/dialog';
 import DialogIcon from '@/components/DialogIcon.vue';
 import { Layers } from '@lucide/vue';
 import { ref, computed, watch } from 'vue';
@@ -102,7 +103,7 @@ async function handleCreate() {
     :open="open"
     @update:open="emit('update:open', $event)"
   >
-    <DialogContent class="sm:max-w-md">
+    <DialogContent :class="[mobileSheetClass, 'sm:max-w-md']">
       <DialogHeader>
         <DialogIcon :icon="Layers" />
         <DialogTitle>New environment</DialogTitle>

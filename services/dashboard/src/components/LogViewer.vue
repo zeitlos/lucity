@@ -142,7 +142,7 @@ function download() {
 </script>
 
 <template>
-  <section class="flex h-full flex-col overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 text-zinc-300 shadow-2xl">
+  <section class="flex h-full flex-col overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 text-zinc-300 shadow-2xl max-md:rounded-b-none max-md:border-x-0 max-md:border-b-0 max-md:pb-20">
     <header class="flex shrink-0 items-center gap-3 px-4 py-3">
       <h2 class="min-w-0 flex-1 truncate text-lg font-semibold text-zinc-100">
         {{ title }}
