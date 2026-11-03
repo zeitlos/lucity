@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import IconButton from '@/components/IconButton.vue';
-import { computed, watch, ref, onMounted, toRef } from 'vue';
+import { computed, watch, ref, nextTick, toRef } from 'vue';
 import { VueFlow, useVueFlow, getRectOfNodes, type GraphNode, type ViewportTransform } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
 import { Plus, Scan, WandSparkles } from '@lucide/vue';
@@ -258,8 +258,12 @@ onNodeDragStop(({ nodes: draggedNodes }) => {
   }
 });
 
-onMounted(() => {
-  setTimeout(() => {
+const stopInitialView = watch(
+  () => areNodesInitialized.value && unplacedNodeIds.value.length === 0,
+  async (settled) => {
+    if (!settled) return;
+    stopInitialView();
+    await nextTick();
     const panel = currentPanel.value;
     if (panel?.type === 'service' || panel?.type === 'database' || panel?.type === 'keyValueStore' || panel?.type === 'bucket' || panel?.type === 'volume' || panel?.type === 'agent') {
       const node = findNode(panel.id);
@@ -272,8 +276,8 @@ onMounted(() => {
       }
     }
     handleFitView();
-  }, 200);
-});
+  },
+);
 
 const totalNodes = computed(() => props.services.length + props.databases.length + props.keyValueStores.length + props.buckets.length + props.volumes.length + props.agents.length);
 watch(totalNodes, () => {
@@ -312,6 +316,7 @@ watch(
       :nodes="nodes"
       :edges="edges"
       :default-viewport="{ zoom: 1, x: 0, y: 0 }"
+      fit-view-on-init
       :min-zoom="1"
       :max-zoom="1"
       :zoom-on-scroll="false"
