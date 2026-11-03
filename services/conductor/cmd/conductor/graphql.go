@@ -214,7 +214,7 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 	})
 	srv.SetQueryCache(lru.New[*ast.QueryDocument](1000))
 	srv.Use(extension.Introspection{})
-	srv.Use(extension.FixedComplexityLimit(200))
+	srv.Use(extension.FixedComplexityLimit(300))
 
 	// Audit logging for mutations
 	srv.AroundOperations(func(ctx context.Context, next gqlgen.OperationHandler) gqlgen.ResponseHandler {
