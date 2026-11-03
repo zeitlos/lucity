@@ -1,7 +1,9 @@
+enum ResourceTier { ECO }
+
 type Environment {
   id: EnvironmentID!
   name: String!
-  resourceTier: ResourceTier!
+  resourceTier: ResourceTier! @deprecated(reason: "Every environment runs on the same resources. Always `ECO`.")
   services: [Service!]! @goField(forceResolver: true)
   databases: [Database!]! @goField(forceResolver: true)
   volumes: [Volume!]! @goField(forceResolver: true)
@@ -12,8 +14,7 @@ input CreateEnvironmentInput {
   name: String! @constraint(constraint: "resource_name,min=2,max=16")
   """Not supported yet. Leave it unset, because new environments always start empty."""
   fromEnvironment: EnvironmentID
-  """Defaults to `ECO`."""
-  tier: ResourceTier
+  tier: ResourceTier @deprecated(reason: "Ignored. Every environment runs on the same resources.")
 }
 
 extend type Query {

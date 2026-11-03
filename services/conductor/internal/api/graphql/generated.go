@@ -631,7 +631,6 @@ type ComplexityRoot struct {
 		SetCustomStartCommand         func(childComplexity int, service platform.ServiceID, command string) int
 		SetDatabaseResources          func(childComplexity int, database platform.DatabaseID, resources model.ResourcesInput) int
 		SetDatabaseStorage            func(childComplexity int, database platform.DatabaseID, size string) int
-		SetEnvironmentResources       func(childComplexity int, input model.SetEnvironmentResourcesInput) int
 		SetServiceBranch              func(childComplexity int, service platform.ServiceID, branch *string) int
 		SetServiceHealthCheck         func(childComplexity int, service platform.ServiceID, healthCheck *model.HealthCheckInput) int
 		SetServicePort                func(childComplexity int, service platform.ServiceID, port *int) int
@@ -1002,7 +1001,6 @@ type MutationResolver interface {
 	RevokeAPIToken(ctx context.Context, id string) (bool, error)
 	CreateDatabaseBackup(ctx context.Context, database platform.DatabaseID) (*model.DatabaseBackup, error)
 	RestoreDatabase(ctx context.Context, input model.RestoreDatabaseInput) (*model.RestoreDatabaseResult, error)
-	SetEnvironmentResources(ctx context.Context, input model.SetEnvironmentResourcesInput) (*model.Environment, error)
 	SelectPlan(ctx context.Context, plan model.Plan) (*model.PlanSelection, error)
 	BillingPortalURL(ctx context.Context) (*model.BillingPortalURL, error)
 	CompletePlanCheckout(ctx context.Context, sessionID string) (*model.BillingSubscription, error)
@@ -3803,17 +3801,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetDatabaseStorage(childComplexity, args["database"].(platform.DatabaseID), args["size"].(string)), true
-	case "Mutation.setEnvironmentResources":
-		if e.ComplexityRoot.Mutation.SetEnvironmentResources == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_setEnvironmentResources_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.ComplexityRoot.Mutation.SetEnvironmentResources(childComplexity, args["input"].(model.SetEnvironmentResourcesInput)), true
 	case "Mutation.setServiceBranch":
 		if e.ComplexityRoot.Mutation.SetServiceBranch == nil {
 			break
@@ -5431,7 +5418,6 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputResourcesInput,
 		ec.unmarshalInputRestoreDatabaseInput,
 		ec.unmarshalInputServiceVariableInput,
-		ec.unmarshalInputSetEnvironmentResourcesInput,
 		ec.unmarshalInputSetServiceScalingInput,
 		ec.unmarshalInputUpdateMemberRoleInput,
 		ec.unmarshalInputUpdateWorkspaceInput,
@@ -9180,20 +9166,6 @@ func (ec *executionContext) field_Mutation_setDatabaseStorage_args(ctx context.C
 		return nil, err
 	}
 	args["size"] = arg1
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_setEnvironmentResources_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
-		func(ctx context.Context, v any) (model.SetEnvironmentResourcesInput, error) {
-			return ec.unmarshalNSetEnvironmentResourcesInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐSetEnvironmentResourcesInput(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
 	return args, nil
 }
 
@@ -19237,68 +19209,6 @@ func (ec *executionContext) fieldContext_Mutation_restoreDatabase(ctx context.Co
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_restoreDatabase_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_setEnvironmentResources(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Mutation_setEnvironmentResources(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().SetEnvironmentResources(ctx, fc.Args["input"].(model.SetEnvironmentResourcesInput))
-		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
-				if err != nil {
-					var zeroVal *model.Environment
-					return zeroVal, err
-				}
-				if ec.Directives.HasRole == nil {
-					var zeroVal *model.Environment
-					return zeroVal, errors.New("directive hasRole is not implemented")
-				}
-				return ec.Directives.HasRole(ctx, nil, directive0, role)
-			}
-
-			next = directive1
-			return next
-		},
-		func(ctx context.Context, selections ast.SelectionSet, v *model.Environment) graphql.Marshaler {
-			return ec.marshalNEnvironment2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐEnvironment(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_Mutation_setEnvironmentResources(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_Environment(ctx, field)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_setEnvironmentResources_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -32468,43 +32378,6 @@ func (ec *executionContext) unmarshalInputServiceVariableInput(ctx context.Conte
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputSetEnvironmentResourcesInput(ctx context.Context, obj any) (model.SetEnvironmentResourcesInput, error) {
-	var it model.SetEnvironmentResourcesInput
-	if obj == nil {
-		return it, nil
-	}
-
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"environment", "tier"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "environment":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
-			data, err := ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐEnvironmentID(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Environment = data
-		case "tier":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tier"))
-			data, err := ec.unmarshalNResourceTier2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceTier(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Tier = data
-		}
-	}
-	return it, nil
-}
-
 func (ec *executionContext) unmarshalInputSetServiceScalingInput(ctx context.Context, obj any) (model.SetServiceScalingInput, error) {
 	var it model.SetServiceScalingInput
 	if obj == nil {
@@ -37217,13 +37090,6 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "restoreDatabase":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_restoreDatabase(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "setEnvironmentResources":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_setEnvironmentResources(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -43345,11 +43211,6 @@ func (ec *executionContext) unmarshalNServiceVariableInput2ᚕgithubᚗcomᚋzei
 		}
 	}
 	return res, nil
-}
-
-func (ec *executionContext) unmarshalNSetEnvironmentResourcesInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐSetEnvironmentResourcesInput(ctx context.Context, v any) (model.SetEnvironmentResourcesInput, error) {
-	res, err := ec.unmarshalInputSetEnvironmentResourcesInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalNSetServiceScalingInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐSetServiceScalingInput(ctx context.Context, v any) (model.SetServiceScalingInput, error) {

@@ -31,7 +31,7 @@ useSeo({
           Resource pricing
         </h2>
         <p class="mt-6 text-xl leading-relaxed text-neutral-600 dark:text-neutral-400">
-          Two ways to pay for compute. <strong class="font-semibold text-neutral-800 dark:text-neutral-200">On-demand</strong> is fully metered, so you pay only for what you use, with burstable resources that suit development and spiky workloads. <strong class="font-semibold text-neutral-800 dark:text-neutral-200">Guaranteed</strong> reserves your capacity for consistent performance with no noisy neighbors, predictable billing, and 20% off vCPU and memory.
+          Every resource is metered. CPU and memory are billed for what your services actually use, so an idle service costs next to nothing. Disk is billed at its full size, object storage for the data it holds, and egress per GB.
         </p>
       </div>
 

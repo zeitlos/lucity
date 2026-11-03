@@ -80,7 +80,7 @@ func (c *Client) CreateProject(ctx context.Context, ws, slug, displayName string
 		Name:      slug,
 	}
 
-	if _, err := c.CreateEnvironment(ctx, projectID, "development", nil, EcoTier); err != nil {
+	if _, err := c.CreateEnvironment(ctx, projectID, "development", nil); err != nil {
 		return nil, fmt.Errorf("create default environment: %w", err)
 	}
 

@@ -12,9 +12,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (c *Client) ensureNamespace(ctx context.Context, id platform.EnvironmentID, tier platform.ResourceTier) error {
+func (c *Client) ensureNamespace(ctx context.Context, id platform.EnvironmentID) error {
 	name := id.Namespace()
-	desired := namespaceLabels(id, tier)
+	desired := namespaceLabels(id)
 
 	existing, err := c.k8s.CoreV1().Namespaces().Get(ctx, name, metav1.GetOptions{})
 
@@ -70,13 +70,12 @@ func (c *Client) deleteNamespace(ctx context.Context, id platform.EnvironmentID)
 	return nil
 }
 
-func namespaceLabels(id platform.EnvironmentID, tier platform.ResourceTier) map[string]string {
+func namespaceLabels(id platform.EnvironmentID) map[string]string {
 	return map[string]string{
-		pkglabels.Workspace:    id.Workspace,
-		pkglabels.Project:      id.Project,
-		pkglabels.Environment:  id.Name,
-		pkglabels.ManagedBy:    pkglabels.ManagedByLucity,
-		pkglabels.ResourceTier: string(tier),
+		pkglabels.Workspace:   id.Workspace,
+		pkglabels.Project:     id.Project,
+		pkglabels.Environment: id.Name,
+		pkglabels.ManagedBy:   pkglabels.ManagedByLucity,
 
 		"pod-security.kubernetes.io/enforce":         "baseline",
 		"pod-security.kubernetes.io/enforce-version": "latest",

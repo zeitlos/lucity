@@ -1,22 +1,10 @@
 <script setup lang="ts">
-import FormFooter from '@/components/FormFooter.vue';
-import { useUnsavedChanges } from '@/composables/useUnsavedChanges';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
-import { ref, watch, computed } from 'vue';
+import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useMutation } from '@vue/apollo-composable';
 import { Trash2 } from '@lucide/vue';
 import { graphql } from '@/gql';
-import { ResourceTier } from '@/gql/graphql';
-
-const SetEnvironmentResourcesDocument = graphql(`
-  mutation SetEnvironmentResources($input: SetEnvironmentResourcesInput!) {
-    setEnvironmentResources(input: $input) {
-      id
-      resourceTier
-    }
-  }
-`);
 
 const DeleteEnvironmentDocument = graphql(`
   mutation DeleteEnvironment($environment: EnvironmentID!) {
@@ -26,7 +14,6 @@ const DeleteEnvironmentDocument = graphql(`
 import { apolloClient } from '@/lib/apollo';
 import ContextDrawer from '@/components/drawer/ContextDrawer.vue';
 import { Button } from '@/components/ui/button';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { failureToast, successToast } from '@/components/ui/sonner';
 
 const props = defineProps<{
@@ -34,7 +21,6 @@ const props = defineProps<{
   environment: {
     id: string;
     name: string;
-    resourceTier: ResourceTier;
   };
 }>();
 
@@ -43,39 +29,6 @@ const emit = defineEmits<{
 }>();
 
 const router = useRouter();
-
-const tier = ref<ResourceTier>(props.environment.resourceTier);
-
-watch(
-  () => [props.environment.id, props.environment.resourceTier] as const,
-  ([, current]) => {
-    tier.value = current;
-  },
-);
-
-const { mutate: setResourcesMutate, loading: savingTier } = useMutation(SetEnvironmentResourcesDocument);
-
-const tierOptions = [
-  { value: ResourceTier.Eco, label: 'Eco', description: 'Pay for what you use. Best for development, staging, and side projects.' },
-  { value: ResourceTier.Production, label: 'Production', description: 'Reserved resources. Best for production workloads with predictable load.' },
-];
-
-const tierChanged = computed(() => tier.value !== props.environment.resourceTier);
-
-useUnsavedChanges(tierChanged);
-
-async function handleSaveTier() {
-  try {
-    await setResourcesMutate({
-      input: {
-        environment: props.environment.id,
-        tier: tier.value,
-      },
-    });
-  } catch (e: unknown) {
-    failureToast('Failed to update resource tier', e);
-  }
-}
 
 const { mutate: deleteEnvironmentMutate, loading: deleting } = useMutation(DeleteEnvironmentDocument);
 const confirmOpen = ref(false);
@@ -104,39 +57,6 @@ async function handleDelete() {
     @close="emit('close')"
   >
     <div class="flex min-h-full flex-col gap-6">
-      <section class="space-y-2.5">
-        <h3 class="text-sm font-medium text-muted-foreground">Resource tier</h3>
-        <div class="overflow-hidden rounded-lg border">
-          <fieldset :disabled="savingTier" class="min-w-0">
-            <RadioGroup
-              :model-value="tier"
-              class="gap-0 divide-y"
-              @update:model-value="tier = $event as ResourceTier"
-            >
-              <label
-                v-for="option in tierOptions"
-                :key="option.value"
-                class="flex cursor-pointer items-start gap-3 p-3 transition-colors"
-                :class="{ 'bg-primary/5': tier === option.value }"
-              >
-                <RadioGroupItem :value="option.value" class="mt-0.5" />
-                <span class="space-y-0.5">
-                  <span class="block text-sm font-medium">{{ option.label }}</span>
-                  <span class="block text-xs text-muted-foreground">{{ option.description }}</span>
-                </span>
-              </label>
-            </RadioGroup>
-          </fieldset>
-          <FormFooter
-            :dirty="tierChanged"
-            :saving="savingTier"
-            hint="Each service picks up the change on its next deploy."
-            @save="handleSaveTier"
-            @discard="tier = environment.resourceTier"
-          />
-        </div>
-      </section>
-
       <section class="space-y-2.5">
         <h3 class="text-sm font-medium text-muted-foreground">General</h3>
         <div class="space-y-2.5 rounded-lg border p-3">

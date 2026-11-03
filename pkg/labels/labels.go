@@ -15,7 +15,6 @@ const (
 	BuiltBy             = Prefix + "built-by"
 	ManagedBy           = "app.kubernetes.io/managed-by"
 	ResourceType        = Prefix + "resource-type"
-	ResourceTier        = Prefix + "resource-tier"
 	GitHubInstallation  = Prefix + "github-installation"
 	ObjectStorageBucket = Prefix + "object-storage-bucket"
 	CustomDomain        = Prefix + "custom-domain"

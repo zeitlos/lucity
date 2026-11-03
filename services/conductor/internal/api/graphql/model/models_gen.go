@@ -392,8 +392,7 @@ type CreateEnvironmentInput struct {
 	Name    string             `json:"name"`
 	// Not supported yet. Leave it unset, because new environments always start empty.
 	FromEnvironment *platform.EnvironmentID `json:"fromEnvironment,omitempty"`
-	// Defaults to `ECO`.
-	Tier *ResourceTier `json:"tier,omitempty"`
+	Tier            *ResourceTier           `json:"tier,omitempty"`
 }
 
 type CreateKeyValueStoreInput struct {
@@ -951,12 +950,6 @@ type ServiceVariableInput struct {
 	Value *string `json:"value,omitempty"`
 	// Links the variable to one from `availableVariables`. Set either `value` or `ref`.
 	Ref *platform.VariableID `json:"ref,omitempty"`
-}
-
-// `ECO` lets services share capacity and burst beyond what is reserved for them. `PRODUCTION` reserves the full CPU and memory of every service.
-type SetEnvironmentResourcesInput struct {
-	Environment platform.EnvironmentID `json:"environment"`
-	Tier        ResourceTier           `json:"tier"`
 }
 
 type SetServiceScalingInput struct {
@@ -3235,18 +3228,16 @@ func (e ResourceMetric) MarshalJSON() ([]byte, error) {
 type ResourceTier string
 
 const (
-	ResourceTierEco        ResourceTier = "ECO"
-	ResourceTierProduction ResourceTier = "PRODUCTION"
+	ResourceTierEco ResourceTier = "ECO"
 )
 
 var AllResourceTier = []ResourceTier{
 	ResourceTierEco,
-	ResourceTierProduction,
 }
 
 func (e ResourceTier) IsValid() bool {
 	switch e {
-	case ResourceTierEco, ResourceTierProduction:
+	case ResourceTierEco:
 		return true
 	}
 	return false

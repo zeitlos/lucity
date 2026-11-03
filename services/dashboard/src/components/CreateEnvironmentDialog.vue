@@ -5,14 +5,13 @@ import { Layers } from '@lucide/vue';
 import { ref, computed, watch } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
 import { graphql } from '@/gql';
-import { type CreateEnvironmentInput, ResourceTier } from '@/gql/graphql';
+import type { CreateEnvironmentInput } from '@/gql/graphql';
 
 const CreateEnvironmentDocument = graphql(`
   mutation CreateEnvironment($input: CreateEnvironmentInput!) {
     createEnvironment(input: $input) {
       id
       name
-      resourceTier
     }
   }
 `);
@@ -53,7 +52,6 @@ const { environments } = useEnvironment();
 const name = ref('');
 const mode = ref<'duplicate' | 'empty'>('duplicate');
 const fromEnvironmentId = ref<string>('');
-const tier = ref<ResourceTier>(ResourceTier.Eco);
 
 const { mutate, loading } = useMutation(CreateEnvironmentDocument);
 
@@ -78,7 +76,6 @@ async function handleCreate() {
     const input: CreateEnvironmentInput = {
       project: props.projectId,
       name: name.value.trim(),
-      tier: tier.value,
     };
     if (mode.value === 'duplicate' && fromEnvironmentId.value) {
       input.fromEnvironment = fromEnvironmentId.value;
@@ -89,7 +86,6 @@ async function handleCreate() {
     const newId = res?.data?.createEnvironment?.id;
     name.value = '';
     fromEnvironmentId.value = '';
-    tier.value = ResourceTier.Eco;
     emit('update:open', false);
     if (newId) emit('created', newId);
   } catch (e: unknown) {
@@ -166,36 +162,6 @@ async function handleCreate() {
               </div>
               <p class="text-xs text-muted-foreground pl-6">
                 An empty environment with no services or variables included.
-              </p>
-            </label>
-          </RadioGroup>
-        </div>
-
-        <div class="space-y-2">
-          <Label>Tier</Label>
-          <RadioGroup v-model="tier" class="grid grid-cols-2 gap-3">
-            <label
-              class="flex cursor-pointer flex-col gap-1 rounded-lg border p-3 transition-colors"
-              :class="tier === ResourceTier.Eco ? 'border-primary bg-primary/5' : 'border-border'"
-            >
-              <div class="flex items-center gap-2">
-                <RadioGroupItem :value="ResourceTier.Eco" />
-                <span class="text-sm font-medium">Eco</span>
-              </div>
-              <p class="text-xs text-muted-foreground">
-                Pay for what you use. Best for development, staging, and side projects.
-              </p>
-            </label>
-            <label
-              class="flex cursor-pointer flex-col gap-1 rounded-lg border p-3 transition-colors"
-              :class="tier === ResourceTier.Production ? 'border-primary bg-primary/5' : 'border-border'"
-            >
-              <div class="flex items-center gap-2">
-                <RadioGroupItem :value="ResourceTier.Production" />
-                <span class="text-sm font-medium">Production</span>
-              </div>
-              <p class="text-xs text-muted-foreground">
-                Reserved resources. Best for production workloads with predictable load.
               </p>
             </label>
           </RadioGroup>

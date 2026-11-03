@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/composables/useAuth';
 import { useCapabilities } from '@/composables/useCapabilities';
-import { tierLabel, useContextSwitch } from '@/composables/useContextSwitch';
+import { useContextSwitch } from '@/composables/useContextSwitch';
 import { useWorkspaceColor } from '@/composables/useWorkspaceColor';
 import { environmentNavItems, projectNavItems, workspaceNavItems } from '@/lib/contextNav';
 import { preferredEnvironment } from '@/lib/lastEnvironment';
@@ -275,7 +275,6 @@ const newBoxClass = 'flex size-6.5 shrink-0 items-center justify-center rounded-
               :class="[rowClass, 'pl-12']"
             >
               <span class="min-w-0 truncate" :class="{ 'font-medium': isEnvironmentRoute && env.id === environmentId }">{{ env.name }}</span>
-              <span class="text-xs text-muted-foreground">{{ tierLabel(env.resourceTier) }}</span>
               <Check v-if="isEnvironmentRoute && env.id === environmentId" :size="16" class="ml-auto shrink-0" />
             </RouterLink>
             <button type="button" :class="[rowClass, 'text-muted-foreground']" @click="openEnvironmentDialog">

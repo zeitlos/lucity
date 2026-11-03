@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import type { RouteLocationRaw } from 'vue-router';
 import ResourceIcon from '@/components/ResourceIcon.vue';
-import { BucketStatus, DatabaseStatus, ResourceTier, ServiceStatus } from '@/gql/graphql';
+import { BucketStatus, DatabaseStatus, ServiceStatus } from '@/gql/graphql';
 import { serviceKind, type ResourceKind } from '@/lib/resources';
 import { bucketStatus, databaseStatus, serviceStatus, type StatusTone } from '@/lib/status';
 
@@ -10,7 +10,6 @@ const props = defineProps<{
   environment: {
     id: string;
     name: string;
-    resourceTier: ResourceTier;
     services: { id: string; name: string; status: ServiceStatus; sourceUrl: string }[];
     databases: { id: string; name: string; status: DatabaseStatus }[];
     keyValueStores: { id: string; name: string; status: DatabaseStatus }[];
@@ -43,9 +42,6 @@ const tiles = computed<Tile[]>(() => [
   >
     <div class="flex min-w-0 items-center gap-2.5">
       <span class="truncate text-base font-semibold text-foreground">{{ environment.name }}</span>
-      <span class="shrink-0 rounded-full border px-2 py-px text-xs text-muted-foreground">
-        {{ environment.resourceTier === ResourceTier.Production ? 'Production' : 'Eco' }}
-      </span>
     </div>
 
     <div class="canvas-preview grid min-h-30 grid-cols-3 content-start gap-2 rounded-lg border border-border/60 p-3.5">

@@ -12,23 +12,6 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 )
 
-// SetEnvironmentResources is the resolver for the setEnvironmentResources field.
-func (r *mutationResolver) SetEnvironmentResources(ctx context.Context, input model.SetEnvironmentResourcesInput) (*model.Environment, error) {
-	tier, err := parseResourceTier(input.Tier)
-
-	if err != nil {
-		return nil, err
-	}
-
-	result, err := r.Conductor.SetEnvironmentResources(ctx, input.Environment, tier)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return new(convertEnvironment(*result)), nil
-}
-
 // SelectPlan is the resolver for the selectPlan field.
 func (r *mutationResolver) SelectPlan(ctx context.Context, plan model.Plan) (*model.PlanSelection, error) {
 	ws, err := tenant.FromContext(ctx)

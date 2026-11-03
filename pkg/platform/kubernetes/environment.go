@@ -2,7 +2,6 @@ package kubernetes
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/usererror"
@@ -79,28 +78,11 @@ func toEnvironments(namespaces []core.Namespace) []platform.Environment {
 }
 
 func toEnvironment(namespace core.Namespace) platform.Environment {
-	env := platform.Environment{
+	return platform.Environment{
 		ID:        environmentID(namespace.Labels),
 		Name:      namespace.Labels[environmentLabel],
 		CreatedAt: namespace.CreationTimestamp.Time,
 	}
-
-	switch namespace.Labels[resourceTierLabel] {
-	case string(tierFromLabel(resourceTierProd)):
-		env.ResourceTier = platform.ProductionTier
-	case string(tierFromLabel(resourceTierEco)):
-		env.ResourceTier = platform.EcoTier
-	default:
-		slog.Warn("invalid value for label",
-			"label", resourceTierLabel,
-			"value", namespace.Labels[resourceTierLabel],
-			"namespace", namespace.Name,
-		)
-
-		env.ResourceTier = platform.EcoTier
-	}
-
-	return env
 }
 
 func environmentID(labels map[string]string) platform.EnvironmentID {

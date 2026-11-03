@@ -191,7 +191,7 @@ func (w *Worker) reconcile(ctx context.Context) error {
 
 		id := environment.ID
 
-		if err := w.environment.Ensure(ctx, id, environment.ResourceTier); err != nil {
+		if err := w.environment.Ensure(ctx, id); err != nil {
 			slog.Warn("release: failed to ensure scaffolding", "environment", id, "error", err)
 		}
 

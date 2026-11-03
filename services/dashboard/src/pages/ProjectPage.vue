@@ -14,7 +14,6 @@ const ProjectDocument = graphql(`
       environments {
         id
         name
-        resourceTier
         services {
           id
           name
@@ -81,7 +80,6 @@ watch(
       const shells: Environment[] = envs.map(e => ({
         id: e.id,
         name: e.name,
-        resourceTier: e.resourceTier,
         services: [],
         databases: [],
         keyValueStores: [],

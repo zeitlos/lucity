@@ -27,7 +27,7 @@ func (s *serviceClient) Create(ctx context.Context, env platform.EnvironmentID, 
 			GitHubInstallationID: spec.GitHubInstallationID,
 			AutoDeploy:           spec.AutoDeploy,
 			Port:                 spec.Port,
-			Resources:            deriveRequestsAndLimtis(spec.Resources, spec.ResourceTier),
+			Resources:            deriveRequestsAndLimtis(spec.Resources),
 			Env:                  spec.Env,
 			RunAsUser:            spec.SecurityContext.RunAsUser,
 			RunAsGroup:           spec.SecurityContext.RunAsGroup,
@@ -76,13 +76,13 @@ func (s *serviceClient) SetAutoscaling(ctx context.Context, id platform.ServiceI
 	})
 }
 
-func (s *serviceClient) SetResources(ctx context.Context, id platform.ServiceID, tier platform.ResourceTier, res deployer.Resources) (deployer.RevisionID, error) {
+func (s *serviceClient) SetResources(ctx context.Context, id platform.ServiceID, res deployer.Resources) (deployer.RevisionID, error) {
 	if err := validateResources(res); err != nil {
 		return "", err
 	}
 
 	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
-		return values.SetServiceResources(e, id.Name, deriveRequestsAndLimtis(res, tier))
+		return values.SetServiceResources(e, id.Name, deriveRequestsAndLimtis(res))
 	})
 }
 

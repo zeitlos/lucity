@@ -1,11 +1,3 @@
-enum ResourceTier { ECO, PRODUCTION }
-
-"""`ECO` lets services share capacity and burst beyond what is reserved for them. `PRODUCTION` reserves the full CPU and memory of every service."""
-input SetEnvironmentResourcesInput {
-  environment: EnvironmentID!
-  tier: ResourceTier!
-}
-
 enum Plan { HOBBY, PRO }
 
 enum SubscriptionStatus {
@@ -74,8 +66,6 @@ extend type Query {
 }
 
 extend type Mutation {
-  """Sets the tier of an environment. Services and databases pick it up the next time they are created or resized."""
-  setEnvironmentResources(input: SetEnvironmentResourcesInput!): Environment! @hasRole(role: WORKSPACE_MEMBER)
   """Puts the workspace on a plan: switches its plan, prorated, adds one to its trial, or starts a new subscription when it has none. Returns a checkout URL instead when a card is needed first."""
   selectPlan(plan: Plan!): PlanSelection! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
   """A link to the billing portal, where payment details and invoices are managed."""

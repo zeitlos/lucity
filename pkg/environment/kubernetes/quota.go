@@ -46,9 +46,9 @@ func (c *Client) ensureQuota(ctx context.Context, id platform.EnvironmentID) err
 	return nil
 }
 
-func (c *Client) ensureLimitRange(ctx context.Context, id platform.EnvironmentID, tier platform.ResourceTier) error {
+func (c *Client) ensureLimitRange(ctx context.Context, id platform.EnvironmentID) error {
 	namespace := id.Namespace()
-	limitRange := buildLimitRange(namespace, tier)
+	limitRange := buildLimitRange(namespace)
 
 	existing, err := c.k8s.CoreV1().LimitRanges(namespace).Get(ctx, limitRangeName, metav1.GetOptions{})
 
@@ -141,7 +141,7 @@ func buildQuota(namespace string) *corev1.ResourceQuota {
 	}
 }
 
-func buildLimitRange(namespace string, tier platform.ResourceTier) *corev1.LimitRange {
+func buildLimitRange(namespace string) *corev1.LimitRange {
 	return &corev1.LimitRange{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      limitRangeName,
@@ -158,8 +158,8 @@ func buildLimitRange(namespace string, tier platform.ResourceTier) *corev1.Limit
 					corev1.ResourceMemory: resources.DefaultMemoryLimit,
 				},
 				DefaultRequest: corev1.ResourceList{
-					corev1.ResourceCPU:    to.Val(resources.Request(tier, resources.DefaultCPULimit)),
-					corev1.ResourceMemory: to.Val(resources.Request(tier, resources.DefaultMemoryLimit)),
+					corev1.ResourceCPU:    to.Val(resources.Request(resources.DefaultCPULimit)),
+					corev1.ResourceMemory: to.Val(resources.Request(resources.DefaultMemoryLimit)),
 				},
 			}},
 		},

@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import { Check, ChevronDown, Plus } from '@lucide/vue';
 import Spinner from '@/components/LoadingSpinner.vue';
-import { tierLabel, useContextSwitch } from '@/composables/useContextSwitch';
+import { useContextSwitch } from '@/composables/useContextSwitch';
 import { useWorkspaceColor } from '@/composables/useWorkspaceColor';
 import {
   AlertDialog,
@@ -159,7 +159,6 @@ const newBoxClass = 'flex size-6 shrink-0 items-center justify-center rounded bo
                       @select="handleEnvironmentSwitch(env.id)"
                     >
                       <span class="truncate" :class="env.id === activeEnvironment.id ? 'font-medium' : ''">{{ env.name }}</span>
-                      <span class="text-xs text-muted-foreground">{{ tierLabel(env.resourceTier) }}</span>
                       <Check v-if="env.id === activeEnvironment.id" class="ml-auto" />
                     </DropdownMenuItem>
                     <DropdownMenuItem :class="[plainRowClass, 'text-muted-foreground']" @select="envDialogOpen = true">

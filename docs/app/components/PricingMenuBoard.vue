@@ -5,35 +5,12 @@ interface ResourcePrice {
   unit: string;
 }
 
-interface Tier {
-  name: string;
-  detail: string;
-  prices: ResourcePrice[];
-}
-
-const tiers: Tier[] = [
-  {
-    name: 'On-demand',
-    detail: 'Metered · pay as you go',
-    prices: [
-      { label: 'vCPU', value: 'CHF 20', unit: '/ core / mo' },
-      { label: 'Memory', value: 'CHF 10', unit: '/ GB / mo' },
-      { label: 'Disk', value: 'CHF 0.10', unit: '/ GB / mo' },
-      { label: 'Egress', value: 'CHF 0.02', unit: '/ GB' },
-      { label: 'Object Storage', value: 'CHF 0.03', unit: '/ GB / mo' },
-    ],
-  },
-  {
-    name: 'Guaranteed',
-    detail: 'Reserved · predictable · <span class="board-discount">20% off CPU &amp; RAM</span>',
-    prices: [
-      { label: 'vCPU', value: 'CHF 16', unit: '/ core / mo' },
-      { label: 'Memory', value: 'CHF 8', unit: '/ GB / mo' },
-      { label: 'Disk', value: 'CHF 0.10', unit: '/ GB / mo' },
-      { label: 'Egress', value: 'CHF 0.02', unit: '/ GB' },
-      { label: 'Object Storage', value: 'CHF 0.03', unit: '/ GB / mo' },
-    ],
-  },
+const prices: ResourcePrice[] = [
+  { label: 'vCPU', value: 'CHF 20', unit: '/ core / mo' },
+  { label: 'Memory', value: 'CHF 10', unit: '/ GB / mo' },
+  { label: 'Disk', value: 'CHF 0.10', unit: '/ GB / mo' },
+  { label: 'Egress', value: 'CHF 0.02', unit: '/ GB' },
+  { label: 'Object Storage', value: 'CHF 0.03', unit: '/ GB / mo' },
 ];
 </script>
 
@@ -47,32 +24,15 @@ const tiers: Tier[] = [
 
         <hr class="board-separator">
 
-        <div class="board-columns">
-          <div
-            v-for="(tier, i) in tiers"
-            :key="i"
-            class="board-column"
-          >
-            <div class="board-tier-header">
-              <span class="board-tier-name">{{ tier.name }}</span>
-              <!-- eslint-disable-next-line vue/no-v-html -->
-              <span
-                class="board-tier-detail"
-                v-html="tier.detail"
-              />
-            </div>
-
-            <div
-              v-for="(price, j) in tier.prices"
-              :key="`${i}-${j}`"
-              class="board-row"
-            >
-              <span class="board-name">{{ price.label }}</span>
-              <span class="board-dots" />
-              <span class="board-price">{{ price.value }}</span>
-              <span class="board-unit">{{ price.unit }}</span>
-            </div>
-          </div>
+        <div
+          v-for="price in prices"
+          :key="price.label"
+          class="board-row"
+        >
+          <span class="board-name">{{ price.label }}</span>
+          <span class="board-dots" />
+          <span class="board-price">{{ price.value }}</span>
+          <span class="board-unit">{{ price.unit }}</span>
         </div>
 
         <hr class="board-separator">
@@ -100,7 +60,7 @@ const tiers: Tier[] = [
 
 .board-anchor {
   position: relative;
-  max-width: 1000px;
+  max-width: 640px;
   width: 100%;
   overflow: visible;
 }
@@ -161,64 +121,6 @@ const tiers: Tier[] = [
   border: none;
   border-top: 1px solid oklch(0.22 0.01 55);
   margin: 12px 0;
-}
-
-/* ---- Two-column layout ---- */
-
-.board-columns {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-@media (min-width: 640px) {
-  .board-columns {
-    flex-direction: row;
-    gap: 48px;
-  }
-
-  .board-column {
-    flex: 1 1 0%;
-  }
-}
-
-/* ---- Divider between columns on desktop ---- */
-
-@media (min-width: 640px) {
-  .board-column + .board-column {
-    border-left: 1px solid oklch(0.22 0.01 55);
-    padding-left: 48px;
-  }
-}
-
-/* ---- Tier headers ---- */
-
-.board-tier-header {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 10px;
-}
-
-.board-tier-name {
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-size: 19px;
-  color: oklch(0.82 0.08 65);
-  text-shadow: 0 0 14px oklch(0.8 0.1 65 / 0.25);
-}
-
-.board-tier-detail {
-  font-size: 14px;
-  color: oklch(0.45 0.01 80);
-  letter-spacing: 0.02em;
-}
-
-:deep(.board-discount) {
-  color: var(--ui-primary);
-  font-weight: 700;
-  text-shadow: 0 0 14px oklch(0.75 0.18 160 / 0.45);
 }
 
 /* ---- Rows ---- */

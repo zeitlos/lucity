@@ -156,18 +156,15 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 		Name:        name,
 	}
 
-	environment, err := c.platform.Environment(ctx, environmentID)
-
-	if err != nil {
+	if _, err := c.platform.Environment(ctx, environmentID); err != nil {
 		return nil, err
 	}
 
 	serviceName := name
 	spec := deployer.ServiceSpec{
-		ContextPath:  contextPath,
-		ResourceTier: environment.ResourceTier,
-		Env:          variables,
-		Resources:    resources,
+		ContextPath: contextPath,
+		Env:         variables,
+		Resources:   resources,
 	}
 
 	if repository != "" {
@@ -356,13 +353,7 @@ func (c *Client) SetServiceResources(ctx context.Context, service platform.Servi
 		return nil, err
 	}
 
-	environment, err := c.platform.Environment(ctx, service.EnvironmentID())
-
-	if err != nil {
-		return nil, err
-	}
-
-	if _, err := c.deployer.Services().SetResources(ctx, service, environment.ResourceTier, spec); err != nil {
+	if _, err := c.deployer.Services().SetResources(ctx, service, spec); err != nil {
 		return nil, fmt.Errorf("set resources: %w", err)
 	}
 

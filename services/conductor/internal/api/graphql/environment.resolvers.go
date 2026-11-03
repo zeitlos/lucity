@@ -65,19 +65,7 @@ func (r *environmentResolver) Volumes(ctx context.Context, obj *model.Environmen
 
 // CreateEnvironment is the resolver for the createEnvironment field.
 func (r *mutationResolver) CreateEnvironment(ctx context.Context, input model.CreateEnvironmentInput) (*model.Environment, error) {
-	tier := platform.EcoTier
-
-	if input.Tier != nil {
-		parsed, err := parseResourceTier(*input.Tier)
-
-		if err != nil {
-			return nil, err
-		}
-
-		tier = parsed
-	}
-
-	e, err := r.Conductor.CreateEnvironment(ctx, input.Project, input.Name, input.FromEnvironment, tier)
+	e, err := r.Conductor.CreateEnvironment(ctx, input.Project, input.Name, input.FromEnvironment)
 
 	if err != nil {
 		return nil, err

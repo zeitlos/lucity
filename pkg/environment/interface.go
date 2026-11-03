@@ -7,6 +7,6 @@ import (
 )
 
 type Interface interface {
-	Ensure(ctx context.Context, id platform.EnvironmentID, tier platform.ResourceTier) error
+	Ensure(ctx context.Context, id platform.EnvironmentID) error
 	Delete(ctx context.Context, id platform.EnvironmentID) error
 }

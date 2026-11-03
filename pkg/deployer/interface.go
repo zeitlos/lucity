@@ -31,7 +31,7 @@ type ServiceClient interface {
 	SetImage(ctx context.Context, id platform.ServiceID, ref image.Ref, provenance ImageProvenance, release ReleaseMeta) (RevisionID, error)
 	SetReplicas(ctx context.Context, id platform.ServiceID, replicas int) (RevisionID, error)
 	SetAutoscaling(ctx context.Context, id platform.ServiceID, config Autoscaling) (RevisionID, error)
-	SetResources(ctx context.Context, id platform.ServiceID, tier platform.ResourceTier, resources Resources) (RevisionID, error)
+	SetResources(ctx context.Context, id platform.ServiceID, resources Resources) (RevisionID, error)
 	SetCommand(ctx context.Context, id platform.ServiceID, command string) (RevisionID, error)
 	SetBranch(ctx context.Context, id platform.ServiceID, branch string) (RevisionID, error)
 	SetAutoDeploy(ctx context.Context, id platform.ServiceID, enabled bool) (RevisionID, error)
@@ -55,7 +55,7 @@ type DatabaseClient interface {
 	Create(ctx context.Context, env platform.EnvironmentID, name string, spec DatabaseSpec) (RevisionID, error)
 	Restore(ctx context.Context, source platform.DatabaseID, name string, spec DatabaseSpec, targetTime *time.Time) (RevisionID, error)
 	Delete(ctx context.Context, id platform.DatabaseID) error
-	SetResources(ctx context.Context, id platform.DatabaseID, tier platform.ResourceTier, resources Resources) (RevisionID, error)
+	SetResources(ctx context.Context, id platform.DatabaseID, resources Resources) (RevisionID, error)
 	SetStorage(ctx context.Context, id platform.DatabaseID, size resource.Quantity) (RevisionID, error)
 	Expose(ctx context.Context, id platform.DatabaseID, host string) error
 	Unexpose(ctx context.Context, id platform.DatabaseID) error
@@ -139,7 +139,6 @@ type ServiceSpec struct {
 	StartCommand         string
 	Port                 int
 	Resources            Resources
-	ResourceTier         platform.ResourceTier
 	Env                  map[string]string
 	SecurityContext      SecurityContext
 }
@@ -151,10 +150,9 @@ type ImageProvenance struct {
 }
 
 type DatabaseSpec struct {
-	Version      string
-	Size         resource.Quantity
-	Resources    Resources
-	ResourceTier platform.ResourceTier
+	Version   string
+	Size      resource.Quantity
+	Resources Resources
 }
 
 // AllowRule lets clients from Range connect to a database's public hostname.

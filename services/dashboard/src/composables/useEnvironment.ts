@@ -5,7 +5,6 @@ import type {
   DatabaseStatus,
   DeployStatus,
   ScanStatus,
-  ResourceTier,
   ServiceStatus,
   Protocol,
   DeploymentStatus,
@@ -217,7 +216,6 @@ export interface Volume {
 export interface Environment {
   id: string;
   name: string;
-  resourceTier: ResourceTier;
   services: Service[];
   databases: Database[];
   keyValueStores: KeyValueStore[];

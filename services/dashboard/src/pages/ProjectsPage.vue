@@ -18,7 +18,6 @@ const ProjectsDocument = graphql(`
       environments {
         id
         name
-        resourceTier
         services {
           id
           name

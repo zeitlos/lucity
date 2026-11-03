@@ -216,17 +216,14 @@ func (c *Client) CreateDatabase(ctx context.Context, environment platform.Enviro
 		return nil, err
 	}
 
-	env, err := c.platform.Environment(ctx, environment)
-
-	if err != nil {
+	if _, err := c.platform.Environment(ctx, environment); err != nil {
 		return nil, fmt.Errorf("read environment: %w", err)
 	}
 
 	if _, err := c.deployer.Databases().Create(ctx, environment, name, deployer.DatabaseSpec{
-		Version:      version,
-		Size:         parsedSize,
-		ResourceTier: env.ResourceTier,
-		Resources:    resources,
+		Version:   version,
+		Size:      parsedSize,
+		Resources: resources,
 	}); err != nil {
 		return nil, fmt.Errorf("create database: %w", err)
 	}
@@ -297,12 +294,6 @@ func (c *Client) RestoreDatabase(ctx context.Context, source platform.DatabaseID
 		}
 	}
 
-	env, err := c.platform.Environment(ctx, source.EnvironmentID())
-
-	if err != nil {
-		return nil, fmt.Errorf("read environment: %w", err)
-	}
-
 	capabilities, err := c.Capabilities(ctx, source.Workspace)
 
 	if err != nil {
@@ -320,10 +311,9 @@ func (c *Client) RestoreDatabase(ctx context.Context, source platform.DatabaseID
 	}
 
 	if _, err := c.deployer.Databases().Restore(ctx, source, name, deployer.DatabaseSpec{
-		Version:      origin.Version,
-		Size:         origin.Size,
-		ResourceTier: env.ResourceTier,
-		Resources:    resources,
+		Version:   origin.Version,
+		Size:      origin.Size,
+		Resources: resources,
 	}, target); err != nil {
 		return nil, fmt.Errorf("restore database: %w", err)
 	}
@@ -360,13 +350,7 @@ func (c *Client) SetDatabaseResources(ctx context.Context, database platform.Dat
 		return nil, err
 	}
 
-	environment, err := c.platform.Environment(ctx, database.EnvironmentID())
-
-	if err != nil {
-		return nil, err
-	}
-
-	if _, err := c.deployer.Databases().SetResources(ctx, database, environment.ResourceTier, spec); err != nil {
+	if _, err := c.deployer.Databases().SetResources(ctx, database, spec); err != nil {
 		return nil, fmt.Errorf("set resources: %w", err)
 	}
 

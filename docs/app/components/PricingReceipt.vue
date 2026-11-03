@@ -27,7 +27,7 @@ const lines: ReceiptLine[] = [
   { type: 'justify',      left: 'Plan: Hobby', right: '5.00' },
   { type: 'dash' },
   { type: 'line' },
-  { type: 'label',        text: 'Resources (On-demand):' },
+  { type: 'label',        text: 'Resources:' },
   { type: 'item',         desc: '0.25 vCPU @ CHF 20/core', amount: '5.00' },
   { type: 'item',         desc: '256 MB    @ CHF 10/GB',   amount: '2.56' },
   { type: 'item',         desc: '1 GB Disk @ CHF 0.10/GB', amount: '0.10' },

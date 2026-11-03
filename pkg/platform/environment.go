@@ -14,18 +14,10 @@ import (
 )
 
 type Environment struct {
-	ID           EnvironmentID
-	Name         string
-	ResourceTier ResourceTier
-	CreatedAt    time.Time
+	ID        EnvironmentID
+	Name      string
+	CreatedAt time.Time
 }
-
-type ResourceTier string
-
-const (
-	EcoTier        ResourceTier = "eco"
-	ProductionTier ResourceTier = "prod"
-)
 
 type EnvironmentID struct {
 	Workspace string

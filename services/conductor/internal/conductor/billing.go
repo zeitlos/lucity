@@ -10,7 +10,6 @@ import (
 	"time"
 
 	pkgbilling "github.com/zeitlos/lucity/pkg/billing"
-	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/usererror"
 	"github.com/zeitlos/lucity/services/conductor/internal/billing"
 )
@@ -35,35 +34,6 @@ type UsageSummaryResult struct {
 type PlanSelection struct {
 	Subscription *BillingSubscription
 	CheckoutURL  string
-}
-
-type ResourceTier = platform.ResourceTier
-
-const ProductionTier = platform.ProductionTier
-const EcoTier = platform.EcoTier
-
-// SetEnvironmentResources changes the environment's resource tier, which flips
-// the LimitRange's default container requests: Eco runs burstable (~50% of the
-// limit as request), Production runs guaranteed (request == limit). The
-// namespace ResourceQuota is fixed for every environment at the defaults in
-// resources.go and is not settable per environment.
-//
-// Existing services keep the requests baked into their Helm values until their
-// next deploy; the tier only reaches them through deriveRequestsAndLimits.
-func (c *Client) SetEnvironmentResources(ctx context.Context, environmentID platform.EnvironmentID, tier ResourceTier) (*Environment, error) {
-	if err := c.environment.Ensure(ctx, environmentID, tier); err != nil {
-		return nil, err
-	}
-
-	environment, err := c.Environment(ctx, environmentID)
-
-	if err != nil {
-		return nil, err
-	}
-
-	environment.ResourceTier = tier
-
-	return environment, nil
 }
 
 // Subscription returns the workspace's subscription, or nil when it never

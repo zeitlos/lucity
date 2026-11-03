@@ -4,7 +4,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/zeitlos/lucity/pkg/deployer/values"
-	"github.com/zeitlos/lucity/pkg/platform"
 )
 
 const (
@@ -28,14 +27,9 @@ const (
 	DefaultBackupSchedule  = "0 0 2 * * 0"
 )
 
-// Request returns the K8s request value for the given limit under the given
-// tier. Guaranteed (production) returns the limit unchanged; burstable (eco)
-// scales the limit down by a fixed ratio.
-func Request(tier platform.ResourceTier, limit resource.Quantity) *resource.Quantity {
-	if tier == platform.ProductionTier {
-		return new(limit.DeepCopy())
-	}
-
+// Request returns the K8s request value for the given limit: the limit scaled
+// down by a fixed ratio, so workloads are burstable.
+func Request(limit resource.Quantity) *resource.Quantity {
 	milli := limit.MilliValue()
 	scaled := int64(float64(milli) * burstableRequestRatio)
 

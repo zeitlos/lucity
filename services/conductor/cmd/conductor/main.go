@@ -88,17 +88,14 @@ type Config struct {
 	LogtoM2MAppSecret string `envconfig:"LOGTO_M2M_APP_SECRET" required:"true"`
 
 	// Stripe billing: optional, disabled without a key
-	StripeSecretKey       string `envconfig:"STRIPE_SECRET_KEY"`
-	StripeHobbyPriceID    string `envconfig:"STRIPE_HOBBY_PRICE_ID"`
-	StripeProPriceID      string `envconfig:"STRIPE_PRO_PRICE_ID"`
-	StripeEcoCPUPriceID   string `envconfig:"STRIPE_ECO_CPU_PRICE_ID"`
-	StripeEcoMemPriceID   string `envconfig:"STRIPE_ECO_MEM_PRICE_ID"`
-	StripeEcoDiskPriceID  string `envconfig:"STRIPE_ECO_DISK_PRICE_ID"`
-	StripeProdCPUPriceID  string `envconfig:"STRIPE_PROD_CPU_PRICE_ID"`
-	StripeProdMemPriceID  string `envconfig:"STRIPE_PROD_MEM_PRICE_ID"`
-	StripeProdDiskPriceID string `envconfig:"STRIPE_PROD_DISK_PRICE_ID"`
-	StripeStoragePriceID  string `envconfig:"STRIPE_STORAGE_PRICE_ID"`
-	StripeEgressPriceID   string `envconfig:"STRIPE_EGRESS_PRICE_ID"`
+	StripeSecretKey      string `envconfig:"STRIPE_SECRET_KEY"`
+	StripeHobbyPriceID   string `envconfig:"STRIPE_HOBBY_PRICE_ID"`
+	StripeProPriceID     string `envconfig:"STRIPE_PRO_PRICE_ID"`
+	StripeEcoCPUPriceID  string `envconfig:"STRIPE_ECO_CPU_PRICE_ID"`
+	StripeEcoMemPriceID  string `envconfig:"STRIPE_ECO_MEM_PRICE_ID"`
+	StripeEcoDiskPriceID string `envconfig:"STRIPE_ECO_DISK_PRICE_ID"`
+	StripeStoragePriceID string `envconfig:"STRIPE_STORAGE_PRICE_ID"`
+	StripeEgressPriceID  string `envconfig:"STRIPE_EGRESS_PRICE_ID"`
 
 	// Webhook (GitHub events)
 	WebhookSecret string `envconfig:"WEBHOOK_SECRET" required:"true"`
@@ -275,15 +272,12 @@ func main() {
 			config.StripeEcoCPUPriceID,
 			config.StripeEcoMemPriceID,
 			config.StripeEcoDiskPriceID,
-			config.StripeProdCPUPriceID,
-			config.StripeProdMemPriceID,
-			config.StripeProdDiskPriceID,
 			config.StripeStoragePriceID,
 			config.StripeEgressPriceID,
 		}
 
 		if config.StripeHobbyPriceID == "" || config.StripeProPriceID == "" || slices.Contains(metered, "") {
-			slog.Error("billing needs all ten STRIPE_*_PRICE_ID settings with STRIPE_SECRET_KEY")
+			slog.Error("billing needs all seven STRIPE_*_PRICE_ID settings with STRIPE_SECRET_KEY")
 			os.Exit(1)
 		}
 

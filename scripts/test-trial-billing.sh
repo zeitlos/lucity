@@ -117,9 +117,6 @@ test_create() {
         -d "items[0][price]=${STRIPE_ECO_CPU_PRICE_ID}" \
         -d "items[1][price]=${STRIPE_ECO_MEM_PRICE_ID}" \
         -d "items[2][price]=${STRIPE_ECO_DISK_PRICE_ID}" \
-        -d "items[3][price]=${STRIPE_PROD_CPU_PRICE_ID}" \
-        -d "items[4][price]=${STRIPE_PROD_MEM_PRICE_ID}" \
-        -d "items[5][price]=${STRIPE_PROD_DISK_PRICE_ID}" \
         2>&1 | jq -r .id)
     log "Subscription: $SUB_ID"
 

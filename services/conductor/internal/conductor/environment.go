@@ -75,7 +75,7 @@ func (c *Client) EnvironmentUpdates(ctx context.Context, id EnvironmentID) (<-ch
 	return updates, nil
 }
 
-// CreateEnvironment provisions a new env namespace at the requested tier.
+// CreateEnvironment provisions a new env namespace.
 // The helm release materializes lazily on the first service/db/volume/
 // variable write — no explicit install is needed here.
 //
@@ -85,7 +85,7 @@ func (c *Client) EnvironmentUpdates(ctx context.Context, id EnvironmentID) (<-ch
 // doesn't yet expose Image and Port fields. Variables are also deferred
 // (see variable.go TODO). Until those land, callers must omit
 // fromEnvironment.
-func (c *Client) CreateEnvironment(ctx context.Context, project ProjectID, name string, fromEnvironment *EnvironmentID, tier ResourceTier) (*Environment, error) {
+func (c *Client) CreateEnvironment(ctx context.Context, project ProjectID, name string, fromEnvironment *EnvironmentID) (*Environment, error) {
 	if fromEnvironment != nil {
 		return nil, usererror.New("creating an environment from a source is not yet supported")
 	}
@@ -96,7 +96,7 @@ func (c *Client) CreateEnvironment(ctx context.Context, project ProjectID, name 
 		Name:      name,
 	}
 
-	if err := c.environment.Ensure(ctx, envID, tier); err != nil {
+	if err := c.environment.Ensure(ctx, envID); err != nil {
 		return nil, err
 	}
 
@@ -106,15 +106,7 @@ func (c *Client) CreateEnvironment(ctx context.Context, project ProjectID, name 
 		}
 	}
 
-	environment, err := c.Environment(ctx, envID)
-
-	if err != nil {
-		return nil, err
-	}
-
-	environment.ResourceTier = tier
-
-	return environment, nil
+	return c.Environment(ctx, envID)
 }
 
 func (c *Client) DeleteEnvironment(ctx context.Context, environment platform.EnvironmentID) error {

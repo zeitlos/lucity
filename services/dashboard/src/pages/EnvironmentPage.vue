@@ -10,7 +10,6 @@ graphql(`
   fragment EnvironmentFields on Environment {
     id
     name
-    resourceTier
     services {
       id
       name
@@ -292,7 +291,6 @@ const ProjectEnvironmentsDocument = graphql(`
       environments {
         id
         name
-        resourceTier
       }
     }
   }
@@ -437,7 +435,6 @@ watch(
       const shells: Environment[] = envs.map(e => ({
         id: e.id,
         name: e.name,
-        resourceTier: e.resourceTier,
         services: [],
         databases: [],
         keyValueStores: [],
@@ -466,7 +463,6 @@ watch(
     const full: Environment = {
       id: env.id,
       name: env.name,
-      resourceTier: env.resourceTier,
       services: env.services.map(s => ({
         id: s.id,
         name: s.name,

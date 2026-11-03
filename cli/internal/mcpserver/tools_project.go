@@ -64,7 +64,7 @@ func (s *server) registerProject(m *mcp.Server) {
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "create_environment",
-		Description: "Create an environment in a project. Tier ECO is cost-optimized; PRODUCTION reserves more resources.",
+		Description: "Create an environment in a project.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(false)},
 	}, s.createEnvironment)
 }
@@ -99,7 +99,7 @@ func (s *server) getProject(ctx context.Context, _ *mcp.CallToolRequest, input g
   project(id: $id) {
     id name
     environments {
-      id name resourceTier
+      id name
       services { id name status replicas { desired ready } port command resources { cpu memory } endpoints { host protocol type } lastDeployedAt }
       databases { id name status version size public }
       keyValueStores { id name status }
@@ -128,7 +128,7 @@ func (s *server) getProjectSplit(ctx context.Context, id string, out *struct {
   project(id: $id) {
     id name
     environments {
-      id name resourceTier
+      id name
       services { id name status replicas { desired ready } port command resources { cpu memory } endpoints { host protocol type } lastDeployedAt }
     }
   }
@@ -282,7 +282,6 @@ func (s *server) createProject(ctx context.Context, _ *mcp.CallToolRequest, inpu
 type createEnvironmentInput struct {
 	Project string `json:"project" jsonschema:"project id (workspace/project) or a bare project name"`
 	Name    string `json:"name" jsonschema:"environment name (2-16 chars, lowercase alphanumeric and hyphens)"`
-	Tier    string `json:"tier,omitempty" jsonschema:"resource tier ECO or PRODUCTION; defaults to the platform default"`
 }
 
 func (s *server) createEnvironment(ctx context.Context, _ *mcp.CallToolRequest, input createEnvironmentInput) (*mcp.CallToolResult, any, error) {
@@ -292,12 +291,9 @@ func (s *server) createEnvironment(ctx context.Context, _ *mcp.CallToolRequest, 
 	}
 
 	inputVar := map[string]any{"project": projectID, "name": input.Name}
-	if input.Tier != "" {
-		inputVar["tier"] = input.Tier
-	}
 
 	const mutation = `mutation($input: CreateEnvironmentInput!) {
-  createEnvironment(input: $input) { id name resourceTier }
+  createEnvironment(input: $input) { id name }
 }`
 
 	var out struct {

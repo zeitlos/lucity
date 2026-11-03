@@ -4,7 +4,6 @@ import { useQuery } from '@vue/apollo-composable';
 import { useAuth } from '@/composables/useAuth';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { graphql } from '@/gql';
-import { ResourceTier } from '@/gql/graphql';
 import { apolloClient } from '@/lib/apollo';
 import { preferredEnvironment } from '@/lib/lastEnvironment';
 
@@ -26,16 +25,10 @@ const ProjectsForNavDocument = graphql(`
       environments {
         id
         name
-        resourceTier
       }
     }
   }
 `);
-
-export function tierLabel(tier?: string | null) {
-  if (tier === ResourceTier.Production) return 'Production';
-  return 'Eco';
-}
 
 /**
  * The workspace, project and environment the person is in, and the moves

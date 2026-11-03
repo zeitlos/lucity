@@ -8,7 +8,7 @@ import DialogIcon from '@/components/DialogIcon.vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { ref, computed, watch, nextTick, type ComponentPublicInstance } from 'vue';
 import { useMutation, useApolloClient } from '@vue/apollo-composable';
-import { Trash2, Globe, Plus, Minus, RefreshCw, ChevronDown, Network, ExternalLink, Scaling, GitBranch, Play, Zap, ArrowRight, Cpu, MemoryStick, Leaf, ShieldCheck, Check, ChevronsUpDown, Activity, UserCog, ClipboardList } from '@lucide/vue';
+import { Trash2, Globe, Plus, Minus, RefreshCw, ChevronDown, Network, ExternalLink, Scaling, GitBranch, Play, Zap, ArrowRight, Cpu, MemoryStick, ShieldCheck, Check, ChevronsUpDown, Activity, UserCog, ClipboardList } from '@lucide/vue';
 import GithubIcon from '@/components/GithubIcon.vue';
 import { getDomain } from 'tldts';
 import { graphql } from '@/gql';
@@ -20,7 +20,6 @@ import {
   DnsStatus,
   EndpointType,
   Protocol,
-  ResourceTier,
   TlsStatus,
   Availability,
 } from '@/gql/graphql';
@@ -209,7 +208,6 @@ const SetServiceUserDocument = graphql(`
     }
   }
 `);
-import { useEnvironment } from '@/composables/useEnvironment';
 import type { Endpoint, Service } from '@/composables/useEnvironment';
 import Spinner from '@/components/LoadingSpinner.vue';
 import { Button } from '@/components/ui/button';
@@ -260,15 +258,12 @@ const emit = defineEmits<{
   (e: 'refetch'): void;
 }>();
 
-const { activeEnvironment } = useEnvironment();
-
 const endpoints = computed(() => props.service.endpoints ?? []);
 const platformEndpoint = computed(() => endpoints.value.find(e => e.type === EndpointType.Platform));
 const customEndpoints = computed(() => endpoints.value.filter(e => e.type === EndpointType.Custom));
 const internalEndpoint = computed(() => endpoints.value.find(e => e.type === EndpointType.Internal));
 
 const resources = computed(() => props.service.resources ?? null);
-const resourceTier = computed(() => activeEnvironment.value?.resourceTier ?? null);
 
 function domainUrl(endpoint: Endpoint) {
   let url = `${endpoint.protocol}://${endpoint.host}`;
@@ -1919,20 +1914,6 @@ async function handleRemoveService() {
                   </SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div v-if="resourceTier === ResourceTier.Eco" class="flex items-center gap-3 px-4 py-3">
-              <Leaf :size="16" class="shrink-0 text-emerald-500" />
-              <div class="min-w-0 flex-1">
-                <p class="text-sm font-medium text-foreground">Eco</p>
-                <p class="text-xs text-muted-foreground">Burstable compute, shared resources</p>
-              </div>
-            </div>
-            <div v-else-if="resourceTier === ResourceTier.Production" class="flex items-center gap-3 px-4 py-3">
-              <ShieldCheck :size="16" class="shrink-0 text-violet-500" />
-              <div class="min-w-0 flex-1">
-                <p class="text-sm font-medium text-foreground">Production</p>
-                <p class="text-xs text-muted-foreground">Guaranteed performance, dedicated resources</p>
-              </div>
             </div>
           </fieldset>
           <FormFooter

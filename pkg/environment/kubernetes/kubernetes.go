@@ -64,8 +64,8 @@ func New(k8s kubernetes.Interface, dyn dynamic.Interface, systemNamespace, syste
 // must exist before everything else, and the NetworkPolicies must land
 // before quotas/limit-ranges/pull-secrets so the wall is up the moment any
 // workload could be scheduled.
-func (c *Client) Ensure(ctx context.Context, id platform.EnvironmentID, tier platform.ResourceTier) error {
-	if err := c.ensureNamespace(ctx, id, tier); err != nil {
+func (c *Client) Ensure(ctx context.Context, id platform.EnvironmentID) error {
+	if err := c.ensureNamespace(ctx, id); err != nil {
 		return err
 	}
 
@@ -81,7 +81,7 @@ func (c *Client) Ensure(ctx context.Context, id platform.EnvironmentID, tier pla
 		return err
 	}
 
-	if err := c.ensureLimitRange(ctx, id, tier); err != nil {
+	if err := c.ensureLimitRange(ctx, id); err != nil {
 		return err
 	}
 

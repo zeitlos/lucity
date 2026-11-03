@@ -19,7 +19,7 @@
  *   LUCITY_WORKSPACE  workspace slug            (default: `lucity workspace`)
  *   SHOTS_PROJECT     demo project              (default vouch)
  *   SHOTS_ENV         demo environment          (default development)
- *   SHOTS_PROD_ENV    second demo environment, on the Production tier (default production)
+ *   SHOTS_PROD_ENV    second demo environment     (default production)
  *   SHOTS_SERVICE     demo service              (default vouch)
  *   SHOTS_DATABASE    demo database             (default feedback)
  *   SHOTS_BUCKET      demo bucket               (default attachments)
@@ -751,23 +751,6 @@ const shots = [
           height: Math.max(a.y + a.height, b.y + b.height) + 32 - top,
         },
       };
-    },
-  },
-  {
-    name: 'environment-settings',
-    dir: 'environments',
-    description: 'Project settings on the Environments section, with the tier choice open',
-    viewport: { width: 1120, height: 600 },
-    async capture(page) {
-      const project = encodeURIComponent(`${config.workspace}/${config.project}`);
-      await page.goto(`${config.base}/app/projects/${project}/settings/environments?env=${config.productionEnvironment}`, {
-        waitUntil: 'domcontentloaded',
-      });
-      await page.getByText('Save tier', { exact: true }).waitFor({ timeout: 30_000 });
-      await page.locator('label', { hasText: 'Reserved resources' }).click();
-      await page.waitForTimeout(800);
-      const card = page.locator('div.max-w-4xl.rounded-lg.border').first();
-      return { rect: await paddedRect(page, card, { x: 24, y: 24 }) };
     },
   },
   {

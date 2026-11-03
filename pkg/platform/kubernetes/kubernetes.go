@@ -18,14 +18,8 @@ const (
 	databaseLabel           = "lucity.dev/database"
 	keyValueStoreLabel      = "lucity.dev/keyvaluestore"
 	podTemplateHashLabel    = apps.DefaultDeploymentUniqueLabelKey
-	resourceTierLabel       = "lucity.dev/resource-tier"
 	gitHubInstallationLabel = "lucity.dev/github-installation"
 	httpsRedirectLabel      = "lucity.dev/https-redirect"
-)
-
-const (
-	resourceTierEco  = "eco"
-	resourceTierProd = "production"
 )
 
 const (

@@ -365,7 +365,7 @@ func convertEnvironment(e conductor.Environment) model.Environment {
 	result := model.Environment{
 		ID:           e.ID,
 		Name:         e.Name,
-		ResourceTier: convertResourceTier(e.ResourceTier),
+		ResourceTier: model.ResourceTierEco,
 	}
 
 	return result
@@ -1342,30 +1342,6 @@ func convertDNSRecordType(t hostname.RecordType) model.DNSRecordType {
 	slog.Warn("unknown dns record type", "type", t)
 
 	return model.DNSRecordTypeTxt
-}
-
-func convertResourceTier(tier platform.ResourceTier) model.ResourceTier {
-	switch tier {
-	case platform.EcoTier:
-		return model.ResourceTierEco
-	case platform.ProductionTier:
-		return model.ResourceTierProduction
-	}
-
-	slog.Warn("unknown resource tier", "tier", tier)
-
-	return model.ResourceTierEco
-}
-
-func parseResourceTier(tier model.ResourceTier) (platform.ResourceTier, error) {
-	switch tier {
-	case model.ResourceTierEco:
-		return platform.EcoTier, nil
-	case model.ResourceTierProduction:
-		return platform.ProductionTier, nil
-	}
-
-	return "", fmt.Errorf("invalid resource tier %q", tier)
 }
 
 func convertGitHubAccountType(accountType string) model.GitHubAccountType {
