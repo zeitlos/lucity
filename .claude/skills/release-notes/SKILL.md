@@ -181,14 +181,16 @@ Every release opens with a 1280×640 social card. It is generated in the dashboa
 this skill:
 
 1. Open the dashboard **/brand** page ([services/dashboard/src/pages/BrandPage.vue](services/dashboard/src/pages/BrandPage.vue)),
-   scroll to the **Social Preview** section.
-2. Pick a background wallpaper, and optionally tailor the **Headline** / **Tagline** to the
-   release theme (the default is "The PaaS you can leave." / "Open-source · Kubernetes-native
-   · Ejectable"). A headline that nods at the release's theme is a nice touch but optional.
-3. Click **PNG** (or **JPG**) to download `lucity-social-preview.png` (1280×640).
-4. In the GitHub release editor, drag the downloaded file into the description box. GitHub
-   uploads it and inserts the `<img ... src="https://github.com/user-attachments/assets/…" />`
-   tag automatically — that replaces the `PASTE_IMAGE_URL` placeholder in the draft.
+   scroll to the **Social image** section.
+2. Keep the **Wide** format (1280×640, the default). Pick a background (a wallpaper or a
+   brand color) and put the release in **Kicker**, like
+   `Release 26.11.2`. Optionally tailor the **Headline** / **Tagline** to the release theme
+   (the default is "The PaaS you can leave." / "Open-source · Kubernetes-native ·
+   Ejectable"). Enter starts a new headline line, and the text shrinks to fit.
+3. Click **Copy image** and paste it into the description box of the GitHub release editor.
+   GitHub uploads it and inserts the `<img ... src="https://github.com/user-attachments/assets/…" />`
+   tag, which replaces the `PASTE_IMAGE_URL` placeholder in the draft. **PNG** and **JPG**
+   download `lucity-social-preview.png` instead, to drag in.
 
 Remind the maintainer of these steps when you hand off the draft, since the URL only exists
 after the upload.
