@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import IconButton from '@/components/IconButton.vue';
 import { computed, watch, ref, onMounted, toRef } from 'vue';
-import { VueFlow, useVueFlow, PanOnScrollMode, getRectOfNodes } from '@vue-flow/core';
+import { VueFlow, useVueFlow, PanOnScrollMode, getRectOfNodes, type ViewportTransform } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
 import { Plus, Scan, WandSparkles } from '@lucide/vue';
 import { usePanel } from '@/composables/usePanel';
@@ -43,7 +43,7 @@ const { statusMap, failureMap } = useCanvasReleaseStatus(
   () => emit('deploy-completed'),
 );
 
-const { getNodes, setViewport, findNode, setCenter, dimensions, onNodeDragStop } = useVueFlow({
+const { getNodes, setViewport, findNode, setCenter, dimensions, viewport, onNodeDragStop } = useVueFlow({
   id: 'service-canvas',
 });
 
@@ -199,14 +199,14 @@ function axisOffset(start: number, size: number, viewport: number, inset: number
   return inset - start;
 }
 
-function handleFitView() {
+function handleFitView(duration = 0) {
   const bounds = getRectOfNodes(getNodes.value);
   const { width, height } = dimensions.value;
   setViewport({
     x: axisOffset(bounds.x, bounds.width, width, canvasInset.x),
     y: axisOffset(bounds.y, bounds.height, height, canvasInset.y),
     zoom: 1,
-  });
+  }, { duration, interpolate: 'linear' });
 }
 
 function handleResetLayout() {
@@ -242,19 +242,27 @@ watch(totalNodes, () => {
   setTimeout(() => handleFitView(), 100);
 });
 
+let viewportBeforePanel: ViewportTransform | null = null;
+
 watch(
   () => currentPanel.value,
   (panel, oldPanel) => {
     if (panel?.type === 'service' || panel?.type === 'database' || panel?.type === 'keyValueStore' || panel?.type === 'bucket' || panel?.type === 'volume' || panel?.type === 'agent') {
       const node = findNode(panel.id);
       if (node) {
+        if (!oldPanel) viewportBeforePanel = { ...viewport.value };
         const nodeCenterX = node.position.x + (node.dimensions.width / 2);
         const nodeCenterY = node.position.y + (node.dimensions.height / 2);
         const panelOffset = (dimensions.value.width * 0.55) / 2;
-        setCenter(nodeCenterX + panelOffset, nodeCenterY, { zoom: 1 });
+        setCenter(nodeCenterX + panelOffset, nodeCenterY, { zoom: 1, duration: 300, interpolate: 'linear' });
       }
     } else if (!panel && oldPanel) {
-      handleFitView();
+      if (viewportBeforePanel) {
+        setViewport(viewportBeforePanel, { duration: 300, interpolate: 'linear' });
+        viewportBeforePanel = null;
+      } else {
+        handleFitView(300);
+      }
     }
   },
 );
@@ -337,7 +345,7 @@ watch(
         variant="outline"
         size="icon"
         class="text-muted-foreground"
-        @click="handleFitView"
+        @click="handleFitView()"
       >
         <Scan />
       </IconButton>
