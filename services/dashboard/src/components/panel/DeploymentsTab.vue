@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import RelativeTime from '@/components/RelativeTime.vue';
 import { formatDuration } from '@/lib/format';
-import { computed, onMounted, watch } from 'vue';
+import { computed, watch } from 'vue';
 import {
   Rocket, Check, AlertCircle, Terminal,
   ExternalLink, RefreshCw,
@@ -12,7 +12,7 @@ import { useIntervalFn, useNow } from '@vueuse/core';
 import { useDeploy } from '@/composables/useDeploy';
 import { useBuildLogsPanel, type LogsPanelKind } from '@/composables/useBuildLogsPanel';
 import { DeploymentStatus, ReleaseStatus, RolloutReason, RolloutStatus, ScanStatus } from '@/gql/graphql';
-import { activeBuild, type Deployment, type Release, type Rollout, type Scan } from '@/composables/useEnvironment';
+import type { Deployment, Release, Rollout, Scan } from '@/composables/useEnvironment';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { darkTooltipClass } from '@/lib/tooltip';
@@ -31,11 +31,7 @@ const props = defineProps<{
   service: Service;
 }>();
 
-const emit = defineEmits<{
-  (e: 'refetch'): void;
-}>();
-
-const deploy = useDeploy();
+const deploy = useDeploy(() => props.service);
 const logsPanel = useBuildLogsPanel();
 
 const activeDeployment = computed(() => props.service.activeDeployment ?? null);
@@ -54,32 +50,14 @@ const activeRelease = computed(() =>
   sortedReleases.value.find(r => r.deployment && r.deployment.id === activeDeployment.value?.id) ?? null,
 );
 
-const inFlightBuild = computed(() => activeBuild(props.service));
-
-onMounted(() => {
-  const build = inFlightBuild.value;
-  if (build && build.id !== deploy.buildId) {
-    deploy.pollBuild(build.id);
-  }
-});
-
-// If the env refetch reveals a new in-flight build, pick it up.
-watch(inFlightBuild, (build) => {
-  if (build && build.id !== deploy.buildId && !deploy.isDeploying) {
-    deploy.pollBuild(build.id);
-  }
-});
-
 const isImageBased = computed(() => !props.service.sourceUrl);
 
 async function handleDeploy() {
-  await deploy.startDeploy(props.service.id, props.service.name);
-  emit('refetch');
+  await deploy.startDeploy();
 }
 
 async function handleRedeploy() {
-  await deploy.startDeploy(props.service.id, props.service.name);
-  emit('refetch');
+  await deploy.startDeploy();
 }
 
 function shortCommit(commit?: string | null): string | null {

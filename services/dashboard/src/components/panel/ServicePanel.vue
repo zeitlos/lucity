@@ -61,7 +61,7 @@ function openLogs() {
       <ScrollArea class="min-h-0 flex-1">
 
         <TabsContent value="deployments" class="px-4 py-4">
-          <DeploymentsTab :service="service" @refetch="emit('refetch')" />
+          <DeploymentsTab :service="service" />
         </TabsContent>
 
         <TabsContent value="metrics" class="px-4 py-4">
