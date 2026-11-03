@@ -147,10 +147,10 @@ function handleEnvironmentCreated(environmentId: string) {
             </Button>
           </PageToolbar>
 
-          <div class="flex-1 overflow-y-auto p-4 max-md:pb-22">
+          <div class="@container flex-1 overflow-y-auto p-4 max-md:pb-22">
             <div
               v-if="project.environments.length > 0"
-              class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+              class="grid gap-4 @xl:grid-cols-2 @6xl:grid-cols-3"
             >
               <EnvironmentCard
                 v-for="env in project.environments"

@@ -7,7 +7,7 @@ import QueryError from '@/components/QueryError.vue';
 import Spinner from '@/components/LoadingSpinner.vue';
 import { computed, ref } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
-import { Globe } from '@lucide/vue';
+import { ExternalLink, Globe } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
@@ -173,9 +173,15 @@ const currentSnippet = computed(() => buildSnippets(credentials.value?.secretAcc
           <span class="text-xs font-medium text-muted-foreground">Public URL</span>
           <CopyButton label="Copy public URL" size="icon-xs" :value="props.publicEndpoint" />
         </div>
-        <div class="flex items-center gap-2 rounded-md bg-muted/40 px-3 py-2">
-          <span class="flex-1 truncate font-mono text-xs text-foreground">{{ props.publicEndpoint }}</span>
-        </div>
+        <a
+          :href="props.publicEndpoint"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="flex items-center gap-2 rounded-md bg-muted/40 px-3 py-2 transition-colors hover:bg-muted/80"
+        >
+          <ExternalLink :size="14" class="shrink-0 text-muted-foreground" />
+          <span class="flex-1 truncate font-mono text-xs text-foreground hover:underline">{{ props.publicEndpoint }}</span>
+        </a>
         <p class="px-1 text-xs text-muted-foreground">
           Objects are readable anonymously over the edge. Writes still use the S3 credentials below.
         </p>

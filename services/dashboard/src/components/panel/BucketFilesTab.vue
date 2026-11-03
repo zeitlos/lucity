@@ -2,6 +2,7 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import QueryError from '@/components/QueryError.vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
+import CopyButton from '@/components/CopyButton.vue';
 import { ref, computed, useTemplateRef } from 'vue';
 import { useQuery, useMutation, useApolloClient } from '@vue/apollo-composable';
 import { useDropZone } from '@vueuse/core';
@@ -60,6 +61,7 @@ const DeleteBucketObjectDocument = graphql(`
 
 const props = defineProps<{
   bucketId: string;
+  publicEndpoint?: string;
 }>();
 
 const prefix = ref('');
@@ -94,6 +96,10 @@ function baseName(key: string): string {
 
 function folderName(folderPrefix: string): string {
   return baseName(folderPrefix);
+}
+
+function publicUrl(key: string): string {
+  return `${props.publicEndpoint}/${key.split('/').map(encodeURIComponent).join('/')}`;
 }
 
 // --- Upload -------------------------------------------------------------
@@ -365,7 +371,7 @@ async function confirmDelete() {
                 <TableHead>Name</TableHead>
                 <TableHead class="w-24 text-right">Size</TableHead>
                 <TableHead class="w-32 text-right">Modified</TableHead>
-                <TableHead class="w-20"><span class="sr-only">Actions</span></TableHead>
+                <TableHead :class="publicEndpoint ? 'w-26' : 'w-20'"><span class="sr-only">Actions</span></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -428,6 +434,7 @@ async function confirmDelete() {
                 </TableCell>
                 <TableCell class="py-1">
                   <div class="flex items-center justify-end gap-0.5">
+                    <CopyButton v-if="publicEndpoint" label="Copy URL" :value="publicUrl(object.key)" />
                     <IconButton label="Download" size="icon-xs" @click="download(object.key)">
                       <Download />
                     </IconButton>

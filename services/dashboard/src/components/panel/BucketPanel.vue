@@ -49,7 +49,10 @@ const { tab: activeTab, selectTab } = useGuardedTab('files');
       <ScrollArea class="min-h-0 flex-1 [&>[data-reka-scroll-area-viewport]>div]:h-full">
         <div class="flex h-full flex-col">
           <TabsContent value="files" class="flex-1 px-4 py-4">
-            <BucketFilesTab :bucket-id="props.bucket.id" />
+            <BucketFilesTab
+              :bucket-id="props.bucket.id"
+              :public-endpoint="props.bucket.public ? props.bucket.publicEndpoint : undefined"
+            />
           </TabsContent>
 
           <TabsContent value="connect" class="px-4 py-4">
