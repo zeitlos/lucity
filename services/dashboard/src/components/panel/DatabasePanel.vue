@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useGuardedTab } from '@/composables/useUnsavedChanges';
+import { usePanelTab } from '@/composables/usePanel';
 import PanelShell from '@/components/PanelShell.vue';
 import { devicon } from '@/lib/devicons';
 
@@ -28,7 +28,7 @@ const emit = defineEmits<{
   (e: 'database-restored'): void;
 }>();
 
-const { tab: activeTab, selectTab } = useGuardedTab('connect');
+const { tab: activeTab, selectTab } = usePanelTab('connect');
 
 </script>
 

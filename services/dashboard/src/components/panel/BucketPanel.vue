@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useGuardedTab } from '@/composables/useUnsavedChanges';
+import { usePanelTab } from '@/composables/usePanel';
 import PanelShell from '@/components/PanelShell.vue';
 
 import BucketIcon from '@/components/BucketIcon.vue';
@@ -26,7 +26,7 @@ const emit = defineEmits<{
   (e: 'bucket-removed'): void;
 }>();
 
-const { tab: activeTab, selectTab } = useGuardedTab('files');
+const { tab: activeTab, selectTab } = usePanelTab('files');
 
 </script>
 

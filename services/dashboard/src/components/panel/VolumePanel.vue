@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useGuardedTab } from '@/composables/useUnsavedChanges';
+import { usePanelTab } from '@/composables/usePanel';
 import PanelShell from '@/components/PanelShell.vue';
 import { HardDrive } from '@lucide/vue';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -25,7 +25,7 @@ const emit = defineEmits<{
   (e: 'refetch'): void;
 }>();
 
-const { tab: activeTab, selectTab } = useGuardedTab('usage');
+const { tab: activeTab, selectTab } = usePanelTab('usage');
 
 </script>
 

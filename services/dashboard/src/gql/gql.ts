@@ -14,6 +14,7 @@ import type { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-
  * Learn more about it here: https://the-guild.dev/graphql/codegen/plugins/presets/preset-client#reducing-bundle-size
  */
 type Documents = {
+    "\n  query CommandPaletteProjects {\n    projects {\n      id\n      name\n      environments {\n        id\n        name\n        services {\n          id\n          name\n          sourceUrl\n        }\n        databases {\n          id\n          name\n        }\n        keyValueStores {\n          id\n          name\n        }\n        buckets {\n          id\n          name\n        }\n        volumes {\n          id\n          name\n        }\n      }\n    }\n  }\n": typeof types.CommandPaletteProjectsDocument,
     "\n  query GitHubConnected {\n    githubConnected\n  }\n": typeof types.GitHubConnectedDocument,
     "\n  query GitHubSources {\n    githubSources {\n      accountLogin\n      accountAvatarUrl\n      accountType\n    }\n  }\n": typeof types.GitHubSourcesDocument,
     "\n  query GitHubRepositories($account: String!) {\n    githubRepositories(account: $account) {\n      id\n      name\n      fullName\n      htmlUrl\n      defaultBranch\n      private\n    }\n  }\n": typeof types.GitHubRepositoriesDocument,
@@ -157,6 +158,7 @@ type Documents = {
     "\n  query Projects {\n    projects {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n        services {\n          id\n          name\n          sourceUrl\n        }\n        databases {\n          id\n          name\n        }\n        keyValueStores {\n          id\n          name\n        }\n        buckets {\n          id\n          name\n        }\n        volumes {\n          id\n          name\n        }\n      }\n    }\n  }\n": typeof types.ProjectsDocument,
 };
 const documents: Documents = {
+    "\n  query CommandPaletteProjects {\n    projects {\n      id\n      name\n      environments {\n        id\n        name\n        services {\n          id\n          name\n          sourceUrl\n        }\n        databases {\n          id\n          name\n        }\n        keyValueStores {\n          id\n          name\n        }\n        buckets {\n          id\n          name\n        }\n        volumes {\n          id\n          name\n        }\n      }\n    }\n  }\n": types.CommandPaletteProjectsDocument,
     "\n  query GitHubConnected {\n    githubConnected\n  }\n": types.GitHubConnectedDocument,
     "\n  query GitHubSources {\n    githubSources {\n      accountLogin\n      accountAvatarUrl\n      accountType\n    }\n  }\n": types.GitHubSourcesDocument,
     "\n  query GitHubRepositories($account: String!) {\n    githubRepositories(account: $account) {\n      id\n      name\n      fullName\n      htmlUrl\n      defaultBranch\n      private\n    }\n  }\n": types.GitHubRepositoriesDocument,
@@ -314,6 +316,10 @@ const documents: Documents = {
  */
 export function graphql(source: string): unknown;
 
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query CommandPaletteProjects {\n    projects {\n      id\n      name\n      environments {\n        id\n        name\n        services {\n          id\n          name\n          sourceUrl\n        }\n        databases {\n          id\n          name\n        }\n        keyValueStores {\n          id\n          name\n        }\n        buckets {\n          id\n          name\n        }\n        volumes {\n          id\n          name\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query CommandPaletteProjects {\n    projects {\n      id\n      name\n      environments {\n        id\n        name\n        services {\n          id\n          name\n          sourceUrl\n        }\n        databases {\n          id\n          name\n        }\n        keyValueStores {\n          id\n          name\n        }\n        buckets {\n          id\n          name\n        }\n        volumes {\n          id\n          name\n        }\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

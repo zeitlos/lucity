@@ -68,7 +68,7 @@ export function useReportBug() {
     });
   }
 
-  function requestFeature() {
+  function requestFeature(opts?: { title?: string }) {
     const body = [
       '## Problem\n\n<!-- What problem does this solve? -->',
       '## Proposed Solution\n\n<!-- How should it work? -->',
@@ -76,7 +76,7 @@ export function useReportBug() {
     ].join('\n\n');
 
     openGitHubIssue({
-      title: '[feature] ',
+      title: `[feature] ${opts?.title ?? ''}`,
       body,
       labels: 'enhancement',
     });

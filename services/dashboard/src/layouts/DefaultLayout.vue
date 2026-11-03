@@ -28,6 +28,7 @@ const WorkspaceDocument = graphql(`
   }
 `);
 import BaseLogo from '@/components/BaseLogo.vue';
+import CommandPalette from '@/components/CommandPalette.vue';
 import ContextBar from '@/components/ContextBar.vue';
 import ContextNav from '@/components/ContextNav.vue';
 import MenuIcon from '@/components/MenuIcon.vue';
@@ -201,6 +202,7 @@ async function handleLogout() {
     </div>
 
     <ContextBar v-if="user" :suspended="suspended" />
+    <CommandPalette v-if="user" />
   </div>
 </template>
 

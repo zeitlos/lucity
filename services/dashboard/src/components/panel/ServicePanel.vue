@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useGuardedTab } from '@/composables/useUnsavedChanges';
+import { usePanelTab } from '@/composables/usePanel';
 import PanelShell from '@/components/PanelShell.vue';
 import { PictureInPicture2 } from '@lucide/vue';
 import ResourceIcon from '@/components/ResourceIcon.vue';
@@ -23,7 +23,7 @@ const emit = defineEmits<{
   (e: 'refetch'): void;
 }>();
 
-const { tab: activeTab, selectTab } = useGuardedTab('deployments');
+const { tab: activeTab, selectTab } = usePanelTab('deployments');
 
 const serviceLogsPanel = useServiceLogsPanel();
 

@@ -3,7 +3,7 @@ import CredentialField from '@/components/CredentialField.vue';
 import { formatStorage } from '@/lib/format';
 import EmptyState from '@/components/EmptyState.vue';
 import QueryError from '@/components/QueryError.vue';
-import { useGuardedTab } from '@/composables/useUnsavedChanges';
+import { usePanelTab } from '@/composables/usePanel';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import PanelShell from '@/components/PanelShell.vue';
 import { devicon } from '@/lib/devicons';
@@ -50,7 +50,7 @@ const emit = defineEmits<{
   (e: 'store-removed'): void;
 }>();
 
-const { tab: activeTab, selectTab } = useGuardedTab('connect');
+const { tab: activeTab, selectTab } = usePanelTab('connect');
 
 
 const { result, loading, error, refetch } = useQuery(

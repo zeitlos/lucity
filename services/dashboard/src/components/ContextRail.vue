@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, type Component } from 'vue';
 import type { RouteLocationRaw } from 'vue-router';
-import { CornerLeftUp, Download } from '@lucide/vue';
+import { Command, CornerLeftUp, Download } from '@lucide/vue';
 import ProjectEjectDialog from '@/components/ProjectEjectDialog.vue';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useCommandPalette } from '@/composables/useCommandPalette';
 import { darkTooltipClass } from '@/lib/tooltip';
 
 interface RailItem {
@@ -25,6 +26,8 @@ const ITEM_PITCH = 52;
 
 const activeIndex = computed(() => props.items.findIndex(item => item.key === props.activeKey));
 const tabTop = computed(() => `${activeIndex.value * ITEM_PITCH - 12}px`);
+
+const { show: showPalette, modKey } = useCommandPalette();
 
 const ejectOpen = ref(false);
 
@@ -105,6 +108,23 @@ const ejectOpen = ref(false);
         </Tooltip>
 
         <div class="flex-1" />
+
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <button
+              type="button"
+              aria-label="Command palette"
+              class="flex size-12 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              @click="showPalette"
+            >
+              <Command :size="18" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right" :class="darkTooltipClass">
+            Command palette
+            <kbd class="ml-1.5 rounded border border-background/30 px-1 font-mono [.dark_&]:border-border">{{ modKey }}K</kbd>
+          </TooltipContent>
+        </Tooltip>
 
         <Tooltip v-if="upTo">
           <TooltipTrigger as-child>

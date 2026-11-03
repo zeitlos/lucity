@@ -1,10 +1,11 @@
-import { ref, computed } from 'vue';
-import { confirmDiscard } from '@/composables/useUnsavedChanges';
+import { ref, computed, watch } from 'vue';
+import { confirmDiscard, useGuardedTab } from '@/composables/useUnsavedChanges';
 
 export interface PanelEntry {
   type: 'service' | 'database' | 'keyValueStore' | 'bucket' | 'volume' | 'agent';
   id: string;
   label: string;
+  tab?: string;
 }
 
 const panelStack = ref<PanelEntry[]>([]);
@@ -41,4 +42,18 @@ export function usePanel() {
     closePanel,
     popPanel,
   };
+}
+
+/**
+ * A panel's guarded tab that also follows the tab an `openPanel` call asks for.
+ */
+export function usePanelTab(initial: string) {
+  const { currentPanel } = usePanel();
+  const { tab, selectTab } = useGuardedTab(currentPanel.value?.tab ?? initial);
+
+  watch(currentPanel, (panel) => {
+    if (panel?.tab) selectTab(panel.tab);
+  });
+
+  return { tab, selectTab };
 }
