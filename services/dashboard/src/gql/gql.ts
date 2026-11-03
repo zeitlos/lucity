@@ -14,8 +14,6 @@ import type { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-
  * Learn more about it here: https://the-guild.dev/graphql/codegen/plugins/presets/preset-client#reducing-bundle-size
  */
 type Documents = {
-    "\n  query Workspaces {\n    workspaces {\n      id\n      name\n      personal\n    }\n  }\n": typeof types.WorkspacesDocument,
-    "\n  query ProjectsForNav {\n    projects {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n      }\n    }\n  }\n": typeof types.ProjectsForNavDocument,
     "\n  query GitHubConnected {\n    githubConnected\n  }\n": typeof types.GitHubConnectedDocument,
     "\n  query GitHubSources {\n    githubSources {\n      accountLogin\n      accountAvatarUrl\n      accountType\n    }\n  }\n": typeof types.GitHubSourcesDocument,
     "\n  query GitHubRepositories($account: String!) {\n    githubRepositories(account: $account) {\n      id\n      name\n      fullName\n      htmlUrl\n      defaultBranch\n      private\n    }\n  }\n": typeof types.GitHubRepositoriesDocument,
@@ -66,6 +64,7 @@ type Documents = {
     "\n  mutation RemoveMember($userId: ID!) {\n    removeMember(userId: $userId)\n  }\n": typeof types.RemoveMemberDocument,
     "\n  query MembersPlan {\n    subscription {\n      plan\n    }\n  }\n": typeof types.MembersPlanDocument,
     "\n  mutation UpdateMemberRole($input: UpdateMemberRoleInput!) {\n    updateMemberRole(input: $input) {\n      id\n      email\n      name\n      role\n    }\n  }\n": typeof types.UpdateMemberRoleDocument,
+    "\n  query Workspaces {\n    workspaces {\n      id\n      name\n      personal\n    }\n  }\n": typeof types.WorkspacesDocument,
     "\n  mutation UpdateWorkspace($input: UpdateWorkspaceInput!) {\n    updateWorkspace(input: $input) {\n      id\n      name\n    }\n  }\n": typeof types.UpdateWorkspaceDocument,
     "\n  mutation DeleteWorkspace {\n    deleteWorkspace\n  }\n": typeof types.DeleteWorkspaceDocument,
     "\n  query WorkspaceConnectors {\n    connectors {\n      id\n      name\n      url\n      status\n    }\n  }\n": typeof types.WorkspaceConnectorsDocument,
@@ -137,6 +136,7 @@ type Documents = {
     "\n  mutation UnmountVolume($volume: VolumeID!) {\n    unmountVolume(volume: $volume) {\n      id\n      mount {\n        service\n        path\n      }\n    }\n  }\n": typeof types.UnmountVolumeDocument,
     "\n  query VolumeMetrics($id: VolumeID!, $range: MetricsRange!) {\n    volume(id: $id) {\n      id\n      metrics(metrics: [STORAGE_USED], range: $range) {\n        metric\n        points {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n": typeof types.VolumeMetricsDocument,
     "\n  query Capabilities {\n    workspace {\n      id\n      capabilities {\n        services {\n          availability\n          plan\n          cpu { min max upgrades { plan max } }\n          memory { min max upgrades { plan max } }\n          replicas\n        }\n        databases {\n          availability\n          plan\n          cpu { min max upgrades { plan max } }\n          memory { min max upgrades { plan max } }\n          storage { min max upgrades { plan max } }\n        }\n        keyValueStores {\n          availability\n          plan\n          size { min max upgrades { plan max } }\n        }\n        volumes {\n          availability\n          plan\n          size { min max upgrades { plan max } }\n        }\n        buckets { availability plan }\n        agents { availability plan }\n        members { availability plan limit upgrades { plan limit } }\n        customDomains { availability plan limit upgrades { plan limit } }\n      }\n    }\n  }\n": typeof types.CapabilitiesDocument,
+    "\n  query ProjectsForNav {\n    projects {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n      }\n    }\n  }\n": typeof types.ProjectsForNavDocument,
     "\n  mutation Deploy($service: ServiceID!, $gitRef: String) {\n    deploy(service: $service, gitRef: $gitRef) {\n      id\n      status\n      build {\n        id\n        status\n        startedAt\n        finishedAt\n      }\n    }\n  }\n": typeof types.DeployDocument,
     "\n  subscription BuildLogs($id: BuildID!) {\n    buildLogs(id: $id)\n  }\n": typeof types.BuildLogsDocument,
     "\n  subscription DeployLogs($id: DeployID!) {\n    deployLogs(id: $id)\n  }\n": typeof types.DeployLogsDocument,
@@ -157,8 +157,6 @@ type Documents = {
     "\n  query Projects {\n    projects {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n        services {\n          id\n          name\n          sourceUrl\n        }\n        databases {\n          id\n          name\n        }\n        keyValueStores {\n          id\n          name\n        }\n        buckets {\n          id\n          name\n        }\n        volumes {\n          id\n          name\n        }\n      }\n    }\n  }\n": typeof types.ProjectsDocument,
 };
 const documents: Documents = {
-    "\n  query Workspaces {\n    workspaces {\n      id\n      name\n      personal\n    }\n  }\n": types.WorkspacesDocument,
-    "\n  query ProjectsForNav {\n    projects {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n      }\n    }\n  }\n": types.ProjectsForNavDocument,
     "\n  query GitHubConnected {\n    githubConnected\n  }\n": types.GitHubConnectedDocument,
     "\n  query GitHubSources {\n    githubSources {\n      accountLogin\n      accountAvatarUrl\n      accountType\n    }\n  }\n": types.GitHubSourcesDocument,
     "\n  query GitHubRepositories($account: String!) {\n    githubRepositories(account: $account) {\n      id\n      name\n      fullName\n      htmlUrl\n      defaultBranch\n      private\n    }\n  }\n": types.GitHubRepositoriesDocument,
@@ -209,6 +207,7 @@ const documents: Documents = {
     "\n  mutation RemoveMember($userId: ID!) {\n    removeMember(userId: $userId)\n  }\n": types.RemoveMemberDocument,
     "\n  query MembersPlan {\n    subscription {\n      plan\n    }\n  }\n": types.MembersPlanDocument,
     "\n  mutation UpdateMemberRole($input: UpdateMemberRoleInput!) {\n    updateMemberRole(input: $input) {\n      id\n      email\n      name\n      role\n    }\n  }\n": types.UpdateMemberRoleDocument,
+    "\n  query Workspaces {\n    workspaces {\n      id\n      name\n      personal\n    }\n  }\n": types.WorkspacesDocument,
     "\n  mutation UpdateWorkspace($input: UpdateWorkspaceInput!) {\n    updateWorkspace(input: $input) {\n      id\n      name\n    }\n  }\n": types.UpdateWorkspaceDocument,
     "\n  mutation DeleteWorkspace {\n    deleteWorkspace\n  }\n": types.DeleteWorkspaceDocument,
     "\n  query WorkspaceConnectors {\n    connectors {\n      id\n      name\n      url\n      status\n    }\n  }\n": types.WorkspaceConnectorsDocument,
@@ -280,6 +279,7 @@ const documents: Documents = {
     "\n  mutation UnmountVolume($volume: VolumeID!) {\n    unmountVolume(volume: $volume) {\n      id\n      mount {\n        service\n        path\n      }\n    }\n  }\n": types.UnmountVolumeDocument,
     "\n  query VolumeMetrics($id: VolumeID!, $range: MetricsRange!) {\n    volume(id: $id) {\n      id\n      metrics(metrics: [STORAGE_USED], range: $range) {\n        metric\n        points {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n": types.VolumeMetricsDocument,
     "\n  query Capabilities {\n    workspace {\n      id\n      capabilities {\n        services {\n          availability\n          plan\n          cpu { min max upgrades { plan max } }\n          memory { min max upgrades { plan max } }\n          replicas\n        }\n        databases {\n          availability\n          plan\n          cpu { min max upgrades { plan max } }\n          memory { min max upgrades { plan max } }\n          storage { min max upgrades { plan max } }\n        }\n        keyValueStores {\n          availability\n          plan\n          size { min max upgrades { plan max } }\n        }\n        volumes {\n          availability\n          plan\n          size { min max upgrades { plan max } }\n        }\n        buckets { availability plan }\n        agents { availability plan }\n        members { availability plan limit upgrades { plan limit } }\n        customDomains { availability plan limit upgrades { plan limit } }\n      }\n    }\n  }\n": types.CapabilitiesDocument,
+    "\n  query ProjectsForNav {\n    projects {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n      }\n    }\n  }\n": types.ProjectsForNavDocument,
     "\n  mutation Deploy($service: ServiceID!, $gitRef: String) {\n    deploy(service: $service, gitRef: $gitRef) {\n      id\n      status\n      build {\n        id\n        status\n        startedAt\n        finishedAt\n      }\n    }\n  }\n": types.DeployDocument,
     "\n  subscription BuildLogs($id: BuildID!) {\n    buildLogs(id: $id)\n  }\n": types.BuildLogsDocument,
     "\n  subscription DeployLogs($id: DeployID!) {\n    deployLogs(id: $id)\n  }\n": types.DeployLogsDocument,
@@ -314,14 +314,6 @@ const documents: Documents = {
  */
 export function graphql(source: string): unknown;
 
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  query Workspaces {\n    workspaces {\n      id\n      name\n      personal\n    }\n  }\n"): (typeof documents)["\n  query Workspaces {\n    workspaces {\n      id\n      name\n      personal\n    }\n  }\n"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  query ProjectsForNav {\n    projects {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n      }\n    }\n  }\n"): (typeof documents)["\n  query ProjectsForNav {\n    projects {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -522,6 +514,10 @@ export function graphql(source: "\n  query MembersPlan {\n    subscription {\n  
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation UpdateMemberRole($input: UpdateMemberRoleInput!) {\n    updateMemberRole(input: $input) {\n      id\n      email\n      name\n      role\n    }\n  }\n"): (typeof documents)["\n  mutation UpdateMemberRole($input: UpdateMemberRoleInput!) {\n    updateMemberRole(input: $input) {\n      id\n      email\n      name\n      role\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query Workspaces {\n    workspaces {\n      id\n      name\n      personal\n    }\n  }\n"): (typeof documents)["\n  query Workspaces {\n    workspaces {\n      id\n      name\n      personal\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -806,6 +802,10 @@ export function graphql(source: "\n  query VolumeMetrics($id: VolumeID!, $range:
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  query Capabilities {\n    workspace {\n      id\n      capabilities {\n        services {\n          availability\n          plan\n          cpu { min max upgrades { plan max } }\n          memory { min max upgrades { plan max } }\n          replicas\n        }\n        databases {\n          availability\n          plan\n          cpu { min max upgrades { plan max } }\n          memory { min max upgrades { plan max } }\n          storage { min max upgrades { plan max } }\n        }\n        keyValueStores {\n          availability\n          plan\n          size { min max upgrades { plan max } }\n        }\n        volumes {\n          availability\n          plan\n          size { min max upgrades { plan max } }\n        }\n        buckets { availability plan }\n        agents { availability plan }\n        members { availability plan limit upgrades { plan limit } }\n        customDomains { availability plan limit upgrades { plan limit } }\n      }\n    }\n  }\n"): (typeof documents)["\n  query Capabilities {\n    workspace {\n      id\n      capabilities {\n        services {\n          availability\n          plan\n          cpu { min max upgrades { plan max } }\n          memory { min max upgrades { plan max } }\n          replicas\n        }\n        databases {\n          availability\n          plan\n          cpu { min max upgrades { plan max } }\n          memory { min max upgrades { plan max } }\n          storage { min max upgrades { plan max } }\n        }\n        keyValueStores {\n          availability\n          plan\n          size { min max upgrades { plan max } }\n        }\n        volumes {\n          availability\n          plan\n          size { min max upgrades { plan max } }\n        }\n        buckets { availability plan }\n        agents { availability plan }\n        members { availability plan limit upgrades { plan limit } }\n        customDomains { availability plan limit upgrades { plan limit } }\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query ProjectsForNav {\n    projects {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n      }\n    }\n  }\n"): (typeof documents)["\n  query ProjectsForNav {\n    projects {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

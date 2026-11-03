@@ -297,10 +297,11 @@ const ProjectEnvironmentsDocument = graphql(`
     }
   }
 `);
-import { Braces, SlidersHorizontal, Workflow, Plus } from '@lucide/vue';
+import { Plus } from '@lucide/vue';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import ContextRail from '@/components/ContextRail.vue';
+import { environmentNavItems } from '@/lib/contextNav';
 import SharedVariablesDrawer from '@/components/drawer/SharedVariablesDrawer.vue';
 import EnvironmentSettingsDrawer from '@/components/drawer/EnvironmentSettingsDrawer.vue';
 import ServiceCanvas from '@/components/canvas/ServiceCanvas.vue';
@@ -725,26 +726,7 @@ const hasResources = computed(() =>
 
 const drawer = computed(() => route.params.drawer);
 
-const railItems = computed(() => [
-  {
-    key: 'canvas',
-    label: 'Canvas',
-    icon: Workflow,
-    to: { name: 'environment', params: { projectId: projectId.value, environmentId: environmentId.value } },
-  },
-  {
-    key: 'variables',
-    label: 'Variables',
-    icon: Braces,
-    to: { name: 'environment', params: { projectId: projectId.value, environmentId: environmentId.value, drawer: 'variables' } },
-  },
-  {
-    key: 'settings',
-    label: 'Settings',
-    icon: SlidersHorizontal,
-    to: { name: 'environment', params: { projectId: projectId.value, environmentId: environmentId.value, drawer: 'settings' } },
-  },
-]);
+const railItems = computed(() => environmentNavItems(projectId.value, environmentId.value));
 
 const activeKey = computed(() => {
   if (drawer.value === 'variables' || drawer.value === 'settings') return drawer.value;
@@ -768,11 +750,11 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
 </script>
 
 <template>
-  <div class="flex h-[calc(100vh-var(--banner-height)-52px-0.75rem-0.5rem)] flex-col">
+  <div class="flex min-h-0 flex-1 flex-col">
     <!-- Loading -->
-    <div v-if="loading && !environment" class="flex flex-1 gap-3 py-3">
-      <div class="w-12" />
-      <div class="flex flex-1 items-center justify-center gap-6 rounded-lg border bg-card">
+    <div v-if="loading && !environment" class="flex flex-1 gap-3 py-3 max-md:py-0">
+      <div class="w-12 max-md:hidden" />
+      <div class="flex flex-1 items-center justify-center gap-6 rounded-lg border bg-card max-md:flex-col max-md:rounded-none max-md:border-0">
         <Skeleton v-for="i in 3" :key="i" class="h-32 w-64" />
       </div>
     </div>
@@ -791,7 +773,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
     </div>
 
     <template v-else-if="environment">
-      <div class="relative flex flex-1 py-3">
+      <div class="relative flex min-h-0 flex-1 py-3 max-md:py-0">
         <ContextRail
           :items="railItems"
           :active-key="activeKey"
@@ -801,7 +783,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
         />
 
         <div class="relative min-w-0 flex-1">
-          <div class="h-full w-full overflow-hidden rounded-lg border bg-card shadow-sm">
+          <div class="h-full w-full overflow-hidden rounded-lg border bg-card shadow-sm max-md:rounded-none max-md:border-0 max-md:shadow-none">
             <template v-if="hasResources">
               <ServiceCanvas
                 :services="activeEnvServices"
@@ -833,10 +815,19 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
             </template>
           </div>
 
+          <Transition
+            enter-active-class="transition-opacity duration-200"
+            leave-active-class="transition-opacity duration-150"
+            enter-from-class="opacity-0"
+            leave-to-class="opacity-0"
+          >
+            <div v-if="drawer || isOpen" class="absolute inset-0 z-10 bg-foreground/20 md:hidden [.dark_&]:bg-background/60" />
+          </Transition>
+
           <Transition name="slide-drawer">
             <div
               v-if="drawer === 'variables'"
-              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full max-md:top-3"
             >
               <SharedVariablesDrawer
                 :environment-id="environmentId"
@@ -848,7 +839,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
           <Transition name="slide-drawer">
             <div
               v-if="drawer === 'settings'"
-              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full max-md:top-3"
             >
               <EnvironmentSettingsDrawer
                 :project-id="projectId"
@@ -863,7 +854,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
         <Transition name="slide-panel">
           <div
             v-if="isOpen && selectedService"
-            class="absolute inset-y-3 right-0 left-13 md:left-auto md:w-[55%]"
+            class="absolute inset-y-3 right-0 left-0 max-md:bottom-0 max-md:z-10 md:left-auto md:w-[55%]"
           >
             <ServicePanel
               :service="selectedService"
@@ -878,7 +869,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
         <Transition name="slide-panel">
           <div
             v-if="isOpen && selectedDatabase"
-            class="absolute inset-y-3 right-0 left-13 md:left-auto md:w-[55%]"
+            class="absolute inset-y-3 right-0 left-0 max-md:bottom-0 max-md:z-10 md:left-auto md:w-[55%]"
           >
             <DatabasePanel
               :database="selectedDatabase"
@@ -893,7 +884,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
         <Transition name="slide-panel">
           <div
             v-if="isOpen && selectedKeyValueStore"
-            class="absolute inset-y-3 right-0 left-13 md:left-auto md:w-[55%]"
+            class="absolute inset-y-3 right-0 left-0 max-md:bottom-0 max-md:z-10 md:left-auto md:w-[55%]"
           >
             <KeyValueStorePanel
               :store="selectedKeyValueStore"
@@ -907,7 +898,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
         <Transition name="slide-panel">
           <div
             v-if="isOpen && selectedBucket"
-            class="absolute inset-y-3 right-0 left-13 md:left-auto md:w-[55%]"
+            class="absolute inset-y-3 right-0 left-0 max-md:bottom-0 max-md:z-10 md:left-auto md:w-[55%]"
           >
             <BucketPanel
               :bucket="selectedBucket"
@@ -921,7 +912,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
         <Transition name="slide-panel">
           <div
             v-if="isOpen && selectedVolume"
-            class="absolute inset-y-3 right-0 left-13 md:left-auto md:w-[55%]"
+            class="absolute inset-y-3 right-0 left-0 max-md:bottom-0 max-md:z-10 md:left-auto md:w-[55%]"
           >
             <VolumePanel
               :volume="selectedVolume"
@@ -937,7 +928,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
         <Transition name="slide-panel">
           <div
             v-if="isOpen && selectedAgent"
-            class="absolute inset-y-3 right-0 left-13 md:left-auto md:w-[55%]"
+            class="absolute inset-y-3 right-0 left-0 max-md:bottom-0 max-md:z-10 md:left-auto md:w-[55%]"
           >
             <AgentPanel
               :agent="selectedAgent"
@@ -952,7 +943,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
         <Transition name="slide-panel">
           <div
             v-if="serviceLogsPanel.isOpen.value"
-            class="absolute inset-y-3 right-0 left-13 z-10 md:left-[calc(45%+12px+2rem)]"
+            class="absolute inset-y-3 right-0 left-0 z-10 max-md:bottom-0 md:left-[calc(45%+12px+2rem)]"
           >
             <ServiceLogsPanel
               :service-id="serviceLogsPanel.serviceId.value!"
@@ -966,7 +957,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
         <Transition name="slide-panel">
           <div
             v-if="vulnerabilitiesPanel.isOpen.value"
-            class="absolute inset-y-3 right-0 left-13 z-10 md:left-[calc(45%+12px+2rem)]"
+            class="absolute inset-y-3 right-0 left-0 z-10 max-md:bottom-0 md:left-[calc(45%+12px+2rem)]"
           >
             <ServiceVulnerabilitiesPanel
               :service-id="vulnerabilitiesPanel.serviceId.value!"
@@ -979,7 +970,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
         <Transition name="slide-panel">
           <div
             v-if="logsPanel.isOpen.value"
-            class="absolute inset-y-3 right-0 left-13 z-10 md:left-[calc(45%+12px+2rem)]"
+            class="absolute inset-y-3 right-0 left-0 z-10 max-md:bottom-0 md:left-[calc(45%+12px+2rem)]"
           >
             <BuildLogsPanel
               :id="logsPanel.id.value!"
@@ -1039,5 +1030,17 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
 .slide-drawer-leave-to {
   transform: translateX(-16px);
   opacity: 0;
+}
+
+@media (width < 48rem) {
+  .slide-panel-enter-from,
+  .slide-panel-leave-to {
+    transform: translateY(100%);
+  }
+
+  .slide-drawer-enter-from,
+  .slide-drawer-leave-to {
+    transform: translateY(16px);
+  }
 }
 </style>

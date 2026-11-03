@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router';
+import { useMediaQuery } from '@vueuse/core';
 import { Sonner } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Undo2 } from '@lucide/vue';
@@ -12,6 +13,7 @@ import VersionFooter from '@/components/VersionFooter.vue';
 
 const { theme } = useTheme();
 const discardPrompt = useDiscardPrompt();
+const toastsClearBar = useMediaQuery('(width < 48rem)');
 </script>
 
 <template>
@@ -19,7 +21,12 @@ const discardPrompt = useDiscardPrompt();
     <AnnouncementBanner />
     <RouterView />
     <VersionFooter />
-    <Sonner position="bottom-right" :theme="theme" />
+    <Sonner
+      position="bottom-right"
+      :theme="theme"
+      :offset="toastsClearBar ? { bottom: 80 } : undefined"
+      :mobile-offset="{ bottom: 80 }"
+    />
     <ConfirmDialog
       :open="discardPrompt.open.value"
       title="Discard unsaved changes?"

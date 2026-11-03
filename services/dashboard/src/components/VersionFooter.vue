@@ -42,7 +42,7 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside));
 </script>
 
 <template>
-  <div ref="root" class="fixed bottom-0 left-0 z-50 pb-px pl-4">
+  <div ref="root" class="fixed bottom-0 left-0 z-50 pb-px pl-4 max-md:hidden">
     <Transition
       enter-active-class="transition duration-200 ease-out"
       leave-active-class="transition duration-150 ease-in"

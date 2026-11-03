@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { mobileSheetClass } from '@/lib/dialog';
 import { computed, ref, useId, watch, type Component } from 'vue';
 import { Trash2 } from '@lucide/vue';
 import {
@@ -61,7 +62,7 @@ function confirm() {
     <AlertDialogTrigger v-if="$slots.trigger" as-child>
       <slot name="trigger" />
     </AlertDialogTrigger>
-    <AlertDialogContent class="flex min-h-68 max-w-md flex-col">
+    <AlertDialogContent :class="[mobileSheetClass, 'flex min-h-68 max-w-md flex-col']">
       <AlertDialogHeader>
         <DialogIcon :icon="tileIcon" :destructive="destructive" />
         <AlertDialogTitle>{{ title }}</AlertDialogTitle>

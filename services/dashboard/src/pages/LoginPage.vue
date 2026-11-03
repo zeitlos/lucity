@@ -76,9 +76,9 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="h-[calc(100vh-var(--banner-height))] w-screen px-4 pt-4 pb-5">
+  <div class="h-[calc(100dvh-var(--banner-height))] w-screen px-4 pt-4 pb-5 max-md:p-0">
     <!-- Image frame: inset from viewport edges, rounded, with inner shadow -->
-    <div class="image-frame relative flex h-full items-center justify-center overflow-hidden rounded-2xl bg-muted">
+    <div class="image-frame relative flex h-full items-center justify-center overflow-hidden rounded-2xl bg-muted max-md:flex-col max-md:justify-end max-md:rounded-none">
       <!-- Image layer: both images stacked, crossfade on theme change -->
       <div
         class="absolute inset-0 transition-opacity duration-700"
@@ -115,10 +115,10 @@ onUnmounted(() => {
       </div>
 
       <!-- Inset shadow overlay -->
-      <div class="image-inset pointer-events-none absolute inset-0 z-10 rounded-2xl" />
+      <div class="image-inset pointer-events-none absolute inset-0 z-10 rounded-2xl max-md:rounded-none" />
 
       <!-- Login card floating over the image -->
-      <div class="login-card relative z-20 w-full max-w-sm overflow-hidden rounded-xl border border-border p-8">
+      <div class="login-card relative z-20 w-full max-w-sm overflow-hidden rounded-xl border border-border p-8 max-md:w-auto max-md:max-w-none max-md:self-stretch max-md:mx-2 max-md:p-6">
         <!-- Pattern texture -->
         <div class="pattern-crosshatch pointer-events-none absolute inset-0 opacity-3" />
 
@@ -167,7 +167,7 @@ onUnmounted(() => {
       </div>
 
       <!-- Credit: bottom-left -->
-      <div class="theme-toggle-corner absolute bottom-4 left-4 z-20">
+      <div class="theme-toggle-corner absolute bottom-4 left-4 z-20 max-md:relative max-md:bottom-auto max-md:left-auto max-md:px-4 max-md:py-3 max-md:text-center">
         <p class="text-xs text-white/60">
           cooked with care at
           <a
@@ -180,7 +180,7 @@ onUnmounted(() => {
       </div>
 
       <!-- Theme toggle: bottom-right -->
-      <div class="theme-toggle-corner absolute bottom-4 right-4 z-20">
+      <div class="theme-toggle-corner absolute bottom-4 right-4 z-20 max-md:top-4 max-md:bottom-auto">
         <ThemeToggle />
       </div>
     </div>
