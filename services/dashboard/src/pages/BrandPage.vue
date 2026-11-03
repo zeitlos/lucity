@@ -419,7 +419,7 @@ const colors = [
           Social image
         </h2>
         <p class="mb-8 text-sm text-muted-foreground">
-          A 1280 × 640 card for link previews.
+          Cards for releases, link previews and social posts.
         </p>
         <BrandSocialPreview />
       </section>
