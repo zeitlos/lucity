@@ -87,13 +87,23 @@ func (c *Cache) Start(ctx context.Context) {
 	}
 }
 
-// OnChange calls notify after every add, update or delete either informer
-// sees.
-func (c *Cache) OnChange(notify func()) error {
+// OnChange calls notify with the Job after every add, update or delete either
+// informer sees.
+func (c *Cache) OnChange(notify func(*batch.Job)) error {
+	handle := func(object any) {
+		if tombstone, ok := object.(cache.DeletedFinalStateUnknown); ok {
+			object = tombstone.Obj
+		}
+
+		if job, ok := object.(*batch.Job); ok {
+			notify(job)
+		}
+	}
+
 	handler := cache.ResourceEventHandlerFuncs{
-		AddFunc:    func(any) { notify() },
-		UpdateFunc: func(any, any) { notify() },
-		DeleteFunc: func(any) { notify() },
+		AddFunc:    handle,
+		UpdateFunc: func(_, object any) { handle(object) },
+		DeleteFunc: handle,
 	}
 
 	for _, informer := range []cache.SharedIndexInformer{c.builds, c.deploys} {

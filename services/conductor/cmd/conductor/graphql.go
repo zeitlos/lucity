@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/zeitlos/lucity/pkg/logto"
@@ -48,6 +49,10 @@ const (
 	hasRoleDirective        = "hasRole"
 	allowSuspendedDirective = "allowSuspended"
 )
+
+const maxSubscriptionsPerConnection = 20
+
+type openSubscriptionsKey struct{}
 
 func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvider *oidc.Provider, store *sessionStore, codec *session.Codec, verifier *auth.Verifier, logtoClient *logto.Client, callbackURL, dashboardURL, githubAppSlug, githubActionsAudience, oidcIssuer, oidcAudience, oidcCLIClientID string) *GraphQLServer {
 	resolver := gatewaygraphql.Resolver{
@@ -164,12 +169,15 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 			// Non-browser clients authenticate with a bearer token in
 			// connectionParams. Browser clients arrive with their session
 			// cookie already resolved to claims on the HTTP upgrade request.
+			var expiresAt time.Time
+
 			token, _ := initPayload["Authorization"].(string)
 			if token != "" {
 				token = strings.TrimPrefix(token, "Bearer ")
 				if claims, err := verifier.ValidateToken(ctx, token); err == nil {
 					ctx = auth.NewContext(ctx, claims)
 					ctx = auth.WithToken(ctx, token)
+					expiresAt = claims.ExpiresAt
 				}
 			}
 
@@ -186,10 +194,19 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 							if claims, err := auth.FromContext(ctx); err == nil {
 								claims.Workspaces = tokenClaims.Workspaces
 								ctx = auth.NewContext(ctx, claims)
+								expiresAt = tokenClaims.ExpiresAt
 							}
 						}
 					}
 				}
+			}
+
+			ctx = context.WithValue(ctx, openSubscriptionsKey{}, &atomic.Int32{})
+
+			if !expiresAt.IsZero() {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithDeadline(ctx, expiresAt)
+				context.AfterFunc(ctx, cancel)
 			}
 
 			return ctx, &initPayload, nil
@@ -197,7 +214,7 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 	})
 	srv.SetQueryCache(lru.New[*ast.QueryDocument](1000))
 	srv.Use(extension.Introspection{})
-	srv.Use(extension.FixedComplexityLimit(200))
+	srv.Use(extension.FixedComplexityLimit(300))
 
 	// Audit logging for mutations
 	srv.AroundOperations(func(ctx context.Context, next gqlgen.OperationHandler) gqlgen.ResponseHandler {
@@ -210,6 +227,33 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 		slog.InfoContext(ctx, "graphql mutation", "operation", oc.OperationName)
 
 		return next(ctx)
+	})
+
+	srv.AroundOperations(func(ctx context.Context, next gqlgen.OperationHandler) gqlgen.ResponseHandler {
+		oc := gqlgen.GetOperationContext(ctx)
+		open, ok := ctx.Value(openSubscriptionsKey{}).(*atomic.Int32)
+
+		if oc.Operation == nil || oc.Operation.Operation != ast.Subscription || !ok {
+			return next(ctx)
+		}
+
+		if open.Add(1) > maxSubscriptionsPerConnection {
+			open.Add(-1)
+
+			return gqlgen.OneShot(gqlgen.ErrorResponse(ctx, "too many subscriptions on this connection"))
+		}
+
+		responses := next(ctx)
+
+		return func(ctx context.Context) *gqlgen.Response {
+			response := responses(ctx)
+
+			if response == nil {
+				open.Add(-1)
+			}
+
+			return response
+		}
 	})
 
 	// Enforcing IDs stay within workspace provided by header.

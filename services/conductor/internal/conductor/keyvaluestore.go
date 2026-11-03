@@ -24,7 +24,7 @@ type KeyValueStoreCredentials struct {
 }
 
 func (c *Client) KeyValueStores(ctx context.Context, environment EnvironmentID) ([]KeyValueStore, error) {
-	return c.platform.KeyValueStores(ctx, environment)
+	return c.cachedPlatform.KeyValueStores(ctx, environment)
 }
 
 func (c *Client) KeyValueStore(ctx context.Context, id KeyValueStoreID) (*KeyValueStore, error) {

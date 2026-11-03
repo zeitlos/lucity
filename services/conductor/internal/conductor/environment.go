@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/platform"
@@ -19,6 +20,59 @@ func (c *Client) Environments(ctx context.Context, projectID ProjectID) ([]Envir
 
 func (c *Client) Environment(ctx context.Context, id EnvironmentID) (*Environment, error) {
 	return c.platform.Environment(ctx, id)
+}
+
+const updateSettle = time.Second
+
+// EnvironmentUpdates sends the environment, then sends it again after the
+// objects behind it change, at most once per second. It ends when ctx is done
+// or the environment is gone.
+func (c *Client) EnvironmentUpdates(ctx context.Context, id EnvironmentID) (<-chan Environment, error) {
+	environment, err := c.Environment(ctx, id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	changes := c.changes.Watch(ctx, id)
+	updates := make(chan Environment)
+
+	go func() {
+		defer close(updates)
+
+		for {
+			select {
+			case updates <- *environment:
+			case <-ctx.Done():
+				return
+			}
+
+			select {
+			case <-changes:
+			case <-ctx.Done():
+				return
+			}
+
+			select {
+			case <-time.After(updateSettle):
+			case <-ctx.Done():
+				return
+			}
+
+			select {
+			case <-changes:
+			default:
+			}
+
+			environment, err = c.Environment(ctx, id)
+
+			if err != nil {
+				return
+			}
+		}
+	}()
+
+	return updates, nil
 }
 
 // CreateEnvironment provisions a new env namespace at the requested tier.

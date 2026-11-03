@@ -10,6 +10,8 @@ import (
 	"github.com/zeitlos/lucity/pkg/jobs"
 	"github.com/zeitlos/lucity/pkg/metrics"
 	"github.com/zeitlos/lucity/pkg/pipeline"
+
+	batch "k8s.io/api/batch/v1"
 )
 
 const fallbackInterval = 30 * time.Second
@@ -29,7 +31,7 @@ func New(cache *jobs.Cache, pipeline pipeline.Interface, loops *metrics.Loops) (
 		trigger:  make(chan struct{}, 1),
 	}
 
-	if err := cache.OnChange(w.notify); err != nil {
+	if err := cache.OnChange(func(*batch.Job) { w.notify() }); err != nil {
 		return nil, err
 	}
 

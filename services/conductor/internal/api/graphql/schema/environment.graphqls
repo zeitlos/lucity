@@ -23,6 +23,11 @@ extend type Query {
   environment(environment: EnvironmentID!): Environment! @hasRole(role: WORKSPACE_MEMBER)
 }
 
+extend type Subscription {
+  """One environment, sent when the subscription starts and again whenever its services, databases, key-value stores, buckets, volumes or releases change, at most once per second. Domain DNS state and bucket usage are looked up again on every update, so leave them out unless you need them."""
+  environment(environment: EnvironmentID!): Environment! @hasRole(role: WORKSPACE_MEMBER)
+}
+
 extend type Mutation {
   """Creates an empty environment in a project."""
   createEnvironment(input: CreateEnvironmentInput!): Environment! @hasRole(role: WORKSPACE_MEMBER)

@@ -19,7 +19,7 @@ func (c *Client) VolumeStorageUsed(ctx context.Context, id VolumeID, window metr
 }
 
 func (c *Client) Volumes(ctx context.Context, environment EnvironmentID) ([]Volume, error) {
-	return c.platform.Volumes(ctx, environment)
+	return c.cachedPlatform.Volumes(ctx, environment)
 }
 
 func (c *Client) Volume(ctx context.Context, id VolumeID) (*Volume, error) {

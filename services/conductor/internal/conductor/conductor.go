@@ -46,6 +46,8 @@ type Client struct {
 
 	directory       directory.Interface
 	platform        platform.Interface
+	cachedPlatform  platform.Interface
+	changes         platform.Changes
 	buildjob        buildjob.Interface
 	deployjob       deployjob.Interface
 	scanjob         scanjob.Interface
@@ -100,7 +102,7 @@ type Config struct {
 	CardGateAccountAge   time.Duration
 }
 
-func New(billing *billing.Client, githubApp *ghpkg.App, logto *logto.Client, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, deployjob deployjob.Interface, scanjob scanjob.Interface, scanreport *scanreport.Client, vulnerabilities *vulnerabilities.Client, pipeline pipeline.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, deployer deployer.Interface, environment environment.Interface, objectStorage objectstorage.Interface, metrics *metrics.Provider, domains *domains.Client, upstream *upstream.Client, agentRunner *agentrunner.Client, agentAudit *agentaudit.Client, config Config, registerer prometheus.Registerer) *Client {
+func New(billing *billing.Client, githubApp *ghpkg.App, logto *logto.Client, directory directory.Interface, platform platform.Interface, cachedPlatform platform.Interface, changes platform.Changes, buildjob buildjob.Interface, deployjob deployjob.Interface, scanjob scanjob.Interface, scanreport *scanreport.Client, vulnerabilities *vulnerabilities.Client, pipeline pipeline.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, deployer deployer.Interface, environment environment.Interface, objectStorage objectstorage.Interface, metrics *metrics.Provider, domains *domains.Client, upstream *upstream.Client, agentRunner *agentrunner.Client, agentAudit *agentaudit.Client, config Config, registerer prometheus.Registerer) *Client {
 	signups := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "lucity_signups_total",
 		Help: "Users whose personal workspace was created.",
@@ -117,6 +119,8 @@ func New(billing *billing.Client, githubApp *ghpkg.App, logto *logto.Client, dir
 		capabilitiesCache: make(map[string]cachedCapabilities),
 		directory:         directory,
 		platform:          platform,
+		cachedPlatform:    cachedPlatform,
+		changes:           changes,
 		buildjob:          buildjob,
 		deployjob:         deployjob,
 		scanjob:           scanjob,

@@ -263,7 +263,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	k8sClient, dynClient, _, restConfig, err := buildKubeClients()
+	k8sClient, dynClient, metadataClient, restConfig, err := buildKubeClients()
 	if err != nil {
 		slog.Error("failed to build kube clients", "error", err)
 		os.Exit(1)
@@ -319,6 +319,15 @@ func main() {
 
 	platformClient := platformK8s.New(k8sClient, dynClient)
 
+	cachedClients, err := platformK8s.NewCachedClients(k8sClient, dynClient)
+
+	if err != nil {
+		slog.Error("failed to create cached clients", "error", err)
+		os.Exit(1)
+	}
+
+	cachedPlatform := platformK8s.New(cachedClients.Kubernetes(), cachedClients.Dynamic())
+
 	directoryClient, err := directoryLogto.New(logtoClient)
 
 	if err != nil {
@@ -330,6 +339,13 @@ func main() {
 
 	if err != nil {
 		slog.Error("failed to create job cache", "error", err)
+		os.Exit(1)
+	}
+
+	changes, err := platformK8s.NewChanges(cachedClients, jobsCache, metadataClient)
+
+	if err != nil {
+		slog.Error("failed to create change watches", "error", err)
 		os.Exit(1)
 	}
 
@@ -555,9 +571,12 @@ func main() {
 
 	registry := prometheus.NewRegistry()
 
-	conductor := conductor.New(billingClient, githubApp, logtoClient, directoryClient, platformClient, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, vulnerabilitiesClient, pipelineClient, planner, source, hostnameClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, domainsClient, upstream.New(), agentRunnerClient, agentAuditClient, conductorConfig, registry)
+	conductor := conductor.New(billingClient, githubApp, logtoClient, directoryClient, platformClient, cachedPlatform, changes, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, vulnerabilitiesClient, pipelineClient, planner, source, hostnameClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, domainsClient, upstream.New(), agentRunnerClient, agentAuditClient, conductorConfig, registry)
 
 	platformClient.Start(ctx)
+	cachedClients.Start(ctx)
+	cachedPlatform.Start(ctx)
+	changes.Start(ctx)
 	jobsCache.Start(ctx)
 
 	slog.Info("release queue ready", "maxQueuedPerWorkspace", config.MaxQueuedReleases)

@@ -211,6 +211,18 @@ func main() {
 	platformClient := platformK8s.New(k8sClient, dynClient)
 	platformClient.Start(ctx)
 
+	cachedClients, err := platformK8s.NewCachedClients(k8sClient, dynClient)
+
+	if err != nil {
+		slog.Error("failed to create cached clients", "error", err)
+		os.Exit(1)
+	}
+
+	cachedClients.Start(ctx)
+
+	cachedPlatform := platformK8s.New(cachedClients.Kubernetes(), cachedClients.Dynamic())
+	cachedPlatform.Start(ctx)
+
 	environmentClient := environmentK8s.New(k8sClient, dynClient, config.SystemNamespace, config.RegistryPullSecret, config.PodCIDR, config.ServiceCIDR, environmentK8s.BackupCredentials{
 		AccessKeyID:     config.DatabaseBackupAccessKeyID,
 		SecretAccessKey: config.DatabaseBackupSecretAccessKey,
@@ -230,7 +242,7 @@ func main() {
 	}
 
 	hostnameClient := hostname.New(config.WorkloadDomain, "lb."+config.WorkloadDomain, config.IPAddress, edgeClient.EdgeAddresses, k8sClient, dynClient)
-	domainsClient := domains.New(hostnameClient, edgeClient, platformClient, deployerClient, k8sClient, config.WorkloadDomain, config.GatewayNamespace, config.EdgeWildcardTLSSecret)
+	domainsClient := domains.New(hostnameClient, edgeClient, cachedPlatform, deployerClient, k8sClient, config.WorkloadDomain, config.GatewayNamespace, config.EdgeWildcardTLSSecret)
 
 	jobsCache, err := jobs.NewCache(k8sClient, config.BuildNamespace, config.SystemNamespace)
 

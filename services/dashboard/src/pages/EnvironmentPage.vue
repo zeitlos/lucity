@@ -2,67 +2,135 @@
 import QueryError from '@/components/QueryError.vue';
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useQuery } from '@vue/apollo-composable';
+import { useQuery, useSubscription } from '@vue/apollo-composable';
 import { graphql } from '@/gql';
-import { AgentStatus, ServiceStatus, DatabaseStatus, ReleaseStatus, RolloutStatus, ScanStatus } from '@/gql/graphql';
+import { AgentStatus } from '@/gql/graphql';
 
-const EnvironmentDocument = graphql(`
-  query Environment($environment: EnvironmentID!) {
-    environment(environment: $environment) {
+graphql(`
+  fragment EnvironmentFields on Environment {
+    id
+    name
+    resourceTier
+    services {
       id
       name
-      resourceTier
-      services {
+      status
+      replicas {
+        desired
+        ready
+      }
+      autoscaling {
+        minReplicas
+        maxReplicas
+        targetCpu
+      }
+      port
+      endpoints {
+        host
+        port
+        protocol
+        type
+        redirectTo
+        tls
+      }
+      sourceUrl
+      branch
+      autoDeploy
+      ciDeploy
+      contextPath
+      resources {
+        cpu
+        memory
+      }
+      command
+      healthCheck {
+        path
+        port
+        initialDelaySeconds
+        periodSeconds
+        timeoutSeconds
+        failureThreshold
+        startupFailureThreshold
+      }
+      user
+      activeDeployment {
         id
-        name
+        image
+        imageDigest
+        commit
+        commitMessage
+        ref
         status
+        createdAt
         replicas {
           desired
           ready
         }
-        autoscaling {
-          minReplicas
-          maxReplicas
-          targetCpu
+        rollout {
+          status
+          reason
+          message
+          restarts
+          startedAt
         }
-        port
-        endpoints {
-          host
-          port
-          protocol
-          type
-          redirectTo
-          dns {
-            status
-            requiredRecords {
-              type
-              host
-              value
-            }
+      }
+      deployments {
+        id
+        image
+        imageDigest
+        commit
+        commitMessage
+        ref
+        status
+        createdAt
+      }
+      builds {
+        id
+        status
+        startedAt
+        finishedAt
+      }
+      releases {
+        id
+        status
+        createdAt
+        trigger {
+          kind
+          actor
+        }
+        source {
+          provider
+          repository
+          url
+          ref
+          contextPath
+          commit {
+            sha
+            message
+            url
           }
-          tls
         }
-        sourceUrl
-        branch
-        autoDeploy
-        ciDeploy
-        contextPath
-        resources {
-          cpu
-          memory
+        build {
+          id
+          status
+          startedAt
+          finishedAt
         }
-        command
-        healthCheck {
-          path
-          port
-          initialDelaySeconds
-          periodSeconds
-          timeoutSeconds
-          failureThreshold
-          startupFailureThreshold
+        deploy {
+          id
+          status
+          startedAt
+          finishedAt
         }
-        user
-        activeDeployment {
+        scan {
+          id
+          status
+          findingsCount
+          verifiedCount
+          startedAt
+          finishedAt
+        }
+        deployment {
           id
           image
           imageDigest
@@ -83,125 +151,81 @@ const EnvironmentDocument = graphql(`
             startedAt
           }
         }
-        deployments {
-          id
-          image
-          imageDigest
-          commit
-          commitMessage
-          ref
-          status
-          createdAt
-        }
-        builds {
-          id
-          status
-          startedAt
-          finishedAt
-        }
-        releases {
-          id
-          status
-          createdAt
-          trigger {
-            kind
-            actor
-          }
-          source {
-            provider
-            repository
-            url
-            ref
-            contextPath
-            commit {
-              sha
-              message
-              url
-            }
-          }
-          build {
-            id
-            status
-            startedAt
-            finishedAt
-          }
-          deploy {
-            id
-            status
-            startedAt
-            finishedAt
-          }
-          scan {
-            id
-            status
-            findingsCount
-            verifiedCount
-            startedAt
-            finishedAt
-          }
-          deployment {
-            id
-            image
-            imageDigest
-            commit
-            commitMessage
-            ref
-            status
-            createdAt
-            replicas {
-              desired
-              ready
-            }
-            rollout {
-              status
-              reason
-              message
-              restarts
-              startedAt
-            }
-          }
-        }
-        lastDeployedAt
-        createdAt
       }
-      databases {
-        id
-        name
-        version
-        instances
-        status
-        size
-        createdAt
+      lastDeployedAt
+      createdAt
+    }
+    databases {
+      id
+      name
+      version
+      instances
+      status
+      size
+      createdAt
+    }
+    keyValueStores {
+      id
+      name
+      version
+      status
+      size
+      createdAt
+    }
+    buckets {
+      id
+      name
+      region
+      endpoint
+      publicEndpoint
+      status
+      public
+      createdAt
+    }
+    volumes {
+      id
+      name
+      size
+      mount {
+        service
+        path
       }
-      keyValueStores {
+    }
+  }
+`);
+
+const EnvironmentDocument = graphql(`
+  query Environment($environment: EnvironmentID!) {
+    environment(environment: $environment) {
+      ...EnvironmentFields
+      services {
         id
-        name
-        version
-        status
-        size
-        createdAt
+        endpoints {
+          host
+          port
+          dns {
+            status
+            requiredRecords {
+              type
+              host
+              value
+            }
+          }
+        }
       }
       buckets {
         id
-        name
-        region
-        endpoint
-        publicEndpoint
-        status
         sizeBytes
         objectCount
-        public
-        createdAt
       }
-      volumes {
-        id
-        name
-        size
-        mount {
-          service
-          path
-        }
-      }
+    }
+  }
+`);
+
+const EnvironmentUpdatesDocument = graphql(`
+  subscription EnvironmentUpdates($environment: EnvironmentID!) {
+    environment(environment: $environment) {
+      ...EnvironmentFields
     }
   }
 `);
@@ -318,36 +342,14 @@ const projectId = computed(() => {
   return '';
 });
 
-const SERVICE_TRANSIENT_STATUSES = new Set<ServiceStatus>([
-  ServiceStatus.Deploying,
-  ServiceStatus.Degraded,
-]);
-const DATABASE_TRANSIENT_STATUSES = new Set<DatabaseStatus>([
-  DatabaseStatus.Pending,
-  DatabaseStatus.Updating,
-  DatabaseStatus.Degraded,
-]);
-const RELEASE_TRANSIENT_STATUSES = new Set<ReleaseStatus>([
-  ReleaseStatus.Queued,
-  ReleaseStatus.Building,
-  ReleaseStatus.Deploying,
-]);
-const RELEASE_POLL_MAX_AGE_MS = 60 * 60 * 1000;
-const SCAN_TRANSIENT_STATUSES = new Set<ScanStatus>([ScanStatus.Queued, ScanStatus.Running]);
-
-function isReleaseInFlight(release: { status: ReleaseStatus; createdAt: string; scan?: { status: ScanStatus } | null }): boolean {
-  const active = RELEASE_TRANSIENT_STATUSES.has(release.status)
-    || (release.scan != null && SCAN_TRANSIENT_STATUSES.has(release.scan.status));
-
-  return active && Date.now() - new Date(release.createdAt).getTime() < RELEASE_POLL_MAX_AGE_MS;
-}
-
-const isReconciling = ref(false);
-
 const { result, loading, error, refetch } = useQuery(
   EnvironmentDocument,
   () => ({ environment: environmentId.value }),
-  () => ({ pollInterval: isReconciling.value ? 3000 : 0 }),
+);
+
+useSubscription(
+  EnvironmentUpdatesDocument,
+  () => ({ environment: environmentId.value }),
 );
 
 const { result: volumeUsageResult } = useQuery(
@@ -458,13 +460,6 @@ watch(
 
     const defaultCommands = new Map((commands?.services ?? []).map(s => [s.id, s.defaultCommand]));
     const volumeUsage = new Map((usage?.volumes ?? []).map(v => [v.id, volumeUsagePercent(v)]));
-
-    isReconciling.value =
-      env.services.some(s => SERVICE_TRANSIENT_STATUSES.has(s.status)) ||
-      env.services.some(s => s.activeDeployment?.rollout?.status === RolloutStatus.Progressing) ||
-      env.services.some(s => s.releases.some(isReleaseInFlight)) ||
-      env.databases.some(d => DATABASE_TRANSIENT_STATUSES.has(d.status)) ||
-      env.keyValueStores.some(v => DATABASE_TRANSIENT_STATUSES.has(v.status));
 
     const full: Environment = {
       id: env.id,
