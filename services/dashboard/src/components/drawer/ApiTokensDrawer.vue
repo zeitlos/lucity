@@ -140,9 +140,18 @@ async function handleRevoke() {
         </p>
       </form>
 
-      <div v-if="loading" class="space-y-2">
-        <Skeleton class="h-12 w-full" />
-        <Skeleton class="h-12 w-full" />
+      <div v-if="loading" class="-mx-4 divide-y border-y">
+        <div v-for="width in ['w-28', 'w-20', 'w-36']" :key="width" class="flex items-center gap-3 py-3 pr-3 pl-4">
+          <div class="min-w-0 flex-1">
+            <div class="flex h-5 items-center">
+              <Skeleton :class="['h-3', width]" />
+            </div>
+            <div class="flex h-4 items-center">
+              <Skeleton class="h-2.5 w-40" />
+            </div>
+          </div>
+          <Skeleton class="mr-2.5 h-3 w-12" />
+        </div>
       </div>
       <QueryError
         v-else-if="error && !result"

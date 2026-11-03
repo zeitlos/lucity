@@ -73,8 +73,32 @@ function tokens(entry: { inputTokens?: number | null; outputTokens?: number | nu
       <span class="text-xs text-muted-foreground">Last 24 hours</span>
     </div>
 
-    <div v-if="loading && !result" class="space-y-2">
-      <Skeleton v-for="i in 6" :key="i" class="h-9 w-full" />
+    <div v-if="loading && !result" class="-mx-4 border-y">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead class="pl-4">Time</TableHead>
+            <TableHead>Kind</TableHead>
+            <TableHead>Source</TableHead>
+            <TableHead>Call</TableHead>
+            <TableHead class="pr-4">Result</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow v-for="width in ['w-32', 'w-24', 'w-40', 'w-28', 'w-36', 'w-20']" :key="width" class="h-9 hover:bg-transparent">
+            <TableCell class="pl-4"><Skeleton class="h-3 w-14" /></TableCell>
+            <TableCell><Skeleton class="h-3 w-10" /></TableCell>
+            <TableCell>
+              <span class="flex items-center gap-2">
+                <Skeleton class="size-5 rounded-sm" />
+                <Skeleton class="h-3 w-16" />
+              </span>
+            </TableCell>
+            <TableCell><Skeleton :class="['h-3', width]" /></TableCell>
+            <TableCell class="pr-4"><Skeleton class="h-3 w-12" /></TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
     </div>
     <QueryError
       v-else-if="error && !result"

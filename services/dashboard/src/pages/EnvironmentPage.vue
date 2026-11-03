@@ -296,7 +296,7 @@ const ProjectEnvironmentsDocument = graphql(`
   }
 `);
 import { Plus } from '@lucide/vue';
-import { Skeleton } from '@/components/ui/skeleton';
+import CanvasSkeleton from '@/components/canvas/CanvasSkeleton.vue';
 import { Button } from '@/components/ui/button';
 import ContextRail from '@/components/ContextRail.vue';
 import { environmentNavItems } from '@/lib/contextNav';
@@ -765,10 +765,19 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
 <template>
   <div class="flex min-h-0 flex-1 flex-col">
     <!-- Loading -->
-    <div v-if="loading && !environment" class="flex flex-1 gap-3 py-3 max-md:py-0">
-      <div class="w-12 max-md:hidden" />
-      <div class="flex flex-1 items-center justify-center gap-6 rounded-lg border bg-card max-md:flex-col max-md:rounded-none max-md:border-0">
-        <Skeleton v-for="i in 3" :key="i" class="h-32 w-64" />
+    <div v-if="loading && !environment" class="relative flex min-h-0 flex-1 py-3 max-md:py-0">
+      <ContextRail
+        :items="railItems"
+        :active-key="activeKey"
+        up-label="Up to project"
+        :up-to="{ name: 'project', params: { projectId } }"
+        :project-id="projectId"
+      />
+
+      <div class="relative min-w-0 flex-1">
+        <div class="h-full w-full overflow-hidden rounded-lg border bg-card shadow-sm max-md:rounded-none max-md:border-0 max-md:shadow-none">
+          <CanvasSkeleton @create="paletteOpen = true" />
+        </div>
       </div>
     </div>
 

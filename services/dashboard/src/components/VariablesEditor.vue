@@ -59,6 +59,12 @@ const root = ref<HTMLFieldSetElement | null>(null);
 
 const linkable = computed(() => props.references !== undefined);
 
+const skeletonRows = [
+  { key: 'w-28', value: 'w-40' },
+  { key: 'w-36', value: 'w-24' },
+  { key: 'w-20', value: 'w-32' },
+];
+
 const referenceGroups = computed<ReferenceGroup[]>(() => {
   const groups = new Map<string, ReferenceGroup>();
   for (const reference of props.references ?? []) {
@@ -135,9 +141,31 @@ function referenceInfo(row: VariableRow) {
 </script>
 
 <template>
-  <div v-if="loading && rows.length === 0" class="space-y-2">
-    <Skeleton class="h-9 w-full" />
-    <Skeleton class="h-9 w-full" />
+  <div v-if="loading && rows.length === 0" class="space-y-4 sm:space-y-2">
+    <div
+      v-for="row in skeletonRows"
+      :key="row.key"
+      class="flex flex-wrap items-center gap-x-2 gap-y-1.5"
+    >
+      <div class="flex h-9 w-full shrink-0 items-center rounded-md border border-input bg-background px-3 sm:w-2/5">
+        <Skeleton :class="['h-3', row.key]" />
+      </div>
+      <div class="flex min-w-0 flex-1">
+        <span v-if="linkable" class="size-9 shrink-0 border border-r-0 border-input bg-background" />
+        <div
+          class="flex h-9 min-w-0 flex-1 items-center rounded-md border border-input bg-background px-3"
+          :class="{ 'rounded-l-none': linkable }"
+        >
+          <Skeleton :class="['h-3', row.value]" />
+        </div>
+      </div>
+      <span class="flex size-9 shrink-0 items-center justify-center">
+        <Skeleton class="size-4 rounded-sm" />
+      </span>
+    </div>
+    <div class="flex justify-end pt-2">
+      <Skeleton class="h-9 w-32 rounded-none" />
+    </div>
   </div>
 
   <fieldset v-else ref="root" :disabled="disabled" class="min-w-0 space-y-4 sm:space-y-2">

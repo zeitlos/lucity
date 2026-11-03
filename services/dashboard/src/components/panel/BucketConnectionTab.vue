@@ -10,6 +10,7 @@ import { useQuery, useMutation } from '@vue/apollo-composable';
 import { ExternalLink, Globe } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { Skeleton } from '@/components/ui/skeleton';
+import CredentialFieldSkeleton from '@/components/CredentialFieldSkeleton.vue';
 import { Switch } from '@/components/ui/switch';
 import { failureToast } from '@/components/ui/sonner';
 
@@ -189,9 +190,20 @@ const currentSnippet = computed(() => buildSnippets(credentials.value?.secretAcc
     </div>
 
     <!-- Loading -->
-    <div v-if="loading" class="space-y-2">
-      <Skeleton v-for="i in 5" :key="i" class="h-10 w-full" />
-    </div>
+    <template v-if="loading">
+      <CredentialFieldSkeleton :rows="5" />
+
+      <div class="overflow-hidden rounded-lg border bg-muted/40">
+        <div class="flex min-h-10 items-center border-b p-1.5">
+          <Skeleton class="ml-1.5 h-3 w-64 max-w-full" />
+        </div>
+        <div class="p-3">
+          <div v-for="width in ['w-48', 'w-40', 'w-64', 'w-56', 'w-72']" :key="width" class="flex h-5 items-center">
+            <Skeleton :class="['h-2.5 max-w-full', width]" />
+          </div>
+        </div>
+      </div>
+    </template>
 
     <!-- Error -->
     <QueryError

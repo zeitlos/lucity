@@ -49,6 +49,19 @@ const { result, loading, error, refetch } = useQuery(ConnectionsDocument);
 const modelProviders = computed(() => result.value?.modelProviders ?? []);
 const connectors = computed(() => result.value?.connectors ?? []);
 
+const skeletonSections = [
+  {
+    title: 'Model providers',
+    description: 'Every agent can use their models, as far as its harness supports them.',
+    rows: ['w-24', 'w-16'],
+  },
+  {
+    title: 'Connectors',
+    description: 'Tools agents call through Lucity, once they are granted them.',
+    rows: ['w-20', 'w-28'],
+  },
+];
+
 const newOpen = ref(false);
 
 function plural(count: number, noun: string) {
@@ -75,13 +88,29 @@ function attention(status: CredentialStatus, credential: string) {
         Model providers and connectors for every project in this workspace. Agents use them without ever seeing a key.
       </p>
 
-      <div v-if="loading && !result" class="space-y-8">
-        <div v-for="i in 2" :key="i" class="space-y-2">
-          <Skeleton class="h-4 w-32" />
-          <Skeleton class="h-14 w-full" />
-          <Skeleton class="h-14 w-full" />
-        </div>
-      </div>
+      <template v-if="loading && !result">
+        <section v-for="section in skeletonSections" :key="section.title" class="space-y-4">
+          <div class="space-y-1 text-sm text-muted-foreground/80">
+            <h3 class="text-sm font-medium text-muted-foreground">{{ section.title }}</h3>
+            <p>{{ section.description }}</p>
+          </div>
+          <div class="-mx-4 divide-y border-y">
+            <div v-for="width in section.rows" :key="width" class="flex items-center gap-3 py-2.5 pr-3 pl-4">
+              <Skeleton class="size-8 rounded-sm" />
+              <div class="min-w-0 flex-1">
+                <div class="flex h-5 items-center">
+                  <Skeleton :class="['h-3', width]" />
+                </div>
+                <div class="flex h-4 items-center">
+                  <Skeleton class="h-2.5 w-32" />
+                </div>
+              </div>
+              <Skeleton class="h-2.5 w-10" />
+              <Skeleton class="size-4 rounded-sm" />
+            </div>
+          </div>
+        </section>
+      </template>
 
       <QueryError
         v-else-if="error && !result"

@@ -232,12 +232,6 @@ async function handleDelete() {
     @retry="refetchResources()"
   />
 
-  <div v-else-if="!resourcesResult" class="space-y-6">
-    <Skeleton class="h-24 w-full" />
-    <Skeleton class="h-40 w-full" />
-    <Skeleton class="h-28 w-full" />
-  </div>
-
   <div v-else class="space-y-6">
     <!-- Configuration -->
     <section class="space-y-2">
@@ -277,7 +271,11 @@ async function handleDelete() {
                 <p v-if="cpuAboveLimit" class="text-xs text-status-warn">Above the plan's limit of {{ formatCpuQuantity(capabilities!.databases.cpu.max) }}, so it can only shrink</p>
                 <p v-else class="text-xs text-muted-foreground">Limit per instance</p>
               </div>
-              <Select :model-value="selectedCpu" @update:model-value="pickCpu">
+              <div v-if="!resourcesResult" class="flex h-8 w-36 items-center justify-between rounded-md border border-input bg-background px-3">
+                <Skeleton class="h-3 w-14" />
+                <Skeleton class="size-3 rounded-sm" />
+              </div>
+              <Select v-else :model-value="selectedCpu" @update:model-value="pickCpu">
                 <SelectTrigger class="h-8 w-36">
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
@@ -302,7 +300,11 @@ async function handleDelete() {
                 <p v-if="memoryAboveLimit" class="text-xs text-status-warn">Above the plan's limit of {{ formatStorage(capabilities!.databases.memory.max) }}, so it can only shrink</p>
                 <p v-else class="text-xs text-muted-foreground">Limit per instance</p>
               </div>
-              <Select :model-value="selectedMemory" @update:model-value="pickMemory">
+              <div v-if="!resourcesResult" class="flex h-8 w-36 items-center justify-between rounded-md border border-input bg-background px-3">
+                <Skeleton class="h-3 w-14" />
+                <Skeleton class="size-3 rounded-sm" />
+              </div>
+              <Select v-else :model-value="selectedMemory" @update:model-value="pickMemory">
                 <SelectTrigger class="h-8 w-36">
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>

@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
+import CredentialFieldSkeleton from '@/components/CredentialFieldSkeleton.vue';
 import { failureToast } from '@/components/ui/sonner';
 
 const KeyValueStoreCredentialsDocument = graphql(`
@@ -133,8 +134,11 @@ async function handleDelete() {
             </div>
 
             <!-- Loading -->
-            <div v-if="loading" class="space-y-2">
-              <Skeleton v-for="i in 4" :key="i" class="h-10 w-full" />
+            <div v-if="loading" class="space-y-1.5">
+              <div class="flex h-4 items-center">
+                <Skeleton class="h-3 w-28" />
+              </div>
+              <CredentialFieldSkeleton :rows="4" />
             </div>
 
             <!-- Provisioning -->

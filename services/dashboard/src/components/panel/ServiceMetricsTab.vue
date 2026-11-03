@@ -2,7 +2,7 @@
 import { ChartLine } from '@lucide/vue';
 import QueryError from '@/components/QueryError.vue';
 import EmptyState from '@/components/EmptyState.vue';
-import { Skeleton } from '@/components/ui/skeleton';
+import MetricHeroSkeleton from '@/components/metrics/MetricHeroSkeleton.vue';
 import { computed, ref } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
 import { graphql } from '@/gql';
@@ -180,10 +180,9 @@ const hasData = computed(() => allPoints.value.some(p => p.value != null));
       />
     </section>
 
-    <div v-else-if="loading" class="space-y-3">
-      <Skeleton class="h-40 w-full" />
-      <Skeleton class="h-40 w-full" />
-    </div>
+    <section v-else-if="loading" class="grid gap-px overflow-hidden rounded-lg border bg-border @lg:grid-cols-2">
+      <MetricHeroSkeleton v-for="hero in 2" :key="hero" />
+    </section>
     <QueryError
       v-else-if="error"
       title="Couldn't load metrics"

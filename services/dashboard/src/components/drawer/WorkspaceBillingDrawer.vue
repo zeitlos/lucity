@@ -81,6 +81,18 @@ const subscription = computed(() => subResult.value?.subscription);
 const { result: usageResult, loading: usageLoading, error: usageError, refetch: refetchUsage } = useQuery(UsageSummaryDocument);
 const usage = computed(() => usageResult.value?.usageSummary);
 
+const subscriptionSkeleton = [
+  { label: 'Status', width: 'w-12' },
+  { label: 'Current plan', width: 'w-10' },
+  { label: 'Current period ends', width: 'w-24' },
+  { label: 'Credit balance', width: 'w-14' },
+];
+const usageSkeleton = [
+  { label: 'Resources', width: 'w-14', total: false },
+  { label: 'Credits', width: 'w-14', total: false },
+  { label: 'Estimated total', width: 'w-16', total: true },
+];
+
 const billingNotConfigured = computed(() => !!subError.value?.message.includes('not configured'));
 const billingAvailable = computed(() => !subError.value);
 
@@ -140,9 +152,28 @@ async function handleOpenPortal() {
     title="Billing"
     @close="emit('close')"
   >
-    <div v-if="subLoading" class="space-y-3">
-      <Skeleton class="h-28 w-full" />
-      <Skeleton class="h-24 w-full" />
+    <div v-if="subLoading" class="space-y-6">
+      <section class="space-y-2.5">
+        <h3 class="text-sm font-medium text-muted-foreground">Subscription</h3>
+        <div class="space-y-2.5 rounded-lg border p-3">
+          <div v-for="row in subscriptionSkeleton" :key="row.label" class="flex h-5 items-center justify-between text-sm">
+            <span class="text-muted-foreground">{{ row.label }}</span>
+            <Skeleton :class="['h-3', row.width]" />
+          </div>
+        </div>
+      </section>
+      <section class="space-y-2.5">
+        <h3 class="text-sm font-medium text-muted-foreground">This period</h3>
+        <div class="space-y-2.5 rounded-lg border p-3">
+          <template v-for="row in usageSkeleton" :key="row.label">
+            <div v-if="row.total" class="h-px bg-border/60" />
+            <div class="flex h-5 items-center justify-between text-sm" :class="{ 'font-semibold': row.total }">
+              <span :class="{ 'text-muted-foreground': !row.total }">{{ row.label }}</span>
+              <Skeleton :class="['h-3', row.width]" />
+            </div>
+          </template>
+        </div>
+      </section>
     </div>
 
     <QueryError
@@ -251,9 +282,13 @@ async function handleOpenPortal() {
         <h3 class="text-sm font-medium text-muted-foreground">This period</h3>
         <div class="space-y-2.5 rounded-lg border p-3">
           <template v-if="!usage">
-            <Skeleton class="h-4 w-full" />
-            <Skeleton class="h-4 w-full" />
-            <Skeleton class="h-4 w-full" />
+            <template v-for="row in usageSkeleton" :key="row.label">
+              <div v-if="row.total" class="h-px bg-border/60" />
+              <div class="flex h-5 items-center justify-between text-sm" :class="{ 'font-semibold': row.total }">
+                <span :class="{ 'text-muted-foreground': !row.total }">{{ row.label }}</span>
+                <Skeleton :class="['h-3', row.width]" />
+              </div>
+            </template>
           </template>
           <template v-else>
             <div class="flex items-center justify-between text-sm">

@@ -284,10 +284,24 @@ function retryLive() {
         :description="`Ask ${agentName} something. Everyone in the workspace can see the session.`"
       />
 
-      <div v-else-if="loading && !result" class="space-y-4">
-        <Skeleton class="ml-auto h-12 w-2/3" />
-        <Skeleton class="h-20 w-5/6" />
-        <Skeleton class="h-24 w-5/6" />
+      <div v-else-if="loading && !result" class="space-y-5">
+        <div class="flex flex-col items-end gap-1">
+          <div class="flex h-4 items-center">
+            <Skeleton class="h-2.5 w-24" />
+          </div>
+          <Skeleton class="h-9 w-3/5 rounded-lg" />
+        </div>
+        <div class="space-y-2.5">
+          <div class="flex h-4 items-center gap-1.5">
+            <Skeleton class="size-3.5 rounded-sm" />
+            <Skeleton class="h-2.5 w-24" />
+          </div>
+          <div class="space-y-2">
+            <Skeleton class="h-3 w-full" />
+            <Skeleton class="h-3 w-11/12" />
+            <Skeleton class="h-3 w-3/5" />
+          </div>
+        </div>
       </div>
 
       <QueryError

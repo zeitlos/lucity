@@ -2,7 +2,7 @@
 import { HardDrive } from '@lucide/vue';
 import QueryError from '@/components/QueryError.vue';
 import EmptyState from '@/components/EmptyState.vue';
-import { Skeleton } from '@/components/ui/skeleton';
+import MetricHeroSkeleton from '@/components/metrics/MetricHeroSkeleton.vue';
 import { computed, ref } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
 import { graphql } from '@/gql';
@@ -117,10 +117,9 @@ const unit = computed(() => {
       />
     </section>
 
-    <div v-else-if="metricsLoading" class="space-y-3">
-      <Skeleton class="h-40 w-full" />
-      <Skeleton class="h-40 w-full" />
-    </div>
+    <section v-else-if="metricsLoading" class="overflow-hidden rounded-lg border">
+      <MetricHeroSkeleton />
+    </section>
     <QueryError
       v-else-if="metricsError"
       title="Couldn't load metrics"

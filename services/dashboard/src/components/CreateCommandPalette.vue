@@ -414,6 +414,8 @@ const { result: reposResult, loading: reposLoading } = useQuery(GitHubRepositori
   enabled: props.open && view.value === 'github-repos' && !!selectedSource.value,
 }));
 
+const repositorySkeleton = ['w-40', 'w-56', 'w-32', 'w-48', 'w-36'];
+
 const repos = computed(() => {
   const all = reposResult.value?.githubRepositories ?? [];
   if (!search.value) return all;
@@ -1176,8 +1178,17 @@ void activeEnvironment;
               />            </div>
 
             <template v-if="connectedLoading || sourcesLoading">
-              <div class="space-y-1 p-1">
-                <Skeleton v-for="i in 4" :key="i" class="h-9 w-full" />
+              <div class="p-1">
+                <div class="flex h-7 items-center px-2">
+                  <Skeleton class="h-2.5 w-20" />
+                </div>
+                <div v-for="width in repositorySkeleton" :key="width" class="flex items-center gap-2 px-2 py-2.5">
+                  <Skeleton class="size-3.5 shrink-0 rounded-sm" />
+                  <div class="flex h-5 flex-1 items-center">
+                    <Skeleton :class="['h-3', width]" />
+                  </div>
+                  <Skeleton class="h-5.5 w-14 rounded-full" />
+                </div>
               </div>
             </template>
             <template v-else-if="!githubConnected">
@@ -1272,7 +1283,13 @@ void activeEnvironment;
                 <div class="p-1">
                   <p class="px-2 py-1.5 text-xs font-medium text-muted-foreground">Repositories</p>
                   <template v-if="reposLoading">
-                    <p class="px-2 py-6 text-center text-sm text-muted-foreground">Loading repositories…</p>
+                    <div v-for="width in repositorySkeleton" :key="width" class="flex items-center gap-2 px-2 py-2.5">
+                    <Skeleton class="size-3.5 shrink-0 rounded-sm" />
+                    <div class="flex h-5 flex-1 items-center">
+                      <Skeleton :class="['h-3', width]" />
+                    </div>
+                    <Skeleton class="h-5.5 w-14 rounded-full" />
+                  </div>
                   </template>
                   <template v-else-if="repos.length === 0">
                     <p class="px-2 py-6 text-center text-sm text-muted-foreground">No repositories found.</p>
@@ -1613,9 +1630,15 @@ void activeEnvironment;
 
               <div class="space-y-2">
                 <span class="text-sm font-medium text-foreground">Connectors</span>
-                <div v-if="agentConnectorsLoading && !agentConnectorsResult" class="space-y-2">
-                  <Skeleton class="h-10 w-full" />
-                  <Skeleton class="h-10 w-full" />
+                <div v-if="agentConnectorsLoading && !agentConnectorsResult" class="divide-y overflow-hidden rounded-lg border">
+                  <div v-for="width in ['w-16', 'w-24']" :key="width" class="flex items-center gap-3 px-3 py-2">
+                    <Skeleton class="size-4 rounded-sm" />
+                    <Skeleton class="size-5 rounded-sm" />
+                    <div class="flex h-5 flex-1 items-center">
+                      <Skeleton :class="['h-3', width]" />
+                    </div>
+                    <Skeleton class="h-2.5 w-32" />
+                  </div>
                 </div>
                 <p v-else-if="agentConnectors.length === 0" class="text-xs text-muted-foreground">
                   The workspace has no connectors yet. You can grant them later under Access.

@@ -76,6 +76,14 @@ const folders = computed(() => result.value?.bucketObjects.folders ?? []);
 const objects = computed(() => result.value?.bucketObjects.objects ?? []);
 const isEmpty = computed(() => folders.value.length === 0 && objects.value.length === 0);
 
+const skeletonRows = [
+  { name: 'w-24', file: false },
+  { name: 'w-16', file: false },
+  { name: 'w-40', file: true },
+  { name: 'w-28', file: true },
+  { name: 'w-36', file: true },
+];
+
 const segments = computed(() => prefix.value.split('/').filter(Boolean));
 
 function navigate(to: string) {
@@ -341,14 +349,9 @@ async function confirmDelete() {
         </span>
       </div>
 
-      <!-- Loading -->
-      <div v-if="loading" class="space-y-1.5 py-1">
-        <Skeleton v-for="i in 6" :key="i" class="h-7 w-full" />
-      </div>
-
       <!-- Error -->
       <QueryError
-        v-else-if="error"
+        v-if="error && !loading"
         title="Couldn't load files"
         :error="error"
         @retry="refetch()"
@@ -357,7 +360,7 @@ async function confirmDelete() {
       <!-- Content -->
       <template v-else>
         <EmptyState
-          v-if="isEmpty && !creatingFolder"
+          v-if="!loading && isEmpty && !creatingFolder"
           size="compact"
           :icon="Folder"
           title="This folder is empty"
@@ -374,7 +377,24 @@ async function confirmDelete() {
                 <TableHead :class="publicEndpoint ? 'w-26' : 'w-20'"><span class="sr-only">Actions</span></TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <TableBody v-if="loading">
+              <TableRow v-for="row in skeletonRows" :key="row.name" class="h-9 hover:bg-transparent">
+                <TableCell>
+                  <div class="flex items-center gap-3">
+                    <Skeleton class="size-4 rounded-sm" />
+                    <Skeleton :class="['h-3', row.name]" />
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Skeleton v-if="row.file" class="ml-auto h-3 w-12" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton v-if="row.file" class="ml-auto h-3 w-20" />
+                </TableCell>
+                <TableCell />
+              </TableRow>
+            </TableBody>
+            <TableBody v-else>
               <TableRow v-if="creatingFolder" class="hover:bg-transparent">
                 <TableCell :colspan="4" class="py-1.5">
                   <div class="flex items-center gap-2">

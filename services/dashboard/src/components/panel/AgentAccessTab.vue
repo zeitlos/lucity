@@ -166,8 +166,22 @@ const privateNetworkHint = computed(() => (props.serviceNames.length
         </Button>
       </div>
 
-      <div v-if="loading && !result" class="space-y-2">
-        <Skeleton v-for="i in 3" :key="i" class="h-12 w-full" />
+      <div v-if="loading && !result" class="-mx-4 divide-y border-y">
+        <div v-for="width in ['w-16', 'w-24', 'w-20']" :key="width" class="flex items-center gap-3 px-4 py-2.5">
+          <Skeleton class="size-8 rounded-sm" />
+          <div class="min-w-0 flex-1">
+            <div class="flex h-5 items-center">
+              <Skeleton :class="['h-3', width]" />
+            </div>
+            <div class="flex h-4 items-center">
+              <Skeleton class="h-2.5 w-44" />
+            </div>
+          </div>
+          <div class="flex h-8 w-32 shrink-0 items-center justify-between rounded-md border border-input bg-background px-3">
+            <Skeleton class="h-3 w-14" />
+            <Skeleton class="size-3 rounded-sm" />
+          </div>
+        </div>
       </div>
       <QueryError
         v-else-if="error && !result"

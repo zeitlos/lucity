@@ -143,12 +143,34 @@ async function handleDelete() {
       </Button>
     </template>
 
-    <div v-if="loading && !result" class="space-y-6">
-      <Skeleton class="h-4 w-2/3" />
-      <Skeleton class="h-10 w-full" />
-      <div class="space-y-2">
-        <Skeleton v-for="i in 4" :key="i" class="h-10 w-full" />
+    <div v-if="loading && !result" class="space-y-8">
+      <div class="flex h-5 items-center">
+        <Skeleton class="h-3 w-72 max-w-full" />
       </div>
+
+      <section class="space-y-2">
+        <h3 class="text-sm font-medium text-muted-foreground">Token</h3>
+        <div class="flex h-11 items-center rounded-md bg-muted/40 pr-2 pl-3">
+          <Skeleton class="h-3 w-32" />
+        </div>
+        <div class="flex h-4 items-center">
+          <Skeleton class="h-2.5 w-64 max-w-full" />
+        </div>
+      </section>
+
+      <section class="space-y-3">
+        <h3 class="text-sm font-medium text-muted-foreground">Tools</h3>
+        <div class="-mx-4 divide-y border-y">
+          <div v-for="width in ['w-32', 'w-24', 'w-40', 'w-28']" :key="width" class="space-y-0.5 px-4 py-2">
+            <div class="flex h-5 items-center">
+              <Skeleton :class="['h-3', width]" />
+            </div>
+            <div class="flex h-4 items-center">
+              <Skeleton class="h-2.5 w-64 max-w-full" />
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
 
     <QueryError

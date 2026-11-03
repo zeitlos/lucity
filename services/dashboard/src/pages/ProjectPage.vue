@@ -107,6 +107,11 @@ function closeDrawer() {
 
 const envDialogOpen = ref(false);
 
+const skeletonCards = [
+  { name: 'w-28', tiles: 3 },
+  { name: 'w-20', tiles: 2 },
+];
+
 function handleEnvironmentCreated(environmentId: string) {
   router.push({ name: 'environment', params: { projectId: projectId.value, environmentId } });
 }
@@ -115,12 +120,48 @@ function handleEnvironmentCreated(environmentId: string) {
 
 <template>
   <div class="flex min-h-0 flex-1 flex-col">
-    <div v-if="loading && !project" class="flex flex-1 gap-3 py-3 max-md:py-0">
-      <div class="w-12 max-md:hidden" />
-      <div class="flex-1 space-y-4 rounded-lg border bg-card p-4 max-md:rounded-none max-md:border-0">
-        <Skeleton class="h-8 w-48" />
-        <Skeleton class="h-24 w-full" />
-        <Skeleton class="h-24 w-full" />
+    <div v-if="loading && !project" class="relative flex min-h-0 flex-1 py-3 max-md:py-0">
+      <ContextRail
+        :items="railItems"
+        :active-key="activeKey"
+        up-label="Up to all projects"
+        :up-to="{ name: 'projects' }"
+        :project-id="projectId"
+      />
+
+      <div class="relative min-w-0 flex-1">
+        <div class="flex h-full flex-col overflow-hidden rounded-lg border bg-card shadow-sm max-md:rounded-none max-md:border-0 max-md:shadow-none">
+          <PageToolbar title="Environments">
+            <Button class="max-sm:w-9 max-sm:px-0" @click="envDialogOpen = true">
+              <Plus />
+              <span class="max-sm:sr-only">New environment</span>
+            </Button>
+          </PageToolbar>
+
+          <div class="@container flex-1 overflow-y-auto p-4 max-md:pb-22">
+            <div class="grid gap-4 @xl:grid-cols-2 @6xl:grid-cols-3">
+              <div
+                v-for="card in skeletonCards"
+                :key="card.name"
+                class="flex flex-col gap-3.5 rounded-lg border bg-card px-5 py-4.5 shadow-sm"
+              >
+                <div class="flex h-6 items-center">
+                  <Skeleton :class="['h-4', card.name]" />
+                </div>
+                <div class="canvas-preview grid min-h-30 grid-cols-3 content-start gap-2 rounded-lg border border-border/60 p-3.5">
+                  <span
+                    v-for="tile in card.tiles"
+                    :key="tile"
+                    class="flex h-8 items-center gap-1.5 rounded-md border bg-card px-2 shadow-2xs"
+                  >
+                    <Skeleton class="size-3 rounded-sm" />
+                    <Skeleton class="h-3 w-14" />
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -200,15 +241,20 @@ function handleEnvironmentCreated(environmentId: string) {
     </div>
 
     <CreateEnvironmentDialog
-      v-if="project"
       v-model:open="envDialogOpen"
-      :project-id="project.id"
+      :project-id="projectId"
       @created="handleEnvironmentCreated"
     />
   </div>
 </template>
 
 <style scoped>
+.canvas-preview {
+  background-color: color-mix(in oklab, var(--color-muted) 40%, transparent);
+  background-image: radial-gradient(var(--color-border) 1px, transparent 1px);
+  background-size: 14px 14px;
+}
+
 .slide-drawer-enter-active {
   transition: transform 0.25s ease, opacity 0.2s ease;
 }
