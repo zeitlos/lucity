@@ -323,6 +323,7 @@ import { useBuildLogsPanel } from '@/composables/useBuildLogsPanel';
 import { useServiceLogsPanel } from '@/composables/useServiceLogsPanel';
 import { useVulnerabilitiesPanel } from '@/composables/useVulnerabilitiesPanel';
 import { useCapabilities } from '@/composables/useCapabilities';
+import { usePageTitle } from '@/composables/usePageTitle';
 import { parseQuantity } from '@/lib/format';
 import { rememberEnvironment } from '@/lib/lastEnvironment';
 
@@ -667,6 +668,15 @@ const selectedAgent = computed(() => {
   return agents.value.find(a => a.id === currentPanel.value!.id) ?? null;
 });
 
+const selectedResource = computed(() =>
+  selectedService.value
+  ?? selectedDatabase.value
+  ?? selectedKeyValueStore.value
+  ?? selectedBucket.value
+  ?? selectedVolume.value
+  ?? selectedAgent.value,
+);
+
 const serviceNames = computed(() => activeEnvServices.value.map(s => s.name));
 
 // Services that already hold a mounted volume (one volume per service)
@@ -732,6 +742,13 @@ const activeKey = computed(() => {
   if (drawer.value === 'variables' || drawer.value === 'settings') return drawer.value;
   return 'canvas';
 });
+
+usePageTitle(() => [
+  selectedResource.value?.name,
+  railItems.value.find(item => item.key === drawer.value)?.label,
+  environment.value?.name,
+  projectResult.value?.project?.name,
+]);
 
 function closeDrawer() {
   router.push({ name: 'environment', params: { projectId: projectId.value, environmentId: environmentId.value } });

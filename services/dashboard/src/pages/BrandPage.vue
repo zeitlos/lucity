@@ -29,6 +29,9 @@ import {
 } from '@/lib/brand';
 import { LOGO_HEIGHT, LOGO_PATH, WORDMARK_CAP, WORDMARK_PATH } from '@/lib/logo';
 import { WORDMARK_X_HEIGHT, wordmarkGlyphs } from '@/lib/wordmarkGlyphs';
+import { usePageTitle } from '@/composables/usePageTitle';
+
+usePageTitle(['Brand']);
 
 const lockups = [
   { name: 'Light', note: 'Purple and ink', asset: lockupAsset('lucity-logo-light', PURPLE, INK), background: CREAM },

@@ -83,6 +83,7 @@ import { preferredEnvironment } from '@/lib/lastEnvironment';
 import { workspaceNavItems } from '@/lib/contextNav';
 import { useCapabilities } from '@/composables/useCapabilities';
 import { useAuth } from '@/composables/useAuth';
+import { usePageTitle } from '@/composables/usePageTitle';
 import ContextRail from '@/components/ContextRail.vue';
 import WorkspaceMembersDrawer from '@/components/drawer/WorkspaceMembersDrawer.vue';
 import ApiTokensDrawer from '@/components/drawer/ApiTokensDrawer.vue';
@@ -125,6 +126,11 @@ const activeKey = computed(() => {
   if (connection.value) return 'connections';
   return typeof drawer.value === 'string' && drawer.value ? drawer.value : 'projects';
 });
+
+usePageTitle(() => [
+  railItems.value.find(item => item.key === activeKey.value && item.key !== 'projects')?.label,
+  workspace.value?.name,
+]);
 
 function closeDrawer() {
   router.push({ name: 'projects' });

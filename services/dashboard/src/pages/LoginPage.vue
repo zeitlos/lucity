@@ -10,6 +10,7 @@ import BaseLogo from '@/components/BaseLogo.vue';
 import BaseWordmark from '@/components/BaseWordmark.vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 import { useTheme } from '@/composables/useTheme';
+import { usePageTitle } from '@/composables/usePageTitle';
 import alpsHarborImg from '../../assets/img/alps_harbor.webp';
 import mountainCityImg from '../../assets/img/mountain_city.webp';
 import gopherShipImg from '../../assets/img/gopher_ship.webp';
@@ -17,6 +18,8 @@ import gopherShipImg from '../../assets/img/gopher_ship.webp';
 const route = useRoute();
 const { login } = useAuth();
 const { theme } = useTheme();
+
+usePageTitle(['Sign in']);
 
 const isDark = computed(() => theme.value === 'dark');
 

@@ -54,6 +54,7 @@ import EnvironmentCard from '@/components/EnvironmentCard.vue';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEnvironment, type Environment } from '@/composables/useEnvironment';
+import { usePageTitle } from '@/composables/usePageTitle';
 
 const route = useRoute();
 const router = useRouter();
@@ -96,6 +97,11 @@ watch(
 const railItems = computed(() => projectNavItems(projectId.value));
 
 const activeKey = computed(() => (drawer.value === 'settings' ? 'settings' : 'environments'));
+
+usePageTitle(() => [
+  railItems.value.find(item => item.key === drawer.value)?.label,
+  project.value?.name,
+]);
 
 function closeDrawer() {
   router.push({ name: 'project', params: { projectId: projectId.value } });
