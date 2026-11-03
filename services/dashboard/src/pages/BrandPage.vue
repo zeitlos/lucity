@@ -1,735 +1,428 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, nextTick } from 'vue';
+import { computed, ref } from 'vue';
 import BaseLogo from '@/components/BaseLogo.vue';
-import BaseWordmark from '@/components/BaseWordmark.vue';
-import { LOGO_HEIGHT, LOGO_PATH, LOGO_WIDTH } from '@/lib/logo';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Progress } from '@/components/ui/progress';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertCircle, Check, Download, Rocket, Zap } from '@lucide/vue';
+import CopyButton from '@/components/CopyButton.vue';
+import SegmentedControl from '@/components/SegmentedControl.vue';
+import BrandAssetTile from '@/components/brand/BrandAssetTile.vue';
+import BrandSocialPreview from '@/components/brand/BrandSocialPreview.vue';
+import {
+  CREAM,
+  ESPRESSO,
+  GREEN,
+  INK,
+  LILAC,
+  LOCKUP_HEIGHT,
+  LOCKUP_WIDTH,
+  LOCKUP_WORDMARK_TRANSFORM,
+  PAPER,
+  PURPLE,
+  appIconAsset,
+  flatIconAsset,
+  iconThemes,
+  lockupAsset,
+  markAsset,
+  wordmarkAsset,
+} from '@/lib/brand';
+import { LOGO_HEIGHT, LOGO_PATH, WORDMARK_CAP, WORDMARK_PATH } from '@/lib/logo';
+import { WORDMARK_X_HEIGHT, wordmarkGlyphs } from '@/lib/wordmarkGlyphs';
 
-import alpsHarborImg from '../../assets/img/alps_harbor.webp';
-import mountainCityImg from '../../assets/img/mountain_city.webp';
-import mountainCityNightImg from '../../assets/img/mountain_city_night.webp';
-import branchingRiverImg from '../../assets/img/branching_river.webp';
-import containerHarborImg from '../../assets/img/container_harbor.webp';
-import mountainShipImg from '../../assets/img/mountain_ship.webp';
-import mountainPlaneImg from '../../assets/img/mountain_plane.webp';
-import cablecarImg from '../../assets/img/cablecar.webp';
-import lakeImg from '../../assets/img/lake.webp';
-import hotairBaloonImg from '../../assets/img/hotair_baloon.webp';
-import planeParkedImg from '../../assets/img/plane_parked.webp';
-import octopusRiverImg from '../../assets/img/octopus_river.webp';
-import gopherShipImg from '../../assets/img/gopher_ship.webp';
+const lockups = [
+  { name: 'Light', note: 'Purple and ink', asset: lockupAsset('lucity-logo-light', PURPLE, INK), background: CREAM },
+  { name: 'Dark', note: 'Lilac and paper', asset: lockupAsset('lucity-logo-dark', LILAC, PAPER), background: ESPRESSO },
+  { name: 'Ink', note: 'One color', asset: lockupAsset('lucity-logo-ink', INK, INK), background: CREAM },
+  { name: 'Cream', note: 'One color, reversed', asset: lockupAsset('lucity-logo-cream', CREAM, CREAM), background: PURPLE },
+];
+
+const wordmarks = [
+  { name: 'Ink', note: INK, asset: wordmarkAsset('lucity-wordmark-ink', INK), background: CREAM },
+  { name: 'Paper', note: PAPER, asset: wordmarkAsset('lucity-wordmark-paper', PAPER), background: ESPRESSO },
+];
+
+type IconStyle = 'macos' | 'flat';
+
+const iconStyle = ref<IconStyle>('macos');
+const iconStyles: { value: IconStyle; label: string }[] = [
+  { value: 'macos', label: 'macOS' },
+  { value: 'flat', label: 'Flat' },
+];
+
+const icons = computed(() => iconThemes.map((theme) => {
+  if (iconStyle.value === 'macos') {
+    return {
+      name: theme.name,
+      note: theme.file === 'espresso' ? 'The cockpit app' : undefined,
+      asset: appIconAsset(theme),
+    };
+  }
+  return {
+    name: theme.name,
+    note: theme.file === 'purple' ? 'The web app icon' : undefined,
+    asset: flatIconAsset(theme),
+  };
+}));
+
+const marks = [
+  { name: 'Purple', color: PURPLE, background: CREAM },
+  { name: 'Lilac', color: LILAC, background: ESPRESSO },
+  { name: 'Ink', color: INK, background: CREAM },
+  { name: 'Cream', color: CREAM, background: PURPLE },
+  { name: 'White', color: '#ffffff', background: INK },
+  { name: 'Black', color: '#000000', background: '#ffffff' },
+].map(mark => ({ ...mark, asset: markAsset(`lucity-mark-${mark.name.toLowerCase()}`, mark.color) }));
+
+const specimenPad = 20;
+const specimenBox = `${-specimenPad} ${-specimenPad} ${LOCKUP_WIDTH + specimenPad * 2} ${LOCKUP_HEIGHT + specimenPad * 2}`;
+const lockupUnit = LOGO_HEIGHT / WORDMARK_CAP;
+const guides = [
+  { label: 'Cap line', y: 0 },
+  { label: 'x-height', y: LOGO_HEIGHT - WORDMARK_X_HEIGHT * lockupUnit },
+  { label: 'Baseline', y: LOGO_HEIGHT },
+  { label: 'Step', y: LOCKUP_HEIGHT },
+].map(guide => ({ ...guide, top: ((guide.y + specimenPad) / (LOCKUP_HEIGHT + specimenPad * 2)) * 100 }));
+
+const settings = [
+  { label: 'Typeface', value: 'Mona Sans, Display' },
+  { label: 'Width', value: '105' },
+  { label: 'Weight', value: '600' },
+  { label: 'Optical size', value: '100' },
+  { label: 'Tracking', value: '−8' },
+  { label: 'Kerning', value: 't y −6, c i +4' },
+  { label: 'Mark', value: 'Cap height, on the baseline' },
+  { label: 'Gap', value: '0.61 × mark height' },
+];
+
+const glyphNotes: Record<string, { title: string; note: string }> = {
+  L: { title: 'Shorter L', note: 'The arm is 48 units shorter, so the u moves in closer.' },
+  i: { title: 'Square dot', note: 'A square 0.934 times the stem, its top on the cap line.' },
+  t: { title: 'Flat t', note: 'The slanted top is cut flat and raised to the cap line.' },
+  y: { title: 'Stepped y', note: 'Built from the u. The tail steps 1.08 stems left like the mark, on a foot 1.41 stems wide, 200 units below the baseline.' },
+};
+
+const glyphTop = -WORDMARK_CAP - 80;
+const glyphHeight = WORDMARK_CAP + 200 + 160;
+const glyphGuides = [-WORDMARK_CAP, -WORDMARK_X_HEIGHT, 0, 200];
+
+const glyphs = wordmarkGlyphs.map(glyph => ({
+  ...glyph,
+  ...glyphNotes[glyph.letter]!,
+  viewBox: `${glyph.left - 80} ${glyphTop} ${glyph.right - glyph.left + 160} ${glyphHeight}`,
+  from: glyph.left - 80,
+  to: glyph.right + 80,
+}));
+
+const typefaces = [
+  { name: 'Mona Sans', role: 'Wordmark, docs and landing page', family: '\'Mona Sans\', system-ui, sans-serif', sample: 'Deploy anything. Own your stack.' },
+  { name: 'Redaction 20', role: 'Headlines', family: 'var(--font-serif)', sample: 'The PaaS you can leave.' },
+  { name: 'Sora', role: 'Dashboard', family: 'var(--font-sans)', sample: 'Projects, environments and services' },
+  { name: 'Fira Code', role: 'Code', family: 'var(--font-mono)', sample: 'git push origin main' },
+];
 
 const colors = [
-  { name: 'Mark', var: '--brand-mark', fg: '--primary-foreground', desc: 'Logo purple' },
-  { name: 'Primary', var: '--primary', fg: '--primary-foreground', desc: 'Brand teal' },
-  { name: 'Secondary', var: '--secondary', fg: '--secondary-foreground', desc: 'Warm beige' },
-  { name: 'Accent', var: '--accent', fg: '--accent-foreground', desc: 'Soft warm' },
-  { name: 'Destructive', var: '--destructive', fg: '--destructive-foreground', desc: 'Danger red' },
-  { name: 'Muted', var: '--muted', fg: '--muted-foreground', desc: 'Subdued elements' },
+  { name: 'Purple', value: PURPLE, use: 'The mark on light backgrounds' },
+  { name: 'Lilac', value: LILAC, use: 'The mark on dark backgrounds' },
+  { name: 'Ink', value: INK, use: 'Wordmark and text on light' },
+  { name: 'Paper', value: PAPER, use: 'Wordmark and text on dark' },
+  { name: 'Cream', value: CREAM, use: 'Light background' },
+  { name: 'Espresso', value: ESPRESSO, use: 'Dark background' },
+  { name: 'Green', value: GREEN, use: 'Actions' },
 ];
-
-const semanticColors = [
-  { name: 'Background', var: '--background' },
-  { name: 'Foreground', var: '--foreground' },
-  { name: 'Card', var: '--card' },
-  { name: 'Popover', var: '--popover' },
-  { name: 'Border', var: '--border' },
-  { name: 'Input', var: '--input' },
-  { name: 'Ring', var: '--ring' },
-];
-
-const sidebarColors = [
-  { name: 'Sidebar', var: '--sidebar' },
-  { name: 'Sidebar Foreground', var: '--sidebar-foreground' },
-  { name: 'Sidebar Primary', var: '--sidebar-primary' },
-  { name: 'Sidebar Accent', var: '--sidebar-accent' },
-  { name: 'Sidebar Border', var: '--sidebar-border' },
-];
-
-const chartColors = [
-  { name: 'Chart 1', var: '--chart-1' },
-  { name: 'Chart 2', var: '--chart-2' },
-  { name: 'Chart 3', var: '--chart-3' },
-  { name: 'Chart 4', var: '--chart-4' },
-  { name: 'Chart 5', var: '--chart-5' },
-];
-
-// --- Social Preview Canvas ---
-
-const canvasRef = ref<HTMLCanvasElement | null>(null);
-const selectedWallpaper = ref(0);
-const previewHeadline = ref('The PaaS you can leave.');
-const previewTagline = ref('Open-source · Kubernetes-native · Ejectable');
-const loadedImages = new Map<string, HTMLImageElement>();
-
-const wallpapers = [
-  { name: 'Alps Harbor', src: alpsHarborImg },
-  { name: 'Mountain City', src: mountainCityImg },
-  { name: 'Night City', src: mountainCityNightImg },
-  { name: 'Container Harbor', src: containerHarborImg },
-  { name: 'Mountain Ship', src: mountainShipImg },
-  { name: 'Mountain Plane', src: mountainPlaneImg },
-  { name: 'Branching River', src: branchingRiverImg },
-  { name: 'Lake', src: lakeImg },
-  { name: 'Cablecar', src: cablecarImg },
-  { name: 'Hot Air Balloon', src: hotairBaloonImg },
-  { name: 'Parked Plane', src: planeParkedImg },
-  { name: 'Octopus River', src: octopusRiverImg },
-  { name: 'Gopher Ship', src: gopherShipImg },
-];
-
-function preloadWallpapers() {
-  wallpapers.forEach((wp) => {
-    const img = new Image();
-    img.onload = () => {
-      loadedImages.set(wp.src, img);
-      if (wallpapers[selectedWallpaper.value]?.src === wp.src) drawCanvas();
-    };
-    img.src = wp.src;
-  });
-}
-
-function drawLogo(ctx: CanvasRenderingContext2D, cx: number, cy: number, logoHeight: number) {
-  const scale = logoHeight / LOGO_HEIGHT;
-  ctx.save();
-  ctx.translate(cx - (LOGO_WIDTH * scale) / 2, cy - logoHeight / 2);
-  ctx.scale(scale, scale);
-  ctx.fillStyle = '#a274ee';
-  ctx.fill(new Path2D(LOGO_PATH));
-  ctx.restore();
-}
-
-function drawCanvas() {
-  const canvas = canvasRef.value;
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-
-  const W = 1280;
-  const H = 640;
-  ctx.clearRect(0, 0, W, H);
-
-  // Background wallpaper
-  const wp = wallpapers[selectedWallpaper.value]!;
-  const img = loadedImages.get(wp.src);
-
-  if (img) {
-    // Cover fit
-    const imgRatio = img.width / img.height;
-    const canvasRatio = W / H;
-    let sx = 0;
-    let sy = 0;
-    let sw = img.width;
-    let sh = img.height;
-    if (imgRatio > canvasRatio) {
-      sw = img.height * canvasRatio;
-      sx = (img.width - sw) / 2;
-    } else {
-      sh = img.width / canvasRatio;
-      sy = (img.height - sh) / 2;
-    }
-    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, W, H);
-  } else {
-    const grad = ctx.createLinearGradient(0, 0, W, H);
-    grad.addColorStop(0, '#1a3a2f');
-    grad.addColorStop(1, '#0d1b16');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, H);
-  }
-
-  // Vignette overlay — stronger for text legibility
-  const vig = ctx.createRadialGradient(W / 2, H / 2, H * 0.1, W / 2, H / 2, W * 0.72);
-  vig.addColorStop(0, 'rgba(0,0,0,0.3)');
-  vig.addColorStop(1, 'rgba(0,0,0,0.7)');
-  ctx.fillStyle = vig;
-  ctx.fillRect(0, 0, W, H);
-
-  drawLogo(ctx, W / 2, H / 2 - 105, 84);
-
-  // Headline — large enough to read at card size (~400px wide display)
-  ctx.fillStyle = 'white';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  ctx.font = '88px "Redaction 20", Georgia, serif';
-  ctx.fillText(previewHeadline.value, W / 2, H / 2 + 5);
-
-  // Tagline
-  ctx.font = '300 32px "Sora", system-ui, sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.7)';
-  ctx.fillText(previewTagline.value, W / 2, H / 2 + 110);
-}
-
-function downloadPreview(format: 'png' | 'jpg') {
-  const canvas = canvasRef.value;
-  if (!canvas) return;
-  const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
-  const link = document.createElement('a');
-  link.download = `lucity-social-preview.${format}`;
-  link.href = canvas.toDataURL(mimeType, 0.95);
-  link.click();
-}
-
-watch([selectedWallpaper, previewHeadline, previewTagline], () => drawCanvas());
-
-onMounted(async () => {
-  preloadWallpapers();
-  await document.fonts.load('88px "Redaction 20"');
-  await document.fonts.ready;
-  await nextTick();
-  drawCanvas();
-});
 </script>
 
 <template>
   <div class="min-h-screen bg-background">
-    <div class="mx-auto max-w-5xl px-8 py-12">
-      <div class="mb-4 flex items-center gap-4">
+    <div class="mx-auto max-w-5xl px-4 py-12 sm:px-8">
+      <header class="mb-16 flex items-center gap-4">
         <BaseLogo :size="36" />
         <div>
           <h1 class="font-serif text-4xl text-foreground">
             Brand
           </h1>
           <p class="text-muted-foreground">
-            Logo, colors, typography, and components
+            Logos, icons, type and colors for Lucity
           </p>
         </div>
-      </div>
+      </header>
 
-      <Separator class="mb-12" />
-
-      <!-- Logo -->
-      <section class="mb-16">
+      <section class="mb-20">
         <h2 class="mb-2 font-serif text-2xl text-foreground">
           Logo
         </h2>
         <p class="mb-8 text-sm text-muted-foreground">
-          A folded sheet with two bends, extruded unevenly so top and bottom never mirror each other. Purple on light, lilac on dark.
+          A folded sheet with two bends next to a customized Mona Sans wordmark. Purple on light, lilac on dark.
         </p>
 
-        <div class="grid grid-cols-3 gap-8">
-          <Card>
-            <CardHeader>
-              <CardTitle>Mark</CardTitle>
-              <CardDescription>
-                Standalone, wherever space is tight
-              </CardDescription>
-            </CardHeader>
-            <CardContent class="flex h-40 items-center justify-center">
-              <BaseLogo :size="96" />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Lockup</CardTitle>
-              <CardDescription>
-                Mark and wordmark in a customized Mona Sans Display
-              </CardDescription>
-            </CardHeader>
-            <CardContent class="flex h-40 items-center justify-center gap-[21px]">
-              <BaseLogo :size="35" />
-              <BaseWordmark :size="35" class="text-foreground" />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>App icon</CardTitle>
-              <CardDescription>
-                Cream mark on a purple tile
-              </CardDescription>
-            </CardHeader>
-            <CardContent class="flex h-40 items-center justify-center">
-              <div class="app-icon flex size-28 items-center justify-center rounded-[22%]">
-                <BaseLogo :size="58" />
-              </div>
-            </CardContent>
-          </Card>
+        <h3 class="mb-3 text-sm font-medium text-foreground">
+          Lockup
+        </h3>
+        <div class="mb-10 grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2">
+          <BrandAssetTile
+            v-for="lockup in lockups"
+            :key="lockup.asset.file"
+            :asset="lockup.asset"
+            :name="lockup.name"
+            :note="lockup.note"
+            :background="lockup.background"
+            :png-width="2048"
+            image-class="w-56"
+          />
         </div>
 
-        <div class="mt-8">
-          <h3 class="mb-4 text-sm font-medium text-muted-foreground">
-            Sizes
-          </h3>
-          <div class="flex items-end gap-8">
-            <div
-              v-for="size in [12, 16, 20, 24, 32, 48, 64]"
-              :key="size"
-              class="flex flex-col items-center gap-2"
-            >
-              <BaseLogo :size="size" />
-              <span class="font-mono text-xs text-muted-foreground">{{ size }}</span>
+        <h3 class="mb-3 text-sm font-medium text-foreground">
+          Wordmark
+        </h3>
+        <div class="grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2">
+          <BrandAssetTile
+            v-for="wordmark in wordmarks"
+            :key="wordmark.asset.file"
+            :asset="wordmark.asset"
+            :name="wordmark.name"
+            :note="wordmark.note"
+            :background="wordmark.background"
+            :png-width="2048"
+            image-class="w-40"
+          />
+        </div>
+      </section>
+
+      <section class="mb-20">
+        <h2 class="mb-2 font-serif text-2xl text-foreground">
+          Icons
+        </h2>
+        <p class="mb-8 text-sm text-muted-foreground">
+          The mark on a tile for app icons and avatars, and on its own for everything else.
+        </p>
+
+        <div class="mb-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
+          <div>
+            <h3 class="text-sm font-medium text-foreground">
+              App icon
+            </h3>
+            <p class="text-sm text-muted-foreground">
+              {{ iconStyle === 'macos' ? 'Rounded tile with a lit rim and a shaded bend, on the macOS grid at 1024 px.' : 'Square tile, the mark at 72% of its width.' }}
+            </p>
+          </div>
+          <SegmentedControl
+            v-model="iconStyle"
+            label="Icon style"
+            :options="iconStyles"
+          />
+        </div>
+        <div class="mb-10 grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 lg:grid-cols-4">
+          <BrandAssetTile
+            v-for="icon in icons"
+            :key="icon.asset.file"
+            :asset="icon.asset"
+            :name="icon.name"
+            :note="icon.note"
+            background="var(--muted)"
+            :png-width="1024"
+            :image-class="iconStyle === 'macos' ? 'size-28' : 'size-20'"
+          />
+        </div>
+
+        <h3 class="text-sm font-medium text-foreground">
+          Mark
+        </h3>
+        <p class="mb-3 text-sm text-muted-foreground">
+          Transparent background, cropped to the mark.
+        </p>
+        <div class="grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 lg:grid-cols-3">
+          <BrandAssetTile
+            v-for="mark in marks"
+            :key="mark.asset.file"
+            :asset="mark.asset"
+            :name="mark.name"
+            :note="mark.color"
+            :background="mark.background"
+            :png-width="1024"
+            image-class="w-20"
+          />
+        </div>
+      </section>
+
+      <section class="mb-20">
+        <h2 class="mb-2 font-serif text-2xl text-foreground">
+          Typeface
+        </h2>
+        <p class="mb-8 text-sm text-muted-foreground">
+          The wordmark is drawn from Mona Sans Display and changes four letters, so the word shares the mark's flat top and its bend. Units are thousandths of an em.
+        </p>
+
+        <div class="mb-10 overflow-hidden rounded-lg border border-border bg-card">
+          <div class="flex gap-4 p-6 sm:p-10">
+            <div class="relative hidden w-16 shrink-0 text-right text-xs text-muted-foreground sm:block">
+              <span
+                v-for="guide in guides"
+                :key="guide.label"
+                class="absolute right-0 -translate-y-1/2 whitespace-nowrap"
+                :style="{ top: `${guide.top}%` }"
+              >
+                {{ guide.label }}
+              </span>
             </div>
+            <svg
+              :viewBox="specimenBox"
+              class="min-w-0 flex-1"
+              role="img"
+              aria-label="Lucity lockup with type guides"
+            >
+              <line
+                v-for="guide in guides"
+                :key="guide.label"
+                :x1="-specimenPad"
+                :x2="LOCKUP_WIDTH + specimenPad"
+                :y1="guide.y"
+                :y2="guide.y"
+                class="stroke-muted-foreground/40"
+                vector-effect="non-scaling-stroke"
+              />
+              <path :d="LOGO_PATH" class="fill-(--brand-mark)" />
+              <path
+                :transform="LOCKUP_WORDMARK_TRANSFORM"
+                :d="WORDMARK_PATH"
+                class="fill-foreground"
+              />
+            </svg>
+          </div>
+          <dl class="grid grid-cols-2 gap-px border-t border-border bg-border sm:grid-cols-4">
+            <div
+              v-for="setting in settings"
+              :key="setting.label"
+              class="bg-card px-4 py-3"
+            >
+              <dt class="text-xs text-muted-foreground">
+                {{ setting.label }}
+              </dt>
+              <dd class="text-sm text-foreground">
+                {{ setting.value }}
+              </dd>
+            </div>
+          </dl>
+        </div>
+
+        <h3 class="text-sm font-medium text-foreground">
+          Letters
+        </h3>
+        <p class="mb-3 text-sm text-muted-foreground">
+          Each edit over the stock letter, dashed.
+        </p>
+        <div class="mb-10 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border lg:grid-cols-4">
+          <div
+            v-for="glyph in glyphs"
+            :key="glyph.letter"
+            class="bg-card"
+          >
+            <svg
+              :viewBox="glyph.viewBox"
+              class="h-56 w-full px-4 pt-4"
+              role="img"
+              :aria-label="glyph.title"
+            >
+              <line
+                v-for="y in glyphGuides"
+                :key="y"
+                :x1="glyph.from"
+                :x2="glyph.to"
+                :y1="y"
+                :y2="y"
+                class="stroke-muted-foreground/30"
+                vector-effect="non-scaling-stroke"
+              />
+              <path :d="glyph.custom" class="fill-foreground" />
+              <path
+                :d="glyph.stock"
+                class="fill-none stroke-(--brand-mark)"
+                stroke-width="1.5"
+                stroke-dasharray="4 3"
+                vector-effect="non-scaling-stroke"
+              />
+            </svg>
+            <div class="px-4 pt-2 pb-4">
+              <p class="text-sm font-medium text-foreground">
+                {{ glyph.title }}
+              </p>
+              <p class="text-sm text-muted-foreground">
+                {{ glyph.note }}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <h3 class="mb-3 text-sm font-medium text-foreground">
+          Typefaces
+        </h3>
+        <div class="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
+          <div
+            v-for="typeface in typefaces"
+            :key="typeface.name"
+            class="flex flex-col gap-2 px-4 py-4 sm:flex-row sm:items-center sm:gap-6"
+          >
+            <div class="sm:w-56 sm:shrink-0">
+              <p class="text-sm font-medium text-foreground">
+                {{ typeface.name }}
+              </p>
+              <p class="text-sm text-muted-foreground">
+                {{ typeface.role }}
+              </p>
+            </div>
+            <p
+              class="min-w-0 text-2xl text-foreground"
+              :style="{ fontFamily: typeface.family }"
+            >
+              {{ typeface.sample }}
+            </p>
           </div>
         </div>
       </section>
 
-      <!-- Colors -->
-      <section class="mb-16">
+      <section class="mb-20">
         <h2 class="mb-2 font-serif text-2xl text-foreground">
           Colors
         </h2>
         <p class="mb-8 text-sm text-muted-foreground">
-          OKLCH color space. All tokens adapt to light and dark mode via CSS custom properties.
+          The logo colors, the two backgrounds they sit on, and the green for actions.
         </p>
 
-        <div class="space-y-8">
-          <!-- Brand colors -->
-          <div>
-            <h3 class="mb-4 text-sm font-medium text-muted-foreground">
-              Brand
-            </h3>
-            <div class="grid grid-cols-6 gap-4">
-              <div
-                v-for="color in colors"
-                :key="color.var"
-                class="space-y-2"
-              >
-                <div
-                  class="flex h-20 items-end rounded-lg p-3"
-                  :style="{ background: `var(${color.var})` }"
-                >
-                  <span
-                    class="font-mono text-xs"
-                    :style="{ color: `var(${color.fg})` }"
-                  >
-                    {{ color.var }}
-                  </span>
-                </div>
-                <div>
-                  <p class="text-sm font-medium text-foreground">{{ color.name }}</p>
-                  <p class="text-xs text-muted-foreground">{{ color.desc }}</p>
-                </div>
+        <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div
+            v-for="color in colors"
+            :key="color.name"
+            class="overflow-hidden rounded-lg border border-border bg-card"
+          >
+            <div
+              class="h-20 border-b border-border"
+              :style="{ background: color.value }"
+            />
+            <div class="flex items-start gap-2 px-3 py-2.5">
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium text-foreground">
+                  {{ color.name }}
+                </p>
+                <p class="font-mono text-xs text-muted-foreground">
+                  {{ color.value }}
+                </p>
+                <p class="mt-1 text-xs text-muted-foreground">
+                  {{ color.use }}
+                </p>
               </div>
-            </div>
-          </div>
-
-          <!-- Semantic colors -->
-          <div>
-            <h3 class="mb-4 text-sm font-medium text-muted-foreground">
-              Semantic
-            </h3>
-            <div class="grid grid-cols-7 gap-3">
-              <div
-                v-for="color in semanticColors"
-                :key="color.var"
-                class="space-y-1.5"
-              >
-                <div
-                  class="h-12 rounded-lg border border-border"
-                  :style="{ background: `var(${color.var})` }"
-                />
-                <p class="truncate text-xs text-muted-foreground">{{ color.name }}</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Sidebar colors -->
-          <div>
-            <h3 class="mb-4 text-sm font-medium text-muted-foreground">
-              Sidebar
-            </h3>
-            <div class="grid grid-cols-5 gap-3">
-              <div
-                v-for="color in sidebarColors"
-                :key="color.var"
-                class="space-y-1.5"
-              >
-                <div
-                  class="h-12 rounded-lg border border-border"
-                  :style="{ background: `var(${color.var})` }"
-                />
-                <p class="truncate text-xs text-muted-foreground">{{ color.name }}</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Chart colors -->
-          <div>
-            <h3 class="mb-4 text-sm font-medium text-muted-foreground">
-              Chart
-            </h3>
-            <div class="flex gap-0 overflow-hidden rounded-lg">
-              <div
-                v-for="color in chartColors"
-                :key="color.var"
-                class="h-10 flex-1"
-                :style="{ background: `var(${color.var})` }"
+              <CopyButton
+                :value="color.value"
+                :label="`Copy ${color.name.toLowerCase()}`"
               />
             </div>
           </div>
         </div>
       </section>
 
-      <!-- Typography -->
-      <section class="mb-16">
+      <section>
         <h2 class="mb-2 font-serif text-2xl text-foreground">
-          Typography
+          Social image
         </h2>
         <p class="mb-8 text-sm text-muted-foreground">
-          Sora for headings and body. Redaction for display. Fira Code for monospace.
+          A 1280 × 640 card for link previews.
         </p>
-
-        <Card>
-          <CardContent class="space-y-6 pt-6">
-            <div class="space-y-3">
-              <p class="font-serif text-5xl text-foreground">The PaaS you can leave.</p>
-              <p class="text-3xl font-bold text-foreground">The quick brown fox</p>
-              <p class="text-2xl font-semibold text-foreground">The quick brown fox</p>
-              <p class="text-xl font-medium text-foreground">The quick brown fox</p>
-              <p class="text-base text-foreground">The quick brown fox jumps over the lazy dog.</p>
-              <p class="text-sm text-muted-foreground">The quick brown fox jumps over the lazy dog.</p>
-              <p class="text-xs text-muted-foreground">The quick brown fox jumps over the lazy dog.</p>
-            </div>
-            <Separator />
-            <div>
-              <p class="mb-1 text-xs text-muted-foreground">Monospace</p>
-              <p class="font-mono text-sm text-foreground">
-                const deploy = (env: string) =&gt; argocd.sync(env);
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </section>
-
-      <!-- Components -->
-      <section class="mb-16">
-        <h2 class="mb-2 font-serif text-2xl text-foreground">
-          Components
-        </h2>
-        <p class="mb-8 text-sm text-muted-foreground">
-          shadcn-vue primitives styled with the brand tokens.
-        </p>
-
-        <Tabs default-value="buttons">
-          <TabsList>
-            <TabsTrigger value="buttons">
-              Buttons
-            </TabsTrigger>
-            <TabsTrigger value="inputs">
-              Inputs
-            </TabsTrigger>
-            <TabsTrigger value="feedback">
-              Feedback
-            </TabsTrigger>
-            <TabsTrigger value="cards">
-              Cards
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent
-            value="buttons"
-            class="mt-6"
-          >
-            <Card>
-              <CardContent class="space-y-6 pt-6">
-                <div>
-                  <p class="mb-3 text-sm font-medium text-muted-foreground">Variants</p>
-                  <div class="flex flex-wrap gap-3">
-                    <Button>Default</Button>
-                    <Button variant="secondary">
-                      Secondary
-                    </Button>
-                    <Button variant="outline">
-                      Outline
-                    </Button>
-                    <Button variant="ghost">
-                      Ghost
-                    </Button>
-                    <Button variant="link">
-                      Link
-                    </Button>
-                    <Button variant="destructive">
-                      Destructive
-                    </Button>
-                  </div>
-                </div>
-                <Separator />
-                <div>
-                  <p class="mb-3 text-sm font-medium text-muted-foreground">Sizes</p>
-                  <div class="flex items-center gap-3">
-                    <Button>Default</Button>
-                    <Button size="xs">
-                      Extra small
-                    </Button>
-                    <Button size="icon" aria-label="Deploy">
-                      <Rocket />
-                    </Button>
-                    <Button size="icon-sm" variant="ghost" aria-label="Deploy">
-                      <Rocket />
-                    </Button>
-                    <Button size="icon-xs" variant="ghost" aria-label="Deploy">
-                      <Rocket />
-                    </Button>
-                  </div>
-                </div>
-                <Separator />
-                <div>
-                  <p class="mb-3 text-sm font-medium text-muted-foreground">With icons</p>
-                  <div class="flex gap-3">
-                    <Button>
-                      <Rocket :size="16" />
-                      Deploy
-                    </Button>
-                    <Button variant="outline">
-                      <Zap :size="16" />
-                      Build
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent
-            value="inputs"
-            class="mt-6"
-          >
-            <Card>
-              <CardContent class="space-y-6 pt-6">
-                <div class="grid max-w-sm gap-4">
-                  <div class="space-y-2">
-                    <Label>Project name</Label>
-                    <Input
-                      placeholder="my-awesome-app"
-                      model-value="lucity"
-                    />
-                  </div>
-                  <div class="space-y-2">
-                    <Label>Repository URL</Label>
-                    <Input
-                      placeholder="https://github.com/..."
-                      model-value="https://github.com/zeitlos/lucity"
-                    />
-                  </div>
-                  <div class="flex items-center gap-3">
-                    <Switch />
-                    <Label>Auto-deploy on push</Label>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent
-            value="feedback"
-            class="mt-6"
-          >
-            <Card>
-              <CardContent class="space-y-6 pt-6">
-                <div>
-                  <p class="mb-3 text-sm font-medium text-muted-foreground">Badges</p>
-                  <div class="flex flex-wrap gap-2">
-                    <Badge>Default</Badge>
-                    <Badge variant="secondary">
-                      Secondary
-                    </Badge>
-                    <Badge variant="outline">
-                      Outline
-                    </Badge>
-                    <Badge variant="destructive">
-                      Destructive
-                    </Badge>
-                  </div>
-                </div>
-                <Separator />
-                <div>
-                  <p class="mb-3 text-sm font-medium text-muted-foreground">Progress</p>
-                  <div class="max-w-sm space-y-3">
-                    <Progress :model-value="72" />
-                    <Progress :model-value="33" />
-                  </div>
-                </div>
-                <Separator />
-                <div>
-                  <p class="mb-3 text-sm font-medium text-muted-foreground">Skeleton</p>
-                  <div class="flex items-center gap-4">
-                    <Skeleton class="h-12 w-12 rounded-full" />
-                    <div class="space-y-2">
-                      <Skeleton class="h-4 w-48" />
-                      <Skeleton class="h-4 w-32" />
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent
-            value="cards"
-            class="mt-6"
-          >
-            <div class="grid grid-cols-3 gap-4">
-              <Card>
-                <CardHeader>
-                  <div class="flex items-center gap-2">
-                    <Check
-                      :size="16"
-                      class="text-chart-3"
-                    />
-                    <CardTitle class="text-base">
-                      Healthy
-                    </CardTitle>
-                  </div>
-                  <CardDescription>All systems operational</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p class="text-2xl font-bold text-foreground">
-                    99.9%
-                  </p>
-                  <p class="text-xs text-muted-foreground">
-                    Uptime last 30 days
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <div class="flex items-center gap-2">
-                    <Rocket
-                      :size="16"
-                      class="text-primary"
-                    />
-                    <CardTitle class="text-base">
-                      Deployments
-                    </CardTitle>
-                  </div>
-                  <CardDescription>This week</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p class="text-2xl font-bold text-foreground">
-                    42
-                  </p>
-                  <p class="text-xs text-muted-foreground">
-                    Across 6 services
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <div class="flex items-center gap-2">
-                    <AlertCircle
-                      :size="16"
-                      class="text-destructive"
-                    />
-                    <CardTitle class="text-base">
-                      Issues
-                    </CardTitle>
-                  </div>
-                  <CardDescription>Needs attention</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p class="text-2xl font-bold text-foreground">
-                    2
-                  </p>
-                  <p class="text-xs text-muted-foreground">
-                    Build failures
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </section>
-
-      <!-- Social Preview -->
-      <section class="mb-16">
-        <h2 class="mb-2 font-serif text-2xl text-foreground">
-          Social Preview
-        </h2>
-        <p class="mb-8 text-sm text-muted-foreground">
-          Generate og:image for link sharing. 1280 &times; 640px.
-        </p>
-
-        <!-- Canvas preview -->
-        <Card>
-          <CardContent class="pt-6">
-            <canvas
-              ref="canvasRef"
-              width="1280"
-              height="640"
-              class="w-full rounded-lg"
-            />
-          </CardContent>
-        </Card>
-
-        <!-- Controls -->
-        <div class="mt-6 grid grid-cols-[1fr_auto] gap-8">
-          <!-- Wallpaper selector -->
-          <div>
-            <p class="mb-3 text-sm font-medium text-muted-foreground">
-              Background
-            </p>
-            <div class="grid grid-cols-7 gap-2">
-              <button
-                v-for="(wp, i) in wallpapers"
-                :key="wp.name"
-                class="group relative overflow-hidden rounded-lg border-2 transition-all"
-                :class="selectedWallpaper === i ? 'border-primary' : 'border-transparent hover:border-border'"
-                @click="selectedWallpaper = i"
-              >
-                <img
-                  :src="wp.src"
-                  :alt="wp.name"
-                  class="aspect-video w-full object-cover"
-                >
-                <span
-                  class="absolute inset-x-0 bottom-0 bg-black/50 px-1 py-0.5 text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100"
-                >
-                  {{ wp.name }}
-                </span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Text controls + download -->
-          <div class="w-64 space-y-4">
-            <div class="space-y-2">
-              <Label>Headline</Label>
-              <Input v-model="previewHeadline" />
-            </div>
-            <div class="space-y-2">
-              <Label>Tagline</Label>
-              <Input v-model="previewTagline" />
-            </div>
-            <Separator />
-            <div class="flex gap-2">
-              <Button
-                variant="outline"
-                class="flex-1 gap-1.5"
-                @click="downloadPreview('png')"
-              >
-                <Download :size="14" />
-                PNG
-              </Button>
-              <Button
-                variant="outline"
-                class="flex-1 gap-1.5"
-                @click="downloadPreview('jpg')"
-              >
-                <Download :size="14" />
-                JPG
-              </Button>
-            </div>
-          </div>
-        </div>
+        <BrandSocialPreview />
       </section>
     </div>
   </div>
 </template>
-
-<style scoped>
-.app-icon {
-  --brand-mark: #f6ede0;
-  background: #8843db;
-}
-</style>

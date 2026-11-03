@@ -9,6 +9,14 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: 'Mona Sans';
+  src: url('/fonts/MonaSans-Variable.woff2') format('woff2');
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 @layer base {
   :root {
     --background: oklch(0.95 0.02 80);

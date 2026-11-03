@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
-import { BookOpen, Bug, Lightbulb, LogOut } from '@lucide/vue';
+import { BookOpen, Bug, Download, Lightbulb, LogOut } from '@lucide/vue';
 import { useAuth } from '@/composables/useAuth';
 import { useWorkspaceColor } from '@/composables/useWorkspaceColor';
 import { useReportBug } from '@/composables/useReportBug';
@@ -34,6 +34,7 @@ import ThemeToggle from '@/components/ThemeToggle.vue';
 import SuspensionBanner from '@/components/SuspensionBanner.vue';
 import TrialIndicator from '@/components/TrialIndicator.vue';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -74,17 +75,29 @@ async function handleLogout() {
       <header class="flex h-13 shrink-0 items-center justify-between rounded-lg border bg-card px-4 shadow-sm">
         <!-- Left: Logo + Context Nav -->
         <div class="flex min-w-0 items-center gap-3">
-          <RouterLink
-            to="/"
-            class="flex shrink-0 items-center"
-            :class="{ 'max-sm:hidden': inProject }"
-            @mouseenter="flexLogo(1)"
-            @mouseleave="flexLogo(0)"
-            @focus="flexLogo(1)"
-            @blur="flexLogo(0)"
-          >
-            <BaseLogo :size="20" :flex="logoFlex" />
-          </RouterLink>
+          <ContextMenu>
+            <ContextMenuTrigger as-child>
+              <RouterLink
+                to="/"
+                class="flex shrink-0 items-center"
+                :class="{ 'max-sm:hidden': inProject }"
+                @mouseenter="flexLogo(1)"
+                @mouseleave="flexLogo(0)"
+                @focus="flexLogo(1)"
+                @blur="flexLogo(0)"
+              >
+                <BaseLogo :size="20" :flex="logoFlex" />
+              </RouterLink>
+            </ContextMenuTrigger>
+            <ContextMenuContent>
+              <ContextMenuItem as-child class="gap-2">
+                <RouterLink :to="{ name: 'brand' }">
+                  <Download class="size-4" />
+                  Download logos
+                </RouterLink>
+              </ContextMenuItem>
+            </ContextMenuContent>
+          </ContextMenu>
 
           <template v-if="user">
             <div class="h-4 w-px shrink-0 bg-border" :class="{ 'max-sm:hidden': inProject }" />
