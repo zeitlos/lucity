@@ -40,7 +40,6 @@ type BackupSecretKeys struct {
 }
 
 type Postgres struct {
-	Instances        int               `yaml:"instances,omitempty"`
 	Size             string            `yaml:"size,omitempty"`
 	Version          string            `yaml:"version,omitempty"`
 	PublicAccess     *PublicAccess     `yaml:"publicAccess,omitempty"`
