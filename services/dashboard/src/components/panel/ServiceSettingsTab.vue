@@ -208,7 +208,7 @@ const SetServiceUserDocument = graphql(`
     }
   }
 `);
-import type { Endpoint, Service } from '@/composables/useEnvironment';
+import { useEnvironment, type Endpoint, type Service } from '@/composables/useEnvironment';
 import Spinner from '@/components/LoadingSpinner.vue';
 import { Button } from '@/components/ui/button';
 import IconButton from '@/components/IconButton.vue';
@@ -428,6 +428,7 @@ const { mutate: removeDomainMutate } = useMutation(RemoveDomainDocument);
 const removingHostname = ref<string | null>(null);
 const domainToRemove = ref<string | null>(null);
 const endpointToRemove = computed(() => customEndpoints.value.find(e => e.host === domainToRemove.value) ?? null);
+const redirectToRemove = computed(() => (domainToRemove.value ? redirectSourceByTarget.value.get(domainToRemove.value) ?? null : null));
 
 const { mutate: setServicePortMutate, loading: portSaving } = useMutation(SetServicePortDocument);
 
@@ -736,6 +737,10 @@ const scalingTargetCPU = ref(70);
 const scalingSaving = ref(false);
 
 const { mutate: setScalingMutate } = useMutation(SetServiceScalingDocument);
+
+const { activeEnvVolumes } = useEnvironment();
+const mountedVolume = computed(() => activeEnvVolumes.value.find(v => v.mount?.service === props.service.id) ?? null);
+const replicaMax = computed(() => (mountedVolume.value ? 1 : 20));
 
 function syncScalingFromService() {
   const svc = props.service;
@@ -1464,9 +1469,9 @@ async function handleRemoveService() {
                     <ClipboardList />
                   </IconButton>
                   <IconButton
-                    :label="redirectSourceByTarget.has(endpoint.host) ? `Target of ${redirectSourceByTarget.get(endpoint.host)}` : 'Remove domain'"
+                    label="Remove domain"
                     class="shrink-0 text-destructive"
-                    :disabled="removingHostname === endpoint.host || redirectSourceByTarget.has(endpoint.host)"
+                    :disabled="removingHostname === endpoint.host"
                     @click="domainToRemove = endpoint.host"
                   >
                     <Spinner v-if="removingHostname === endpoint.host" :size="14" />
@@ -1614,16 +1619,20 @@ async function handleRemoveService() {
 
       <ConfirmDialog
         :open="!!domainToRemove"
-        :title="`Remove domain &quot;${domainToRemove}&quot;?`"
+        :title="redirectToRemove ? `Domain &quot;${domainToRemove}&quot; is a redirect target` : `Remove domain &quot;${domainToRemove}&quot;?`"
         confirm-label="Remove domain"
         pending-label="Removing…"
         :pending="!!removingHostname"
+        :blocked="!!redirectToRemove"
         destructive
         @update:open="(value) => { if (!value) domainToRemove = null }"
         @confirm="handleRemoveDomain(domainToRemove!)"
       >
         <template #description>
-          <template v-if="domainToRemove === platformEndpoint?.host">
+          <template v-if="redirectToRemove">
+            "{{ redirectToRemove }}" redirects to it. Remove that domain first.
+          </template>
+          <template v-else-if="domainToRemove === platformEndpoint?.host">
             You can generate a new one later.
           </template>
           <template v-else>
@@ -1704,7 +1713,7 @@ async function handleRemoveService() {
                       variant="outline"
                       class="shrink-0"
                       :disabled="autoscalingEnabled || scalingReplicas <= 1"
-                      @click="scalingReplicas = clamp(scalingReplicas - 1, 1, 20)"
+                      @click="scalingReplicas = clamp(scalingReplicas - 1, 1, replicaMax)"
                     >
                       <Minus />
                     </IconButton>
@@ -1713,22 +1722,25 @@ async function handleRemoveService() {
                       type="number"
                       class="h-8 w-16 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                       :min="1"
-                      :max="20"
-                      :disabled="autoscalingEnabled"
-                      @blur="scalingReplicas = clamp(scalingReplicas, 1, 20)"
+                      :max="replicaMax"
+                      :disabled="autoscalingEnabled || !!mountedVolume"
+                      @blur="scalingReplicas = clamp(scalingReplicas, 1, replicaMax)"
                     />
                     <IconButton
                       label="More replicas"
                       variant="outline"
                       class="shrink-0"
-                      :disabled="autoscalingEnabled || scalingReplicas >= 20"
-                      @click="scalingReplicas = clamp(scalingReplicas + 1, 1, 20)"
+                      :disabled="autoscalingEnabled || scalingReplicas >= replicaMax"
+                      @click="scalingReplicas = clamp(scalingReplicas + 1, 1, replicaMax)"
                     >
                       <Plus />
                     </IconButton>
                   </div>
                   <p v-if="autoscalingEnabled" class="text-xs text-muted-foreground">
                     Managed by autoscaler.
+                  </p>
+                  <p v-else-if="mountedVolume" class="text-xs text-muted-foreground">
+                    Runs a single replica while volume "{{ mountedVolume.name }}" is mounted.
                   </p>
                 </div>
 
@@ -1738,7 +1750,7 @@ async function handleRemoveService() {
                     <Label class="text-sm font-medium">Autoscaling</Label>
                     <p class="text-xs text-muted-foreground">Scale replicas based on CPU usage.</p>
                   </div>
-                  <Switch v-model="autoscalingEnabled" class="data-[state=unchecked]:bg-border" />
+                  <Switch v-model="autoscalingEnabled" :disabled="!!mountedVolume && !autoscalingEnabled" class="data-[state=unchecked]:bg-border" />
                 </div>
 
                 <!-- Autoscaling settings -->
@@ -1751,7 +1763,7 @@ async function handleRemoveService() {
                         variant="outline"
                         class="shrink-0"
                         :disabled="scalingMinReplicas <= 1"
-                        @click="scalingMinReplicas = clamp(scalingMinReplicas - 1, 1, 20)"
+                        @click="scalingMinReplicas = clamp(scalingMinReplicas - 1, 1, scalingMaxReplicas)"
                       >
                         <Minus />
                       </IconButton>
@@ -1760,15 +1772,15 @@ async function handleRemoveService() {
                         type="number"
                         class="h-8 w-full min-w-0 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                         :min="1"
-                        :max="20"
-                        @blur="scalingMinReplicas = clamp(scalingMinReplicas, 1, 20)"
+                        :max="scalingMaxReplicas"
+                        @blur="scalingMinReplicas = clamp(scalingMinReplicas, 1, scalingMaxReplicas)"
                       />
                       <IconButton
                         label="Raise minimum"
                         variant="outline"
                         class="shrink-0"
-                        :disabled="scalingMinReplicas >= 20"
-                        @click="scalingMinReplicas = clamp(scalingMinReplicas + 1, 1, 20)"
+                        :disabled="scalingMinReplicas >= scalingMaxReplicas"
+                        @click="scalingMinReplicas = clamp(scalingMinReplicas + 1, 1, scalingMaxReplicas)"
                       >
                         <Plus />
                       </IconButton>
@@ -1782,8 +1794,8 @@ async function handleRemoveService() {
                         label="Lower maximum"
                         variant="outline"
                         class="shrink-0"
-                        :disabled="scalingMaxReplicas <= 1"
-                        @click="scalingMaxReplicas = clamp(scalingMaxReplicas - 1, 1, 20)"
+                        :disabled="scalingMaxReplicas <= scalingMinReplicas"
+                        @click="scalingMaxReplicas = clamp(scalingMaxReplicas - 1, scalingMinReplicas, 20)"
                       >
                         <Minus />
                       </IconButton>
@@ -1791,9 +1803,9 @@ async function handleRemoveService() {
                         v-model.number="scalingMaxReplicas"
                         type="number"
                         class="h-8 w-full min-w-0 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                        :min="1"
+                        :min="scalingMinReplicas"
                         :max="20"
-                        @blur="scalingMaxReplicas = clamp(scalingMaxReplicas, 1, 20)"
+                        @blur="scalingMaxReplicas = clamp(scalingMaxReplicas, scalingMinReplicas, 20)"
                       />
                       <IconButton
                         label="Raise maximum"

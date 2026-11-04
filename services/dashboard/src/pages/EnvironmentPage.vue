@@ -866,6 +866,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
               <EnvironmentSettingsDrawer
                 :project-id="projectId"
                 :environment="environment"
+                :only="projectResult?.project?.environments.length === 1"
                 @close="closeDrawer"
               />
             </div>

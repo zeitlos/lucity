@@ -455,6 +455,7 @@ onKeyStroke('/', (event) => {
             >
               <WorkspaceSettingsDrawer
                 :workspace="workspace"
+                :projects="result?.projects ?? null"
                 :is-admin="isWorkspaceAdmin"
                 @close="closeDrawer"
                 @changed="refetchWorkspace()"

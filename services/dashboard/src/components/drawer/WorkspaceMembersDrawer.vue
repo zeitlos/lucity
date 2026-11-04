@@ -246,6 +246,7 @@ function initial(member: { email: string; name?: string | null }) {
             <IconButton
               :label="`Remove ${member.name || member.email}`"
               class="shrink-0 text-muted-foreground hover:text-destructive"
+              :class="{ invisible: member.id === user?.id }"
               :disabled="removingMember"
               @click="memberToRemove = { id: member.id, label: member.name || member.email }"
             >

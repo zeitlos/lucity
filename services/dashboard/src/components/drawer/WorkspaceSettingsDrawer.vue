@@ -2,6 +2,7 @@
 import FormFooter from '@/components/FormFooter.vue';
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
+import BlockingResources from '@/components/BlockingResources.vue';
 import { ref, watch, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useMutation } from '@vue/apollo-composable';
@@ -46,6 +47,7 @@ const props = defineProps<{
     name: string;
     personal: boolean;
   };
+  projects: { id: string; name: string }[] | null;
   isAdmin: boolean;
 }>();
 
@@ -82,6 +84,16 @@ async function handleUpdateName() {
 const { mutate: deleteMutate, loading: deleting } = useMutation(DeleteWorkspaceDocument, {
   refetchQueries: () => [{ query: WorkspacesDocument }],
 });
+
+const deleteOpen = ref(false);
+
+const projectRows = computed(() =>
+  (props.projects ?? []).map(project => ({
+    id: project.id,
+    name: project.name,
+    to: { name: 'project', params: { projectId: project.id } },
+  })),
+);
 
 async function handleDelete() {
   const { name } = props.workspace;
@@ -149,18 +161,21 @@ async function handleDelete() {
         <div>
           <p class="text-sm font-medium text-foreground">Delete workspace</p>
           <p class="text-xs text-muted-foreground">
-            Removes the workspace and its members. All projects have to be deleted first.
+            {{ projectRows.length ? 'Delete its projects first.' : 'Removes the workspace and its members.' }}
           </p>
         </div>
         <ConfirmDialog
-          :title="`Delete workspace &quot;${workspace.name}&quot;?`"
-          description="Every member loses access. Its projects have to be deleted first. This can't be undone."
+          v-model:open="deleteOpen"
+          :title="projectRows.length ? `Workspace &quot;${workspace.name}&quot; still has projects` : `Delete workspace &quot;${workspace.name}&quot;?`"
+          :description="projectRows.length ? 'Delete these first, then the workspace.' : 'Every member loses access. This can\'t be undone.'"
           confirm-label="Delete workspace"
           pending-label="Deleting…"
           :pending="deleting"
+          :blocked="projectRows.length > 0"
           destructive
           @confirm="handleDelete"
         >
+          <BlockingResources v-if="projectRows.length" :items="projectRows" @select="deleteOpen = false" />
           <template #trigger>
             <Button variant="destructive" class="shrink-0" :disabled="deleting">
               <Trash2 />

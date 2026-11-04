@@ -264,18 +264,21 @@ async function handleDelete() {
     <div class="flex items-center justify-between gap-4 rounded-lg border border-destructive/30 p-3">
       <div>
         <p class="text-sm font-medium text-foreground">Delete volume</p>
-        <p class="text-xs text-muted-foreground">Permanently delete this volume and all its data.</p>
+        <p class="text-xs text-muted-foreground">
+          {{ volume.mount ? 'Unmount it first.' : 'Permanently delete this volume and all its data.' }}
+        </p>
       </div>
       <ConfirmDialog
         v-model:open="deleteDialogOpen"
-        :title="`Delete volume &quot;${volume.name}&quot;?`"
+        :title="volume.mount ? `Volume &quot;${volume.name}&quot; is mounted` : `Delete volume &quot;${volume.name}&quot;?`"
         :description="volume.mount
-          ? 'All data on it is deleted with it. To keep the data, unmount it instead. This can\'t be undone.'
+          ? `Unmount it from &quot;${mountedServiceName}&quot; first, then delete it.`
           : 'All data on it is deleted with it. This can\'t be undone.'"
         confirm-label="Delete volume"
         pending-label="Deleting…"
         :pending="deleting"
         :confirm-text="volume.name"
+        :blocked="!!volume.mount"
         destructive
         @confirm="handleDelete"
       >

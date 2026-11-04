@@ -60,8 +60,11 @@ watch(search, () => {
   focusedIndex.value = 0;
 });
 
-function hasVolume(serviceId: string): boolean {
-  return props.mountedServiceIds.includes(serviceId);
+function unavailableReason(service: Service): string | null {
+  if (props.mountedServiceIds.includes(service.id)) return 'already has a volume';
+  if (service.autoscaling) return 'autoscales';
+  if (service.replicas.desired > 1) return `runs ${service.replicas.desired} replicas`;
+  return null;
 }
 
 const filteredServices = computed(() => {
@@ -77,6 +80,8 @@ const pathError = computed(() => {
   if (p === '/') return 'Path cannot be the root directory.';
   if (p.includes('..')) return 'Path cannot contain "..".';
   if (/\s/.test(p)) return 'Path cannot contain spaces.';
+  if (!/^\/[a-zA-Z0-9._/-]+$/.test(p)) return 'Path can only contain letters, digits, dots, dashes, underscores and slashes.';
+  if (p.length > 256) return 'Path can be at most 256 characters.';
   return null;
 });
 
@@ -86,9 +91,9 @@ function close() {
   emit('update:open', false);
 }
 
-function selectService(serviceId: string) {
-  if (hasVolume(serviceId)) return;
-  selectedServiceId.value = serviceId;
+function selectService(service: Service) {
+  if (unavailableReason(service)) return;
+  selectedServiceId.value = service.id;
   step.value = 'path';
 }
 
@@ -125,9 +130,9 @@ onKeyStroke('Enter', (e) => {
   if (!props.open) return;
   if (step.value === 'service') {
     const svc = filteredServices.value[focusedIndex.value];
-    if (svc && !hasVolume(svc.id)) {
+    if (svc && !unavailableReason(svc)) {
       e.preventDefault();
-      selectService(svc.id);
+      selectService(svc);
     }
   } else if (!mounting.value && !pathError.value) {
     e.preventDefault();
@@ -196,18 +201,18 @@ async function handleMount() {
                 v-for="(service, index) in filteredServices"
                 :key="service.id"
                 :data-focused="focusedIndex === index"
-                :disabled="hasVolume(service.id)"
+                :disabled="!!unavailableReason(service)"
                 class="flex w-full items-center gap-2 rounded-lg px-2 py-2.5 text-sm text-popover-foreground transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                 :class="focusedIndex === index ? 'bg-accent' : 'hover:bg-accent'"
-                @click="selectService(service.id)"
+                @click="selectService(service)"
                 @mouseenter="focusedIndex = index"
               >
                 <Server :size="16" class="shrink-0 text-muted-foreground" />
                 <span class="flex-1 truncate text-left font-medium">{{ service.name }}</span>
                 <span
-                  v-if="hasVolume(service.id)"
+                  v-if="unavailableReason(service)"
                   class="shrink-0 text-xs text-muted-foreground"
-                >already has a volume</span>
+                >{{ unavailableReason(service) }}</span>
               </button>
               <p
                 v-if="filteredServices.length === 0"
