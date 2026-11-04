@@ -435,7 +435,7 @@ rybbit:
     affinity: {}
 
   postgres:
-    instances: 1
+    instances: 2
     size: 5Gi
     storageClass: ""
     version: "17"
@@ -1201,7 +1201,7 @@ logto:
     annotations: {}
     sectionName: ""
   postgres:
-    instances: 1
+    instances: 2
     size: 1Gi
     storageClass: ""
     version: "17"

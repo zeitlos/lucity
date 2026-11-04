@@ -304,7 +304,6 @@ logto:
   nodeSelector: *platform-nodes
   tolerations: *platform-taint
   postgres:
-    instances: 2
     storageClass: hcloud-volumes
     nodeSelector: *platform-nodes
     tolerations: *platform-taint

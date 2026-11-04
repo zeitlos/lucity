@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/component: analytics
 spec:
-  instances: {{ .Values.rybbit.postgres.instances | default 1 }}
+  instances: {{ .Values.rybbit.postgres.instances | default 2 }}
   {{- if .Values.rybbit.postgres.version }}
   imageName: ghcr.io/cloudnative-pg/postgresql:{{ .Values.rybbit.postgres.version }}
   {{- end }}

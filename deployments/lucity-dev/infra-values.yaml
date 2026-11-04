@@ -271,7 +271,6 @@ logto:
       external-dns.kubernetes.io/hostname: id.lucity.dev
     sectionName: id-https
   postgres:
-    instances: 1
     size: 10Gi
     storageClass: hcloud-volumes
 
