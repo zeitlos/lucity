@@ -428,7 +428,6 @@ const { mutate: removeDomainMutate } = useMutation(RemoveDomainDocument);
 const removingHostname = ref<string | null>(null);
 const domainToRemove = ref<string | null>(null);
 const endpointToRemove = computed(() => customEndpoints.value.find(e => e.host === domainToRemove.value) ?? null);
-const redirectToRemove = computed(() => (domainToRemove.value ? redirectSourceByTarget.value.get(domainToRemove.value) ?? null : null));
 
 const { mutate: setServicePortMutate, loading: portSaving } = useMutation(SetServicePortDocument);
 
@@ -1380,32 +1379,37 @@ async function handleRemoveService() {
                 </Button>
               </div>
 
-              <div v-else class="flex items-center gap-2">
-                <div class="flex min-w-0 flex-1 items-stretch overflow-hidden rounded-md border bg-muted/30">
-                  <a
-                    :href="domainUrl(platformEndpoint)"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="flex min-w-0 flex-1 items-center gap-2 px-3 py-2 transition-colors hover:bg-muted/80"
+              <div v-else class="space-y-1">
+                <div class="flex items-center gap-2">
+                  <div class="flex min-w-0 flex-1 items-stretch overflow-hidden rounded-md border bg-muted/30">
+                    <a
+                      :href="domainUrl(platformEndpoint)"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="flex min-w-0 flex-1 items-center gap-2 px-3 py-2 transition-colors hover:bg-muted/80"
+                    >
+                      <ExternalLink :size="14" class="shrink-0 text-muted-foreground" />
+                      <span class="truncate font-mono text-sm hover:underline">{{ platformEndpoint.host }}</span>
+                    </a>
+                    <CopyButton
+                      label="Copy"
+                      class="h-auto shrink-0 rounded-none border-l px-2.5 text-muted-foreground hover:text-foreground"
+                      :value="platformEndpoint!.host"
+                    />
+                  </div>
+                  <IconButton
+                    label="Remove domain"
+                    class="shrink-0 text-destructive"
+                    :disabled="removingHostname === platformEndpoint!.host || redirectSourceByTarget.has(platformEndpoint!.host)"
+                    @click="domainToRemove = platformEndpoint!.host"
                   >
-                    <ExternalLink :size="14" class="shrink-0 text-muted-foreground" />
-                    <span class="truncate font-mono text-sm hover:underline">{{ platformEndpoint.host }}</span>
-                  </a>
-                  <CopyButton
-                    label="Copy"
-                    class="h-auto shrink-0 rounded-none border-l px-2.5 text-muted-foreground hover:text-foreground"
-                    :value="platformEndpoint!.host"
-                  />
+                    <Spinner v-if="removingHostname === platformEndpoint!.host" :size="14" />
+                    <Trash2 v-else />
+                  </IconButton>
                 </div>
-                <IconButton
-                  label="Remove domain"
-                  class="shrink-0 text-destructive"
-                  :disabled="removingHostname === platformEndpoint!.host"
-                  @click="domainToRemove = platformEndpoint!.host"
-                >
-                  <Spinner v-if="removingHostname === platformEndpoint!.host" :size="14" />
-                  <Trash2 v-else />
-                </IconButton>
+                <p v-if="redirectSourceByTarget.has(platformEndpoint.host)" class="text-xs text-muted-foreground">
+                  "{{ redirectSourceByTarget.get(platformEndpoint.host) }}" redirects here. Remove that first.
+                </p>
               </div>
             </div>
           </CollapsibleContent>
@@ -1431,52 +1435,53 @@ async function handleRemoveService() {
           <CollapsibleContent>
             <div class="space-y-3 border-t px-4 py-3">
               <div v-if="customEndpoints.length" class="space-y-2">
-                <div
-                  v-for="endpoint in customEndpoints"
-                  :key="endpoint.host"
-                  class="flex items-center gap-2"
-                >
-                  <div class="flex min-w-0 flex-1 items-stretch overflow-hidden rounded-md border bg-muted/30">
-                    <a
-                      :href="domainUrl(endpoint)"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="flex min-w-0 flex-1 items-center gap-2 px-3 py-2 transition-colors hover:bg-muted/80"
+                <div v-for="endpoint in customEndpoints" :key="endpoint.host" class="space-y-1">
+                  <div class="flex items-center gap-2">
+                    <div class="flex min-w-0 flex-1 items-stretch overflow-hidden rounded-md border bg-muted/30">
+                      <a
+                        :href="domainUrl(endpoint)"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="flex min-w-0 flex-1 items-center gap-2 px-3 py-2 transition-colors hover:bg-muted/80"
+                      >
+                        <ExternalLink :size="14" class="shrink-0 text-muted-foreground" />
+                        <span class="truncate font-mono text-sm hover:underline">{{ endpoint.host }}</span>
+                        <template v-if="endpoint.redirectTo">
+                          <ArrowRight :size="12" class="shrink-0 text-muted-foreground" />
+                          <span class="truncate font-mono text-sm text-muted-foreground">{{ endpoint.redirectTo }}</span>
+                        </template>
+                      </a>
+                      <CopyButton
+                        label="Copy"
+                        class="h-auto shrink-0 rounded-none border-l px-2.5 text-muted-foreground hover:text-foreground"
+                        :value="endpoint.host"
+                      />
+                    </div>
+                    <span class="hidden shrink-0 text-xs text-muted-foreground sm:flex">
+                      <Status :tone="domainStatus(endpoint.dns.status, endpoint.tls).tone" variant="text">
+                        {{ domainStatus(endpoint.dns.status, endpoint.tls).label }}
+                      </Status>
+                    </span>
+                    <IconButton
+                      label="DNS records"
+                      class="shrink-0"
+                      @click="recordsHost = endpoint.host"
                     >
-                      <ExternalLink :size="14" class="shrink-0 text-muted-foreground" />
-                      <span class="truncate font-mono text-sm hover:underline">{{ endpoint.host }}</span>
-                      <template v-if="endpoint.redirectTo">
-                        <ArrowRight :size="12" class="shrink-0 text-muted-foreground" />
-                        <span class="truncate font-mono text-sm text-muted-foreground">{{ endpoint.redirectTo }}</span>
-                      </template>
-                    </a>
-                    <CopyButton
-                      label="Copy"
-                      class="h-auto shrink-0 rounded-none border-l px-2.5 text-muted-foreground hover:text-foreground"
-                      :value="endpoint.host"
-                    />
+                      <ClipboardList />
+                    </IconButton>
+                    <IconButton
+                      label="Remove domain"
+                      class="shrink-0 text-destructive"
+                      :disabled="removingHostname === endpoint.host || redirectSourceByTarget.has(endpoint.host)"
+                      @click="domainToRemove = endpoint.host"
+                    >
+                      <Spinner v-if="removingHostname === endpoint.host" :size="14" />
+                      <Trash2 v-else />
+                    </IconButton>
                   </div>
-                  <span class="hidden shrink-0 text-xs text-muted-foreground sm:flex">
-                    <Status :tone="domainStatus(endpoint.dns.status, endpoint.tls).tone" variant="text">
-                      {{ domainStatus(endpoint.dns.status, endpoint.tls).label }}
-                    </Status>
-                  </span>
-                  <IconButton
-                    label="DNS records"
-                    class="shrink-0"
-                    @click="recordsHost = endpoint.host"
-                  >
-                    <ClipboardList />
-                  </IconButton>
-                  <IconButton
-                    label="Remove domain"
-                    class="shrink-0 text-destructive"
-                    :disabled="removingHostname === endpoint.host"
-                    @click="domainToRemove = endpoint.host"
-                  >
-                    <Spinner v-if="removingHostname === endpoint.host" :size="14" />
-                    <Trash2 v-else />
-                  </IconButton>
+                  <p v-if="redirectSourceByTarget.has(endpoint.host)" class="text-xs text-muted-foreground">
+                    "{{ redirectSourceByTarget.get(endpoint.host) }}" redirects here. Remove that first.
+                  </p>
                 </div>
               </div>
 
@@ -1619,20 +1624,16 @@ async function handleRemoveService() {
 
       <ConfirmDialog
         :open="!!domainToRemove"
-        :title="redirectToRemove ? `Domain &quot;${domainToRemove}&quot; is a redirect target` : `Remove domain &quot;${domainToRemove}&quot;?`"
+        :title="`Remove domain &quot;${domainToRemove}&quot;?`"
         confirm-label="Remove domain"
         pending-label="Removing…"
         :pending="!!removingHostname"
-        :blocked="!!redirectToRemove"
         destructive
         @update:open="(value) => { if (!value) domainToRemove = null }"
         @confirm="handleRemoveDomain(domainToRemove!)"
       >
         <template #description>
-          <template v-if="redirectToRemove">
-            "{{ redirectToRemove }}" redirects to it. Remove that domain first.
-          </template>
-          <template v-else-if="domainToRemove === platformEndpoint?.host">
+          <template v-if="domainToRemove === platformEndpoint?.host">
             You can generate a new one later.
           </template>
           <template v-else>

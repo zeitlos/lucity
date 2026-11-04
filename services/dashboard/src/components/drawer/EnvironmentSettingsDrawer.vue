@@ -38,23 +38,15 @@ const { mutate: deleteEnvironmentMutate, loading: deleting } = useMutation(Delet
 const confirmOpen = ref(false);
 
 const resources = computed(() => environmentResources(props.environment));
-const blocked = computed(() => props.only || resources.value.length > 0);
 
 const hint = computed(() => {
-  if (props.only) return "It's the only environment in this project.";
+  if (props.only) return "It's the only environment in this project, which needs at least one.";
   if (resources.value.length) return `It still holds ${describeResources(props.environment)}.`;
   return 'Permanently delete this environment and its deployment history.';
 });
 
 const dialog = computed(() => {
   const name = props.environment.name;
-
-  if (props.only) {
-    return {
-      title: `Can't delete environment "${name}"`,
-      description: 'A project needs at least one environment. Create another one first, or delete the project.',
-    };
-  }
 
   if (resources.value.length) {
     return {
@@ -128,13 +120,13 @@ async function handleDelete() {
           confirm-label="Delete environment"
           pending-label="Deleting…"
           :pending="deleting"
-          :blocked="blocked"
+          :blocked="resources.length > 0"
           destructive
           @confirm="handleDelete"
         >
-          <BlockingResources v-if="!only && resources.length" :items="resources" @select="openResource" />
+          <BlockingResources v-if="resources.length" :items="resources" @select="openResource" />
           <template #trigger>
-            <Button variant="destructive" class="shrink-0">
+            <Button variant="destructive" class="shrink-0" :disabled="only">
               <Trash2 />
               Delete
             </Button>
