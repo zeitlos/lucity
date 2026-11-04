@@ -67,6 +67,15 @@ spec:
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if and (not $svc.volumeMounts) (or (gt (int ($svc.replicas | default 1)) 1) (and $svc.autoscaling $svc.autoscaling.enabled)) }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              {{- include "lucity-app.selectorLabels" (dict "name" $name "release" $.Release.Name) | nindent 14 }}
+      {{- end }}
       {{- with $.Values.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
