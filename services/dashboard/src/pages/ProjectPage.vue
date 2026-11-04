@@ -105,6 +105,10 @@ function closeDrawer() {
   router.push({ name: 'project', params: { projectId: projectId.value } });
 }
 
+function handleOutsideClick(event: MouseEvent) {
+  if (drawer.value && !event.defaultPrevented) closeDrawer();
+}
+
 const envDialogOpen = ref(false);
 
 const skeletonCards = [
@@ -184,7 +188,7 @@ function handleEnvironmentCreated(environmentId: string) {
       />
 
       <div class="relative min-w-0 flex-1">
-        <div class="flex h-full flex-col overflow-hidden rounded-lg border bg-card shadow-sm max-md:rounded-none max-md:border-0 max-md:shadow-none">
+        <div class="flex h-full flex-col overflow-hidden rounded-lg border bg-card shadow-sm max-md:rounded-none max-md:border-0 max-md:shadow-none" @click="handleOutsideClick">
           <PageToolbar title="Environments" :count="project.environments.length">
             <Button class="max-sm:w-9 max-sm:px-0" @click="envDialogOpen = true">
               <Plus />
@@ -226,7 +230,7 @@ function handleEnvironmentCreated(environmentId: string) {
           enter-from-class="opacity-0"
           leave-to-class="opacity-0"
         >
-          <div v-if="drawer === 'settings'" class="absolute inset-0 z-10 bg-foreground/20 md:hidden [.dark_&]:bg-background/60" />
+          <div v-if="drawer === 'settings'" class="absolute inset-0 z-10 bg-foreground/20 md:hidden [.dark_&]:bg-background/60" @click="closeDrawer" />
         </Transition>
 
         <Transition name="slide-drawer">

@@ -33,6 +33,7 @@ const emit = defineEmits<{
   (e: 'create'): void;
   (e: 'deploy-completed'): void;
   (e: 'mount-volume', volumeId: string): void;
+  (e: 'pane-click'): void;
 }>();
 
 const { openPanel, currentPanel } = usePanel();
@@ -327,6 +328,7 @@ watch(
       :snap-grid="[gridSize, gridSize]"
       class="canvas-bg"
       @node-click="handleNodeClick"
+      @pane-click="emit('pane-click')"
     >
       <template #node-service="nodeProps">
         <ServiceNode

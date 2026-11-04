@@ -134,6 +134,10 @@ function closeDrawer() {
   router.push({ name: 'projects' });
 }
 
+function handleOutsideClick(event: MouseEvent) {
+  if ((drawer.value || connection.value) && !event.defaultPrevented) closeDrawer();
+}
+
 const { isWelcome, dismissWelcome } = useOnboarding();
 const { openInstallPopup } = useGitHubInstall();
 
@@ -235,7 +239,7 @@ onKeyStroke('/', (event) => {
         <ContextRail :items="railItems" :active-key="activeKey" />
 
         <div class="relative min-w-0 flex-1">
-          <div class="flex h-full flex-col overflow-hidden rounded-lg border bg-card shadow-sm max-md:rounded-none max-md:border-0 max-md:shadow-none">
+          <div class="flex h-full flex-col overflow-hidden rounded-lg border bg-card shadow-sm max-md:rounded-none max-md:border-0 max-md:shadow-none" @click="handleOutsideClick">
             <PageToolbar title="Projects" :count="loading ? undefined : projects.length">
               <div v-if="loading || projects.length > 0" class="order-last flex w-full items-center gap-2.5 sm:order-none sm:w-auto">
                 <div class="relative flex-1 sm:w-70 sm:flex-none">
@@ -358,7 +362,7 @@ onKeyStroke('/', (event) => {
             enter-from-class="opacity-0"
             leave-to-class="opacity-0"
           >
-            <div v-if="drawer || connection" class="absolute inset-0 z-10 bg-foreground/20 md:hidden [.dark_&]:bg-background/60" />
+            <div v-if="drawer || connection" class="absolute inset-0 z-10 bg-foreground/20 md:hidden [.dark_&]:bg-background/60" @click="closeDrawer" />
           </Transition>
 
           <Transition name="slide-drawer">

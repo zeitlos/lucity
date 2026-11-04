@@ -317,6 +317,7 @@ import ServiceLogsPanel from '@/components/panel/ServiceLogsPanel.vue';
 import ServiceVulnerabilitiesPanel from '@/components/panel/ServiceVulnerabilitiesPanel.vue';
 import { useEnvironment, type Environment } from '@/composables/useEnvironment';
 import { usePanel } from '@/composables/usePanel';
+import { confirmDiscard } from '@/composables/useUnsavedChanges';
 import { useBuildLogsPanel } from '@/composables/useBuildLogsPanel';
 import { useServiceLogsPanel } from '@/composables/useServiceLogsPanel';
 import { useVulnerabilitiesPanel } from '@/composables/useVulnerabilitiesPanel';
@@ -750,6 +751,18 @@ function closeDrawer() {
   router.push({ name: 'environment', params: { projectId: projectId.value, environmentId: environmentId.value } });
 }
 
+async function closeOverlays() {
+  if (drawer.value) {
+    closeDrawer();
+    return;
+  }
+  if (!(await confirmDiscard())) return;
+  closePanel();
+  logsPanel.close();
+  serviceLogsPanel.close();
+  vulnerabilitiesPanel.close();
+}
+
 watch(drawer, (value) => {
   if (value) closePanel();
 });
@@ -818,6 +831,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
                 @create="paletteOpen = true"
                 @deploy-completed="refetch()"
                 @mount-volume="openMountDialog"
+                @pane-click="closeOverlays"
               />
             </template>
             <template v-else>
@@ -843,7 +857,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
             enter-from-class="opacity-0"
             leave-to-class="opacity-0"
           >
-            <div v-if="drawer || isOpen" class="absolute inset-0 z-10 bg-foreground/20 md:hidden [.dark_&]:bg-background/60" />
+            <div v-if="drawer || isOpen" class="absolute inset-0 z-10 bg-foreground/20 md:hidden [.dark_&]:bg-background/60" @click="closeOverlays" />
           </Transition>
 
           <Transition name="slide-drawer">
