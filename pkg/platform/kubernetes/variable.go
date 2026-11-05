@@ -70,6 +70,7 @@ func newVariableSource(client kubernetes.Interface, selector labels.Selector, of
 						Name:        key,
 					},
 					Name:   key,
+					Value:  string(secret.Data[key]),
 					Source: src,
 				})
 			}

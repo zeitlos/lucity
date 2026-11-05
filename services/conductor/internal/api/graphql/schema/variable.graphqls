@@ -1,6 +1,8 @@
 type Variable {
   id: VariableID!
   key: String!
+  """The value a service linked to this variable receives, read from its source when you ask for it."""
+  value: String!
   source: VariableSource!
 }
 

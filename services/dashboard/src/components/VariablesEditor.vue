@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue';
 import { Eye, EyeOff, Link, Plus, Trash2, Undo2, Unlink, Braces } from '@lucide/vue';
+import CopyButton from '@/components/CopyButton.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import IconButton from '@/components/IconButton.vue';
 import SourceIcon from '@/components/SourceIcon.vue';
@@ -26,6 +27,7 @@ const rows = defineModel<VariableRow[]>('rows', { required: true });
 const props = withDefaults(defineProps<{
   references?: VariableReference[];
   loading?: boolean;
+  loadingValues?: boolean;
   disabled?: boolean;
   emptyTitle: string;
   emptyDescription?: string;
@@ -33,8 +35,13 @@ const props = withDefaults(defineProps<{
   emptyDescription: undefined,
   references: undefined,
   loading: false,
+  loadingValues: false,
   disabled: false,
 });
+
+const emit = defineEmits<{
+  (e: 'reveal'): void;
+}>();
 
 const SOURCE_LABELS: Record<VariableSourceTypename, string> = {
   DatabaseSource: 'Postgres',
@@ -78,8 +85,8 @@ const referenceGroups = computed<ReferenceGroup[]>(() => {
 
 const referenceById = computed(() => new Map((props.references ?? []).map(reference => [reference.id, reference])));
 
-const valueRows = computed(() => rows.value.filter(row => !row.ref && !row.removed));
-const allRevealed = computed(() => valueRows.value.length > 0 && valueRows.value.every(row => row.revealed));
+const revealableRows = computed(() => rows.value.filter(row => !row.removed && (!row.ref || referenceById.value.has(row.ref))));
+const allRevealed = computed(() => revealableRows.value.length > 0 && revealableRows.value.every(row => row.revealed));
 
 const duplicates = computed(() => new Set(duplicateKeys(rows.value)));
 const repeated = computed(() => {
@@ -119,9 +126,13 @@ function restoreRow(index: number) {
 
 function toggleAll() {
   const next = !allRevealed.value;
-  for (const row of rows.value) {
-    if (!row.ref) row.revealed = next;
-  }
+  for (const row of revealableRows.value) row.revealed = next;
+  if (next && revealableRows.value.some(row => row.ref)) emit('reveal');
+}
+
+function toggleReferenceValue(row: VariableRow) {
+  row.revealed = !row.revealed;
+  if (row.revealed) emit('reveal');
 }
 
 function onPasteKey(event: ClipboardEvent, index: number) {
@@ -136,6 +147,7 @@ function selectReference(index: number, reference: VariableReference) {
   const row = rows.value[index]!;
   row.ref = reference.id;
   row.value = '';
+  row.revealed = false;
   if (!row.key.trim()) row.key = reference.key.toUpperCase();
   openPopoverIndex.value = null;
 }
@@ -147,9 +159,9 @@ function clearReference(index: number) {
 function referenceInfo(row: VariableRow) {
   const reference = row.ref ? referenceById.value.get(row.ref) : undefined;
   if (reference) {
-    return { typename: reference.typename, label: reference.sourceName || SOURCE_LABELS[reference.typename], key: reference.key };
+    return { typename: reference.typename, label: reference.sourceName || SOURCE_LABELS[reference.typename], key: reference.key, value: reference.value };
   }
-  return { typename: null, label: 'Reference', key: row.ref?.split('/').pop() ?? '' };
+  return { typename: null, label: 'Reference', key: row.ref?.split('/').pop() ?? '', value: undefined };
 }
 </script>
 
@@ -268,12 +280,36 @@ function referenceInfo(row: VariableRow) {
 
         <div
           v-if="row.ref"
-          class="magic-border flex h-9 min-w-0 flex-1 items-center gap-1.5 rounded-md rounded-l-none px-3"
+          class="magic-border flex h-9 min-w-0 flex-1 items-center gap-1.5 rounded-md rounded-l-none pr-1 pl-3"
         >
           <SourceIcon :typename="referenceInfo(row).typename" />
-          <span class="truncate text-xs font-medium">{{ referenceInfo(row).label }}</span>
-          <span class="text-muted-foreground/40">·</span>
-          <span class="truncate font-mono text-xs text-muted-foreground">{{ referenceInfo(row).key }}</span>
+          <template v-if="row.revealed && referenceInfo(row).value !== undefined">
+            <span class="min-w-0 flex-1 truncate font-mono text-sm">{{ referenceInfo(row).value }}</span>
+            <CopyButton
+              :label="`Copy ${row.key || 'value'}`"
+              :value="referenceInfo(row).value ?? ''"
+              size="icon-sm"
+              class="shrink-0 text-muted-foreground hover:bg-transparent"
+            />
+          </template>
+          <template v-else>
+            <span class="truncate text-xs font-medium">{{ referenceInfo(row).label }}</span>
+            <span class="text-muted-foreground/40">·</span>
+            <span class="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">{{ referenceInfo(row).key }}</span>
+          </template>
+          <IconButton
+            v-if="referenceInfo(row).typename"
+            :label="row.revealed ? 'Hide value' : 'Show value'"
+            :aria-pressed="row.revealed"
+            :pending="row.revealed && referenceInfo(row).value === undefined && loadingValues"
+            size="icon-sm"
+            tabindex="-1"
+            class="shrink-0 text-muted-foreground hover:bg-transparent"
+            @click="toggleReferenceValue(row)"
+          >
+            <EyeOff v-if="row.revealed" />
+            <Eye v-else />
+          </IconButton>
         </div>
 
         <div v-else class="relative min-w-0 flex-1">
@@ -335,7 +371,7 @@ function referenceInfo(row: VariableRow) {
 
     <div class="flex items-center justify-end gap-2 pt-2">
       <Button
-        v-if="valueRows.length > 0"
+        v-if="revealableRows.length > 0"
         variant="ghost"
         class="text-muted-foreground"
         @click="toggleAll"

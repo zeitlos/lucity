@@ -14,6 +14,7 @@ import (
 type Variable struct {
 	ID     VariableID
 	Name   string
+	Value  string
 	Source VariableSource
 }
 

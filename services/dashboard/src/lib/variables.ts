@@ -14,6 +14,7 @@ export interface VariableReference {
   key: string;
   typename: VariableSourceTypename;
   sourceName: string;
+  value?: string;
 }
 
 export interface VariableChange {

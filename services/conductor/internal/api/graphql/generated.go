@@ -891,6 +891,7 @@ type ComplexityRoot struct {
 		ID     func(childComplexity int) int
 		Key    func(childComplexity int) int
 		Source func(childComplexity int) int
+		Value  func(childComplexity int) int
 	}
 
 	Volume struct {
@@ -5182,6 +5183,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Variable.Source(childComplexity), true
+	case "Variable.value":
+		if e.ComplexityRoot.Variable.Value == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Variable.Value(childComplexity), true
 
 	case "Volume.id":
 		if e.ComplexityRoot.Volume.ID == nil {
@@ -6841,6 +6848,8 @@ func (ec *executionContext) childFields_Variable(ctx context.Context, field grap
 		return ec.fieldContext_Variable_id(ctx, field)
 	case "key":
 		return ec.fieldContext_Variable_key(ctx, field)
+	case "value":
+		return ec.fieldContext_Variable_value(ctx, field)
 	case "source":
 		return ec.fieldContext_Variable_source(ctx, field)
 	}
@@ -29230,6 +29239,29 @@ func (ec *executionContext) fieldContext_Variable_key(_ context.Context, field g
 	return graphql.NewScalarFieldContext("Variable", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
+func (ec *executionContext) _Variable_value(ctx context.Context, field graphql.CollectedField, obj *model.Variable) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Variable_value(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Value, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Variable_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Variable", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
 func (ec *executionContext) _Variable_source(ctx context.Context, field graphql.CollectedField, obj *model.Variable) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -40555,6 +40587,11 @@ func (ec *executionContext) _Variable(ctx context.Context, sel ast.SelectionSet,
 			}
 		case "key":
 			out.Values[i] = ec._Variable_key(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "value":
+			out.Values[i] = ec._Variable_value(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

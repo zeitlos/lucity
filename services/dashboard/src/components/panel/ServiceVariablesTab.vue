@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import QueryError from '@/components/QueryError.vue';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
 import { graphql } from '@/gql';
 import { useEnvironment } from '@/composables/useEnvironment';
@@ -37,6 +37,15 @@ const AvailableVariablesDocument = graphql(`
   }
 `);
 
+const LinkedVariableValuesDocument = graphql(`
+  query LinkedVariableValues($environment: EnvironmentID!) {
+    availableVariables(environment: $environment) {
+      id
+      value
+    }
+  }
+`);
+
 const UpdateServiceVariablesDocument = graphql(`
   mutation UpdateServiceVariables($service: ServiceID!, $set: [ServiceVariableInput!]!, $unset: [String!]!) {
     updateServiceVariables(service: $service, set: $set, unset: $unset)
@@ -63,12 +72,41 @@ const { result: availableResult } = useQuery(
   () => ({ enabled: !!environmentId.value }),
 );
 
+const valuesRequested = ref(false);
+
+const {
+  result: valuesResult,
+  loading: loadingValues,
+  refetch: refetchValues,
+  onError: onValuesError,
+} = useQuery(
+  LinkedVariableValuesDocument,
+  () => ({ environment: environmentId.value }),
+  () => ({ enabled: valuesRequested.value && !!environmentId.value }),
+);
+
+onValuesError((e) => {
+  valuesRequested.value = false;
+  failureToast('Couldn\'t load the linked values', e);
+});
+
+function revealValues() {
+  if (valuesRequested.value) {
+    void refetchValues();
+  } else {
+    valuesRequested.value = true;
+  }
+}
+
+const values = computed(() => new Map((valuesResult.value?.availableVariables ?? []).map(v => [v.id, v.value])));
+
 const references = computed<VariableReference[]>(() =>
   (availableResult.value?.availableVariables ?? []).map(v => ({
     id: v.id,
     key: v.key,
     typename: v.source.__typename as VariableSourceTypename,
     sourceName: v.source.name,
+    value: values.value.get(v.id),
   })),
 );
 
@@ -113,9 +151,11 @@ async function handleSave() {
       v-model:rows="rows"
       :references="references"
       :loading="loading"
+      :loading-values="loadingValues"
       :disabled="saving"
       empty-title="No variables yet"
       empty-description="Add one, or paste KEY=value lines into a key field."
+      @reveal="revealValues"
     />
 
     <FormFooter

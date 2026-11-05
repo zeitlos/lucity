@@ -1008,9 +1008,11 @@ type User struct {
 }
 
 type Variable struct {
-	ID     platform.VariableID `json:"id"`
-	Key    string              `json:"key"`
-	Source VariableSource      `json:"source"`
+	ID  platform.VariableID `json:"id"`
+	Key string              `json:"key"`
+	// The value a service linked to this variable receives, read from its source when you ask for it.
+	Value  string         `json:"value"`
+	Source VariableSource `json:"source"`
 }
 
 type VariableInput struct {

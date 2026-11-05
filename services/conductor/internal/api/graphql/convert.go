@@ -1467,6 +1467,7 @@ func convertVariable(variable conductor.Variable) model.Variable {
 	return model.Variable{
 		ID:     variable.ID,
 		Key:    variable.Name,
+		Value:  variable.Value,
 		Source: convertVariableSource(variable.Source),
 	}
 }
