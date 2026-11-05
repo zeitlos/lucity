@@ -57,7 +57,7 @@ type Documents = {
     "\n  mutation DeleteModelProvider($provider: ModelProviderID!) {\n    deleteModelProvider(provider: $provider)\n  }\n": typeof types.DeleteModelProviderDocument,
     "\n  mutation DeleteProject($id: ProjectID!) {\n    deleteProject(id: $id)\n  }\n": typeof types.DeleteProjectDocument,
     "\n  query SharedVariables($environment: EnvironmentID!) {\n    sharedVariables(environment: $environment) {\n      key\n      value\n    }\n  }\n": typeof types.SharedVariablesDocument,
-    "\n  mutation SetSharedVariables($environment: EnvironmentID!, $variables: [VariableInput!]!) {\n    setSharedVariables(environment: $environment, variables: $variables)\n  }\n": typeof types.SetSharedVariablesDocument,
+    "\n  mutation UpdateSharedVariables($environment: EnvironmentID!, $set: [VariableInput!]!, $unset: [String!]!) {\n    updateSharedVariables(environment: $environment, set: $set, unset: $unset)\n  }\n": typeof types.UpdateSharedVariablesDocument,
     "\n  mutation SelectPlan($plan: Plan!) {\n    selectPlan(plan: $plan) {\n      checkoutUrl\n      subscription {\n        plan\n        status\n        currentPeriodEnd\n        creditAmountCents\n        creditExpiry\n        hasPaymentMethod\n      }\n    }\n  }\n": typeof types.SelectPlanDocument,
     "\n  mutation BillingPortalUrl {\n    billingPortalUrl {\n      url\n    }\n  }\n": typeof types.BillingPortalUrlDocument,
     "\n  mutation InviteMember($input: InviteMemberInput!) {\n    inviteMember(input: $input) {\n      id\n      email\n      name\n      role\n    }\n  }\n": typeof types.InviteMemberDocument,
@@ -129,7 +129,7 @@ type Documents = {
     "\n  mutation SetServiceUser($service: ServiceID!, $user: Int) {\n    setServiceUser(service: $service, user: $user) {\n      id\n      user\n    }\n  }\n": typeof types.SetServiceUserDocument,
     "\n  query ServiceVariables($service: ServiceID!) {\n    serviceVariables(service: $service) {\n      key\n      value\n      ref\n    }\n  }\n": typeof types.ServiceVariablesDocument,
     "\n  query AvailableVariables($environment: EnvironmentID!) {\n    availableVariables(environment: $environment) {\n      id\n      key\n      source {\n        __typename\n        ... on DatabaseSource { databaseId: id name }\n        ... on KeyValueStoreSource { keyValueStoreId: id name }\n        ... on BucketSource { bucketId: id name }\n        ... on SharedSource { name }\n      }\n    }\n  }\n": typeof types.AvailableVariablesDocument,
-    "\n  mutation SetServiceVariables($service: ServiceID!, $variables: [ServiceVariableInput!]!) {\n    setServiceVariables(service: $service, variables: $variables)\n  }\n": typeof types.SetServiceVariablesDocument,
+    "\n  mutation UpdateServiceVariables($service: ServiceID!, $set: [ServiceVariableInput!]!, $unset: [String!]!) {\n    updateServiceVariables(service: $service, set: $set, unset: $unset)\n  }\n": typeof types.UpdateServiceVariablesDocument,
     "\n  query ServiceVulnerabilities($id: ServiceID!) {\n    service(id: $id) {\n      id\n      vulnerabilityReport {\n        image\n        summary {\n          critical\n          high\n          medium\n          low\n          unknown\n          total\n        }\n        vulnerabilities {\n          id\n          severity\n          source\n          title\n          reference\n          packages {\n            name\n            installedVersion\n            fixedVersion\n            path\n          }\n        }\n      }\n    }\n  }\n": typeof types.ServiceVulnerabilitiesDocument,
     "\n  mutation DeleteVolume($volume: VolumeID!) {\n    deleteVolume(volume: $volume)\n  }\n": typeof types.DeleteVolumeDocument,
     "\n  mutation ExpandVolume($volume: VolumeID!, $size: String!) {\n    expandVolume(volume: $volume, size: $size) {\n      id\n      size\n    }\n  }\n": typeof types.ExpandVolumeDocument,
@@ -200,7 +200,7 @@ const documents: Documents = {
     "\n  mutation DeleteModelProvider($provider: ModelProviderID!) {\n    deleteModelProvider(provider: $provider)\n  }\n": types.DeleteModelProviderDocument,
     "\n  mutation DeleteProject($id: ProjectID!) {\n    deleteProject(id: $id)\n  }\n": types.DeleteProjectDocument,
     "\n  query SharedVariables($environment: EnvironmentID!) {\n    sharedVariables(environment: $environment) {\n      key\n      value\n    }\n  }\n": types.SharedVariablesDocument,
-    "\n  mutation SetSharedVariables($environment: EnvironmentID!, $variables: [VariableInput!]!) {\n    setSharedVariables(environment: $environment, variables: $variables)\n  }\n": types.SetSharedVariablesDocument,
+    "\n  mutation UpdateSharedVariables($environment: EnvironmentID!, $set: [VariableInput!]!, $unset: [String!]!) {\n    updateSharedVariables(environment: $environment, set: $set, unset: $unset)\n  }\n": types.UpdateSharedVariablesDocument,
     "\n  mutation SelectPlan($plan: Plan!) {\n    selectPlan(plan: $plan) {\n      checkoutUrl\n      subscription {\n        plan\n        status\n        currentPeriodEnd\n        creditAmountCents\n        creditExpiry\n        hasPaymentMethod\n      }\n    }\n  }\n": types.SelectPlanDocument,
     "\n  mutation BillingPortalUrl {\n    billingPortalUrl {\n      url\n    }\n  }\n": types.BillingPortalUrlDocument,
     "\n  mutation InviteMember($input: InviteMemberInput!) {\n    inviteMember(input: $input) {\n      id\n      email\n      name\n      role\n    }\n  }\n": types.InviteMemberDocument,
@@ -272,7 +272,7 @@ const documents: Documents = {
     "\n  mutation SetServiceUser($service: ServiceID!, $user: Int) {\n    setServiceUser(service: $service, user: $user) {\n      id\n      user\n    }\n  }\n": types.SetServiceUserDocument,
     "\n  query ServiceVariables($service: ServiceID!) {\n    serviceVariables(service: $service) {\n      key\n      value\n      ref\n    }\n  }\n": types.ServiceVariablesDocument,
     "\n  query AvailableVariables($environment: EnvironmentID!) {\n    availableVariables(environment: $environment) {\n      id\n      key\n      source {\n        __typename\n        ... on DatabaseSource { databaseId: id name }\n        ... on KeyValueStoreSource { keyValueStoreId: id name }\n        ... on BucketSource { bucketId: id name }\n        ... on SharedSource { name }\n      }\n    }\n  }\n": types.AvailableVariablesDocument,
-    "\n  mutation SetServiceVariables($service: ServiceID!, $variables: [ServiceVariableInput!]!) {\n    setServiceVariables(service: $service, variables: $variables)\n  }\n": types.SetServiceVariablesDocument,
+    "\n  mutation UpdateServiceVariables($service: ServiceID!, $set: [ServiceVariableInput!]!, $unset: [String!]!) {\n    updateServiceVariables(service: $service, set: $set, unset: $unset)\n  }\n": types.UpdateServiceVariablesDocument,
     "\n  query ServiceVulnerabilities($id: ServiceID!) {\n    service(id: $id) {\n      id\n      vulnerabilityReport {\n        image\n        summary {\n          critical\n          high\n          medium\n          low\n          unknown\n          total\n        }\n        vulnerabilities {\n          id\n          severity\n          source\n          title\n          reference\n          packages {\n            name\n            installedVersion\n            fixedVersion\n            path\n          }\n        }\n      }\n    }\n  }\n": types.ServiceVulnerabilitiesDocument,
     "\n  mutation DeleteVolume($volume: VolumeID!) {\n    deleteVolume(volume: $volume)\n  }\n": types.DeleteVolumeDocument,
     "\n  mutation ExpandVolume($volume: VolumeID!, $size: String!) {\n    expandVolume(volume: $volume, size: $size) {\n      id\n      size\n    }\n  }\n": types.ExpandVolumeDocument,
@@ -489,7 +489,7 @@ export function graphql(source: "\n  query SharedVariables($environment: Environ
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation SetSharedVariables($environment: EnvironmentID!, $variables: [VariableInput!]!) {\n    setSharedVariables(environment: $environment, variables: $variables)\n  }\n"): (typeof documents)["\n  mutation SetSharedVariables($environment: EnvironmentID!, $variables: [VariableInput!]!) {\n    setSharedVariables(environment: $environment, variables: $variables)\n  }\n"];
+export function graphql(source: "\n  mutation UpdateSharedVariables($environment: EnvironmentID!, $set: [VariableInput!]!, $unset: [String!]!) {\n    updateSharedVariables(environment: $environment, set: $set, unset: $unset)\n  }\n"): (typeof documents)["\n  mutation UpdateSharedVariables($environment: EnvironmentID!, $set: [VariableInput!]!, $unset: [String!]!) {\n    updateSharedVariables(environment: $environment, set: $set, unset: $unset)\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -777,7 +777,7 @@ export function graphql(source: "\n  query AvailableVariables($environment: Envi
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation SetServiceVariables($service: ServiceID!, $variables: [ServiceVariableInput!]!) {\n    setServiceVariables(service: $service, variables: $variables)\n  }\n"): (typeof documents)["\n  mutation SetServiceVariables($service: ServiceID!, $variables: [ServiceVariableInput!]!) {\n    setServiceVariables(service: $service, variables: $variables)\n  }\n"];
+export function graphql(source: "\n  mutation UpdateServiceVariables($service: ServiceID!, $set: [ServiceVariableInput!]!, $unset: [String!]!) {\n    updateServiceVariables(service: $service, set: $set, unset: $unset)\n  }\n"): (typeof documents)["\n  mutation UpdateServiceVariables($service: ServiceID!, $set: [ServiceVariableInput!]!, $unset: [String!]!) {\n    updateServiceVariables(service: $service, set: $set, unset: $unset)\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

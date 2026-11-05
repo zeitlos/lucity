@@ -645,6 +645,8 @@ type ComplexityRoot struct {
 		UnmountVolume                 func(childComplexity int, volume platform.VolumeID) int
 		UpdateAgent                   func(childComplexity int, agent platform.AgentID, harness model.Harness, instructions string) int
 		UpdateMemberRole              func(childComplexity int, input model.UpdateMemberRoleInput) int
+		UpdateServiceVariables        func(childComplexity int, service platform.ServiceID, set []model.ServiceVariableInput, unset []string) int
+		UpdateSharedVariables         func(childComplexity int, environment platform.EnvironmentID, set []model.VariableInput, unset []string) int
 		UpdateWorkspace               func(childComplexity int, input model.UpdateWorkspaceInput) int
 	}
 
@@ -1052,6 +1054,8 @@ type MutationResolver interface {
 	RemoveDomain(ctx context.Context, service platform.ServiceID, hostname string) (*model.Service, error)
 	SetSharedVariables(ctx context.Context, environment platform.EnvironmentID, variables []model.VariableInput) (bool, error)
 	SetServiceVariables(ctx context.Context, service platform.ServiceID, variables []model.ServiceVariableInput) (bool, error)
+	UpdateSharedVariables(ctx context.Context, environment platform.EnvironmentID, set []model.VariableInput, unset []string) (bool, error)
+	UpdateServiceVariables(ctx context.Context, service platform.ServiceID, set []model.ServiceVariableInput, unset []string) (bool, error)
 	CreateVolume(ctx context.Context, environment platform.EnvironmentID, name string, size string) (*model.Volume, error)
 	ExpandVolume(ctx context.Context, volume platform.VolumeID, size string) (*model.Volume, error)
 	MountVolume(ctx context.Context, volume platform.VolumeID, service platform.ServiceID, path string) (*model.Volume, error)
@@ -3955,6 +3959,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.UpdateMemberRole(childComplexity, args["input"].(model.UpdateMemberRoleInput)), true
+	case "Mutation.updateServiceVariables":
+		if e.ComplexityRoot.Mutation.UpdateServiceVariables == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateServiceVariables_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.UpdateServiceVariables(childComplexity, args["service"].(platform.ServiceID), args["set"].([]model.ServiceVariableInput), args["unset"].([]string)), true
+	case "Mutation.updateSharedVariables":
+		if e.ComplexityRoot.Mutation.UpdateSharedVariables == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateSharedVariables_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.UpdateSharedVariables(childComplexity, args["environment"].(platform.EnvironmentID), args["set"].([]model.VariableInput), args["unset"].([]string)), true
 	case "Mutation.updateWorkspace":
 		if e.ComplexityRoot.Mutation.UpdateWorkspace == nil {
 			break
@@ -9658,6 +9684,148 @@ func (ec *executionContext) field_Mutation_updateMemberRole_args(ctx context.Con
 	}
 	args["input"] = arg0
 	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateServiceVariables_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
+		func(ctx context.Context, v any) (platform.ServiceID, error) {
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐServiceID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["service"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "set",
+		func(ctx context.Context, v any) ([]model.ServiceVariableInput, error) {
+			return ec.unmarshalNServiceVariableInput2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceVariableInputᚄ(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["set"] = arg1
+
+	arg2, err := ec.field_Mutation_updateServiceVariables_argsUnset(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["unset"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateServiceVariables_argsUnset(
+	ctx context.Context,
+	rawArgs map[string]any,
+) ([]string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("unset"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["unset"]
+		if !ok {
+			var zeroVal []string
+			return zeroVal, nil
+		}
+		return ec.unmarshalNString2ᚕstringᚄ(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "dive,min=1,max=128")
+		if err != nil {
+			var zeroVal []string
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal []string
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal []string
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.([]string); ok {
+		return data, nil
+	} else if tmp == nil {
+		var zeroVal []string
+		return zeroVal, nil
+	} else {
+		var zeroVal []string
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be []string`, tmp))
+	}
+}
+
+func (ec *executionContext) field_Mutation_updateSharedVariables_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "environment",
+		func(ctx context.Context, v any) (platform.EnvironmentID, error) {
+			return ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐEnvironmentID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["environment"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "set",
+		func(ctx context.Context, v any) ([]model.VariableInput, error) {
+			return ec.unmarshalNVariableInput2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐVariableInputᚄ(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["set"] = arg1
+
+	arg2, err := ec.field_Mutation_updateSharedVariables_argsUnset(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["unset"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateSharedVariables_argsUnset(
+	ctx context.Context,
+	rawArgs map[string]any,
+) ([]string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("unset"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["unset"]
+		if !ok {
+			var zeroVal []string
+			return zeroVal, nil
+		}
+		return ec.unmarshalNString2ᚕstringᚄ(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "dive,min=1,max=128")
+		if err != nil {
+			var zeroVal []string
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal []string
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal []string
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.([]string); ok {
+		return data, nil
+	} else if tmp == nil {
+		var zeroVal []string
+		return zeroVal, nil
+	} else {
+		var zeroVal []string
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be []string`, tmp))
+	}
 }
 
 func (ec *executionContext) field_Mutation_updateWorkspace_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
@@ -22394,6 +22562,130 @@ func (ec *executionContext) fieldContext_Mutation_setServiceVariables(ctx contex
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_setServiceVariables_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateSharedVariables(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_updateSharedVariables(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().UpdateSharedVariables(ctx, fc.Args["environment"].(platform.EnvironmentID), fc.Args["set"].([]model.VariableInput), fc.Args["unset"].([]string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_updateSharedVariables(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateSharedVariables_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateServiceVariables(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_updateServiceVariables(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().UpdateServiceVariables(ctx, fc.Args["service"].(platform.ServiceID), fc.Args["set"].([]model.ServiceVariableInput), fc.Args["unset"].([]string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_DEPLOYER")
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_updateServiceVariables(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateServiceVariables_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -37467,6 +37759,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "setServiceVariables":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_setServiceVariables(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateSharedVariables":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateSharedVariables(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateServiceVariables":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateServiceVariables(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

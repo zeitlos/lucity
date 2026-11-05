@@ -260,64 +260,23 @@ func varsSet(ctx context.Context, args []string) error {
 		return err
 	}
 
-	current, err := readServiceVariables(ctx, client, serviceID)
-	if err != nil {
-		return deployError("vars set (read current)", err)
-	}
-
-	type mergedEntry struct {
-		value *string
-		ref   *string
-	}
-	merged := map[string]mergedEntry{}
-	var mergedOrder []string
-	mergedSeen := map[string]bool{}
-	appendMerged := func(key string) {
-		if !mergedSeen[key] {
-			mergedSeen[key] = true
-			mergedOrder = append(mergedOrder, key)
-		}
-	}
-	for _, variable := range current {
-		merged[variable.Key] = mergedEntry{value: variable.Value, ref: variable.Ref}
-		appendMerged(variable.Key)
-	}
-	usedRef := false
+	set := make([]map[string]any, 0, len(order))
 	for _, key := range order {
 		if reference, ok := refs[key]; ok {
-			value := reference
-			merged[key] = mergedEntry{ref: &value}
-			usedRef = true
+			set = append(set, map[string]any{"key": key, "ref": reference})
 		} else {
-			value := literals[key]
-			merged[key] = mergedEntry{value: &value}
+			set = append(set, map[string]any{"key": key, "value": literals[key]})
 		}
-		appendMerged(key)
 	}
 
-	variables := make([]map[string]any, 0, len(mergedOrder))
-	for _, key := range mergedOrder {
-		entry := merged[key]
-		item := map[string]any{"key": key}
-		switch {
-		case entry.ref != nil:
-			item["ref"] = *entry.ref
-		case entry.value != nil:
-			item["value"] = *entry.value
-		default:
-			item["value"] = ""
-		}
-		variables = append(variables, item)
-	}
-
-	const mutation = `mutation($service: ServiceID!, $variables: [ServiceVariableInput!]!) {
-  setServiceVariables(service: $service, variables: $variables)
+	const mutation = `mutation($service: ServiceID!, $set: [ServiceVariableInput!]!) {
+  updateServiceVariables(service: $service, set: $set)
 }`
 	var writeOut struct {
-		SetServiceVariables bool `json:"setServiceVariables"`
+		UpdateServiceVariables bool `json:"updateServiceVariables"`
 	}
-	if err := client.GraphQL(ctx, mutation, map[string]any{"service": serviceID, "variables": variables}, &writeOut); err != nil {
-		if usedRef {
+	if err := client.GraphQL(ctx, mutation, map[string]any{"service": serviceID, "set": set}, &writeOut); err != nil {
+		if len(refs) > 0 {
 			return fmt.Errorf("%w — a ref must be an id from `lucity vars available`", deployError("vars set", err))
 		}
 		return deployError("vars set", err)

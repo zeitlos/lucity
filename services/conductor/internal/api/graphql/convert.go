@@ -10,6 +10,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/hostname"
 	"github.com/zeitlos/lucity/pkg/platform"
+	"github.com/zeitlos/lucity/pkg/usererror"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
@@ -1526,4 +1527,14 @@ func convertServiceLogEntry(entry platform.LogEntry) *model.ServiceLogEntry {
 		Line: entry.Line,
 		Pod:  entry.Pod,
 	}
+}
+
+func claimVariableKey(seen map[string]struct{}, key string) error {
+	if _, ok := seen[key]; ok {
+		return usererror.Errorf("variable %q appears more than once", key)
+	}
+
+	seen[key] = struct{}{}
+
+	return nil
 }

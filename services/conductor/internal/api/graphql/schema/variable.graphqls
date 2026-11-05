@@ -62,7 +62,11 @@ extend type Query {
 
 extend type Mutation {
   """Replaces all shared variables of an environment with the list given, so keys you leave out are removed. Services that link to a changed key roll out again."""
-  setSharedVariables(environment: EnvironmentID!, variables: [VariableInput!]!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
+  setSharedVariables(environment: EnvironmentID!, variables: [VariableInput!]!): Boolean! @hasRole(role: WORKSPACE_MEMBER) @deprecated(reason: "Use `updateSharedVariables`, which changes only the keys you name.")
   """Replaces all variables of a service with the list given, so keys you leave out are removed. The service rolls out again on the image it is already running."""
-  setServiceVariables(service: ServiceID!, variables: [ServiceVariableInput!]!): Boolean! @hasRole(role: WORKSPACE_DEPLOYER)
+  setServiceVariables(service: ServiceID!, variables: [ServiceVariableInput!]!): Boolean! @hasRole(role: WORKSPACE_DEPLOYER) @deprecated(reason: "Use `updateServiceVariables`, which changes only the keys you name.")
+  """Sets the shared variables in `set` and removes the keys in `unset`. Keys you leave out keep their value. A key may appear once across both lists. Services that link to a changed key roll out again."""
+  updateSharedVariables(environment: EnvironmentID!, set: [VariableInput!]! = [], unset: [String!]! = [] @constraint(constraint: "dive,min=1,max=128")): Boolean! @hasRole(role: WORKSPACE_MEMBER)
+  """Sets the variables in `set` and removes the keys in `unset`. Keys you leave out keep their value. Setting a key replaces whatever it held, a value or a link. A key may appear once across both lists. The service rolls out again on the image it is already running."""
+  updateServiceVariables(service: ServiceID!, set: [ServiceVariableInput!]! = [], unset: [String!]! = [] @constraint(constraint: "dive,min=1,max=128")): Boolean! @hasRole(role: WORKSPACE_DEPLOYER)
 }

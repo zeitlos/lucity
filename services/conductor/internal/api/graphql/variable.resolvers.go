@@ -47,6 +47,62 @@ func (r *mutationResolver) SetServiceVariables(ctx context.Context, service plat
 	return r.Conductor.SetServiceVariables(ctx, service, literals, refs)
 }
 
+// UpdateSharedVariables is the resolver for the updateSharedVariables field.
+func (r *mutationResolver) UpdateSharedVariables(ctx context.Context, environment platform.EnvironmentID, set []model.VariableInput, unset []string) (bool, error) {
+	seen := make(map[string]struct{}, len(set)+len(unset))
+	vars := make(map[string]string, len(set))
+
+	for _, v := range set {
+		if err := claimVariableKey(seen, v.Key); err != nil {
+			return false, err
+		}
+
+		vars[v.Key] = v.Value
+	}
+
+	for _, key := range unset {
+		if err := claimVariableKey(seen, key); err != nil {
+			return false, err
+		}
+	}
+
+	return r.Conductor.UpdateSharedVariables(ctx, environment, vars, unset)
+}
+
+// UpdateServiceVariables is the resolver for the updateServiceVariables field.
+func (r *mutationResolver) UpdateServiceVariables(ctx context.Context, service platform.ServiceID, set []model.ServiceVariableInput, unset []string) (bool, error) {
+	if err := r.requireServiceDeployBinding(ctx, service); err != nil {
+		return false, err
+	}
+
+	seen := make(map[string]struct{}, len(set)+len(unset))
+	literals := make(map[string]string)
+	refs := make(map[string]platform.VariableID)
+
+	for _, v := range set {
+		if err := claimVariableKey(seen, v.Key); err != nil {
+			return false, err
+		}
+
+		switch {
+		case v.Ref != nil:
+			refs[v.Key] = *v.Ref
+		case v.Value != nil:
+			literals[v.Key] = *v.Value
+		default:
+			return false, usererror.Errorf("variable %q: set either value or ref", v.Key)
+		}
+	}
+
+	for _, key := range unset {
+		if err := claimVariableKey(seen, key); err != nil {
+			return false, err
+		}
+	}
+
+	return r.Conductor.UpdateServiceVariables(ctx, service, literals, refs, unset)
+}
+
 // AvailableVariables is the resolver for the availableVariables field.
 func (r *queryResolver) AvailableVariables(ctx context.Context, environment platform.EnvironmentID) ([]model.Variable, error) {
 	vars, err := r.Conductor.AvailableVariables(ctx, environment)

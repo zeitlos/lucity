@@ -42,6 +42,7 @@ type ServiceClient interface {
 
 	Variables(ctx context.Context, id platform.ServiceID) (ServiceVariablesSpec, error)
 	SetVariables(ctx context.Context, id platform.ServiceID, spec ServiceVariablesSpec) (RevisionID, error)
+	UpdateVariables(ctx context.Context, id platform.ServiceID, spec ServiceVariablesSpec, unset []string) (RevisionID, error)
 
 	AddDomain(ctx context.Context, id platform.ServiceID, host string, options DomainOptions) (RevisionID, error)
 	RemoveDomain(ctx context.Context, id platform.ServiceID, host string) (RevisionID, error)
@@ -79,6 +80,7 @@ type VolumeClient interface {
 type EnvironmentClient interface {
 	Variables(ctx context.Context, id platform.EnvironmentID) (map[string]string, error)
 	SetVariables(ctx context.Context, id platform.EnvironmentID, vars map[string]string) (RevisionID, error)
+	UpdateVariables(ctx context.Context, id platform.EnvironmentID, set map[string]string, unset []string) (RevisionID, error)
 	Outdated(ctx context.Context, id platform.EnvironmentID) (bool, error)
 	State(ctx context.Context, id platform.EnvironmentID) (*EnvironmentState, error)
 	SetState(ctx context.Context, id platform.EnvironmentID, state EnvironmentState) (RevisionID, error)

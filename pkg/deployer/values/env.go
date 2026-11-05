@@ -72,3 +72,19 @@ func SetEnvironmentVariables(env *Env, vars map[string]string) error {
 
 	return nil
 }
+
+// UpdateEnvironmentVariables sets and removes individual shared variables,
+// keeping every key it is not given.
+func UpdateEnvironmentVariables(env *Env, set map[string]string, unset []string) error {
+	if env.SharedVariables == nil {
+		env.SharedVariables = make(map[string]string)
+	}
+
+	for _, key := range unset {
+		delete(env.SharedVariables, key)
+	}
+
+	maps.Copy(env.SharedVariables, set)
+
+	return nil
+}

@@ -367,6 +367,9 @@ func (s *server) setVariables(ctx context.Context, _ *mcp.CallToolRequest, input
 	if (input.Service == "") == (input.Environment == "") {
 		return nil, nil, fmt.Errorf("provide exactly one of service or environment")
 	}
+	if input.Unset == nil {
+		input.Unset = []string{}
+	}
 	unset := make(map[string]bool, len(input.Unset))
 	for _, key := range input.Unset {
 		unset[key] = true
@@ -403,31 +406,34 @@ func (s *server) setSharedVariables(ctx context.Context, input setVariablesInput
 		merged[v.Key] = v.literal()
 	}
 	var generated, kept []string
+	set := make([]map[string]any, 0, len(input.Set))
 	for _, entry := range input.Set {
+		var value string
 		switch {
 		case entry.Generate != 0 && merged[entry.Key] != "":
 			kept = append(kept, entry.Key)
+			continue
 		case entry.Generate != 0:
-			merged[entry.Key] = randomSecret(entry.Generate)
+			value = randomSecret(entry.Generate)
 			generated = append(generated, entry.Key)
 		default:
-			merged[entry.Key] = *entry.Value
+			value = *entry.Value
 		}
+		merged[entry.Key] = value
+		set = append(set, map[string]any{"key": entry.Key, "value": value})
 	}
 	for _, key := range input.Unset {
 		delete(merged, key)
 	}
 
 	keys := slices.Sorted(maps.Keys(merged))
-	variables := make([]map[string]any, 0, len(keys))
 	views := make([]variableView, 0, len(keys))
 	for _, key := range keys {
-		variables = append(variables, map[string]any{"key": key, "value": merged[key]})
 		views = append(views, variableView{Key: key, Kind: "literal"})
 	}
 
-	const mutation = `mutation($environment: EnvironmentID!, $variables: [VariableInput!]!) { setSharedVariables(environment: $environment, variables: $variables) }`
-	if err := s.query(ctx, "set_variables (shared)", mutation, map[string]any{"environment": environmentID, "variables": variables}, nil); err != nil {
+	const mutation = `mutation($environment: EnvironmentID!, $set: [VariableInput!]!, $unset: [String!]!) { updateSharedVariables(environment: $environment, set: $set, unset: $unset) }`
+	if err := s.query(ctx, "set_variables (shared)", mutation, map[string]any{"environment": environmentID, "set": set, "unset": input.Unset}, nil); err != nil {
 		return nil, nil, err
 	}
 
@@ -469,48 +475,50 @@ func (s *server) setServiceVariables(ctx context.Context, input setVariablesInpu
 	}
 	usedRef := false
 	var generated, kept []string
+	set := make([]map[string]any, 0, len(input.Set))
 	for _, entry := range input.Set {
 		existing, exists := merged[entry.Key]
+		var v variable
 		switch {
 		case entry.Generate != 0 && exists && (existing.Ref != nil || existing.literal() != ""):
 			kept = append(kept, entry.Key)
 			continue
 		case entry.Generate != 0:
-			merged[entry.Key] = variable{Key: entry.Key, Value: ptr(randomSecret(entry.Generate))}
+			v = variable{Key: entry.Key, Value: ptr(randomSecret(entry.Generate))}
 			generated = append(generated, entry.Key)
 		case entry.Ref != "":
-			merged[entry.Key] = variable{Key: entry.Key, Ref: ptr(entry.Ref)}
+			v = variable{Key: entry.Key, Ref: ptr(entry.Ref)}
 			usedRef = true
 		default:
-			merged[entry.Key] = variable{Key: entry.Key, Value: entry.Value}
+			v = variable{Key: entry.Key, Value: entry.Value}
 		}
+		merged[entry.Key] = v
 		if !exists {
 			order = append(order, entry.Key)
 		}
+		item := map[string]any{"key": entry.Key}
+		if v.Ref != nil {
+			item["ref"] = *v.Ref
+		} else {
+			item["value"] = v.literal()
+		}
+		set = append(set, item)
 	}
 	for _, key := range input.Unset {
 		delete(merged, key)
 	}
 
-	variables := make([]map[string]any, 0, len(merged))
 	views := make([]variableView, 0, len(merged))
 	for _, key := range order {
 		v, ok := merged[key]
 		if !ok {
 			continue
 		}
-		item := map[string]any{"key": key}
-		if v.Ref != nil {
-			item["ref"] = *v.Ref
-		} else {
-			item["value"] = v.literal()
-		}
-		variables = append(variables, item)
 		views = append(views, v.view())
 	}
 
-	const mutation = `mutation($service: ServiceID!, $variables: [ServiceVariableInput!]!) { setServiceVariables(service: $service, variables: $variables) }`
-	if err := s.query(ctx, "set_variables (service)", mutation, map[string]any{"service": serviceID, "variables": variables}, nil); err != nil {
+	const mutation = `mutation($service: ServiceID!, $set: [ServiceVariableInput!]!, $unset: [String!]!) { updateServiceVariables(service: $service, set: $set, unset: $unset) }`
+	if err := s.query(ctx, "set_variables (service)", mutation, map[string]any{"service": serviceID, "set": set, "unset": input.Unset}, nil); err != nil {
 		if usedRef {
 			return nil, nil, fmt.Errorf("%w — a ref must be an id from list_variables' available list for this environment; call list_variables to see valid refs", err)
 		}

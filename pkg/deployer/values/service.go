@@ -315,6 +315,36 @@ func SetServiceVariables(env *Env, name string, literals map[string]string, refs
 	})
 }
 
+// UpdateServiceVariables sets and removes individual variables, keeping every
+// key it is not given. Setting a key replaces it, whether it held a literal
+// value or a secret-key reference.
+func UpdateServiceVariables(env *Env, name string, literals map[string]string, refs map[string]SecretRef, unset []string) error {
+	return mutateService(env, name, func(s *Service) {
+		if s.Env == nil {
+			s.Env = make(map[string]string)
+		}
+
+		if s.Refs == nil {
+			s.Refs = make(map[string]SecretRef)
+		}
+
+		for _, key := range unset {
+			delete(s.Env, key)
+			delete(s.Refs, key)
+		}
+
+		for key, value := range literals {
+			delete(s.Refs, key)
+			s.Env[key] = value
+		}
+
+		for key, ref := range refs {
+			delete(s.Env, key)
+			s.Refs[key] = ref
+		}
+	})
+}
+
 func AddServiceDomain(env *Env, name, host string, options DomainOptions) error {
 	return mutateService(env, name, func(s *Service) {
 		if i := slices.IndexFunc(s.Domains, func(d Domain) bool { return d.Host == host }); i >= 0 {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue';
-import { Eye, EyeOff, Link, Plus, Trash2, Unlink, Braces } from '@lucide/vue';
+import { Eye, EyeOff, Link, Plus, Trash2, Undo2, Unlink, Braces } from '@lucide/vue';
 import EmptyState from '@/components/EmptyState.vue';
 import IconButton from '@/components/IconButton.vue';
 import SourceIcon from '@/components/SourceIcon.vue';
@@ -19,7 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { parseEnvAssignments } from '@/lib/env';
 import { darkTooltipClass } from '@/lib/tooltip';
-import type { VariableReference, VariableRow, VariableSourceTypename } from '@/lib/variables';
+import { duplicateKeys, type VariableReference, type VariableRow, type VariableSourceTypename } from '@/lib/variables';
 
 const rows = defineModel<VariableRow[]>('rows', { required: true });
 
@@ -35,10 +35,6 @@ const props = withDefaults(defineProps<{
   loading: false,
   disabled: false,
 });
-
-const emit = defineEmits<{
-  (e: 'change'): void;
-}>();
 
 const SOURCE_LABELS: Record<VariableSourceTypename, string> = {
   DatabaseSource: 'Postgres',
@@ -82,24 +78,43 @@ const referenceGroups = computed<ReferenceGroup[]>(() => {
 
 const referenceById = computed(() => new Map((props.references ?? []).map(reference => [reference.id, reference])));
 
-const valueRows = computed(() => rows.value.filter(row => !row.ref));
+const valueRows = computed(() => rows.value.filter(row => !row.ref && !row.removed));
 const allRevealed = computed(() => valueRows.value.length > 0 && valueRows.value.every(row => row.revealed));
 
-function changed() {
-  emit('change');
+const duplicates = computed(() => new Set(duplicateKeys(rows.value)));
+const repeated = computed(() => {
+  const seen = new Set<string>();
+  return rows.value.map(row => {
+    const key = row.key.trim();
+    if (row.removed || !key) return false;
+    const repeat = seen.has(key);
+    seen.add(key);
+    return repeat;
+  });
+});
+
+function isDuplicate(row: VariableRow) {
+  return !row.removed && duplicates.value.has(row.key.trim());
 }
 
 async function addRow() {
   rows.value.push({ key: '', value: '', ref: null, revealed: true });
-  changed();
   await nextTick();
   const keys = root.value?.querySelectorAll<HTMLInputElement>('input[aria-label="Key"]');
   keys?.[keys.length - 1]?.focus();
 }
 
 function removeRow(index: number) {
-  rows.value.splice(index, 1);
-  changed();
+  const row = rows.value[index]!;
+  if (row.persisted) {
+    row.removed = true;
+  } else {
+    rows.value.splice(index, 1);
+  }
+}
+
+function restoreRow(index: number) {
+  rows.value[index]!.removed = false;
 }
 
 function toggleAll() {
@@ -110,11 +125,11 @@ function toggleAll() {
 }
 
 function onPasteKey(event: ClipboardEvent, index: number) {
+  if (rows.value[index]?.removed) return;
   const parsed = parseEnvAssignments(event.clipboardData?.getData('text') ?? '');
   if (parsed.length === 0) return;
   event.preventDefault();
   rows.value.splice(index, 1, ...parsed.map(p => ({ key: p.key, value: p.value, ref: null })));
-  changed();
 }
 
 function selectReference(index: number, reference: VariableReference) {
@@ -123,12 +138,10 @@ function selectReference(index: number, reference: VariableReference) {
   row.value = '';
   if (!row.key.trim()) row.key = reference.key.toUpperCase();
   openPopoverIndex.value = null;
-  changed();
 }
 
 function clearReference(index: number) {
   rows.value[index]!.ref = null;
-  changed();
 }
 
 function referenceInfo(row: VariableRow) {
@@ -178,12 +191,21 @@ function referenceInfo(row: VariableRow) {
         v-model="row.key"
         placeholder="KEY"
         aria-label="Key"
+        :readonly="row.removed"
+        :aria-invalid="isDuplicate(row) || undefined"
         class="w-full shrink-0 font-mono text-sm sm:w-2/5"
-        @input="changed"
+        :class="{
+          'text-muted-foreground line-through': row.removed,
+          'border-destructive': isDuplicate(row),
+        }"
         @paste="onPasteKey($event, index)"
       />
 
-      <div class="flex min-w-0 flex-1">
+      <div
+        class="flex min-w-0 flex-1"
+        :class="{ 'opacity-50': row.removed }"
+        :inert="row.removed || undefined"
+      >
         <template v-if="linkable">
           <Tooltip v-if="!row.ref">
             <TooltipTrigger as-child>
@@ -264,7 +286,6 @@ function referenceInfo(row: VariableRow) {
             data-1p-ignore="true"
             class="w-full pr-9 font-mono text-sm"
             :class="{ 'rounded-l-none': linkable }"
-            @input="changed"
           />
           <IconButton
             :label="row.revealed ? 'Hide value' : 'Show value'"
@@ -281,6 +302,16 @@ function referenceInfo(row: VariableRow) {
       </div>
 
       <IconButton
+        v-if="row.removed"
+        :label="`Keep &quot;${row.key}&quot;`"
+        size="icon"
+        class="shrink-0 text-muted-foreground hover:text-foreground"
+        @click="restoreRow(index)"
+      >
+        <Undo2 />
+      </IconButton>
+      <IconButton
+        v-else
         :label="`Delete ${row.key || 'variable'}`"
         size="icon"
         class="shrink-0 text-muted-foreground hover:text-destructive"
@@ -288,6 +319,10 @@ function referenceInfo(row: VariableRow) {
       >
         <Trash2 />
       </IconButton>
+
+      <p v-if="repeated[index]" class="basis-full text-xs text-destructive">
+        "{{ row.key.trim() }}" is already defined
+      </p>
     </div>
 
     <EmptyState

@@ -39,6 +39,12 @@ func (e *environmentClient) SetVariables(ctx context.Context, id platform.Enviro
 	})
 }
 
+func (e *environmentClient) UpdateVariables(ctx context.Context, id platform.EnvironmentID, set map[string]string, unset []string) (deployer.RevisionID, error) {
+	return e.client.applyEnv(ctx, id, func(env *values.Env) error {
+		return values.UpdateEnvironmentVariables(env, set, unset)
+	})
+}
+
 func (e *environmentClient) State(ctx context.Context, id platform.EnvironmentID) (*deployer.EnvironmentState, error) {
 	namespace := id.Namespace()
 

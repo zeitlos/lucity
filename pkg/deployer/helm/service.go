@@ -185,6 +185,21 @@ func (s *serviceClient) SetVariables(ctx context.Context, id platform.ServiceID,
 	})
 }
 
+func (s *serviceClient) UpdateVariables(ctx context.Context, id platform.ServiceID, spec deployer.ServiceVariablesSpec, unset []string) (deployer.RevisionID, error) {
+	refs := make(map[string]values.SecretRef, len(spec.Refs))
+
+	for k, ref := range spec.Refs {
+		refs[k] = values.SecretRef{
+			Secret: ref.Secret,
+			Key:    ref.Key,
+		}
+	}
+
+	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
+		return values.UpdateServiceVariables(e, id.Name, spec.Literals, refs, unset)
+	})
+}
+
 func cloneStringMap(in map[string]string) map[string]string {
 	if in == nil {
 		return nil

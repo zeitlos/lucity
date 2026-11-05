@@ -25,8 +25,12 @@ func (r *mutationResolver) AddService(ctx context.Context, environment platform.
 		memory = input.Resources.Memory
 	}
 
+	seen := make(map[string]struct{}, len(input.Variables))
 	variables := make(map[string]string, len(input.Variables))
 	for _, variable := range input.Variables {
+		if err := claimVariableKey(seen, variable.Key); err != nil {
+			return nil, err
+		}
 		variables[variable.Key] = variable.Value
 	}
 
