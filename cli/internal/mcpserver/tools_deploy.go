@@ -24,7 +24,7 @@ func (s *server) registerDeploy(m *mcp.Server) {
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "get_logs",
-		Description: "Fetch logs for a build, deploy, security scan, or a running service. kind=runtime streams live service logs and never completes, so it is sampled for a few seconds; variable values and credentials in runtime logs are replaced with [redacted:<source>]. Use the build/deploy/scan id from get_deploy_status, or the service id for runtime.",
+		Description: "Fetch logs for a build, deploy, security scan, or a service at runtime. kind=runtime reads the service's logs of the past hour (or since), including instances that crashed or were replaced, and can narrow them by search text or instance; variable values and credentials in runtime logs are replaced with [redacted:<source>]. Use the build/deploy/scan id from get_deploy_status, or the service id for runtime.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, DestructiveHint: ptr(false)},
 	}, s.getLogs)
 

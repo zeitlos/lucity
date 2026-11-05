@@ -38,7 +38,7 @@ type Interface interface {
 	Volumes(ctx context.Context, environmentID EnvironmentID) ([]Volume, error)
 	Volume(ctx context.Context, id VolumeID) (*Volume, error)
 
-	Logs(ctx context.Context, id ServiceID, tail int) (<-chan LogEntry, error)
+	Instances(ctx context.Context, id ServiceID) ([]Instance, error)
 }
 
 type Changes interface {
@@ -47,9 +47,19 @@ type Changes interface {
 	Watch(ctx context.Context, environment EnvironmentID) <-chan struct{}
 }
 
-type LogEntry struct {
-	Pod  string
-	Line string
+type InstanceState string
+
+const (
+	InstanceStarting InstanceState = "starting"
+	InstanceRunning  InstanceState = "running"
+	InstanceStopping InstanceState = "stopping"
+	InstanceStopped  InstanceState = "stopped"
+)
+
+// Instance is a pod of a service that exists right now.
+type Instance struct {
+	Name  string
+	State InstanceState
 }
 
 type DatabaseCredentials struct {

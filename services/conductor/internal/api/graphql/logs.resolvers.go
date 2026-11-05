@@ -7,14 +7,66 @@ package graphql
 
 import (
 	"context"
+	"time"
 
 	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 )
 
 // ServiceLogs is the resolver for the serviceLogs field.
-func (r *subscriptionResolver) ServiceLogs(ctx context.Context, service platform.ServiceID, tailLines *int) (<-chan *model.ServiceLogEntry, error) {
-	ch, err := r.Conductor.ServiceLogs(ctx, service, tailLines)
+func (r *queryResolver) ServiceLogs(ctx context.Context, service platform.ServiceID, from time.Time, to *time.Time, filter *model.ServiceLogFilter, surrounding *int, limit *int) ([]model.ServiceLogEntry, error) {
+	entries, err := r.Conductor.ServiceLogs(ctx, service, from, logsUntil(to), convertServiceLogFilter(filter), surrounding, limit)
+
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]model.ServiceLogEntry, 0, len(entries))
+
+	for _, entry := range entries {
+		result = append(result, *convertServiceLogEntry(entry))
+	}
+
+	return result, nil
+}
+
+// ServiceLogInstances is the resolver for the serviceLogInstances field.
+func (r *queryResolver) ServiceLogInstances(ctx context.Context, service platform.ServiceID, from time.Time, to *time.Time) ([]model.ServiceLogInstance, error) {
+	instances, err := r.Conductor.ServiceLogInstances(ctx, service, from, logsUntil(to))
+
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]model.ServiceLogInstance, 0, len(instances))
+
+	for _, instance := range instances {
+		result = append(result, convertServiceLogInstance(instance))
+	}
+
+	return result, nil
+}
+
+// ServiceLogVolume is the resolver for the serviceLogVolume field.
+func (r *queryResolver) ServiceLogVolume(ctx context.Context, service platform.ServiceID, from time.Time, to *time.Time, filter *model.ServiceLogFilter, slots *int) ([]model.ServiceLogVolume, error) {
+	volume, err := r.Conductor.ServiceLogVolume(ctx, service, from, logsUntil(to), convertServiceLogFilter(filter), slots)
+
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]model.ServiceLogVolume, 0, len(volume))
+
+	for _, slot := range volume {
+		result = append(result, model.ServiceLogVolume{Time: slot.Time, Stdout: slot.Stdout, Stderr: slot.Stderr})
+	}
+
+	return result, nil
+}
+
+// ServiceLogs is the resolver for the serviceLogs field.
+func (r *subscriptionResolver) ServiceLogs(ctx context.Context, service platform.ServiceID, tailLines *int, filter *model.ServiceLogFilter) (<-chan *model.ServiceLogEntry, error) {
+	ch, err := r.Conductor.TailServiceLogs(ctx, service, convertServiceLogFilter(filter), tailLines)
 	if err != nil {
 		return nil, err
 	}

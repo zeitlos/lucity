@@ -7,6 +7,7 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -15,7 +16,12 @@ type getLogsInput struct {
 	Kind      string `json:"kind" jsonschema:"one of build, deploy, runtime, scan"`
 	ID        string `json:"id" jsonschema:"build/deploy/scan job id for those kinds, or a service id for runtime"`
 	TailLines int    `json:"tail_lines,omitempty" jsonschema:"maximum number of trailing lines to return (default 200)"`
+	Since     string `json:"since,omitempty" jsonschema:"runtime only: how far back to read, as a duration such as 15m or 6h (default 1h, at most 336h)"`
+	Search    string `json:"search,omitempty" jsonschema:"runtime only: only lines containing this text, ignoring case"`
+	Instance  string `json:"instance,omitempty" jsonschema:"runtime only: only entries of this instance, the name in brackets in earlier output"`
 }
+
+const maxRuntimeLookback = 14 * 24 * time.Hour
 
 func (s *server) getLogs(ctx context.Context, _ *mcp.CallToolRequest, input getLogsInput) (*mcp.CallToolResult, any, error) {
 	if _, err := s.requireWorkspace(); err != nil {
@@ -31,8 +37,6 @@ func (s *server) getLogs(ctx context.Context, _ *mcp.CallToolRequest, input getL
 		query     string
 		variables map[string]any
 		selector  func(payload map[string]any) []string
-		note      string
-		redactor  *strings.Replacer
 	)
 
 	switch input.Kind {
@@ -68,14 +72,7 @@ func (s *server) getLogs(ctx context.Context, _ *mcp.CallToolRequest, input getL
 		if err != nil {
 			return nil, nil, err
 		}
-		redactor, err = s.logRedactor(ctx, id)
-		if err != nil {
-			return nil, nil, fmt.Errorf("runtime logs withheld because the values to redact could not be loaded: %w", err)
-		}
-		query = `subscription($service: ServiceID!, $tail: Int) { serviceLogs(service: $service, tailLines: $tail) { line pod } }`
-		variables = map[string]any{"service": id, "tail": tail}
-		selector = serviceLogLine
-		note = "live stream sampled for a few seconds — runtime logs never complete, so this returns after an idle pause. Variable values and credentials in it appear as [redacted:<source>]"
+		return s.runtimeLogs(ctx, id, input, tail)
 
 	default:
 		return nil, nil, fmt.Errorf("invalid kind %q — use one of build, deploy, runtime, scan", input.Kind)
@@ -85,22 +82,78 @@ func (s *server) getLogs(ctx context.Context, _ *mcp.CallToolRequest, input getL
 	if err != nil {
 		return nil, nil, wrapGraphQL("get_logs", err)
 	}
-	if redactor != nil {
-		for i, line := range lines {
-			lines[i] = redactor.Replace(line)
-		}
-	}
 
 	result := map[string]any{
 		"lines":    lines,
 		"complete": complete,
 	}
-	if note != "" {
-		result["note"] = note
-	} else if !complete {
+	if !complete {
 		result["note"] = "stream sampled until an idle pause; call again to continue"
 	}
 	return jsonResult(result)
+}
+
+func (s *server) runtimeLogs(ctx context.Context, service string, input getLogsInput, tail int) (*mcp.CallToolResult, any, error) {
+	since := time.Hour
+	if input.Since != "" {
+		parsed, err := time.ParseDuration(input.Since)
+		if err != nil || parsed <= 0 {
+			return nil, nil, fmt.Errorf("invalid since %q — use a duration such as 15m or 6h", input.Since)
+		}
+		since = min(parsed, maxRuntimeLookback)
+	}
+
+	redactor, err := s.logRedactor(ctx, service)
+	if err != nil {
+		return nil, nil, fmt.Errorf("runtime logs withheld because the values to redact could not be loaded: %w", err)
+	}
+
+	filter := map[string]any{}
+	if input.Search != "" {
+		filter["search"] = input.Search
+	}
+	if input.Instance != "" {
+		filter["pod"] = input.Instance
+	}
+
+	const query = `query($service: ServiceID!, $from: Time!, $filter: ServiceLogFilter, $limit: Int) {
+  serviceLogs(service: $service, from: $from, filter: $filter, limit: $limit) { time line pod event }
+}`
+	var out struct {
+		ServiceLogs []struct {
+			Time  string  `json:"time"`
+			Line  string  `json:"line"`
+			Pod   string  `json:"pod"`
+			Event *string `json:"event"`
+		} `json:"serviceLogs"`
+	}
+	variables := map[string]any{
+		"service": service,
+		"from":    time.Now().Add(-since).UTC().Format(time.RFC3339),
+		"filter":  filter,
+		"limit":   min(tail, 5000),
+	}
+	if err := s.query(ctx, "get_logs", query, variables, &out); err != nil {
+		return nil, nil, err
+	}
+
+	lines := make([]string, 0, len(out.ServiceLogs))
+	for _, entry := range out.ServiceLogs {
+		text := entry.Line
+		if entry.Event != nil {
+			text = "platform: " + strings.ToLower(strings.ReplaceAll(*entry.Event, "_", " "))
+			if entry.Line != "" {
+				text += ": " + entry.Line
+			}
+		}
+		lines = append(lines, entry.Time+" ["+entry.Pod+"] "+redactor.Replace(text))
+	}
+
+	return jsonResult(map[string]any{
+		"lines":    lines,
+		"complete": true,
+		"note":     fmt.Sprintf("at most %d entries from the past %s, oldest first, including instances that crashed or were replaced. Entries starting with \"platform:\" are what the platform did with an instance. Variable values and credentials appear as [redacted:<source>]", tail, since),
+	})
 }
 
 func scalarLine(field string) func(map[string]any) []string {
@@ -114,19 +167,6 @@ func scalarLine(field string) func(map[string]any) []string {
 		}
 		return nil
 	}
-}
-
-func serviceLogLine(payload map[string]any) []string {
-	entry, ok := payload["serviceLogs"].(map[string]any)
-	if !ok {
-		return nil
-	}
-	line, _ := entry["line"].(string)
-	pod, _ := entry["pod"].(string)
-	if pod != "" {
-		return []string{"[" + pod + "] " + line}
-	}
-	return []string{line}
 }
 
 const minimumRedactedLength = 8

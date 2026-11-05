@@ -8,6 +8,7 @@ import {
   BuildStatus,
   DatabaseStatus,
   DnsStatus,
+  ServiceInstanceState,
   ServiceStatus,
   SubscriptionStatus,
   TlsStatus,
@@ -29,6 +30,13 @@ const service: Record<ServiceStatus, StatusView> = {
   [ServiceStatus.Degraded]: { tone: 'warn', label: 'Degraded' },
   [ServiceStatus.Failed]: { tone: 'danger', label: 'Failed' },
   [ServiceStatus.Stopped]: { tone: 'neutral', label: 'Stopped' },
+};
+
+const instance: Record<ServiceInstanceState, StatusView> = {
+  [ServiceInstanceState.Starting]: { tone: 'progress', label: 'Starting' },
+  [ServiceInstanceState.Running]: { tone: 'neutral', label: 'Running' },
+  [ServiceInstanceState.Stopping]: { tone: 'progress', label: 'Stopping' },
+  [ServiceInstanceState.Stopped]: { tone: 'neutral', label: 'Stopped' },
 };
 
 const database: Record<DatabaseStatus, StatusView> = {
@@ -120,6 +128,10 @@ export function credentialStatus(status: CredentialStatus, credential: string): 
 
 export function serviceStatus(status: ServiceStatus): StatusView {
   return service[status] ?? unknown;
+}
+
+export function instanceStatus(state: ServiceInstanceState): StatusView {
+  return instance[state] ?? unknown;
 }
 
 export function databaseStatus(status: DatabaseStatus): StatusView {

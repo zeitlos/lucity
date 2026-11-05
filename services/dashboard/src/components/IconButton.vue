@@ -13,12 +13,14 @@ const props = withDefaults(defineProps<{
   size?: ButtonVariants['size'];
   side?: 'top' | 'right' | 'bottom' | 'left';
   class?: HTMLAttributes['class'];
+  tooltipClass?: HTMLAttributes['class'];
 }>(), {
   shortcut: undefined,
   variant: 'ghost',
   size: 'icon-sm',
   side: 'top',
   class: undefined,
+  tooltipClass: undefined,
 });
 </script>
 
@@ -35,7 +37,7 @@ const props = withDefaults(defineProps<{
         <slot />
       </Button>
     </TooltipTrigger>
-    <TooltipContent :side="side" :class="darkTooltipClass">
+    <TooltipContent :side="side" :class="tooltipClass ?? darkTooltipClass">
       {{ label }}
       <kbd
         v-if="shortcut"

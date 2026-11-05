@@ -142,7 +142,9 @@ type Documents = {
     "\n  subscription BuildLogs($id: BuildID!) {\n    buildLogs(id: $id)\n  }\n": typeof types.BuildLogsDocument,
     "\n  subscription DeployLogs($id: DeployID!) {\n    deployLogs(id: $id)\n  }\n": typeof types.DeployLogsDocument,
     "\n  subscription ScanLogs($id: ScanID!) {\n    scanLogs(id: $id)\n  }\n": typeof types.ScanLogsDocument,
-    "\n  subscription ServiceLogs($service: ServiceID!, $tailLines: Int) {\n    serviceLogs(service: $service, tailLines: $tailLines) {\n      line\n      pod\n    }\n  }\n": typeof types.ServiceLogsDocument,
+    "\n  query ServiceLogs($service: ServiceID!, $from: Time!, $to: Time, $filter: ServiceLogFilter, $surrounding: Int, $limit: Int) {\n    serviceLogs(service: $service, from: $from, to: $to, filter: $filter, surrounding: $surrounding, limit: $limit) {\n      time\n      line\n      pod\n      stream\n      event\n    }\n  }\n": typeof types.ServiceLogsDocument,
+    "\n  query ServiceLogTimeline($service: ServiceID!, $from: Time!, $to: Time, $filter: ServiceLogFilter) {\n    serviceLogInstances(service: $service, from: $from, to: $to) {\n      pod\n      firstSeen\n      lastSeen\n      restarts\n      state\n    }\n    serviceLogVolume(service: $service, from: $from, to: $to, filter: $filter) {\n      time\n      stdout\n      stderr\n    }\n  }\n": typeof types.ServiceLogTimelineDocument,
+    "\n  subscription ServiceLogsLive($service: ServiceID!, $tailLines: Int, $filter: ServiceLogFilter) {\n    serviceLogs(service: $service, tailLines: $tailLines, filter: $filter) {\n      time\n      line\n      pod\n      stream\n      event\n    }\n  }\n": typeof types.ServiceLogsLiveDocument,
     "\n  query Workspace {\n    workspace {\n      id\n      name\n      personal\n      suspended\n      members {\n        id\n        email\n        name\n        role\n      }\n    }\n  }\n": typeof types.WorkspaceDocument,
     "\n  mutation CompletePaymentMethodCheckout($sessionId: String!) {\n    completePaymentMethodCheckout(sessionId: $sessionId) {\n      id\n    }\n  }\n": typeof types.CompletePaymentMethodCheckoutDocument,
     "\n  mutation CompleteWorkspaceCheckout($sessionId: String!) {\n    completeWorkspaceCheckout(sessionId: $sessionId) {\n      id\n      name\n      personal\n    }\n  }\n": typeof types.CompleteWorkspaceCheckoutDocument,
@@ -286,7 +288,9 @@ const documents: Documents = {
     "\n  subscription BuildLogs($id: BuildID!) {\n    buildLogs(id: $id)\n  }\n": types.BuildLogsDocument,
     "\n  subscription DeployLogs($id: DeployID!) {\n    deployLogs(id: $id)\n  }\n": types.DeployLogsDocument,
     "\n  subscription ScanLogs($id: ScanID!) {\n    scanLogs(id: $id)\n  }\n": types.ScanLogsDocument,
-    "\n  subscription ServiceLogs($service: ServiceID!, $tailLines: Int) {\n    serviceLogs(service: $service, tailLines: $tailLines) {\n      line\n      pod\n    }\n  }\n": types.ServiceLogsDocument,
+    "\n  query ServiceLogs($service: ServiceID!, $from: Time!, $to: Time, $filter: ServiceLogFilter, $surrounding: Int, $limit: Int) {\n    serviceLogs(service: $service, from: $from, to: $to, filter: $filter, surrounding: $surrounding, limit: $limit) {\n      time\n      line\n      pod\n      stream\n      event\n    }\n  }\n": types.ServiceLogsDocument,
+    "\n  query ServiceLogTimeline($service: ServiceID!, $from: Time!, $to: Time, $filter: ServiceLogFilter) {\n    serviceLogInstances(service: $service, from: $from, to: $to) {\n      pod\n      firstSeen\n      lastSeen\n      restarts\n      state\n    }\n    serviceLogVolume(service: $service, from: $from, to: $to, filter: $filter) {\n      time\n      stdout\n      stderr\n    }\n  }\n": types.ServiceLogTimelineDocument,
+    "\n  subscription ServiceLogsLive($service: ServiceID!, $tailLines: Int, $filter: ServiceLogFilter) {\n    serviceLogs(service: $service, tailLines: $tailLines, filter: $filter) {\n      time\n      line\n      pod\n      stream\n      event\n    }\n  }\n": types.ServiceLogsLiveDocument,
     "\n  query Workspace {\n    workspace {\n      id\n      name\n      personal\n      suspended\n      members {\n        id\n        email\n        name\n        role\n      }\n    }\n  }\n": types.WorkspaceDocument,
     "\n  mutation CompletePaymentMethodCheckout($sessionId: String!) {\n    completePaymentMethodCheckout(sessionId: $sessionId) {\n      id\n    }\n  }\n": types.CompletePaymentMethodCheckoutDocument,
     "\n  mutation CompleteWorkspaceCheckout($sessionId: String!) {\n    completeWorkspaceCheckout(sessionId: $sessionId) {\n      id\n      name\n      personal\n    }\n  }\n": types.CompleteWorkspaceCheckoutDocument,
@@ -831,7 +835,15 @@ export function graphql(source: "\n  subscription ScanLogs($id: ScanID!) {\n    
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  subscription ServiceLogs($service: ServiceID!, $tailLines: Int) {\n    serviceLogs(service: $service, tailLines: $tailLines) {\n      line\n      pod\n    }\n  }\n"): (typeof documents)["\n  subscription ServiceLogs($service: ServiceID!, $tailLines: Int) {\n    serviceLogs(service: $service, tailLines: $tailLines) {\n      line\n      pod\n    }\n  }\n"];
+export function graphql(source: "\n  query ServiceLogs($service: ServiceID!, $from: Time!, $to: Time, $filter: ServiceLogFilter, $surrounding: Int, $limit: Int) {\n    serviceLogs(service: $service, from: $from, to: $to, filter: $filter, surrounding: $surrounding, limit: $limit) {\n      time\n      line\n      pod\n      stream\n      event\n    }\n  }\n"): (typeof documents)["\n  query ServiceLogs($service: ServiceID!, $from: Time!, $to: Time, $filter: ServiceLogFilter, $surrounding: Int, $limit: Int) {\n    serviceLogs(service: $service, from: $from, to: $to, filter: $filter, surrounding: $surrounding, limit: $limit) {\n      time\n      line\n      pod\n      stream\n      event\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query ServiceLogTimeline($service: ServiceID!, $from: Time!, $to: Time, $filter: ServiceLogFilter) {\n    serviceLogInstances(service: $service, from: $from, to: $to) {\n      pod\n      firstSeen\n      lastSeen\n      restarts\n      state\n    }\n    serviceLogVolume(service: $service, from: $from, to: $to, filter: $filter) {\n      time\n      stdout\n      stderr\n    }\n  }\n"): (typeof documents)["\n  query ServiceLogTimeline($service: ServiceID!, $from: Time!, $to: Time, $filter: ServiceLogFilter) {\n    serviceLogInstances(service: $service, from: $from, to: $to) {\n      pod\n      firstSeen\n      lastSeen\n      restarts\n      state\n    }\n    serviceLogVolume(service: $service, from: $from, to: $to, filter: $filter) {\n      time\n      stdout\n      stderr\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  subscription ServiceLogsLive($service: ServiceID!, $tailLines: Int, $filter: ServiceLogFilter) {\n    serviceLogs(service: $service, tailLines: $tailLines, filter: $filter) {\n      time\n      line\n      pod\n      stream\n      event\n    }\n  }\n"): (typeof documents)["\n  subscription ServiceLogsLive($service: ServiceID!, $tailLines: Int, $filter: ServiceLogFilter) {\n    serviceLogs(service: $service, tailLines: $tailLines, filter: $filter) {\n      time\n      line\n      pod\n      stream\n      event\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

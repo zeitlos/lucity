@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/billing"
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/hostname"
 	"github.com/zeitlos/lucity/pkg/platform"
+	"github.com/zeitlos/lucity/pkg/to"
 	"github.com/zeitlos/lucity/pkg/usererror"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
@@ -18,6 +20,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/metrics"
 	"github.com/zeitlos/lucity/services/conductor/internal/planner"
 	"github.com/zeitlos/lucity/services/conductor/internal/scanjob"
+	"github.com/zeitlos/lucity/services/conductor/internal/servicelogs"
 	"github.com/zeitlos/lucity/services/conductor/internal/vulnerabilities"
 )
 
@@ -1523,11 +1526,71 @@ func convertUsageSummary(summary conductor.UsageSummaryResult) model.UsageSummar
 	}
 }
 
-func convertServiceLogEntry(entry platform.LogEntry) *model.ServiceLogEntry {
-	return &model.ServiceLogEntry{
-		Line: entry.Line,
-		Pod:  entry.Pod,
+var (
+	logStreams = map[servicelogs.Stream]model.LogStream{
+		servicelogs.Stdout: model.LogStreamStdout,
+		servicelogs.Stderr: model.LogStreamStderr,
 	}
+	serviceLogEvents = map[servicelogs.Event]model.ServiceLogEvent{
+		servicelogs.Started:           model.ServiceLogEventStarted,
+		servicelogs.Restarted:         model.ServiceLogEventRestarted,
+		servicelogs.Stopping:          model.ServiceLogEventStopping,
+		servicelogs.HealthCheckFailed: model.ServiceLogEventHealthCheckFailed,
+		servicelogs.RestartDelayed:    model.ServiceLogEventRestartDelayed,
+	}
+	serviceInstanceStates = map[platform.InstanceState]model.ServiceInstanceState{
+		platform.InstanceStarting: model.ServiceInstanceStateStarting,
+		platform.InstanceRunning:  model.ServiceInstanceStateRunning,
+		platform.InstanceStopping: model.ServiceInstanceStateStopping,
+		platform.InstanceStopped:  model.ServiceInstanceStateStopped,
+	}
+)
+
+func convertServiceLogEntry(entry conductor.ServiceLogEntry) *model.ServiceLogEntry {
+	result := &model.ServiceLogEntry{
+		Time: entry.Time,
+		Line: entry.Line,
+		Pod:  entry.Instance,
+	}
+
+	if stream, ok := logStreams[entry.Stream]; ok {
+		result.Stream = &stream
+	}
+
+	if event, ok := serviceLogEvents[entry.Event]; ok {
+		result.Event = &event
+	}
+
+	return result
+}
+
+func convertServiceLogInstance(instance conductor.ServiceLogInstance) model.ServiceLogInstance {
+	return model.ServiceLogInstance{
+		Pod:       instance.Name,
+		FirstSeen: instance.FirstSeen,
+		LastSeen:  instance.LastSeen,
+		Restarts:  instance.Restarts,
+		State:     serviceInstanceStates[instance.State],
+	}
+}
+
+func convertServiceLogFilter(filter *model.ServiceLogFilter) conductor.ServiceLogFilter {
+	if filter == nil {
+		return conductor.ServiceLogFilter{}
+	}
+
+	return conductor.ServiceLogFilter{
+		Search:   to.Val(filter.Search),
+		Instance: to.Val(filter.Pod),
+	}
+}
+
+func logsUntil(until *time.Time) time.Time {
+	if until == nil {
+		return time.Now()
+	}
+
+	return *until
 }
 
 func claimVariableKey(seen map[string]struct{}, key string) error {
