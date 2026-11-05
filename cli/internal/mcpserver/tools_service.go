@@ -17,7 +17,7 @@ const serviceSummaryFields = `id name status replicas { desired ready } port com
 func (s *server) registerService(m *mcp.Server) {
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "add_service",
-		Description: "Add a service to an environment. repository = owner/repo or a full https URL for source builds (mutually exclusive with image, which deploys a prebuilt image). The service starts on its own: a repository service's first build begins immediately and an image rolls out immediately, so do not call deploy afterwards. variables set initial env vars; build-time pins like RAILPACK_PYTHON_VERSION must be passed here because the first build starts before any later set_variables call. cpu and memory (Kubernetes quantities, e.g. '500m'/'512Mi') size the service at creation; pass both or omit both for platform defaults. user is the run-as user id for an image-based service (999 for mysql/postgres/redis, 1000 for node-based images like ghost): it makes stock images whose entrypoint would otherwise chown a data dir as root start cleanly under the hardened default, and the same id owns mounted volumes.",
+		Description: "Add a service to an environment. repository = owner/repo or a full https URL for source builds (mutually exclusive with image, which deploys a prebuilt image). The service starts on its own: a repository service's first build begins immediately and an image rolls out immediately, so do not call deploy afterwards. variables set initial env vars as literals only (refs go through set_variables once the service exists); build-time pins like RAILPACK_PYTHON_VERSION must be passed here because the first build starts before any later set_variables call. cpu and memory (Kubernetes quantities, e.g. '500m'/'512Mi') size the service at creation; pass both or omit both for platform defaults. user is the run-as user id for an image-based service (999 for mysql/postgres/redis, 1000 for node-based images like ghost): it makes stock images whose entrypoint would otherwise chown a data dir as root start cleanly under the hardened default, and the same id owns mounted volumes.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(false)},
 	}, s.addService)
 
@@ -46,22 +46,21 @@ func (s *server) registerService(m *mcp.Server) {
 	}, s.checkVariables)
 }
 
-type variableEntry struct {
+type literalVariable struct {
 	Key   string `json:"key" jsonschema:"variable name"`
-	Value string `json:"value,omitempty" jsonschema:"literal value; mutually exclusive with ref"`
-	Ref   string `json:"ref,omitempty" jsonschema:"reference to an availableVariables id from list_variables; mutually exclusive with value"`
+	Value string `json:"value" jsonschema:"literal value, may be empty"`
 }
 
 type addServiceInput struct {
-	Environment string          `json:"environment" jsonschema:"environment id (workspace/project/environment)"`
-	Name        string          `json:"name,omitempty" jsonschema:"service name (2-16 chars, lowercase alphanumeric and hyphens); derived from the repository if omitted"`
-	Repository  string          `json:"repository,omitempty" jsonschema:"owner/repo or full https URL for a source build; mutually exclusive with image"`
-	ContextPath string          `json:"context_path,omitempty" jsonschema:"subdirectory within the repository to build from"`
-	Image       string          `json:"image,omitempty" jsonschema:"prebuilt image reference (e.g. docker.io/library/nginx:latest); mutually exclusive with repository"`
-	Variables   []variableEntry `json:"variables,omitempty" jsonschema:"initial environment variables (literal values only)"`
-	CPU         string          `json:"cpu,omitempty" jsonschema:"CPU limit as a Kubernetes quantity (e.g. 500m); provide together with memory, or omit both for platform defaults"`
-	Memory      string          `json:"memory,omitempty" jsonschema:"memory limit as a Kubernetes quantity (e.g. 512Mi); provide together with cpu, or omit both for platform defaults"`
-	User        *int            `json:"user,omitempty" jsonschema:"run-as user id (0-65535) for image-based services, e.g. 999 for mysql/postgres/redis or 1000 for node-based images; the same id owns mounted volumes; rejected for source builds"`
+	Environment string            `json:"environment" jsonschema:"environment id (workspace/project/environment)"`
+	Name        string            `json:"name,omitempty" jsonschema:"service name (2-16 chars, lowercase alphanumeric and hyphens); derived from the repository if omitted"`
+	Repository  string            `json:"repository,omitempty" jsonschema:"owner/repo or full https URL for a source build; mutually exclusive with image"`
+	ContextPath string            `json:"context_path,omitempty" jsonschema:"subdirectory within the repository to build from"`
+	Image       string            `json:"image,omitempty" jsonschema:"prebuilt image reference (e.g. docker.io/library/nginx:latest); mutually exclusive with repository"`
+	Variables   []literalVariable `json:"variables,omitempty" jsonschema:"initial environment variables as literal values; wire database, key-value store and bucket credentials with set_variables refs once the service exists"`
+	CPU         string            `json:"cpu,omitempty" jsonschema:"CPU limit as a Kubernetes quantity (e.g. 500m); provide together with memory, or omit both for platform defaults"`
+	Memory      string            `json:"memory,omitempty" jsonschema:"memory limit as a Kubernetes quantity (e.g. 512Mi); provide together with cpu, or omit both for platform defaults"`
+	User        *int              `json:"user,omitempty" jsonschema:"run-as user id (0-65535) for image-based services, e.g. 999 for mysql/postgres/redis or 1000 for node-based images; the same id owns mounted volumes; rejected for source builds"`
 }
 
 func (s *server) addService(ctx context.Context, _ *mcp.CallToolRequest, input addServiceInput) (*mcp.CallToolResult, any, error) {
@@ -164,13 +163,13 @@ func (s *server) createdService(ctx context.Context, serviceID string) (map[stri
 }
 
 type configureServiceInput struct {
-	Service      string  `json:"service" jsonschema:"service id (workspace/project/environment/service)"`
-	StartCommand string  `json:"start_command,omitempty" jsonschema:"custom start command; overrides the detected default"`
-	Port         *int    `json:"port,omitempty" jsonschema:"container port (1-65535)"`
-	Replicas     *int    `json:"replicas,omitempty" jsonschema:"desired replica count (1-20)"`
-	CPU          string  `json:"cpu,omitempty" jsonschema:"CPU request as a Kubernetes quantity (e.g. 500m)"`
-	Memory       string  `json:"memory,omitempty" jsonschema:"memory request as a Kubernetes quantity (e.g. 512Mi)"`
-	User         *int    `json:"user,omitempty" jsonschema:"run-as user id (0-65535) for image-based services; the same id owns mounted volumes; -1 clears it back to the image default. Rejected for source builds"`
+	Service      string `json:"service" jsonschema:"service id (workspace/project/environment/service)"`
+	StartCommand string `json:"start_command,omitempty" jsonschema:"custom start command; overrides the detected default"`
+	Port         *int   `json:"port,omitempty" jsonschema:"container port (1-65535)"`
+	Replicas     *int   `json:"replicas,omitempty" jsonschema:"desired replica count (1-20)"`
+	CPU          string `json:"cpu,omitempty" jsonschema:"CPU request as a Kubernetes quantity (e.g. 500m)"`
+	Memory       string `json:"memory,omitempty" jsonschema:"memory request as a Kubernetes quantity (e.g. 512Mi)"`
+	User         *int   `json:"user,omitempty" jsonschema:"run-as user id (0-65535) for image-based services; the same id owns mounted volumes; -1 clears it back to the image default. Rejected for source builds"`
 }
 
 func (s *server) configureService(ctx context.Context, _ *mcp.CallToolRequest, input configureServiceInput) (*mcp.CallToolResult, any, error) {
