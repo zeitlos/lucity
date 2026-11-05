@@ -60,7 +60,7 @@ func executeBuild(cfg Config, buildVars map[string]string) error {
 	// 2. Clone the repository
 	slog.Info("cloning repository", "url", cfg.SourceURL, "ref", cfg.GitRef)
 
-	repoPath, err := cloneForBuild(workDir, cfg.SourceURL, cfg.GitHubToken)
+	repoPath, err := cloneForBuild(workDir, cfg.SourceURL, cfg.GitRef, cfg.GitHubToken)
 
 	if err != nil {
 		return fmt.Errorf("clone failed: %w", err)
@@ -208,7 +208,7 @@ func contextDir(repoPath, contextPath string) (string, error) {
 	return filepath.Join(repoPath, path), nil
 }
 
-func cloneForBuild(workDir, sourceURL, token string) (string, error) {
+func cloneForBuild(workDir, sourceURL, commit, token string) (string, error) {
 	tmpDir, err := os.MkdirTemp(workDir, "build-*")
 
 	if err != nil {
@@ -229,21 +229,47 @@ func cloneForBuild(workDir, sourceURL, token string) (string, error) {
 		)
 	}
 
-	clone := exec.CommandContext(ctx, "git", "clone", "--quiet", "--depth", "1", "--single-branch", sourceURL, tmpDir)
-	clone.Env = env
-	clone.Stderr = os.Stderr
-
-	if err := clone.Run(); err != nil {
+	if err := checkoutCommit(ctx, env, tmpDir, sourceURL, commit, "--depth", "1"); err != nil {
 		os.RemoveAll(tmpDir)
 
 		if ctx.Err() != nil {
-			return "", fmt.Errorf("git clone timed out: %w", ctx.Err())
+			return "", fmt.Errorf("git checkout timed out: %w", ctx.Err())
 		}
 
-		return "", fmt.Errorf("git clone failed: %w", err)
+		return "", err
 	}
 
 	return tmpDir, nil
+}
+
+func checkoutCommit(ctx context.Context, env []string, dir, sourceURL, commit string, fetchArgs ...string) error {
+	if commit == "" {
+		return fmt.Errorf("no commit to check out")
+	}
+
+	git := func(args ...string) error {
+		cmd := exec.CommandContext(ctx, "git", append([]string{"-C", dir}, args...)...)
+		cmd.Env = env
+		cmd.Stderr = os.Stderr
+
+		return cmd.Run()
+	}
+
+	if err := git("init", "--quiet"); err != nil {
+		return fmt.Errorf("git init: %w", err)
+	}
+
+	fetch := append([]string{"fetch", "--quiet", "--no-tags"}, fetchArgs...)
+
+	if err := git(append(fetch, "--", sourceURL, commit)...); err != nil {
+		return fmt.Errorf("git fetch %s: %w", commit, err)
+	}
+
+	if err := git("checkout", "--quiet", "FETCH_HEAD"); err != nil {
+		return fmt.Errorf("git checkout %s: %w", commit, err)
+	}
+
+	return nil
 }
 
 // normalizeTimestamps sets all file modification times in the repo to the HEAD
