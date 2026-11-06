@@ -129,10 +129,6 @@ spec:
               value: "{{ .Values.agents.image.repository }}:{{ .Values.agents.image.tag | default .Chart.AppVersion }}"
             - name: AGENT_GATEWAY_URL
               value: "http://lucity-agent-gateway.{{ .Values.agents.namespace }}.svc.cluster.local"
-            {{- with .Values.agents.logsURL }}
-            - name: VICTORIA_LOGS_URL
-              value: {{ . | quote }}
-            {{- end }}
             {{- end }}
             {{- range $key, $value := .Values.conductor.env }}
             - name: {{ $key }}

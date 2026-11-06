@@ -736,6 +736,9 @@ type ComplexityRoot struct {
 		RepositoryBranches       func(childComplexity int, repositoryURL string) int
 		SearchImages             func(childComplexity int, query string) int
 		Service                  func(childComplexity int, id platform.ServiceID) int
+		ServiceLogInstances      func(childComplexity int, service platform.ServiceID, from time.Time, to *time.Time) int
+		ServiceLogVolume         func(childComplexity int, service platform.ServiceID, from time.Time, to *time.Time, filter *model.ServiceLogFilter, slots *int) int
+		ServiceLogs              func(childComplexity int, service platform.ServiceID, from time.Time, to *time.Time, filter *model.ServiceLogFilter, surrounding *int, limit *int, direction *model.LogDirection) int
 		ServiceVariables         func(childComplexity int, service platform.ServiceID) int
 		SharedVariables          func(childComplexity int, environment platform.EnvironmentID) int
 		Subscription             func(childComplexity int) int
@@ -847,8 +850,25 @@ type ComplexityRoot struct {
 	}
 
 	ServiceLogEntry struct {
-		Line func(childComplexity int) int
-		Pod  func(childComplexity int) int
+		Event  func(childComplexity int) int
+		Line   func(childComplexity int) int
+		Pod    func(childComplexity int) int
+		Stream func(childComplexity int) int
+		Time   func(childComplexity int) int
+	}
+
+	ServiceLogInstance struct {
+		FirstSeen func(childComplexity int) int
+		LastSeen  func(childComplexity int) int
+		Pod       func(childComplexity int) int
+		Restarts  func(childComplexity int) int
+		State     func(childComplexity int) int
+	}
+
+	ServiceLogVolume struct {
+		Stderr func(childComplexity int) int
+		Stdout func(childComplexity int) int
+		Time   func(childComplexity int) int
 	}
 
 	ServiceVariable struct {
@@ -878,7 +898,7 @@ type ComplexityRoot struct {
 		DeployLogs         func(childComplexity int, id deployjob.DeployID) int
 		Environment        func(childComplexity int, environment platform.EnvironmentID) int
 		ScanLogs           func(childComplexity int, id scanjob.ScanID) int
-		ServiceLogs        func(childComplexity int, service platform.ServiceID, tailLines *int) int
+		ServiceLogs        func(childComplexity int, service platform.ServiceID, tailLines *int, filter *model.ServiceLogFilter) int
 	}
 
 	UsageSummary struct {
@@ -1109,6 +1129,9 @@ type QueryResolver interface {
 	GithubConnected(ctx context.Context) (bool, error)
 	KeyValueStore(ctx context.Context, id platform.KeyValueStoreID) (*model.KeyValueStore, error)
 	KeyValueStoreCredentials(ctx context.Context, keyValueStore platform.KeyValueStoreID) ([]model.KeyValueStoreCredentials, error)
+	ServiceLogs(ctx context.Context, service platform.ServiceID, from time.Time, to *time.Time, filter *model.ServiceLogFilter, surrounding *int, limit *int, direction *model.LogDirection) ([]model.ServiceLogEntry, error)
+	ServiceLogInstances(ctx context.Context, service platform.ServiceID, from time.Time, to *time.Time) ([]model.ServiceLogInstance, error)
+	ServiceLogVolume(ctx context.Context, service platform.ServiceID, from time.Time, to *time.Time, filter *model.ServiceLogFilter, slots *int) ([]model.ServiceLogVolume, error)
 	ModelProviders(ctx context.Context) ([]model.ModelProvider, error)
 	ModelProvider(ctx context.Context, id platform.ModelProviderID) (*model.ModelProvider, error)
 	Bucket(ctx context.Context, id platform.BucketID) (*model.Bucket, error)
@@ -1146,7 +1169,7 @@ type ServiceResolver interface {
 type SubscriptionResolver interface {
 	AgentSessionEvents(ctx context.Context, session platform.AgentSessionID, after *string) (<-chan model.AgentSessionEvent, error)
 	Environment(ctx context.Context, environment platform.EnvironmentID) (<-chan *model.Environment, error)
-	ServiceLogs(ctx context.Context, service platform.ServiceID, tailLines *int) (<-chan *model.ServiceLogEntry, error)
+	ServiceLogs(ctx context.Context, service platform.ServiceID, tailLines *int, filter *model.ServiceLogFilter) (<-chan *model.ServiceLogEntry, error)
 	BuildLogs(ctx context.Context, id buildjob.BuildID) (<-chan string, error)
 	DeployLogs(ctx context.Context, id deployjob.DeployID) (<-chan string, error)
 	ScanLogs(ctx context.Context, id scanjob.ScanID) (<-chan string, error)
@@ -4592,6 +4615,39 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Service(childComplexity, args["id"].(platform.ServiceID)), true
+	case "Query.serviceLogInstances":
+		if e.ComplexityRoot.Query.ServiceLogInstances == nil {
+			break
+		}
+
+		args, err := ec.field_Query_serviceLogInstances_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.ServiceLogInstances(childComplexity, args["service"].(platform.ServiceID), args["from"].(time.Time), args["to"].(*time.Time)), true
+	case "Query.serviceLogVolume":
+		if e.ComplexityRoot.Query.ServiceLogVolume == nil {
+			break
+		}
+
+		args, err := ec.field_Query_serviceLogVolume_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.ServiceLogVolume(childComplexity, args["service"].(platform.ServiceID), args["from"].(time.Time), args["to"].(*time.Time), args["filter"].(*model.ServiceLogFilter), args["slots"].(*int)), true
+	case "Query.serviceLogs":
+		if e.ComplexityRoot.Query.ServiceLogs == nil {
+			break
+		}
+
+		args, err := ec.field_Query_serviceLogs_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.ServiceLogs(childComplexity, args["service"].(platform.ServiceID), args["from"].(time.Time), args["to"].(*time.Time), args["filter"].(*model.ServiceLogFilter), args["surrounding"].(*int), args["limit"].(*int), args["direction"].(*model.LogDirection)), true
 	case "Query.serviceVariables":
 		if e.ComplexityRoot.Query.ServiceVariables == nil {
 			break
@@ -5074,6 +5130,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Service.VulnerabilityReport(childComplexity), true
 
+	case "ServiceLogEntry.event":
+		if e.ComplexityRoot.ServiceLogEntry.Event == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ServiceLogEntry.Event(childComplexity), true
 	case "ServiceLogEntry.line":
 		if e.ComplexityRoot.ServiceLogEntry.Line == nil {
 			break
@@ -5086,6 +5148,68 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ServiceLogEntry.Pod(childComplexity), true
+	case "ServiceLogEntry.stream":
+		if e.ComplexityRoot.ServiceLogEntry.Stream == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ServiceLogEntry.Stream(childComplexity), true
+	case "ServiceLogEntry.time":
+		if e.ComplexityRoot.ServiceLogEntry.Time == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ServiceLogEntry.Time(childComplexity), true
+
+	case "ServiceLogInstance.firstSeen":
+		if e.ComplexityRoot.ServiceLogInstance.FirstSeen == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ServiceLogInstance.FirstSeen(childComplexity), true
+	case "ServiceLogInstance.lastSeen":
+		if e.ComplexityRoot.ServiceLogInstance.LastSeen == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ServiceLogInstance.LastSeen(childComplexity), true
+	case "ServiceLogInstance.pod":
+		if e.ComplexityRoot.ServiceLogInstance.Pod == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ServiceLogInstance.Pod(childComplexity), true
+	case "ServiceLogInstance.restarts":
+		if e.ComplexityRoot.ServiceLogInstance.Restarts == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ServiceLogInstance.Restarts(childComplexity), true
+	case "ServiceLogInstance.state":
+		if e.ComplexityRoot.ServiceLogInstance.State == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ServiceLogInstance.State(childComplexity), true
+
+	case "ServiceLogVolume.stderr":
+		if e.ComplexityRoot.ServiceLogVolume.Stderr == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ServiceLogVolume.Stderr(childComplexity), true
+	case "ServiceLogVolume.stdout":
+		if e.ComplexityRoot.ServiceLogVolume.Stdout == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ServiceLogVolume.Stdout(childComplexity), true
+	case "ServiceLogVolume.time":
+		if e.ComplexityRoot.ServiceLogVolume.Time == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ServiceLogVolume.Time(childComplexity), true
 
 	case "ServiceVariable.key":
 		if e.ComplexityRoot.ServiceVariable.Key == nil {
@@ -5210,7 +5334,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Subscription.ServiceLogs(childComplexity, args["service"].(platform.ServiceID), args["tailLines"].(*int)), true
+		return e.ComplexityRoot.Subscription.ServiceLogs(childComplexity, args["service"].(platform.ServiceID), args["tailLines"].(*int), args["filter"].(*model.ServiceLogFilter)), true
 
 	case "UsageSummary.creditsCents":
 		if e.ComplexityRoot.UsageSummary.CreditsCents == nil {
@@ -5541,6 +5665,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputMetricsRange,
 		ec.unmarshalInputResourcesInput,
 		ec.unmarshalInputRestoreDatabaseInput,
+		ec.unmarshalInputServiceLogFilter,
 		ec.unmarshalInputServiceVariableInput,
 		ec.unmarshalInputSetServiceScalingInput,
 		ec.unmarshalInputUpdateMemberRoleInput,
@@ -6865,12 +6990,46 @@ func (ec *executionContext) childFields_Service(ctx context.Context, field graph
 
 func (ec *executionContext) childFields_ServiceLogEntry(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
+	case "time":
+		return ec.fieldContext_ServiceLogEntry_time(ctx, field)
 	case "line":
 		return ec.fieldContext_ServiceLogEntry_line(ctx, field)
 	case "pod":
 		return ec.fieldContext_ServiceLogEntry_pod(ctx, field)
+	case "stream":
+		return ec.fieldContext_ServiceLogEntry_stream(ctx, field)
+	case "event":
+		return ec.fieldContext_ServiceLogEntry_event(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type ServiceLogEntry", field.Name)
+}
+
+func (ec *executionContext) childFields_ServiceLogInstance(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "pod":
+		return ec.fieldContext_ServiceLogInstance_pod(ctx, field)
+	case "firstSeen":
+		return ec.fieldContext_ServiceLogInstance_firstSeen(ctx, field)
+	case "lastSeen":
+		return ec.fieldContext_ServiceLogInstance_lastSeen(ctx, field)
+	case "restarts":
+		return ec.fieldContext_ServiceLogInstance_restarts(ctx, field)
+	case "state":
+		return ec.fieldContext_ServiceLogInstance_state(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ServiceLogInstance", field.Name)
+}
+
+func (ec *executionContext) childFields_ServiceLogVolume(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "time":
+		return ec.fieldContext_ServiceLogVolume_time(ctx, field)
+	case "stdout":
+		return ec.fieldContext_ServiceLogVolume_stdout(ctx, field)
+	case "stderr":
+		return ec.fieldContext_ServiceLogVolume_stderr(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ServiceLogVolume", field.Name)
 }
 
 func (ec *executionContext) childFields_ServiceVariable(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -11022,6 +11181,267 @@ func (ec *executionContext) field_Query_searchImages_args(ctx context.Context, r
 	return args, nil
 }
 
+func (ec *executionContext) field_Query_serviceLogInstances_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
+		func(ctx context.Context, v any) (platform.ServiceID, error) {
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐServiceID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["service"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "from",
+		func(ctx context.Context, v any) (time.Time, error) {
+			return ec.unmarshalNTime2timeᚐTime(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["from"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "to",
+		func(ctx context.Context, v any) (*time.Time, error) {
+			return ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["to"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_serviceLogVolume_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
+		func(ctx context.Context, v any) (platform.ServiceID, error) {
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐServiceID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["service"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "from",
+		func(ctx context.Context, v any) (time.Time, error) {
+			return ec.unmarshalNTime2timeᚐTime(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["from"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "to",
+		func(ctx context.Context, v any) (*time.Time, error) {
+			return ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["to"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "filter",
+		func(ctx context.Context, v any) (*model.ServiceLogFilter, error) {
+			return ec.unmarshalOServiceLogFilter2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceLogFilter(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["filter"] = arg3
+
+	arg4, err := ec.field_Query_serviceLogVolume_argsSlots(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["slots"] = arg4
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_serviceLogVolume_argsSlots(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("slots"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["slots"]
+		if !ok {
+			var zeroVal *int
+			return zeroVal, nil
+		}
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=240")
+		if err != nil {
+			var zeroVal *int
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal *int
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal *int
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(*int); ok {
+		return data, nil
+	} else if tmp == nil {
+		var zeroVal *int
+		return zeroVal, nil
+	} else {
+		var zeroVal *int
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be *int`, tmp))
+	}
+}
+
+func (ec *executionContext) field_Query_serviceLogs_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
+		func(ctx context.Context, v any) (platform.ServiceID, error) {
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐServiceID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["service"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "from",
+		func(ctx context.Context, v any) (time.Time, error) {
+			return ec.unmarshalNTime2timeᚐTime(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["from"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "to",
+		func(ctx context.Context, v any) (*time.Time, error) {
+			return ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["to"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "filter",
+		func(ctx context.Context, v any) (*model.ServiceLogFilter, error) {
+			return ec.unmarshalOServiceLogFilter2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceLogFilter(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["filter"] = arg3
+
+	arg4, err := ec.field_Query_serviceLogs_argsSurrounding(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["surrounding"] = arg4
+
+	arg5, err := ec.field_Query_serviceLogs_argsLimit(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg5
+	arg6, err := graphql.ProcessArgField(ctx, rawArgs, "direction",
+		func(ctx context.Context, v any) (*model.LogDirection, error) {
+			return ec.unmarshalOLogDirection2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐLogDirection(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["direction"] = arg6
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_serviceLogs_argsSurrounding(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("surrounding"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["surrounding"]
+		if !ok {
+			var zeroVal *int
+			return zeroVal, nil
+		}
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "min=0,max=20")
+		if err != nil {
+			var zeroVal *int
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal *int
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal *int
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(*int); ok {
+		return data, nil
+	} else if tmp == nil {
+		var zeroVal *int
+		return zeroVal, nil
+	} else {
+		var zeroVal *int
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be *int`, tmp))
+	}
+}
+
+func (ec *executionContext) field_Query_serviceLogs_argsLimit(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("limit"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["limit"]
+		if !ok {
+			var zeroVal *int
+			return zeroVal, nil
+		}
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=5000")
+		if err != nil {
+			var zeroVal *int
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal *int
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal *int
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(*int); ok {
+		return data, nil
+	} else if tmp == nil {
+		var zeroVal *int
+		return zeroVal, nil
+	} else {
+		var zeroVal *int
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be *int`, tmp))
+	}
+}
+
 func (ec *executionContext) field_Query_serviceVariables_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -11238,15 +11658,64 @@ func (ec *executionContext) field_Subscription_serviceLogs_args(ctx context.Cont
 		return nil, err
 	}
 	args["service"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "tailLines",
-		func(ctx context.Context, v any) (*int, error) {
-			return ec.unmarshalOInt2ᚖint(ctx, v)
-		})
+
+	arg1, err := ec.field_Subscription_serviceLogs_argsTailLines(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
 	args["tailLines"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "filter",
+		func(ctx context.Context, v any) (*model.ServiceLogFilter, error) {
+			return ec.unmarshalOServiceLogFilter2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceLogFilter(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["filter"] = arg2
 	return args, nil
+}
+
+func (ec *executionContext) field_Subscription_serviceLogs_argsTailLines(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("tailLines"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["tailLines"]
+		if !ok {
+			var zeroVal *int
+			return zeroVal, nil
+		}
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "min=0,max=5000")
+		if err != nil {
+			var zeroVal *int
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal *int
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal *int
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(*int); ok {
+		return data, nil
+	} else if tmp == nil {
+		var zeroVal *int
+		return zeroVal, nil
+	} else {
+		var zeroVal *int
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be *int`, tmp))
+	}
 }
 
 func (ec *executionContext) field_Volume_metrics_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
@@ -26359,6 +26828,192 @@ func (ec *executionContext) fieldContext_Query_keyValueStoreCredentials(ctx cont
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_serviceLogs(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_serviceLogs(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().ServiceLogs(ctx, fc.Args["service"].(platform.ServiceID), fc.Args["from"].(time.Time), fc.Args["to"].(*time.Time), fc.Args["filter"].(*model.ServiceLogFilter), fc.Args["surrounding"].(*int), fc.Args["limit"].(*int), fc.Args["direction"].(*model.LogDirection))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal []model.ServiceLogEntry
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal []model.ServiceLogEntry
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v []model.ServiceLogEntry) graphql.Marshaler {
+			return ec.marshalNServiceLogEntry2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceLogEntryᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_serviceLogs(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ServiceLogEntry(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_serviceLogs_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_serviceLogInstances(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_serviceLogInstances(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().ServiceLogInstances(ctx, fc.Args["service"].(platform.ServiceID), fc.Args["from"].(time.Time), fc.Args["to"].(*time.Time))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal []model.ServiceLogInstance
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal []model.ServiceLogInstance
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v []model.ServiceLogInstance) graphql.Marshaler {
+			return ec.marshalNServiceLogInstance2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceLogInstanceᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_serviceLogInstances(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ServiceLogInstance(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_serviceLogInstances_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_serviceLogVolume(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_serviceLogVolume(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().ServiceLogVolume(ctx, fc.Args["service"].(platform.ServiceID), fc.Args["from"].(time.Time), fc.Args["to"].(*time.Time), fc.Args["filter"].(*model.ServiceLogFilter), fc.Args["slots"].(*int))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal []model.ServiceLogVolume
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal []model.ServiceLogVolume
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v []model.ServiceLogVolume) graphql.Marshaler {
+			return ec.marshalNServiceLogVolume2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceLogVolumeᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_serviceLogVolume(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ServiceLogVolume(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_serviceLogVolume_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_modelProviders(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -29383,6 +30038,29 @@ func (ec *executionContext) fieldContext_Service_vulnerabilityReport(_ context.C
 	return fc, nil
 }
 
+func (ec *executionContext) _ServiceLogEntry_time(ctx context.Context, field graphql.CollectedField, obj *model.ServiceLogEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ServiceLogEntry_time(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Time, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ServiceLogEntry_time(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ServiceLogEntry", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
 func (ec *executionContext) _ServiceLogEntry_line(ctx context.Context, field graphql.CollectedField, obj *model.ServiceLogEntry) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -29427,6 +30105,236 @@ func (ec *executionContext) _ServiceLogEntry_pod(ctx context.Context, field grap
 }
 func (ec *executionContext) fieldContext_ServiceLogEntry_pod(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("ServiceLogEntry", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _ServiceLogEntry_stream(ctx context.Context, field graphql.CollectedField, obj *model.ServiceLogEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ServiceLogEntry_stream(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Stream, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.LogStream) graphql.Marshaler {
+			return ec.marshalOLogStream2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐLogStream(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_ServiceLogEntry_stream(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ServiceLogEntry", field, false, false, errors.New("field of type LogStream does not have child fields"))
+}
+
+func (ec *executionContext) _ServiceLogEntry_event(ctx context.Context, field graphql.CollectedField, obj *model.ServiceLogEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ServiceLogEntry_event(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Event, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.ServiceLogEvent) graphql.Marshaler {
+			return ec.marshalOServiceLogEvent2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceLogEvent(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_ServiceLogEntry_event(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ServiceLogEntry", field, false, false, errors.New("field of type ServiceLogEvent does not have child fields"))
+}
+
+func (ec *executionContext) _ServiceLogInstance_pod(ctx context.Context, field graphql.CollectedField, obj *model.ServiceLogInstance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ServiceLogInstance_pod(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Pod, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ServiceLogInstance_pod(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ServiceLogInstance", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _ServiceLogInstance_firstSeen(ctx context.Context, field graphql.CollectedField, obj *model.ServiceLogInstance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ServiceLogInstance_firstSeen(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.FirstSeen, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ServiceLogInstance_firstSeen(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ServiceLogInstance", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _ServiceLogInstance_lastSeen(ctx context.Context, field graphql.CollectedField, obj *model.ServiceLogInstance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ServiceLogInstance_lastSeen(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.LastSeen, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ServiceLogInstance_lastSeen(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ServiceLogInstance", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _ServiceLogInstance_restarts(ctx context.Context, field graphql.CollectedField, obj *model.ServiceLogInstance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ServiceLogInstance_restarts(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Restarts, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []time.Time) graphql.Marshaler {
+			return ec.marshalNTime2ᚕtimeᚐTimeᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ServiceLogInstance_restarts(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ServiceLogInstance", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _ServiceLogInstance_state(ctx context.Context, field graphql.CollectedField, obj *model.ServiceLogInstance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ServiceLogInstance_state(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.State, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.ServiceInstanceState) graphql.Marshaler {
+			return ec.marshalNServiceInstanceState2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceInstanceState(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ServiceLogInstance_state(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ServiceLogInstance", field, false, false, errors.New("field of type ServiceInstanceState does not have child fields"))
+}
+
+func (ec *executionContext) _ServiceLogVolume_time(ctx context.Context, field graphql.CollectedField, obj *model.ServiceLogVolume) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ServiceLogVolume_time(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Time, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ServiceLogVolume_time(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ServiceLogVolume", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _ServiceLogVolume_stdout(ctx context.Context, field graphql.CollectedField, obj *model.ServiceLogVolume) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ServiceLogVolume_stdout(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Stdout, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ServiceLogVolume_stdout(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ServiceLogVolume", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _ServiceLogVolume_stderr(ctx context.Context, field graphql.CollectedField, obj *model.ServiceLogVolume) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ServiceLogVolume_stderr(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Stderr, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ServiceLogVolume_stderr(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ServiceLogVolume", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
 func (ec *executionContext) _ServiceVariable_key(ctx context.Context, field graphql.CollectedField, obj *model.ServiceVariable) (ret graphql.Marshaler) {
@@ -29779,7 +30687,7 @@ func (ec *executionContext) _Subscription_serviceLogs(ctx context.Context, field
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Subscription().ServiceLogs(ctx, fc.Args["service"].(platform.ServiceID), fc.Args["tailLines"].(*int))
+			return ec.Resolvers.Subscription().ServiceLogs(ctx, fc.Args["service"].(platform.ServiceID), fc.Args["tailLines"].(*int), fc.Args["filter"].(*model.ServiceLogFilter))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -33801,6 +34709,87 @@ func (ec *executionContext) unmarshalInputRestoreDatabaseInput(ctx context.Conte
 				return it, err
 			}
 			it.TargetTime = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputServiceLogFilter(ctx context.Context, obj any) (model.ServiceLogFilter, error) {
+	var it model.ServiceLogFilter
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"search", "pod"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "search":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("search"))
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalOString2ᚖstring(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "max=200")
+				if err != nil {
+					var zeroVal *string
+					return zeroVal, err
+				}
+				if ec.Directives.Constraint == nil {
+					var zeroVal *string
+					return zeroVal, errors.New("directive constraint is not implemented")
+				}
+				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
+			}
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(*string); ok {
+				it.Search = data
+			} else if tmp == nil {
+				it.Search = nil
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be *string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+		case "pod":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("pod"))
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalOString2ᚖstring(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "max=253")
+				if err != nil {
+					var zeroVal *string
+					return zeroVal, err
+				}
+				if ec.Directives.Constraint == nil {
+					var zeroVal *string
+					return zeroVal, errors.New("directive constraint is not implemented")
+				}
+				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
+			}
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(*string); ok {
+				it.Pod = data
+			} else if tmp == nil {
+				it.Pod = nil
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be *string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
 		}
 	}
 	return it, nil
@@ -39992,6 +40981,72 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "serviceLogs":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_serviceLogs(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "serviceLogInstances":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_serviceLogInstances(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "serviceLogVolume":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_serviceLogVolume(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "modelProviders":
 			field := field
 
@@ -41446,6 +42501,11 @@ func (ec *executionContext) _ServiceLogEntry(ctx context.Context, sel ast.Select
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("ServiceLogEntry")
+		case "time":
+			out.Values[i] = ec._ServiceLogEntry_time(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "line":
 			out.Values[i] = ec._ServiceLogEntry_line(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -41453,6 +42513,122 @@ func (ec *executionContext) _ServiceLogEntry(ctx context.Context, sel ast.Select
 			}
 		case "pod":
 			out.Values[i] = ec._ServiceLogEntry_pod(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "stream":
+			out.Values[i] = ec._ServiceLogEntry_stream(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "event":
+			out.Values[i] = ec._ServiceLogEntry_event(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var serviceLogInstanceImplementors = []string{"ServiceLogInstance"}
+
+func (ec *executionContext) _ServiceLogInstance(ctx context.Context, sel ast.SelectionSet, obj *model.ServiceLogInstance) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, serviceLogInstanceImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ServiceLogInstance")
+		case "pod":
+			out.Values[i] = ec._ServiceLogInstance_pod(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "firstSeen":
+			out.Values[i] = ec._ServiceLogInstance_firstSeen(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "lastSeen":
+			out.Values[i] = ec._ServiceLogInstance_lastSeen(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "restarts":
+			out.Values[i] = ec._ServiceLogInstance_restarts(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "state":
+			out.Values[i] = ec._ServiceLogInstance_state(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var serviceLogVolumeImplementors = []string{"ServiceLogVolume"}
+
+func (ec *executionContext) _ServiceLogVolume(ctx context.Context, sel ast.SelectionSet, obj *model.ServiceLogVolume) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, serviceLogVolumeImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ServiceLogVolume")
+		case "time":
+			out.Values[i] = ec._ServiceLogVolume_time(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "stdout":
+			out.Values[i] = ec._ServiceLogVolume_stdout(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "stderr":
+			out.Values[i] = ec._ServiceLogVolume_stderr(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -44734,6 +45910,36 @@ func (ec *executionContext) marshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋ
 	return v
 }
 
+func (ec *executionContext) unmarshalNServiceInstanceState2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceInstanceState(ctx context.Context, v any) (model.ServiceInstanceState, error) {
+	var res model.ServiceInstanceState
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNServiceInstanceState2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceInstanceState(ctx context.Context, sel ast.SelectionSet, v model.ServiceInstanceState) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) marshalNServiceLogEntry2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceLogEntry(ctx context.Context, sel ast.SelectionSet, v model.ServiceLogEntry) graphql.Marshaler {
+	return ec._ServiceLogEntry(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNServiceLogEntry2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceLogEntryᚄ(ctx context.Context, sel ast.SelectionSet, v []model.ServiceLogEntry) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNServiceLogEntry2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceLogEntry(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
 func (ec *executionContext) marshalNServiceLogEntry2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceLogEntry(ctx context.Context, sel ast.SelectionSet, v *model.ServiceLogEntry) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -44742,6 +45948,46 @@ func (ec *executionContext) marshalNServiceLogEntry2ᚖgithubᚗcomᚋzeitlosᚋ
 		return graphql.Null
 	}
 	return ec._ServiceLogEntry(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNServiceLogInstance2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceLogInstance(ctx context.Context, sel ast.SelectionSet, v model.ServiceLogInstance) graphql.Marshaler {
+	return ec._ServiceLogInstance(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNServiceLogInstance2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceLogInstanceᚄ(ctx context.Context, sel ast.SelectionSet, v []model.ServiceLogInstance) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNServiceLogInstance2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceLogInstance(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNServiceLogVolume2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceLogVolume(ctx context.Context, sel ast.SelectionSet, v model.ServiceLogVolume) graphql.Marshaler {
+	return ec._ServiceLogVolume(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNServiceLogVolume2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceLogVolumeᚄ(ctx context.Context, sel ast.SelectionSet, v []model.ServiceLogVolume) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNServiceLogVolume2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceLogVolume(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalNServiceStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceStatus(ctx context.Context, v any) (model.ServiceStatus, error) {
@@ -44930,6 +46176,35 @@ func (ec *executionContext) marshalNTime2timeᚐTime(ctx context.Context, sel as
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) unmarshalNTime2ᚕtimeᚐTimeᚄ(ctx context.Context, v any) ([]time.Time, error) {
+	vSlice := graphql.CoerceList(v)
+	var err error
+	res := make([]time.Time, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNTime2timeᚐTime(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalNTime2ᚕtimeᚐTimeᚄ(ctx context.Context, sel ast.SelectionSet, v []time.Time) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNTime2timeᚐTime(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalNTlsStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐTLSStatus(ctx context.Context, v any) (model.TLSStatus, error) {
@@ -45618,6 +46893,38 @@ func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.Sele
 	return res
 }
 
+func (ec *executionContext) unmarshalOLogDirection2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐLogDirection(ctx context.Context, v any) (*model.LogDirection, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.LogDirection)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOLogDirection2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐLogDirection(ctx context.Context, sel ast.SelectionSet, v *model.LogDirection) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
+}
+
+func (ec *executionContext) unmarshalOLogStream2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐLogStream(ctx context.Context, v any) (*model.LogStream, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.LogStream)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOLogStream2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐLogStream(ctx context.Context, sel ast.SelectionSet, v *model.LogStream) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
+}
+
 func (ec *executionContext) marshalOMount2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMount(ctx context.Context, sel ast.SelectionSet, v *model.Mount) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
@@ -45700,6 +47007,30 @@ func (ec *executionContext) marshalOSecretScanReport2ᚖgithubᚗcomᚋzeitlos�
 		return graphql.Null
 	}
 	return ec._SecretScanReport(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOServiceLogEvent2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceLogEvent(ctx context.Context, v any) (*model.ServiceLogEvent, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.ServiceLogEvent)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOServiceLogEvent2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceLogEvent(ctx context.Context, sel ast.SelectionSet, v *model.ServiceLogEvent) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
+}
+
+func (ec *executionContext) unmarshalOServiceLogFilter2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceLogFilter(ctx context.Context, v any) (*model.ServiceLogFilter, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputServiceLogFilter(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalOString2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {

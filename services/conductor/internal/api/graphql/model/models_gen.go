@@ -956,10 +956,44 @@ type Service struct {
 }
 
 type ServiceLogEntry struct {
-	// The log line, prefixed with the instance it came from when the service runs more than one.
+	// When the line was written.
+	Time time.Time `json:"time"`
+	// The log line, or the details of an event. Empty for events without details.
 	Line string `json:"line"`
 	// The instance that produced the line.
 	Pod string `json:"pod"`
+	// Where the line was written. Null for events.
+	Stream *LogStream `json:"stream,omitempty"`
+	// Set when the entry is something the platform did, not a line of the service.
+	Event *ServiceLogEvent `json:"event,omitempty"`
+}
+
+type ServiceLogFilter struct {
+	// Only lines containing this text, ignoring case. Leaves out events.
+	Search *string `json:"search,omitempty"`
+	// Only entries of this instance.
+	Pod *string `json:"pod,omitempty"`
+}
+
+// An instance that wrote lines in a time range.
+type ServiceLogInstance struct {
+	Pod string `json:"pod"`
+	// Its first line in the range.
+	FirstSeen time.Time `json:"firstSeen"`
+	// Its last line in the range.
+	LastSeen time.Time `json:"lastSeen"`
+	// When it started again after exiting, within the range.
+	Restarts []time.Time `json:"restarts"`
+	// Its state right now.
+	State ServiceInstanceState `json:"state"`
+}
+
+// The lines written in one slot of a time range.
+type ServiceLogVolume struct {
+	// Start of the slot.
+	Time   time.Time `json:"time"`
+	Stdout int       `json:"stdout"`
+	Stderr int       `json:"stderr"`
 }
 
 type ServiceVariable struct {
@@ -2722,6 +2756,120 @@ func (e Harness) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// Which end of a time range a page of log entries starts from.
+type LogDirection string
+
+const (
+	// From the end of the range back in time: the newest entries.
+	LogDirectionBackward LogDirection = "BACKWARD"
+	// From the start of the range forward in time: the oldest entries.
+	LogDirectionForward LogDirection = "FORWARD"
+)
+
+var AllLogDirection = []LogDirection{
+	LogDirectionBackward,
+	LogDirectionForward,
+}
+
+func (e LogDirection) IsValid() bool {
+	switch e {
+	case LogDirectionBackward, LogDirectionForward:
+		return true
+	}
+	return false
+}
+
+func (e LogDirection) String() string {
+	return string(e)
+}
+
+func (e *LogDirection) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = LogDirection(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid LogDirection", str)
+	}
+	return nil
+}
+
+func (e LogDirection) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *LogDirection) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e LogDirection) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// Where a service wrote a line: its standard output or its error output.
+type LogStream string
+
+const (
+	LogStreamStdout LogStream = "STDOUT"
+	LogStreamStderr LogStream = "STDERR"
+)
+
+var AllLogStream = []LogStream{
+	LogStreamStdout,
+	LogStreamStderr,
+}
+
+func (e LogStream) IsValid() bool {
+	switch e {
+	case LogStreamStdout, LogStreamStderr:
+		return true
+	}
+	return false
+}
+
+func (e LogStream) String() string {
+	return string(e)
+}
+
+func (e *LogStream) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = LogStream(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid LogStream", str)
+	}
+	return nil
+}
+
+func (e LogStream) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *LogStream) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e LogStream) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 type MetricGrouping string
 
 const (
@@ -3551,6 +3699,133 @@ func (e *ScanStatus) UnmarshalJSON(b []byte) error {
 }
 
 func (e ScanStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type ServiceInstanceState string
+
+const (
+	ServiceInstanceStateStarting ServiceInstanceState = "STARTING"
+	ServiceInstanceStateRunning  ServiceInstanceState = "RUNNING"
+	ServiceInstanceStateStopping ServiceInstanceState = "STOPPING"
+	// The instance no longer exists.
+	ServiceInstanceStateStopped ServiceInstanceState = "STOPPED"
+)
+
+var AllServiceInstanceState = []ServiceInstanceState{
+	ServiceInstanceStateStarting,
+	ServiceInstanceStateRunning,
+	ServiceInstanceStateStopping,
+	ServiceInstanceStateStopped,
+}
+
+func (e ServiceInstanceState) IsValid() bool {
+	switch e {
+	case ServiceInstanceStateStarting, ServiceInstanceStateRunning, ServiceInstanceStateStopping, ServiceInstanceStateStopped:
+		return true
+	}
+	return false
+}
+
+func (e ServiceInstanceState) String() string {
+	return string(e)
+}
+
+func (e *ServiceInstanceState) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ServiceInstanceState(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ServiceInstanceState", str)
+	}
+	return nil
+}
+
+func (e ServiceInstanceState) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *ServiceInstanceState) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e ServiceInstanceState) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// Something the platform did with an instance, listed among its lines.
+type ServiceLogEvent string
+
+const (
+	// The instance started.
+	ServiceLogEventStarted ServiceLogEvent = "STARTED"
+	// The instance started again after it exited, usually after a crash.
+	ServiceLogEventRestarted ServiceLogEvent = "RESTARTED"
+	// The instance is being stopped, for example because a newer deployment replaces it.
+	ServiceLogEventStopping ServiceLogEvent = "STOPPING"
+	// A health check of the instance failed. The entry's line says why.
+	ServiceLogEventHealthCheckFailed ServiceLogEvent = "HEALTH_CHECK_FAILED"
+	// The instance exited again and waits before the next restart.
+	ServiceLogEventRestartDelayed ServiceLogEvent = "RESTART_DELAYED"
+)
+
+var AllServiceLogEvent = []ServiceLogEvent{
+	ServiceLogEventStarted,
+	ServiceLogEventRestarted,
+	ServiceLogEventStopping,
+	ServiceLogEventHealthCheckFailed,
+	ServiceLogEventRestartDelayed,
+}
+
+func (e ServiceLogEvent) IsValid() bool {
+	switch e {
+	case ServiceLogEventStarted, ServiceLogEventRestarted, ServiceLogEventStopping, ServiceLogEventHealthCheckFailed, ServiceLogEventRestartDelayed:
+		return true
+	}
+	return false
+}
+
+func (e ServiceLogEvent) String() string {
+	return string(e)
+}
+
+func (e *ServiceLogEvent) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ServiceLogEvent(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ServiceLogEvent", str)
+	}
+	return nil
+}
+
+func (e ServiceLogEvent) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *ServiceLogEvent) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e ServiceLogEvent) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

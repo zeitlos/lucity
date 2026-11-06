@@ -38,6 +38,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/planner/railpack"
 	scanjobK8s "github.com/zeitlos/lucity/services/conductor/internal/scanjob/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/scanreport"
+	"github.com/zeitlos/lucity/services/conductor/internal/servicelogs"
 	sourceGH "github.com/zeitlos/lucity/services/conductor/internal/source/github"
 	"github.com/zeitlos/lucity/services/conductor/internal/upstream"
 	"github.com/zeitlos/lucity/services/conductor/internal/vulnerabilities"
@@ -565,7 +566,7 @@ func main() {
 
 	registry := prometheus.NewRegistry()
 
-	conductor := conductor.New(billingClient, githubApp, logtoClient, directoryClient, platformClient, cachedPlatform, changes, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, vulnerabilitiesClient, pipelineClient, planner, source, hostnameClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, domainsClient, upstream.New(), agentRunnerClient, agentAuditClient, conductorConfig, registry)
+	conductor := conductor.New(billingClient, githubApp, logtoClient, directoryClient, platformClient, cachedPlatform, changes, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, vulnerabilitiesClient, pipelineClient, planner, source, hostnameClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, domainsClient, upstream.New(), agentRunnerClient, agentAuditClient, servicelogs.New(config.VictoriaLogsURL), conductorConfig, registry)
 
 	platformClient.Start(ctx)
 	cachedClients.Start(ctx)

@@ -1,11 +1,90 @@
+"""Where a service wrote a line: its standard output or its error output."""
+enum LogStream {
+  STDOUT
+  STDERR
+}
+
+"""Something the platform did with an instance, listed among its lines."""
+enum ServiceLogEvent {
+  """The instance started."""
+  STARTED
+  """The instance started again after it exited, usually after a crash."""
+  RESTARTED
+  """The instance is being stopped, for example because a newer deployment replaces it."""
+  STOPPING
+  """A health check of the instance failed. The entry's line says why."""
+  HEALTH_CHECK_FAILED
+  """The instance exited again and waits before the next restart."""
+  RESTART_DELAYED
+}
+
 type ServiceLogEntry {
-  """The log line, prefixed with the instance it came from when the service runs more than one."""
+  """When the line was written."""
+  time: Time!
+  """The log line, or the details of an event. Empty for events without details."""
   line: String!
   """The instance that produced the line."""
   pod: String!
+  """Where the line was written. Null for events."""
+  stream: LogStream
+  """Set when the entry is something the platform did, not a line of the service."""
+  event: ServiceLogEvent
+}
+
+"""Which end of a time range a page of log entries starts from."""
+enum LogDirection {
+  """From the end of the range back in time: the newest entries."""
+  BACKWARD
+  """From the start of the range forward in time: the oldest entries."""
+  FORWARD
+}
+
+input ServiceLogFilter {
+  """Only lines containing this text, ignoring case. Leaves out events."""
+  search: String @constraint(constraint: "max=200")
+  """Only entries of this instance."""
+  pod: String @constraint(constraint: "max=253")
+}
+
+enum ServiceInstanceState {
+  STARTING
+  RUNNING
+  STOPPING
+  """The instance no longer exists."""
+  STOPPED
+}
+
+"""An instance that wrote lines in a time range."""
+type ServiceLogInstance {
+  pod: String!
+  """Its first line in the range."""
+  firstSeen: Time!
+  """Its last line in the range."""
+  lastSeen: Time!
+  """When it started again after exiting, within the range."""
+  restarts: [Time!]!
+  """Its state right now."""
+  state: ServiceInstanceState!
+}
+
+"""The lines written in one slot of a time range."""
+type ServiceLogVolume {
+  """Start of the slot."""
+  time: Time!
+  stdout: Int!
+  stderr: Int!
+}
+
+extend type Query {
+  """The log entries of a service between `from` and `to` (now when left out), oldest first. When there are more than `limit` (1,000 by default), `direction` decides which: the newest (BACKWARD, the default) or the oldest (FORWARD). With `surrounding`, every line comes with that many lines of the same instance before and after it."""
+  serviceLogs(service: ServiceID!, from: Time!, to: Time, filter: ServiceLogFilter, surrounding: Int @constraint(constraint: "min=0,max=20"), limit: Int @constraint(constraint: "min=1,max=5000"), direction: LogDirection = BACKWARD): [ServiceLogEntry!]! @hasRole(role: WORKSPACE_MEMBER)
+  """The instances of a service that wrote lines between `from` and `to` (now when left out), the one that started last first."""
+  serviceLogInstances(service: ServiceID!, from: Time!, to: Time): [ServiceLogInstance!]! @hasRole(role: WORKSPACE_MEMBER)
+  """How many lines a service wrote between `from` and `to` (now when left out), in `slots` slots of equal length (60 by default)."""
+  serviceLogVolume(service: ServiceID!, from: Time!, to: Time, filter: ServiceLogFilter, slots: Int @constraint(constraint: "min=1,max=240")): [ServiceLogVolume!]! @hasRole(role: WORKSPACE_MEMBER)
 }
 
 extend type Subscription {
-  """The runtime logs of the running instances of a service, starting with the last `tailLines` lines of each (1,000 by default) and following new output. Instances that start later, for example during a rollout, are not included."""
-  serviceLogs(service: ServiceID!, tailLines: Int): ServiceLogEntry! @hasRole(role: WORKSPACE_MEMBER)
+  """The log entries of a service as they are written, starting with its last `tailLines` entries of the past day (1,000 by default). Covers instances that start later, for example during a rollout."""
+  serviceLogs(service: ServiceID!, tailLines: Int @constraint(constraint: "min=0,max=5000"), filter: ServiceLogFilter): ServiceLogEntry! @hasRole(role: WORKSPACE_MEMBER)
 }

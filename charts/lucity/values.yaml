@@ -274,5 +274,3 @@ agents:
       - fc00::/7
       - fe80::/10
       - ::1/128
-  # -- VictoriaLogs URL the conductor reads agent audit logs from
-  logsURL: ""

@@ -27,7 +27,7 @@ const props = defineProps<{ class?: HTMLAttributes['class'] }>();
     skeleton-shine 2.4s ease-in-out infinite;
 }
 
-:global(.dark) .skeleton {
+:global(.dark .skeleton) {
   --skeleton-shine: color-mix(in oklab, var(--foreground) 12%, var(--muted));
   background-color: color-mix(in oklab, var(--foreground) 4%, var(--muted));
 }
