@@ -53,7 +53,8 @@ type literalVariable struct {
 
 type addServiceInput struct {
 	Environment string            `json:"environment" jsonschema:"environment id (workspace/project/environment)"`
-	Name        string            `json:"name,omitempty" jsonschema:"service name (2-16 chars, lowercase alphanumeric and hyphens); derived from the repository if omitted"`
+	Name        string            `json:"name,omitempty" jsonschema:"what people read, any text up to 128 chars; defaults to the repository or image name and can be renamed later"`
+	ID          string            `json:"id,omitempty" jsonschema:"optional id (2-16 chars: lowercase letters, digits and hyphens, starting and ending with a letter or digit); derived from name when omitted, with a counter added if taken. Fixed once created. Use the id this tool returns, never the name, to refer to it later"`
 	Repository  string            `json:"repository,omitempty" jsonschema:"owner/repo or full https URL for a source build; mutually exclusive with image"`
 	ContextPath string            `json:"context_path,omitempty" jsonschema:"subdirectory within the repository to build from"`
 	Image       string            `json:"image,omitempty" jsonschema:"prebuilt image reference (e.g. docker.io/library/nginx:latest); mutually exclusive with repository"`
@@ -81,6 +82,9 @@ func (s *server) addService(ctx context.Context, _ *mcp.CallToolRequest, input a
 	serviceInput := map[string]any{}
 	if input.Name != "" {
 		serviceInput["name"] = input.Name
+	}
+	if input.ID != "" {
+		serviceInput["id"] = input.ID
 	}
 	if input.Repository != "" {
 		serviceInput["repository"] = input.Repository

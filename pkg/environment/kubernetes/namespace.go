@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	pkglabels "github.com/zeitlos/lucity/pkg/labels"
@@ -10,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 func (c *Client) ensureNamespace(ctx context.Context, id platform.EnvironmentID) error {
@@ -58,6 +60,30 @@ func (c *Client) ensureNamespace(ctx context.Context, id platform.EnvironmentID)
 	}
 
 	return nil
+}
+
+func (c *Client) SetName(ctx context.Context, id platform.EnvironmentID, name string) error {
+	return c.annotateNamespace(ctx, id, pkglabels.EnvironmentName, name)
+}
+
+func (c *Client) SetProjectName(ctx context.Context, id platform.EnvironmentID, name string) error {
+	return c.annotateNamespace(ctx, id, pkglabels.ProjectName, name)
+}
+
+func (c *Client) annotateNamespace(ctx context.Context, id platform.EnvironmentID, key, value string) error {
+	patch, err := json.Marshal(map[string]any{
+		"metadata": map[string]any{
+			"annotations": map[string]string{key: value},
+		},
+	})
+
+	if err != nil {
+		return err
+	}
+
+	_, err = c.k8s.CoreV1().Namespaces().Patch(ctx, id.Namespace(), types.MergePatchType, patch, metav1.PatchOptions{})
+
+	return err
 }
 
 func (c *Client) deleteNamespace(ctx context.Context, id platform.EnvironmentID) error {

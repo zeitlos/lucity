@@ -34,7 +34,10 @@ type VariableSource interface {
 }
 
 type AddServiceInput struct {
-	Name        *string         `json:"name,omitempty"`
+	// What people read. Any text, and it can be changed later. Defaults to the repository or image name.
+	Name *string `json:"name,omitempty"`
+	// The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused.
+	ID          *string         `json:"id,omitempty"`
 	Repository  *string         `json:"repository,omitempty"`
 	ContextPath *string         `json:"contextPath,omitempty"`
 	Image       *string         `json:"image,omitempty"`
@@ -237,16 +240,17 @@ type BillingSubscription struct {
 }
 
 type Bucket struct {
-	ID             platform.BucketID `json:"id"`
-	Name           string            `json:"name"`
-	Region         string            `json:"region"`
-	Endpoint       string            `json:"endpoint"`
-	PublicEndpoint string            `json:"publicEndpoint"`
-	Status         BucketStatus      `json:"status"`
-	SizeBytes      int               `json:"sizeBytes"`
-	ObjectCount    int               `json:"objectCount"`
-	Public         bool              `json:"public"`
-	CreatedAt      time.Time         `json:"createdAt"`
+	ID platform.BucketID `json:"id"`
+	// What people read. It can be changed, while `id` stays the same.
+	Name           string       `json:"name"`
+	Region         string       `json:"region"`
+	Endpoint       string       `json:"endpoint"`
+	PublicEndpoint string       `json:"publicEndpoint"`
+	Status         BucketStatus `json:"status"`
+	SizeBytes      int          `json:"sizeBytes"`
+	ObjectCount    int          `json:"objectCount"`
+	Public         bool         `json:"public"`
+	CreatedAt      time.Time    `json:"createdAt"`
 }
 
 type BucketCredentials struct {
@@ -377,19 +381,28 @@ type CreateAPITokenInput struct {
 
 type CreateBucketInput struct {
 	Environment platform.EnvironmentID `json:"environment"`
-	Name        string                 `json:"name"`
+	// What people read, such as `Uploads`. Any text, and it can be changed later.
+	Name string `json:"name"`
+	// The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused.
+	ID *string `json:"id,omitempty"`
 }
 
 type CreateDatabaseInput struct {
 	Environment platform.EnvironmentID `json:"environment"`
-	Name        string                 `json:"name"`
-	Size        *string                `json:"size,omitempty"`
-	Resources   *ResourcesInput        `json:"resources,omitempty"`
+	// What people read, such as `Orders`. Any text, and it can be changed later.
+	Name string `json:"name"`
+	// The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused.
+	ID        *string         `json:"id,omitempty"`
+	Size      *string         `json:"size,omitempty"`
+	Resources *ResourcesInput `json:"resources,omitempty"`
 }
 
 type CreateEnvironmentInput struct {
 	Project platform.ProjectID `json:"project"`
-	Name    string             `json:"name"`
+	// What people read, such as `Staging`. Any text, and it can be changed later.
+	Name string `json:"name"`
+	// The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused.
+	ID *string `json:"id,omitempty"`
 	// Not supported yet. Leave it unset, because new environments always start empty.
 	FromEnvironment *platform.EnvironmentID `json:"fromEnvironment,omitempty"`
 	Tier            *ResourceTier           `json:"tier,omitempty"`
@@ -397,14 +410,17 @@ type CreateEnvironmentInput struct {
 
 type CreateKeyValueStoreInput struct {
 	Environment platform.EnvironmentID `json:"environment"`
-	Name        string                 `json:"name"`
-	Size        *string                `json:"size,omitempty"`
+	// What people read, such as `Sessions`. Any text, and it can be changed later.
+	Name string `json:"name"`
+	// The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused.
+	ID   *string `json:"id,omitempty"`
+	Size *string `json:"size,omitempty"`
 }
 
 type CreateProjectInput struct {
-	// The display name of the project, such as `My API`.
+	// What people read, such as `Customer Portal`. Any text, and it can be changed later.
 	Name string `json:"name"`
-	// The project id. Derived from `name` when left out.
+	// The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused.
 	ID *string `json:"id,omitempty"`
 }
 
@@ -420,11 +436,12 @@ type CreatedAPIToken struct {
 }
 
 type Database struct {
-	ID        platform.DatabaseID `json:"id"`
-	Name      string              `json:"name"`
-	Version   string              `json:"version"`
-	Instances int                 `json:"instances"`
-	Status    DatabaseStatus      `json:"status"`
+	ID platform.DatabaseID `json:"id"`
+	// What people read. It can be changed, while `id` stays the same.
+	Name      string         `json:"name"`
+	Version   string         `json:"version"`
+	Instances int            `json:"instances"`
+	Status    DatabaseStatus `json:"status"`
 	// Why the database is in this state, when it is not healthy.
 	StatusReason *string    `json:"statusReason,omitempty"`
 	Size         string     `json:"size"`
@@ -457,6 +474,7 @@ type DatabaseAllowRuleInput struct {
 }
 
 type DatabaseBackup struct {
+	// The backup, as its database id followed by the backup's own name.
 	ID         string        `json:"id"`
 	Status     BackupStatus  `json:"status"`
 	CreatedAt  time.Time     `json:"createdAt"`
@@ -625,15 +643,16 @@ type Endpoint struct {
 }
 
 type Environment struct {
-	ID             platform.EnvironmentID `json:"id"`
-	Name           string                 `json:"name"`
-	ResourceTier   ResourceTier           `json:"resourceTier"`
-	Services       []Service              `json:"services"`
-	Databases      []Database             `json:"databases"`
-	Volumes        []Volume               `json:"volumes"`
-	Agents         []Agent                `json:"agents"`
-	KeyValueStores []KeyValueStore        `json:"keyValueStores"`
-	Buckets        []Bucket               `json:"buckets"`
+	ID platform.EnvironmentID `json:"id"`
+	// What people read. It can be changed, while `id` stays the same.
+	Name           string          `json:"name"`
+	ResourceTier   ResourceTier    `json:"resourceTier"`
+	Services       []Service       `json:"services"`
+	Databases      []Database      `json:"databases"`
+	Volumes        []Volume        `json:"volumes"`
+	Agents         []Agent         `json:"agents"`
+	KeyValueStores []KeyValueStore `json:"keyValueStores"`
+	Buckets        []Bucket        `json:"buckets"`
 }
 
 type GitHubInstallation struct {
@@ -695,12 +714,13 @@ type InviteMemberInput struct {
 }
 
 type KeyValueStore struct {
-	ID        platform.KeyValueStoreID `json:"id"`
-	Name      string                   `json:"name"`
-	Version   string                   `json:"version"`
-	Status    DatabaseStatus           `json:"status"`
-	Size      string                   `json:"size"`
-	CreatedAt time.Time                `json:"createdAt"`
+	ID platform.KeyValueStoreID `json:"id"`
+	// What people read. It can be changed, while `id` stays the same.
+	Name      string         `json:"name"`
+	Version   string         `json:"version"`
+	Status    DatabaseStatus `json:"status"`
+	Size      string         `json:"size"`
+	CreatedAt time.Time      `json:"createdAt"`
 }
 
 type KeyValueStoreCredentials struct {
@@ -789,9 +809,10 @@ type PlanSelection struct {
 }
 
 type Project struct {
-	ID           platform.ProjectID `json:"id"`
-	Name         string             `json:"name"`
-	Environments []Environment      `json:"environments"`
+	ID platform.ProjectID `json:"id"`
+	// What people read. It can be changed, while `id` stays the same.
+	Name         string        `json:"name"`
+	Environments []Environment `json:"environments"`
 }
 
 // The smallest and largest value the workspace may set, as quantities such as `250m` or `16Gi`, with the plans that allow more.
@@ -851,7 +872,10 @@ type ResourcesInput struct {
 
 type RestoreDatabaseInput struct {
 	Database platform.DatabaseID `json:"database"`
-	Name     string              `json:"name"`
+	// What people read, such as `Orders restored`. Any text, and it can be changed later.
+	Name string `json:"name"`
+	// The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused.
+	ID *string `json:"id,omitempty"`
 	// Omit to restore the most recent state in the archive.
 	TargetTime *time.Time `json:"targetTime,omitempty"`
 }
@@ -900,7 +924,8 @@ type SecretScanReport struct {
 }
 
 type Service struct {
-	ID             platform.ServiceID   `json:"id"`
+	ID platform.ServiceID `json:"id"`
+	// What people read. It can be changed, while `id` stays the same.
 	Name           string               `json:"name"`
 	Status         ServiceStatus        `json:"status"`
 	Replicas       *ReplicaCount        `json:"replicas"`
@@ -1056,11 +1081,12 @@ type VariableInput struct {
 }
 
 type Volume struct {
-	ID      platform.VolumeID `json:"id"`
-	Name    string            `json:"name"`
-	Size    string            `json:"size"`
-	Mount   *Mount            `json:"mount,omitempty"`
-	Metrics []MetricSeries    `json:"metrics"`
+	ID platform.VolumeID `json:"id"`
+	// What people read. It can be changed, while `id` stays the same.
+	Name    string         `json:"name"`
+	Size    string         `json:"size"`
+	Mount   *Mount         `json:"mount,omitempty"`
+	Metrics []MetricSeries `json:"metrics"`
 }
 
 type Vulnerability struct {

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { environmentRoute, projectRoute, routeProjectId } from '@/lib/routes';
 import QueryError from '@/components/QueryError.vue';
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -58,10 +59,7 @@ import { usePageTitle } from '@/composables/usePageTitle';
 const route = useRoute();
 const router = useRouter();
 
-const projectId = computed(() => {
-  const id = route.params.projectId;
-  return Array.isArray(id) ? id[0]! : (id as string);
-});
+const projectId = computed(() => routeProjectId(route) ?? '');
 
 const drawer = computed(() => route.params.drawer);
 
@@ -102,7 +100,7 @@ usePageTitle(() => [
 ]);
 
 function closeDrawer() {
-  router.push({ name: 'project', params: { projectId: projectId.value } });
+  router.push(projectRoute(projectId.value));
 }
 
 function handleOutsideClick(event: MouseEvent) {
@@ -117,7 +115,7 @@ const skeletonCards = [
 ];
 
 function handleEnvironmentCreated(environmentId: string) {
-  router.push({ name: 'environment', params: { projectId: projectId.value, environmentId } });
+  router.push(environmentRoute(environmentId));
 }
 
 </script>
@@ -205,7 +203,7 @@ function handleEnvironmentCreated(environmentId: string) {
                 v-for="env in project.environments"
                 :key="env.id"
                 :environment="env"
-                :to="{ name: 'environment', params: { projectId: project.id, environmentId: env.id } }"
+                :to="environmentRoute(env.id)"
               />
             </div>
 

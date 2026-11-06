@@ -1,5 +1,6 @@
 type Bucket {
   id: BucketID!
+  """What people read. It can be changed, while `id` stays the same."""
   name: String!
   region: String!
   endpoint: String!
@@ -43,7 +44,10 @@ type BucketObjectListing {
 
 input CreateBucketInput {
   environment: EnvironmentID!
-  name: String! @constraint(constraint: "resource_name,min=2,max=16")
+  """What people read, such as `Uploads`. Any text, and it can be changed later."""
+  name: String! @constraint(constraint: "min=1,max=128")
+  """The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused."""
+  id: String @constraint(constraint: "resource_name,min=2,max=16")
 }
 
 extend type Environment {
@@ -72,6 +76,8 @@ extend type Mutation {
   createBucket(input: CreateBucketInput!): Bucket! @hasRole(role: WORKSPACE_MEMBER)
   """Deletes a bucket and everything in it."""
   deleteBucket(bucket: BucketID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
+  """Changes the name of a bucket. Its id stays the same."""
+  renameBucket(bucket: BucketID!, name: String! @constraint(constraint: "min=1,max=128")): Bucket! @hasRole(role: WORKSPACE_MEMBER)
   """Makes every object in a bucket readable by anyone at its `publicEndpoint`, or private again. Writing always needs credentials."""
   setBucketPublic(bucket: BucketID!, public: Boolean!): Bucket! @hasRole(role: WORKSPACE_MEMBER)
   """A link to upload one object with an HTTP `PUT`, valid for 15 minutes. An existing object with the same key is overwritten."""

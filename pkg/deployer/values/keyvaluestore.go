@@ -21,9 +21,10 @@ type Valkey struct {
 }
 
 type KeyValueStoreSpec struct {
-	Version  string
-	Size     resource.Quantity
-	Password string
+	DisplayName string
+	Version     string
+	Size        resource.Quantity
+	Password    string
 }
 
 func CreateKeyValueStore(env *Env, name string, spec KeyValueStoreSpec) error {
@@ -37,10 +38,11 @@ func CreateKeyValueStore(env *Env, name string, spec KeyValueStoreSpec) error {
 	}
 
 	env.Databases.Valkey[name] = Valkey{
-		Version:  spec.Version,
-		Size:     spec.Size.String(),
-		Password: spec.Password,
-		Labels:   map[string]string{labelKeyValueStore: name},
+		Version:     spec.Version,
+		Size:        spec.Size.String(),
+		Password:    spec.Password,
+		Labels:      map[string]string{labelKeyValueStore: name},
+		Annotations: withDisplayName(nil, spec.DisplayName),
 	}
 
 	return nil

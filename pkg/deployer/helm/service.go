@@ -21,6 +21,7 @@ func (s *serviceClient) Create(ctx context.Context, env platform.EnvironmentID, 
 
 	return s.client.applyEnv(ctx, env, func(e *values.Env) error {
 		spec := values.ServiceSpec{
+			DisplayName:          spec.DisplayName,
 			Image:                spec.Image,
 			SourceURL:            spec.SourceURL,
 			ContextPath:          spec.ContextPath,
@@ -44,6 +45,12 @@ func (s *serviceClient) Delete(ctx context.Context, id platform.ServiceID) error
 	})
 
 	return err
+}
+
+func (s *serviceClient) SetDisplayName(ctx context.Context, id platform.ServiceID, displayName string) (deployer.RevisionID, error) {
+	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
+		return values.SetServiceDisplayName(e, id.Name, displayName)
+	})
 }
 
 func (s *serviceClient) SetImage(ctx context.Context, id platform.ServiceID, ref image.Ref, provenance deployer.ImageProvenance, release deployer.ReleaseMeta) (deployer.RevisionID, error) {

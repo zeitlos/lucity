@@ -3,8 +3,6 @@ package conductor
 import (
 	"context"
 	"fmt"
-	"regexp"
-	"strings"
 	"time"
 
 	"github.com/zeitlos/lucity/pkg/platform"
@@ -12,9 +10,6 @@ import (
 )
 
 const grpcTimeout = 10 * time.Second
-
-// projectIDPattern validates project slugs (same rules as workspace IDs).
-var projectIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$`)
 
 type Project = platform.Project
 type ProjectID = platform.ProjectID
@@ -40,51 +35,55 @@ func (c *Client) Project(ctx context.Context, id platform.ProjectID) (*Project, 
 	return c.platform.Project(ctx, id)
 }
 
-// slugFromName derives a URL-safe slug from a display name.
-func slugFromName(name string) string {
-	s := strings.ToLower(name)
-	var b strings.Builder
+func (c *Client) CreateProject(ctx context.Context, ws, id, name string) (*Project, error) {
+	projects, err := c.platform.Projects(ctx, ws)
 
-	for _, r := range s {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {
-			b.WriteRune(r)
-		} else {
-			b.WriteRune('-')
-		}
+	if err != nil {
+		return nil, err
 	}
 
-	s = strings.Trim(b.String(), "-")
+	taken := make(map[string]string, len(projects))
 
-	for strings.Contains(s, "--") {
-		s = strings.ReplaceAll(s, "--", "-")
+	for _, project := range projects {
+		taken[project.ID.Name] = "Another project"
 	}
 
-	if len(s) > 63 {
-		s = s[:63]
-	}
+	id, err = pickID(taken, id, name, "project")
 
-	return s
-}
-
-func (c *Client) CreateProject(ctx context.Context, ws, slug, displayName string) (*Project, error) {
-	if slug == "" {
-		slug = slugFromName(displayName)
-	}
-
-	if !projectIDPattern.MatchString(slug) {
-		return nil, usererror.Errorf("invalid project ID %q: must be 3-63 lowercase alphanumeric characters or hyphens", slug)
+	if err != nil {
+		return nil, err
 	}
 
 	projectID := platform.ProjectID{
 		Workspace: ws,
-		Name:      slug,
+		Name:      id,
 	}
 
-	if _, err := c.CreateEnvironment(ctx, projectID, "development", nil); err != nil {
+	if _, err := c.createEnvironment(ctx, projectID, defaultEnvironment, defaultEnvironment, name); err != nil {
 		return nil, fmt.Errorf("create default environment: %w", err)
 	}
 
 	return c.Project(ctx, projectID)
+}
+
+func (c *Client) RenameProject(ctx context.Context, id platform.ProjectID, name string) (*Project, error) {
+	environments, err := c.platform.Environments(ctx, id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(environments) == 0 {
+		return nil, usererror.Errorf("project with id %q not found", id)
+	}
+
+	for _, environment := range environments {
+		if err := c.environment.SetProjectName(ctx, environment.ID, name); err != nil {
+			return nil, err
+		}
+	}
+
+	return c.Project(ctx, id)
 }
 
 func (c *Client) DeleteProject(ctx context.Context, project platform.ProjectID) error {

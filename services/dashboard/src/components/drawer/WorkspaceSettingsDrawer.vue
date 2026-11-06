@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { projectRoute } from '@/lib/routes';
 import FormFooter from '@/components/FormFooter.vue';
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
@@ -91,7 +92,7 @@ const projectRows = computed(() =>
   (props.projects ?? []).map(project => ({
     id: project.id,
     name: project.name,
-    to: { name: 'project', params: { projectId: project.id } },
+    to: projectRoute(project.id),
   })),
 );
 
@@ -106,7 +107,7 @@ async function handleDelete() {
       setActiveWorkspace(firstWorkspace);
     }
     apolloClient.resetStore();
-    router.push({ name: 'projects' });
+    router.push({ name: 'home' });
     successToast(`Workspace "${name}" deleted`);
   } catch (e: unknown) {
     failureToast('Failed to delete workspace', e);

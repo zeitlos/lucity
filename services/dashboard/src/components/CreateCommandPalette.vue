@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { environmentRoute } from '@/lib/routes';
 import { formatCompact, formatStorage } from '@/lib/format';
 import { Skeleton } from '@/components/ui/skeleton';
 import IconButton from '@/components/IconButton.vue';
@@ -132,8 +133,8 @@ const CreateBucketDocument = graphql(`
 `);
 
 const CreateVolumeDocument = graphql(`
-  mutation CreateVolume($environment: EnvironmentID!, $name: String!, $size: String!) {
-    createVolume(environment: $environment, name: $name, size: $size) {
+  mutation CreateVolume($environment: EnvironmentID!, $name: String!, $id: String, $size: String!) {
+    createVolume(environment: $environment, name: $name, id: $id, size: $size) {
       id
       name
       size
@@ -150,6 +151,13 @@ const AgentPaletteConnectorsDocument = graphql(`
   }
 `);
 
+const CreatePaletteProjectsDocument = graphql(`
+  query CreatePaletteProjects {
+    projects {
+      id
+    }
+  }
+`);
 const CreateAgentDocument = graphql(`
   mutation CreateAgent($environment: EnvironmentID!, $name: String!, $harness: Harness!, $instructions: String!, $connectors: [AgentConnectorInput!]) {
     createAgent(environment: $environment, name: $name, harness: $harness, instructions: $instructions, connectors: $connectors) {
@@ -169,8 +177,10 @@ import { failureToast } from '@/components/ui/sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { isValidSlug, deriveServiceName, isValidServiceName } from '@/lib/slug';
-import NameSlugField from '@/components/NameSlugField.vue';
+import { isValidId, lastSegment } from '@/lib/id';
+import NameIdField from '@/components/NameIdField.vue';
+import IdSegment from '@/components/IdSegment.vue';
+import { useResourceIds } from '@/composables/useResourceIds';
 
 const props = defineProps<{
   open: boolean;
@@ -201,15 +211,29 @@ const selectedSource = ref<(typeof sources)['value'][number] | null>(null);
 const sourcePickerOpen = ref(false);
 
 // Project naming state
-const projectDisplayName = ref('');
-const projectSlug = ref('');
-const nameSlugRef = ref<InstanceType<typeof NameSlugField> | null>(null);
+const projectName = ref('');
+const projectId = ref('');
+const projectNameRef = ref<InstanceType<typeof NameIdField> | null>(null);
+const createdProject = ref<{ projectId: string; environmentId: string } | null>(null);
 const pendingRepo = ref<{ fullName: string; htmlUrl: string } | null>(null);
 const pendingImage = ref<string | null>(null);
 const processingItemId = ref<string | null>(null);
 
+const { result: projectsResult } = useQuery(CreatePaletteProjectsDocument, null, () => ({
+  enabled: props.open && props.context === 'projects',
+  fetchPolicy: 'cache-and-network',
+}));
+
+const projectIds = computed(() => new Set((projectsResult.value?.projects ?? []).map(project => lastSegment(project.id))));
+
+const resourceIds = useResourceIds(() => props.environmentId, () => props.open && props.context === 'environment');
+
+function idAvailable(id: string, taken: ReadonlySet<string>) {
+  return isValidId(id) && !taken.has(id);
+}
+
 const isProjectValid = computed(() =>
-  projectDisplayName.value.trim().length > 0 && isValidSlug(projectSlug.value),
+  projectName.value.trim().length > 0 && idAvailable(projectId.value, projectIds.value),
 );
 
 type DetectedService = {
@@ -226,6 +250,7 @@ const activeDetected = computed(() => detectedServices.value[selectedDetectedInd
 type ServiceStep = 'name' | 'context' | 'variables';
 const serviceStep = ref<ServiceStep>('name');
 const serviceName = ref('');
+const serviceId = ref('');
 const serviceContextPath = ref('/');
 const serviceEnvVars = ref<{ key: string; value: string }[]>([]);
 const envVarDraft = ref('');
@@ -233,7 +258,10 @@ const envVarDraft = ref('');
 const confirmEnvironmentId = ref<string | null>(null);
 const confirmRepo = ref<{ fullName: string; htmlUrl: string } | null>(null);
 
-const isServiceValid = computed(() => isValidServiceName(serviceName.value));
+const serviceTaken = computed(() => props.context === 'environment' ? resourceIds.value : new Set<string>());
+const serviceIdRef = ref<InstanceType<typeof IdSegment> | null>(null);
+const serviceIdMessage = computed(() => serviceStep.value === 'name' ? serviceIdRef.value?.message ?? null : null);
+const isServiceValid = computed(() => serviceName.value.trim().length > 0 && idAvailable(serviceId.value, serviceTaken.value));
 const serviceDetected = computed(() => activeDetected.value !== null);
 
 const wizardInput = computed<string>({
@@ -332,17 +360,22 @@ watch(() => props.open, (open) => {
     sourcePickerOpen.value = false;
     containerImageRef.value = '';
     focusedIndex.value = 0;
-    projectDisplayName.value = '';
-    projectSlug.value = '';
+    projectName.value = '';
+    projectId.value = '';
+    createdProject.value = null;
     pendingRepo.value = null;
     pendingImage.value = null;
     processingItemId.value = null;
+    newKeyValueStoreName.value = '';
+    newBucketName.value = '';
+    newVolumeName.value = '';
     volumeStep.value = 'name';
     agentStep.value = 'harness';
     detectedServices.value = [];
     selectedDetectedIndex.value = 0;
     serviceStep.value = 'name';
     serviceName.value = '';
+    serviceId.value = '';
     serviceContextPath.value = '/';
     serviceEnvVars.value = [];
     envVarDraft.value = '';
@@ -356,7 +389,10 @@ watch(() => props.open, (open) => {
 watch(view, (newView) => {
   search.value = '';
   focusedIndex.value = newView === 'service-wizard' ? wizardPrimaryIndex.value : 0;
-  nextTick(() => inputRef.value?.focus());
+  nextTick(() => {
+    inputRef.value?.focus();
+    resourceNameRef.value?.focusName();
+  });
 });
 
 watch(serviceStep, () => {
@@ -445,10 +481,10 @@ function showProjectNaming(repo: { fullName: string; htmlUrl: string }) {
   pendingRepo.value = repo;
   pendingImage.value = null;
   const repoShortName = repo.fullName.split('/').pop() || '';
-  projectDisplayName.value = repoShortName;
-  projectSlug.value = '';
+  projectName.value = repoShortName;
+  projectId.value = '';
   view.value = 'name-project';
-  nextTick(() => nameSlugRef.value?.focusName());
+  nextTick(() => projectNameRef.value?.focusName());
 }
 
 async function handleProjectNamingNext() {
@@ -467,8 +503,8 @@ async function finishEmptyOrImageProject() {
   try {
     const res = await createProject({
       input: {
-        name: projectDisplayName.value.trim(),
-        id: projectSlug.value,
+        name: projectName.value.trim(),
+        id: projectId.value,
       },
     });
 
@@ -483,7 +519,7 @@ async function finishEmptyOrImageProject() {
 
     close();
     if (targetEnvId) {
-      router.push({ name: 'environment', params: { projectId: project.id, environmentId: targetEnvId } });
+      router.push(environmentRoute(targetEnvId));
     }
   } catch (e: unknown) {
     failureToast('Failed to create project', e);
@@ -539,7 +575,7 @@ function selectDetectedService(index: number) {
   selectedDetectedIndex.value = index;
   const detected = detectedServices.value[index];
   if (!detected) return;
-  serviceName.value = deriveServiceName(detected.name);
+  serviceName.value = detected.name;
   serviceContextPath.value = detected.contextPath || '/';
   enterServiceWizard();
 }
@@ -547,7 +583,7 @@ function selectDetectedService(index: number) {
 function startManualService(repo: { fullName: string; htmlUrl: string }) {
   detectedServices.value = [];
   selectedDetectedIndex.value = 0;
-  serviceName.value = deriveServiceName(repo.fullName.split('/').pop() || '');
+  serviceName.value = repo.fullName.split('/').pop() || '';
   serviceContextPath.value = '/';
   enterServiceWizard();
 }
@@ -615,51 +651,62 @@ async function handleCreateService() {
   if (!isServiceValid.value || creating.value || addingService.value || detectingServices.value) return;
   if (!confirmRepo.value) return;
 
-  try {
-    let environmentId = confirmEnvironmentId.value;
-    let navigate: { projectId: string; environmentId: string } | null = null;
+  let environmentId = confirmEnvironmentId.value;
+  let navigate: { projectId: string; environmentId: string } | null = null;
 
-    if (props.context === 'projects' && !environmentId) {
-      const res = await createProject({
-        input: {
-          name: projectDisplayName.value.trim(),
-          id: projectSlug.value,
-        },
-      });
+  if (props.context === 'projects' && !environmentId) {
+    if (!createdProject.value) {
+      try {
+        const res = await createProject({
+          input: {
+            name: projectName.value.trim(),
+            id: projectId.value,
+          },
+        });
 
-      const project = res?.data?.createProject;
-      const envId = project?.environments?.[0]?.id;
-      if (!project || !envId) return;
+        const project = res?.data?.createProject;
+        const envId = project?.environments?.[0]?.id;
+        if (!project || !envId) return;
 
-      environmentId = envId;
-      navigate = { projectId: project.id, environmentId: envId };
+        createdProject.value = { projectId: project.id, environmentId: envId };
+      } catch (e: unknown) {
+        failureToast('Failed to create project', e);
+        return;
+      }
     }
 
-    if (!environmentId) return;
+    environmentId = createdProject.value.environmentId;
+    navigate = createdProject.value;
+  }
 
-    addEnvVarFromDraft();
-    const variables = serviceEnvVars.value
-      .map(v => ({ key: v.key.trim(), value: v.value }))
-      .filter(v => v.key.length > 0);
+  if (!environmentId) return;
 
+  addEnvVarFromDraft();
+  const variables = serviceEnvVars.value
+    .map(v => ({ key: v.key.trim(), value: v.value }))
+    .filter(v => v.key.length > 0);
+
+  try {
     await addServiceMutate({
       environmentId,
       input: {
-        name: serviceName.value,
+        name: serviceName.value.trim(),
+        id: serviceId.value,
         repository: confirmRepo.value.fullName,
         contextPath: serviceContextPath.value || undefined,
         variables: variables.length > 0 ? variables : undefined,
       },
     });
-
-    close();
-    if (navigate) {
-      router.push({ name: 'environment', params: navigate });
-    } else {
-      emit('created');
-    }
   } catch (e: unknown) {
     failureToast('Failed to create service', e);
+    return;
+  }
+
+  close();
+  if (navigate) {
+    router.push(environmentRoute(navigate.environmentId));
+  } else {
+    emit('created');
   }
 }
 
@@ -672,13 +719,12 @@ const databaseFlow = computed<CommandFlowConfig>(() => ({
   iconSrc: devicon('postgresql'),
   submitLabel: 'Create database',
   mutation: CreateDatabaseDocument,
-  variables: (values) => ({ input: { environment: props.environmentId, name: values.name } }),
+  variables: (values) => ({ input: { environment: props.environmentId, name: values.name, id: values.id } }),
   steps: [
     {
       id: 'name',
       placeholder: 'Database name',
-      validate: isValidServiceName,
-      invalidHint: 'Lowercase letters, digits and hyphens only (2–16 characters).',
+      idField: { key: 'id', fallback: 'database', taken: resourceIds.value, scope: 'environment' },
     },
   ],
 }));
@@ -691,15 +737,22 @@ function handleFlowCreated() {
 // Create Redis store (within environment context)
 const { mutate: createKeyValueStoreMutate, loading: creatingKeyValueStore } = useMutation(CreateKeyValueStoreDocument);
 const newKeyValueStoreName = ref('');
+const newKeyValueStoreId = ref('');
+const resourceNameRef = ref<InstanceType<typeof NameIdField> | null>(null);
+
+const isKeyValueStoreValid = computed(() => newKeyValueStoreName.value.trim().length > 0 && idAvailable(newKeyValueStoreId.value, resourceIds.value));
+const isBucketValid = computed(() => newBucketName.value.trim().length > 0 && idAvailable(newBucketId.value, resourceIds.value));
+const isVolumeNameValid = computed(() => newVolumeName.value.trim().length > 0 && idAvailable(newVolumeId.value, resourceIds.value));
 
 async function handleCreateKeyValueStore() {
-  if (!props.environmentId) return;
+  if (!props.environmentId || !isKeyValueStoreValid.value) return;
 
   try {
     await createKeyValueStoreMutate({
       input: {
         environment: props.environmentId,
-        name: newKeyValueStoreName.value,
+        name: newKeyValueStoreName.value.trim(),
+        id: newKeyValueStoreId.value,
       },
     });
 
@@ -713,15 +766,17 @@ async function handleCreateKeyValueStore() {
 // Create object storage bucket (within environment context)
 const { mutate: createBucketMutate, loading: creatingBucket } = useMutation(CreateBucketDocument);
 const newBucketName = ref('');
+const newBucketId = ref('');
 
 async function handleCreateBucket() {
-  if (!props.environmentId) return;
+  if (!props.environmentId || !isBucketValid.value) return;
 
   try {
     await createBucketMutate({
       input: {
         environment: props.environmentId,
-        name: newBucketName.value,
+        name: newBucketName.value.trim(),
+        id: newBucketId.value,
       },
     });
 
@@ -735,6 +790,7 @@ async function handleCreateBucket() {
 // Create volume (within environment context)
 const { mutate: createVolumeMutate, loading: creatingVolume } = useMutation(CreateVolumeDocument);
 const newVolumeName = ref('');
+const newVolumeId = ref('');
 const allVolumeSizes = ['10Gi', '16Gi', '32Gi', '64Gi', '128Gi'];
 const volumeSizes = computed(() => {
   const allowed = allVolumeSizes.filter(size => stepState(capabilities.value?.volumes.size, size).kind === 'available');
@@ -756,7 +812,8 @@ async function handleCreateVolume() {
   try {
     await createVolumeMutate({
       environment: props.environmentId,
-      name: newVolumeName.value,
+      name: newVolumeName.value.trim(),
+      id: newVolumeId.value,
       size: newVolumeSize.value,
     });
 
@@ -856,10 +913,10 @@ async function handleSelectImage(imageRef: string) {
     pendingImage.value = imageRef;
     pendingRepo.value = null;
     const imageName = imageRef.split('/').pop() || imageRef;
-    projectDisplayName.value = imageName;
-    projectSlug.value = '';
+    projectName.value = imageName;
+    projectId.value = '';
     view.value = 'name-project';
-    nextTick(() => nameSlugRef.value?.focusName());
+    nextTick(() => projectNameRef.value?.focusName());
     return;
   } else {
     if (!props.environmentId) return;
@@ -887,6 +944,7 @@ async function addImageService(environmentId: string, imageRef: string) {
 }
 
 watch([search, imageResults, repos], () => {
+  if (view.value === 'service-wizard') return;
   focusedIndex.value = 0;
 });
 
@@ -946,6 +1004,8 @@ onKeyStroke('Enter', (e) => {
     return;
   }
 
+  if (e.target instanceof HTMLButtonElement && (view.value === 'keyValueStore' || view.value === 'bucket' || view.value === 'volume')) return;
+
   switch (view.value) {
     case 'main':
       if (mainItems.value.length > 0 && focusedIndex.value < mainItems.value.length) {
@@ -981,13 +1041,13 @@ onKeyStroke('Enter', (e) => {
       }
       break;
     case 'keyValueStore':
-      if (!creatingKeyValueStore.value && newKeyValueStoreName.value) {
+      if (!creatingKeyValueStore.value && isKeyValueStoreValid.value) {
         e.preventDefault();
         handleCreateKeyValueStore();
       }
       break;
     case 'bucket':
-      if (!creatingBucket.value && newBucketName.value) {
+      if (!creatingBucket.value && isBucketValid.value) {
         e.preventDefault();
         handleCreateBucket();
       }
@@ -995,7 +1055,7 @@ onKeyStroke('Enter', (e) => {
     case 'volume':
       e.preventDefault();
       if (volumeStep.value === 'name') {
-        if (newVolumeName.value) volumeStep.value = 'size';
+        if (isVolumeNameValid.value) volumeStep.value = 'size';
       } else if (!creatingVolume.value && newVolumeSize.value) {
         handleCreateVolume();
       }
@@ -1077,10 +1137,10 @@ const mainItems = computed(() => {
         { id: 'empty-project', label: 'Empty project', icon: FolderPlus, action: () => {
           pendingRepo.value = null;
           pendingImage.value = null;
-          projectDisplayName.value = '';
-          projectSlug.value = '';
+          projectName.value = '';
+          projectId.value = '';
           view.value = 'name-project';
-          nextTick(() => nameSlugRef.value?.focusName());
+          nextTick(() => projectNameRef.value?.focusName());
         } },
       ]
     : [
@@ -1436,18 +1496,22 @@ void activeEnvironment;
               <div class="flex-1" />            </div>
             <div class="space-y-4 p-4">
               <div class="space-y-2">
-                <label class="text-sm font-medium text-foreground">Store name</label>
-                <input
-                  v-model="newKeyValueStoreName"
-                  class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  placeholder="cache"
+                <NameIdField
+                  ref="resourceNameRef"
+                  v-model:name="newKeyValueStoreName"
+                  v-model:id="newKeyValueStoreId"
+                  fallback="store"
+                  :taken="resourceIds"
+                  scope="environment"
+                  :disabled="creatingKeyValueStore"
+                  name-placeholder="e.g. Cache"
                 />
                 <p class="text-xs text-muted-foreground">Redis 8 &middot; powered by Valkey &middot; 1 GB storage</p>
               </div>
               <Button
                 class="w-full"
                 :pending="creatingKeyValueStore"
-                :disabled="!newKeyValueStoreName"
+                :disabled="!isKeyValueStoreValid"
                 @click="handleCreateKeyValueStore"
               >
                 {{ creatingKeyValueStore ? 'Creating…' : 'Create Redis' }}
@@ -1470,18 +1534,22 @@ void activeEnvironment;
               <div class="flex-1" />            </div>
             <div class="space-y-4 p-4">
               <div class="space-y-2">
-                <label class="text-sm font-medium text-foreground">Bucket name</label>
-                <input
-                  v-model="newBucketName"
-                  class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  placeholder="uploads"
+                <NameIdField
+                  ref="resourceNameRef"
+                  v-model:name="newBucketName"
+                  v-model:id="newBucketId"
+                  fallback="bucket"
+                  :taken="resourceIds"
+                  scope="environment"
+                  :disabled="creatingBucket"
+                  name-placeholder="e.g. Uploads"
                 />
                 <p class="text-xs text-muted-foreground">S3-compatible &middot; works with any S3 SDK or the AWS CLI</p>
               </div>
               <Button
                 class="w-full"
                 :pending="creatingBucket"
-                :disabled="!newBucketName"
+                :disabled="!isBucketValid"
                 @click="handleCreateBucket"
               >
                 {{ creatingBucket ? 'Creating…' : 'Create bucket' }}
@@ -1506,18 +1574,20 @@ void activeEnvironment;
             <!-- Step: name -->
             <div v-if="volumeStep === 'name'" class="space-y-4 p-4">
               <div class="space-y-2">
-                <label class="text-sm font-medium text-foreground">Volume name</label>
-                <input
-                  ref="inputRef"
-                  v-model="newVolumeName"
-                  class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  placeholder="data"
+                <NameIdField
+                  ref="resourceNameRef"
+                  v-model:name="newVolumeName"
+                  v-model:id="newVolumeId"
+                  fallback="volume"
+                  :taken="resourceIds"
+                  scope="environment"
+                  name-placeholder="e.g. Data"
                 />
                 <p class="text-xs text-muted-foreground">Persistent storage you can mount to a service.</p>
               </div>
               <button
                 class="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-                :disabled="!newVolumeName"
+                :disabled="!isVolumeNameValid"
                 @click="volumeStep = 'size'"
               >
                 Next
@@ -1714,11 +1784,14 @@ void activeEnvironment;
                 />
                 <span class="truncate">{{ pendingRepo?.fullName || pendingImage }}</span>
               </div>
-              <NameSlugField
-                ref="nameSlugRef"
-                v-model:name="projectDisplayName"
-                v-model:slug="projectSlug"
-                :disabled="creating"
+              <NameIdField
+                ref="projectNameRef"
+                v-model:name="projectName"
+                v-model:id="projectId"
+                fallback="project"
+                :taken="projectIds"
+                scope="workspace"
+                :disabled="creating || !!createdProject"
                 name-placeholder="e.g. My API"
               />
               <Button
@@ -1808,18 +1881,29 @@ void activeEnvironment;
                 data-1p-ignore
                 spellcheck="false"
               />
+              <IdSegment
+                v-show="serviceStep === 'name'"
+                ref="serviceIdRef"
+                v-model:id="serviceId"
+                :name="serviceName"
+                fallback="service"
+                :taken="serviceTaken"
+                scope="environment"
+                :disabled="creating || addingService"
+              />
               <Spinner
                 v-if="creating || addingService"
                 :size="14"
-                class="shrink-0 animate-spin text-muted-foreground"
+                class="ml-2 shrink-0 animate-spin text-muted-foreground"
               />            </div>
 
             <div class="max-h-[50vh] overflow-y-auto">
               <p
-                v-if="serviceStep === 'name' && serviceName && !isServiceValid"
-                class="px-3 py-1.5 text-xs text-destructive"
+                v-if="serviceIdMessage"
+                class="px-3 py-1.5 text-xs"
+                :class="serviceIdMessage.error ? 'text-destructive' : 'text-muted-foreground'"
               >
-                Lowercase letters, digits and hyphens only (2&ndash;16 characters).
+                {{ serviceIdMessage.text }}
               </p>
 
               <button

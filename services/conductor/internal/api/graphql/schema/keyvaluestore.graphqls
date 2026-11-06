@@ -1,5 +1,6 @@
 type KeyValueStore {
   id: KeyValueStoreID!
+  """What people read. It can be changed, while `id` stays the same."""
   name: String!
   version: String!
   status: DatabaseStatus!
@@ -17,7 +18,10 @@ type KeyValueStoreCredentials {
 
 input CreateKeyValueStoreInput {
   environment: EnvironmentID!
-  name: String! @constraint(constraint: "resource_name,min=2,max=16")
+  """What people read, such as `Sessions`. Any text, and it can be changed later."""
+  name: String! @constraint(constraint: "min=1,max=128")
+  """The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused."""
+  id: String @constraint(constraint: "resource_name,min=2,max=16")
   size: String
 }
 
@@ -37,4 +41,6 @@ extend type Mutation {
   createKeyValueStore(input: CreateKeyValueStoreInput!): KeyValueStore! @hasRole(role: WORKSPACE_MEMBER)
   """Deletes a key-value store and its data."""
   deleteKeyValueStore(keyValueStore: KeyValueStoreID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
+  """Changes the name of a key-value store. Its id stays the same, and nothing restarts."""
+  renameKeyValueStore(keyValueStore: KeyValueStoreID!, name: String! @constraint(constraint: "min=1,max=128")): KeyValueStore! @hasRole(role: WORKSPACE_MEMBER)
 }

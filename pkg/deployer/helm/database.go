@@ -25,10 +25,11 @@ func (d *databaseClient) Create(ctx context.Context, env platform.EnvironmentID,
 
 	return d.client.applyEnv(ctx, env, func(e *values.Env) error {
 		return values.CreateDatabase(e, name, values.DatabaseSpec{
-			Version:    spec.Version,
-			Size:       spec.Size,
-			Resources:  deriveRequestsAndLimtis(spec.Resources),
-			Parameters: postgresParameters(spec.Resources.CPU, spec.Resources.Memory),
+			DisplayName: spec.DisplayName,
+			Version:     spec.Version,
+			Size:        spec.Size,
+			Resources:   deriveRequestsAndLimtis(spec.Resources),
+			Parameters:  postgresParameters(spec.Resources.CPU, spec.Resources.Memory),
 		})
 	})
 }
@@ -40,11 +41,18 @@ func (d *databaseClient) Restore(ctx context.Context, source platform.DatabaseID
 
 	return d.client.applyEnv(ctx, source.EnvironmentID(), func(e *values.Env) error {
 		return values.RestoreDatabase(e, source.Name, name, values.DatabaseSpec{
-			Version:    spec.Version,
-			Size:       spec.Size,
-			Resources:  deriveRequestsAndLimtis(spec.Resources),
-			Parameters: postgresParameters(spec.Resources.CPU, spec.Resources.Memory),
+			DisplayName: spec.DisplayName,
+			Version:     spec.Version,
+			Size:        spec.Size,
+			Resources:   deriveRequestsAndLimtis(spec.Resources),
+			Parameters:  postgresParameters(spec.Resources.CPU, spec.Resources.Memory),
 		}, targetTime)
+	})
+}
+
+func (d *databaseClient) SetDisplayName(ctx context.Context, id platform.DatabaseID, displayName string) (deployer.RevisionID, error) {
+	return d.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
+		return values.SetDatabaseDisplayName(e, id.Name, displayName)
 	})
 }
 

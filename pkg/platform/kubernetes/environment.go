@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"context"
 
+	pkglabels "github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/usererror"
 
@@ -80,7 +81,7 @@ func toEnvironments(namespaces []core.Namespace) []platform.Environment {
 func toEnvironment(namespace core.Namespace) platform.Environment {
 	return platform.Environment{
 		ID:        environmentID(namespace.Labels),
-		Name:      namespace.Labels[environmentLabel],
+		Name:      readableName(namespace.Annotations, pkglabels.EnvironmentName, namespace.Labels[environmentLabel]),
 		CreatedAt: namespace.CreationTimestamp.Time,
 	}
 }

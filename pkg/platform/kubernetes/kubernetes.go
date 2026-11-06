@@ -39,6 +39,14 @@ const (
 	annotationDatabaseHost   = "lucity.dev/db-host"
 )
 
+func readableName(annotations map[string]string, key, id string) string {
+	if name := annotations[key]; name != "" {
+		return name
+	}
+
+	return id
+}
+
 type Client struct {
 	kubernetes      kubernetes.Interface
 	dynamic         dynamic.Interface

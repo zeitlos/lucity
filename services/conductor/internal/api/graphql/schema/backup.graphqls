@@ -11,6 +11,7 @@ type DatabaseBackups {
 }
 
 type DatabaseBackup {
+  """The backup, as its database id followed by the backup's own name."""
   id: ID!
   status: BackupStatus!
   createdAt: Time!
@@ -49,7 +50,10 @@ type RestoreDatabaseResult {
 
 input RestoreDatabaseInput {
   database: DatabaseID!
-  name: String! @constraint(constraint: "resource_name,min=2,max=16")
+  """What people read, such as `Orders restored`. Any text, and it can be changed later."""
+  name: String! @constraint(constraint: "min=1,max=128")
+  """The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused."""
+  id: String @constraint(constraint: "resource_name,min=2,max=16")
   """Omit to restore the most recent state in the archive."""
   targetTime: Time
 }
@@ -57,6 +61,6 @@ input RestoreDatabaseInput {
 extend type Mutation {
   """Starts a full backup of a database now. If a backup is already running, that one is returned instead."""
   createDatabaseBackup(database: DatabaseID!): DatabaseBackup! @hasRole(role: WORKSPACE_MEMBER)
-  """Restores the backups of a database into a new database called `name` in the same environment, leaving the original untouched. Leave `targetTime` out to restore the latest state."""
+  """Restores the backups of a database into a new database in the same environment, leaving the original untouched. Leave `targetTime` out to restore the latest state."""
   restoreDatabase(input: RestoreDatabaseInput!): RestoreDatabaseResult! @hasRole(role: WORKSPACE_MEMBER)
 }

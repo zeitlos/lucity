@@ -1,3 +1,4 @@
+import { environmentRoute, projectRoute, routeDrawer, routeProjectId } from '@/lib/routes';
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
@@ -55,10 +56,7 @@ export function useContextSwitch() {
 
   const isEnvironmentRoute = computed(() => route.name === 'environment');
 
-  const activeProjectId = computed<string | undefined>(() => {
-    const id = route.params.projectId;
-    return Array.isArray(id) ? id[0] : (id as string | undefined);
-  });
+  const activeProjectId = computed(() => routeProjectId(route));
 
   const activeProject = computed(() => projects.value.find(p => p.id === activeProjectId.value));
   const activeProjectName = computed(() => activeProject.value?.name ?? activeProjectId.value ?? '');
@@ -80,7 +78,7 @@ export function useContextSwitch() {
     };
     setActiveWorkspace(id);
     try {
-      await router.push('/');
+      await router.push({ name: 'projects', params: { workspace: id } });
       await apolloClient.resetStore();
     } finally {
       workspaceSwitch.value.arrived = true;
@@ -96,27 +94,21 @@ export function useContextSwitch() {
     const project = projects.value.find(p => p.id === id);
     const target = preferredEnvironment(id, project?.environments ?? []);
     if (target) {
-      router.push({ name: 'environment', params: { projectId: id, environmentId: target.id } });
+      router.push(environmentRoute(target.id));
     } else {
-      router.push({ name: 'project', params: { projectId: id } });
+      router.push(projectRoute(id));
     }
   }
 
   function handleEnvironmentSwitch(envId: string) {
     if (envId === activeEnvironment.value?.id) return;
     if (!activeProjectId.value) return;
-    router.push({
-      name: 'environment',
-      params: { projectId: activeProjectId.value, environmentId: envId, drawer: route.params.drawer },
-    });
+    router.push(environmentRoute(envId, routeDrawer(route)));
   }
 
   function handleEnvironmentCreated(environmentId: string) {
     if (!activeProjectId.value) return;
-    router.push({
-      name: 'environment',
-      params: { projectId: activeProjectId.value, environmentId },
-    });
+    router.push(environmentRoute(environmentId));
   }
 
   function handleNewProject() {

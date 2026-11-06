@@ -33,6 +33,18 @@
             "deprecationReason": null
           },
           {
+            "name": "id",
+            "description": "The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "image",
             "description": null,
             "type": {
@@ -46,7 +58,7 @@
           },
           {
             "name": "name",
-            "description": null,
+            "description": "What people read. Any text, and it can be changed later. Defaults to the repository or image name.",
             "type": {
               "kind": "SCALAR",
               "name": "String",
@@ -2250,7 +2262,7 @@
           },
           {
             "name": "name",
-            "description": null,
+            "description": "What people read. It can be changed, while `id` stays the same.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -3601,8 +3613,20 @@
             "deprecationReason": null
           },
           {
+            "name": "id",
+            "description": "The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "name",
-            "description": null,
+            "description": "What people read, such as `Uploads`. Any text, and it can be changed later.",
             "type": {
               "kind": "NON_NULL",
               "name": null,
@@ -3645,8 +3669,20 @@
             "deprecationReason": null
           },
           {
+            "name": "id",
+            "description": "The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "name",
-            "description": null,
+            "description": "What people read, such as `Orders`. Any text, and it can be changed later.",
             "type": {
               "kind": "NON_NULL",
               "name": null,
@@ -3709,8 +3745,20 @@
             "deprecationReason": null
           },
           {
+            "name": "id",
+            "description": "The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "name",
-            "description": null,
+            "description": "What people read, such as `Staging`. Any text, and it can be changed later.",
             "type": {
               "kind": "NON_NULL",
               "name": null,
@@ -3781,8 +3829,20 @@
             "deprecationReason": null
           },
           {
+            "name": "id",
+            "description": "The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "name",
-            "description": null,
+            "description": "What people read, such as `Sessions`. Any text, and it can be changed later.",
             "type": {
               "kind": "NON_NULL",
               "name": null,
@@ -3822,7 +3882,7 @@
         "inputFields": [
           {
             "name": "id",
-            "description": "The project id. Derived from `name` when left out.",
+            "description": "The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused.",
             "type": {
               "kind": "SCALAR",
               "name": "String",
@@ -3834,7 +3894,7 @@
           },
           {
             "name": "name",
-            "description": "The display name of the project, such as `My API`.",
+            "description": "What people read, such as `Customer Portal`. Any text, and it can be changed later.",
             "type": {
               "kind": "NON_NULL",
               "name": null,
@@ -4176,7 +4236,7 @@
           },
           {
             "name": "name",
-            "description": null,
+            "description": "What people read. It can be changed, while `id` stays the same.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -4440,7 +4500,7 @@
           },
           {
             "name": "id",
-            "description": null,
+            "description": "The backup, as its database id followed by the backup's own name.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -6622,7 +6682,7 @@
           },
           {
             "name": "name",
-            "description": null,
+            "description": "What people read. It can be changed, while `id` stays the same.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -7480,7 +7540,7 @@
           },
           {
             "name": "name",
-            "description": null,
+            "description": "What people read. It can be changed, while `id` stays the same.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -9129,7 +9189,7 @@
           },
           {
             "name": "createVolume",
-            "description": "Creates a volume in an environment, with a `size` within the limits in `Workspace.capabilities`, at least `10Gi`.",
+            "description": "Creates a volume in an environment, with a `size` within the limits in `Workspace.capabilities`, at least `10Gi`. `name` is what people read, and `id` is derived from it when left out, like in `createDatabase`.",
             "args": [
               {
                 "name": "environment",
@@ -9142,6 +9202,18 @@
                     "kind": "SCALAR",
                     "ofType": null
                   }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "id",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
                 },
                 "defaultValue": null,
                 "isDeprecated": false,
@@ -10125,6 +10197,349 @@
             "deprecationReason": null
           },
           {
+            "name": "renameBucket",
+            "description": "Changes the name of a bucket. Its id stays the same.",
+            "args": [
+              {
+                "name": "bucket",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "BucketID",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "name",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "String",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "Bucket",
+                "kind": "OBJECT",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "renameDatabase",
+            "description": "Changes the name of a database. Its id stays the same, and nothing restarts.",
+            "args": [
+              {
+                "name": "database",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "DatabaseID",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "name",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "String",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "Database",
+                "kind": "OBJECT",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "renameEnvironment",
+            "description": "Changes the name of an environment. Its id stays the same.",
+            "args": [
+              {
+                "name": "environment",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "EnvironmentID",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "name",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "String",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "Environment",
+                "kind": "OBJECT",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "renameKeyValueStore",
+            "description": "Changes the name of a key-value store. Its id stays the same, and nothing restarts.",
+            "args": [
+              {
+                "name": "keyValueStore",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "KeyValueStoreID",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "name",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "String",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "KeyValueStore",
+                "kind": "OBJECT",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "renameProject",
+            "description": "Changes the name of a project. Its id stays the same.",
+            "args": [
+              {
+                "name": "name",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "String",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "project",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "ProjectID",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "Project",
+                "kind": "OBJECT",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "renameService",
+            "description": "Changes the name of a service. Its id stays the same, and nothing restarts.",
+            "args": [
+              {
+                "name": "name",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "String",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "service",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "ServiceID",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "Service",
+                "kind": "OBJECT",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "renameVolume",
+            "description": "Changes the name of a volume. Its id stays the same, and nothing restarts.",
+            "args": [
+              {
+                "name": "name",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "String",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "volume",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "VolumeID",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "Volume",
+                "kind": "OBJECT",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "replaceConnectorCredential",
             "description": "Replaces the credential of a connector, after checking the new one.",
             "args": [
@@ -10224,7 +10639,7 @@
           },
           {
             "name": "restoreDatabase",
-            "description": "Restores the backups of a database into a new database called `name` in the same environment, leaving the original untouched. Leave `targetTime` out to restore the latest state.",
+            "description": "Restores the backups of a database into a new database in the same environment, leaving the original untouched. Leave `targetTime` out to restore the latest state.",
             "args": [
               {
                 "name": "input",
@@ -12067,7 +12482,7 @@
           },
           {
             "name": "name",
-            "description": null,
+            "description": "What people read. It can be changed, while `id` stays the same.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -14567,8 +14982,20 @@
             "deprecationReason": null
           },
           {
+            "name": "id",
+            "description": "The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "name",
-            "description": null,
+            "description": "What people read, such as `Orders restored`. Any text, and it can be changed later.",
             "type": {
               "kind": "NON_NULL",
               "name": null,
@@ -15549,7 +15976,7 @@
           },
           {
             "name": "name",
-            "description": null,
+            "description": "What people read. It can be changed, while `id` stays the same.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -17274,7 +17701,7 @@
           },
           {
             "name": "name",
-            "description": null,
+            "description": "What people read. It can be changed, while `id` stays the same.",
             "args": [],
             "type": {
               "kind": "NON_NULL",

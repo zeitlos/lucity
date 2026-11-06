@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import NameSettings from '@/components/NameSettings.vue';
 import { mobileSheetClass } from '@/lib/dialog';
 import CodeBlock from '@/components/CodeBlock.vue';
 import { Status } from '@/components/ui/status';
@@ -29,6 +30,14 @@ import GateTag from '@/components/GateTag.vue';
 import { aboveLimit, gatedChoices, planTitle } from '@/lib/capabilities';
 import { formatCpuQuantity, formatStorage } from '@/lib/format';
 
+const RenameServiceDocument = graphql(`
+  mutation RenameService($service: ServiceID!, $name: String!) {
+    renameService(service: $service, name: $name) {
+      id
+      name
+    }
+  }
+`);
 const RemoveServiceDocument = graphql(`
   mutation RemoveService($service: ServiceID!) {
     removeService(service: $service)
@@ -257,6 +266,16 @@ const emit = defineEmits<{
   (e: 'removed'): void;
   (e: 'refetch'): void;
 }>();
+
+const { mutate: renameMutate, loading: renaming } = useMutation(RenameServiceDocument);
+
+async function handleRename(name: string) {
+  try {
+    await renameMutate({ service: props.service.id, name });
+  } catch (e: unknown) {
+    failureToast('Failed to rename service', e);
+  }
+}
 
 const endpoints = computed(() => props.service.endpoints ?? []);
 const platformEndpoint = computed(() => endpoints.value.find(e => e.type === EndpointType.Platform));
@@ -968,6 +987,18 @@ async function handleRemoveService() {
 
 <template>
   <div class="space-y-6">
+    <section class="space-y-2">
+      <h3 class="text-sm font-medium text-muted-foreground">
+        General
+      </h3>
+      <NameSettings
+        :name="service.name"
+        :id="service.id"
+        :saving="renaming"
+        @save="handleRename"
+      />
+    </section>
+
     <!-- Source -->
     <section v-if="service.sourceUrl" class="space-y-2">
       <h3 class="text-sm font-medium text-muted-foreground">

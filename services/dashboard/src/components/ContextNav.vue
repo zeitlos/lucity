@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { environmentRoute, projectRoute } from '@/lib/routes';
 import { ref } from 'vue';
 import { Check, ChevronDown, Plus } from '@lucide/vue';
 import { useContextSwitch } from '@/composables/useContextSwitch';
@@ -95,7 +96,7 @@ const newBoxClass = 'flex size-6 shrink-0 items-center justify-center rounded bo
       <template v-if="activeProjectId">
         <span class="text-sm text-border">/</span>
         <span class="inline-flex min-w-0 items-center">
-          <RouterLink :to="{ name: 'project', params: { projectId: activeProjectId } }" :class="titleClass">
+          <RouterLink :to="projectRoute(activeProjectId)" :class="titleClass">
             <span class="max-w-40 truncate">{{ activeProjectName }}</span>
           </RouterLink>
           <Tooltip>
@@ -133,7 +134,7 @@ const newBoxClass = 'flex size-6 shrink-0 items-center justify-center rounded bo
         <span class="text-sm text-border">/</span>
         <span class="inline-flex min-w-0 items-center">
           <RouterLink
-            :to="{ name: 'environment', params: { projectId: activeProjectId, environmentId: activeEnvironment.id } }"
+            :to="environmentRoute(activeEnvironment.id)"
             :class="titleClass"
           >
             <span class="truncate">{{ activeEnvironment.name }}</span>

@@ -6,6 +6,8 @@ import { useApolloClient } from '@vue/apollo-composable';
 import { onKeyStroke } from '@vueuse/core';
 import { ArrowLeft, Check, ChevronRight, CornerDownLeft } from '@lucide/vue';
 import Spinner from '@/components/LoadingSpinner.vue';
+import IdSegment from '@/components/IdSegment.vue';
+import { isValidId } from '@/lib/id';
 import type { CommandFlowConfig } from '@/lib/commandFlow';
 import { failureToast } from '@/components/ui/sonner';
 
@@ -22,8 +24,13 @@ const values = reactive<Record<string, string>>({});
 const focusedIndex = ref(0);
 const submitting = ref(false);
 const inputRef = ref<HTMLInputElement>();
+const idSegmentRef = ref<InstanceType<typeof IdSegment> | null>(null);
+const idMessage = computed(() => idSegmentRef.value?.message ?? null);
 
-props.flow.steps.forEach((step) => { values[step.id] = step.initial ?? ''; });
+props.flow.steps.forEach((step) => {
+  values[step.id] = step.initial ?? '';
+  if (step.idField) values[step.idField.key] = '';
+});
 
 const currentStep = computed(() => props.flow.steps[stepIndex.value]!);
 const isLastStep = computed(() => stepIndex.value === props.flow.steps.length - 1);
@@ -36,6 +43,10 @@ const inputModel = computed<string>({
 const stepValid = computed(() => {
   const step = currentStep.value;
   const value = values[step.id] ?? '';
+  if (step.idField) {
+    const id = values[step.idField.key] ?? '';
+    return value.trim().length > 0 && isValidId(id) && !step.idField.taken.has(id);
+  }
   if (step.validate) return step.validate(value);
   if (step.required === false) return true;
   return value.trim().length > 0;
@@ -60,6 +71,11 @@ const rows = computed<Row[]>(() => {
     action: submit,
   }];
 });
+
+function setId(id: string) {
+  const field = currentStep.value.idField;
+  if (field) values[field.key] = id;
+}
 
 function goNext() {
   if (stepValid.value) stepIndex.value++;
@@ -132,11 +148,29 @@ onKeyStroke('Enter', (e) => {
         data-1p-ignore
         spellcheck="false"
       />
-      <Spinner v-if="submitting" :size="14" class="shrink-0 animate-spin text-muted-foreground" />
+      <IdSegment
+        v-if="currentStep.idField"
+        ref="idSegmentRef"
+        :id="values[currentStep.idField.key] ?? ''"
+        :name="values[currentStep.id] ?? ''"
+        :fallback="currentStep.idField.fallback"
+        :taken="currentStep.idField.taken"
+        :scope="currentStep.idField.scope"
+        :disabled="submitting"
+        @update:id="setId"
+      />
+      <Spinner v-if="submitting" :size="14" class="ml-2 shrink-0 animate-spin text-muted-foreground" />
     </div>
 
     <div class="max-h-[50vh] overflow-y-auto">
       <p v-if="showInvalidHint" class="px-3 py-1.5 text-xs text-destructive">{{ currentStep.invalidHint }}</p>
+      <p
+        v-if="idMessage"
+        class="px-3 py-1.5 text-xs"
+        :class="idMessage.error ? 'text-destructive' : 'text-muted-foreground'"
+      >
+        {{ idMessage.text }}
+      </p>
 
       <button
         v-for="(row, index) in rows"

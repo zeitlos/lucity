@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import NameSettings from '@/components/NameSettings.vue';
 import { formatStorage } from '@/lib/format';
 import FormFooter from '@/components/FormFooter.vue';
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges';
@@ -17,6 +18,14 @@ import GateTag from '@/components/GateTag.vue';
 import { nextUpgrade, planTitle, stepState } from '@/lib/capabilities';
 import { Availability } from '@/gql/graphql';
 
+const RenameVolumeDocument = graphql(`
+  mutation RenameVolume($volume: VolumeID!, $name: String!) {
+    renameVolume(volume: $volume, name: $name) {
+      id
+      name
+    }
+  }
+`);
 const DeleteVolumeDocument = graphql(`
   mutation DeleteVolume($volume: VolumeID!) {
     deleteVolume(volume: $volume)
@@ -60,6 +69,16 @@ const emit = defineEmits<{
   (e: 'unmounted'): void;
   (e: 'expanded'): void;
 }>();
+
+const { mutate: renameMutate, loading: renaming } = useMutation(RenameVolumeDocument);
+
+async function handleRename(name: string) {
+  try {
+    await renameMutate({ volume: props.volumeId, name });
+  } catch (e: unknown) {
+    failureToast('Failed to rename volume', e);
+  }
+}
 
 const mountedServiceName = computed(() => {
   if (!props.volume.mount) return null;
@@ -155,6 +174,18 @@ async function handleDelete() {
 
 <template>
   <div class="space-y-6">
+    <section class="space-y-2">
+      <h3 class="text-sm font-medium text-muted-foreground">
+        General
+      </h3>
+      <NameSettings
+        :name="volume.name"
+        :id="volumeId"
+        :saving="renaming"
+        @save="handleRename"
+      />
+    </section>
+
     <!-- Mount -->
     <section class="space-y-2">
       <h3 class="text-sm font-medium text-muted-foreground">

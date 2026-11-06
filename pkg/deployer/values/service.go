@@ -97,6 +97,7 @@ type IssuerRef struct {
 }
 
 type ServiceSpec struct {
+	DisplayName          string
 	Image                string
 	SourceURL            string
 	ContextPath          string
@@ -154,7 +155,7 @@ func CreateService(env *Env, name string, spec ServiceSpec) error {
 		},
 		Port:           spec.Port,
 		Labels:         labels,
-		Annotations:    annotations,
+		Annotations:    withDisplayName(annotations, spec.DisplayName),
 		PodLabels:      podLabels,
 		PodAnnotations: podAnnotations,
 		Resources:      spec.Resources,

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	pkglabels "github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/usererror"
 
@@ -87,7 +88,7 @@ func (c *Client) KeyValueStoreCredentials(ctx context.Context, id platform.KeyVa
 func toKeyValueStore(sts apps.StatefulSet, environmentID platform.EnvironmentID) platform.KeyValueStore {
 	store := platform.KeyValueStore{
 		ID:        keyValueStoreID(sts, environmentID),
-		Name:      sts.Labels[keyValueStoreLabel],
+		Name:      readableName(sts.Annotations, pkglabels.Name, sts.Labels[keyValueStoreLabel]),
 		Status:    keyValueStoreStatus(sts),
 		CreatedAt: sts.GetCreationTimestamp().Time,
 	}

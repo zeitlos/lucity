@@ -17,8 +17,8 @@ const CreateEnvironmentDocument = graphql(`
 `);
 import { useEnvironment } from '@/composables/useEnvironment';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import NameIdField from '@/components/NameIdField.vue';
+import { isValidId, lastSegment } from '@/lib/id';
 import {
   Dialog,
   DialogContent,
@@ -50,12 +50,15 @@ const emit = defineEmits<{
 const { environments } = useEnvironment();
 
 const name = ref('');
+const id = ref('');
 const mode = ref<'duplicate' | 'empty'>('duplicate');
 const fromEnvironmentId = ref<string>('');
 
 const { mutate, loading } = useMutation(CreateEnvironmentDocument);
 
 const availableEnvs = computed(() => environments.value);
+const takenIds = computed(() => new Set(availableEnvs.value.map(environment => lastSegment(environment.id))));
+const isValid = computed(() => name.value.trim().length > 0 && isValidId(id.value) && !takenIds.value.has(id.value));
 
 // Default to 'duplicate' when environments exist, 'empty' when none
 watch(() => props.open, (isOpen) => {
@@ -70,12 +73,13 @@ watch(() => props.open, (isOpen) => {
 });
 
 async function handleCreate() {
-  if (!name.value.trim()) return;
+  if (!isValid.value) return;
 
   try {
     const input: CreateEnvironmentInput = {
       project: props.projectId,
       name: name.value.trim(),
+      id: id.value,
     };
     if (mode.value === 'duplicate' && fromEnvironmentId.value) {
       input.fromEnvironment = fromEnvironmentId.value;
@@ -109,15 +113,15 @@ async function handleCreate() {
       </DialogHeader>
 
       <form class="space-y-4" @submit.prevent="handleCreate">
-        <div class="space-y-2">
-          <Label for="env-name">Environment name</Label>
-          <Input
-            id="env-name"
-            v-model="name"
-            placeholder="e.g. staging, preview"
-            :disabled="loading"
-          />
-        </div>
+        <NameIdField
+          v-model:name="name"
+          v-model:id="id"
+          fallback="environment"
+          :taken="takenIds"
+          scope="project"
+          :disabled="loading"
+          name-placeholder="e.g. Staging"
+        />
 
         <div
           v-if="availableEnvs.length > 0"
@@ -171,7 +175,7 @@ async function handleCreate() {
           <Button
             type="submit"
             :pending="loading"
-            :disabled="!name.trim()"
+            :disabled="!isValid"
           >
             {{ loading ? 'Creating…' : 'Create environment' }}
           </Button>

@@ -4,7 +4,7 @@ import { computed, watch, ref, nextTick, toRef } from 'vue';
 import { VueFlow, useVueFlow, getRectOfNodes, type GraphNode, type ViewportTransform } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
 import { Plus, Scan, WandSparkles } from '@lucide/vue';
-import { usePanel } from '@/composables/usePanel';
+import { usePanel, type PanelEntry } from '@/composables/usePanel';
 import { useCanvasReleaseStatus } from '@/composables/useCanvasReleaseStatus';
 import { useCanvasLayout, firstFreeSpot, nearestFreeSpot, gridSize, type NodeRect } from '@/composables/useCanvasLayout';
 import type { Service, Database, KeyValueStore, Bucket, Volume } from '@/composables/useEnvironment';
@@ -50,14 +50,20 @@ const { getNodes, areNodesInitialized, setViewport, findNode, setCenter, dimensi
 
 const { positionFor, setPosition, reconcile, reset } = useCanvasLayout(() => props.environmentId);
 
+type NodeKind = PanelEntry['type'];
+
+function canvasNodeId(kind: NodeKind, resourceId: string) {
+  return `${kind}:${resourceId}`;
+}
+
 const allNodeIds = computed(() => [
-  ...props.services,
-  ...props.databases,
-  ...props.keyValueStores,
-  ...props.buckets,
-  ...props.volumes,
-  ...props.agents,
-].map(node => node.id));
+  ...props.services.map(service => canvasNodeId('service', service.id)),
+  ...props.databases.map(database => canvasNodeId('database', database.id)),
+  ...props.keyValueStores.map(store => canvasNodeId('keyValueStore', store.id)),
+  ...props.buckets.map(bucket => canvasNodeId('bucket', bucket.id)),
+  ...props.volumes.map(volume => canvasNodeId('volume', volume.id)),
+  ...props.agents.map(agent => canvasNodeId('agent', agent.id)),
+]);
 
 watch(
   () => allNodeIds.value.join('|'),
@@ -81,15 +87,24 @@ function settle(nodeId: string) {
   }, 200);
 }
 
+function canvasNode(kind: NodeKind, resourceId: string) {
+  const id = canvasNodeId(kind, resourceId);
+  return {
+    id,
+    type: kind,
+    ...placement(id),
+    selected: currentPanel.value?.type === kind && currentPanel.value?.id === resourceId,
+  };
+}
+
 const nodes = computed(() => {
   const serviceNodes = props.services.map(svc => {
     const releaseInfo = statusMap.value[svc.id];
     const mountedVolume = props.volumes.find(vol => vol.mount?.service === svc.id);
     return {
-      id: svc.id,
-      type: 'service',
-      ...placement(svc.id),
+      ...canvasNode('service', svc.id),
       data: {
+        id: svc.id,
         name: svc.name,
         sourceUrl: svc.sourceUrl,
         endpoints: svc.endpoints,
@@ -109,53 +124,46 @@ const nodes = computed(() => {
           }
           : null,
       },
-      selected: currentPanel.value?.id === svc.id && currentPanel.value?.type === 'service',
     };
   });
 
   const databaseNodes = props.databases.map(db => {
     return {
-      id: db.id,
-      type: 'database',
-      ...placement(db.id),
+      ...canvasNode('database', db.id),
       data: {
+        id: db.id,
         name: db.name,
         version: db.version,
         instances: db.instances,
         size: db.size,
         status: db.status,
       },
-      selected: currentPanel.value?.id === db.id && currentPanel.value?.type === 'database',
     };
   });
 
   const keyValueStoreNodes = props.keyValueStores.map(kv => {
     return {
-      id: kv.id,
-      type: 'keyValueStore',
-      ...placement(kv.id),
+      ...canvasNode('keyValueStore', kv.id),
       data: {
+        id: kv.id,
         name: kv.name,
         version: kv.version,
         size: kv.size,
         status: kv.status,
       },
-      selected: currentPanel.value?.id === kv.id && currentPanel.value?.type === 'keyValueStore',
     };
   });
 
   const bucketNodes = props.buckets.map(bucket => {
     return {
-      id: bucket.id,
-      type: 'bucket',
-      ...placement(bucket.id),
+      ...canvasNode('bucket', bucket.id),
       data: {
+        id: bucket.id,
         name: bucket.name,
         region: bucket.region,
         sizeBytes: bucket.sizeBytes,
         status: bucket.status,
       },
-      selected: currentPanel.value?.id === bucket.id && currentPanel.value?.type === 'bucket',
     };
   });
 
@@ -163,28 +171,24 @@ const nodes = computed(() => {
     .filter(volume => !volume.mount)
     .map(volume => {
       return {
-        id: volume.id,
-        type: 'volume',
-        ...placement(volume.id),
+        ...canvasNode('volume', volume.id),
         data: {
+          id: volume.id,
           name: volume.name,
         },
-        selected: currentPanel.value?.id === volume.id && currentPanel.value?.type === 'volume',
       };
     });
 
   const agentNodes = props.agents.map(agent => {
     return {
-      id: agent.id,
-      type: 'agent',
-      ...placement(agent.id),
+      ...canvasNode('agent', agent.id),
       data: {
+        id: agent.id,
         name: agent.name,
         harness: agent.harness,
         status: agent.status,
         connectors: agent.connectors.map(grant => grant.connector.name),
       },
-      selected: currentPanel.value?.id === agent.id && currentPanel.value?.type === 'agent',
     };
   });
 
@@ -193,19 +197,19 @@ const nodes = computed(() => {
 
 const edges = ref<never[]>([]);
 
-function handleNodeClick(event: { node: { id: string; type: string; data: { name: string } } }) {
+function handleNodeClick(event: { node: { id: string; type: string; data: { id: string; name: string } } }) {
   if (event.node.type === 'database') {
-    openPanel({ type: 'database', id: event.node.id, label: event.node.data.name });
+    openPanel({ type: 'database', id: event.node.data.id, label: event.node.data.name });
   } else if (event.node.type === 'keyValueStore') {
-    openPanel({ type: 'keyValueStore', id: event.node.id, label: event.node.data.name });
+    openPanel({ type: 'keyValueStore', id: event.node.data.id, label: event.node.data.name });
   } else if (event.node.type === 'bucket') {
-    openPanel({ type: 'bucket', id: event.node.id, label: event.node.data.name });
+    openPanel({ type: 'bucket', id: event.node.data.id, label: event.node.data.name });
   } else if (event.node.type === 'volume') {
-    openPanel({ type: 'volume', id: event.node.id, label: event.node.data.name });
+    openPanel({ type: 'volume', id: event.node.data.id, label: event.node.data.name });
   } else if (event.node.type === 'agent') {
-    openPanel({ type: 'agent', id: event.node.id, label: event.node.data.name });
+    openPanel({ type: 'agent', id: event.node.data.id, label: event.node.data.name });
   } else {
-    openPanel({ type: 'service', id: event.node.id, label: event.node.data.name });
+    openPanel({ type: 'service', id: event.node.data.id, label: event.node.data.name });
   }
 }
 
@@ -267,7 +271,7 @@ const stopInitialView = watch(
     await nextTick();
     const panel = currentPanel.value;
     if (panel?.type === 'service' || panel?.type === 'database' || panel?.type === 'keyValueStore' || panel?.type === 'bucket' || panel?.type === 'volume' || panel?.type === 'agent') {
-      const node = findNode(panel.id);
+      const node = findNode(canvasNodeId(panel.type, panel.id));
       if (node) {
         const nodeCenterX = node.position.x + (node.dimensions.width / 2);
         const nodeCenterY = node.position.y + (node.dimensions.height / 2);
@@ -291,7 +295,7 @@ watch(
   () => currentPanel.value,
   (panel, oldPanel) => {
     if (panel?.type === 'service' || panel?.type === 'database' || panel?.type === 'keyValueStore' || panel?.type === 'bucket' || panel?.type === 'volume' || panel?.type === 'agent') {
-      const node = findNode(panel.id);
+      const node = findNode(canvasNodeId(panel.type, panel.id));
       if (node) {
         if (!oldPanel) viewportBeforePanel = { ...viewport.value };
         const nodeCenterX = node.position.x + (node.dimensions.width / 2);
@@ -334,7 +338,7 @@ watch(
         <ServiceNode
           :data="nodeProps.data"
           :selected="nodeProps.selected"
-          @select="openPanel({ type: 'service', id: nodeProps.id, label: nodeProps.data.name })"
+          @select="openPanel({ type: 'service', id: nodeProps.data.id, label: nodeProps.data.name })"
           @select-volume="openPanel({ type: 'volume', id: nodeProps.data.volume.id, label: nodeProps.data.volume.name })"
         />
       </template>
@@ -343,7 +347,7 @@ watch(
         <DatabaseNode
           :data="nodeProps.data"
           :selected="nodeProps.selected"
-          @select="openPanel({ type: 'database', id: nodeProps.id, label: nodeProps.data.name })"
+          @select="openPanel({ type: 'database', id: nodeProps.data.id, label: nodeProps.data.name })"
         />
       </template>
 
@@ -351,7 +355,7 @@ watch(
         <KeyValueStoreNode
           :data="nodeProps.data"
           :selected="nodeProps.selected"
-          @select="openPanel({ type: 'keyValueStore', id: nodeProps.id, label: nodeProps.data.name })"
+          @select="openPanel({ type: 'keyValueStore', id: nodeProps.data.id, label: nodeProps.data.name })"
         />
       </template>
 
@@ -359,7 +363,7 @@ watch(
         <BucketNode
           :data="nodeProps.data"
           :selected="nodeProps.selected"
-          @select="openPanel({ type: 'bucket', id: nodeProps.id, label: nodeProps.data.name })"
+          @select="openPanel({ type: 'bucket', id: nodeProps.data.id, label: nodeProps.data.name })"
         />
       </template>
 
@@ -367,8 +371,8 @@ watch(
         <VolumeNode
           :data="nodeProps.data"
           :selected="nodeProps.selected"
-          @select="openPanel({ type: 'volume', id: nodeProps.id, label: nodeProps.data.name })"
-          @mount="emit('mount-volume', nodeProps.id)"
+          @select="openPanel({ type: 'volume', id: nodeProps.data.id, label: nodeProps.data.name })"
+          @mount="emit('mount-volume', nodeProps.data.id)"
         />
       </template>
 
@@ -376,7 +380,7 @@ watch(
         <AgentNode
           :data="nodeProps.data"
           :selected="nodeProps.selected"
-          @select="openPanel({ type: 'agent', id: nodeProps.id, label: nodeProps.data.name })"
+          @select="openPanel({ type: 'agent', id: nodeProps.data.id, label: nodeProps.data.name })"
         />
       </template>
 

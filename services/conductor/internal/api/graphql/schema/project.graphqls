@@ -1,13 +1,14 @@
 type Project {
   id: ProjectID!
+  """What people read. It can be changed, while `id` stays the same."""
   name: String!
   environments: [Environment!]!
 }
 
 input CreateProjectInput {
-  """The display name of the project, such as `My API`."""
+  """What people read, such as `Customer Portal`. Any text, and it can be changed later."""
   name: String! @constraint(constraint: "min=1,max=128")
-  """The project id. Derived from `name` when left out."""
+  """The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused."""
   id: String @constraint(constraint: "resource_name,min=2,max=16")
 }
 
@@ -21,6 +22,8 @@ extend type Query {
 extend type Mutation {
   """Creates a project with an empty `development` environment. Services and resources are added to the environment afterwards."""
   createProject(input: CreateProjectInput!): Project! @hasRole(role: WORKSPACE_MEMBER)
+  """Changes the name of a project. Its id stays the same."""
+  renameProject(project: ProjectID!, name: String! @constraint(constraint: "min=1,max=128")): Project! @hasRole(role: WORKSPACE_MEMBER)
   """Deletes a project. Every one of its environments has to be empty first."""
   deleteProject(id: ProjectID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
 }

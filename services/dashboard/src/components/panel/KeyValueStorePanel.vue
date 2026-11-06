@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import NameSettings from '@/components/NameSettings.vue';
 import CredentialField from '@/components/CredentialField.vue';
 import { formatStorage } from '@/lib/format';
 import EmptyState from '@/components/EmptyState.vue';
@@ -19,6 +20,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import CredentialFieldSkeleton from '@/components/CredentialFieldSkeleton.vue';
 import { failureToast } from '@/components/ui/sonner';
 
+const RenameKeyValueStoreDocument = graphql(`
+  mutation RenameKeyValueStore($keyValueStore: KeyValueStoreID!, $name: String!) {
+    renameKeyValueStore(keyValueStore: $keyValueStore, name: $name) {
+      id
+      name
+    }
+  }
+`);
 const KeyValueStoreCredentialsDocument = graphql(`
   query KeyValueStoreCredentials($keyValueStore: KeyValueStoreID!) {
     keyValueStoreCredentials(keyValueStore: $keyValueStore) {
@@ -50,6 +59,16 @@ const emit = defineEmits<{
   (e: 'close'): void;
   (e: 'store-removed'): void;
 }>();
+
+const { mutate: renameMutate, loading: renaming } = useMutation(RenameKeyValueStoreDocument);
+
+async function handleRename(name: string) {
+  try {
+    await renameMutate({ keyValueStore: props.store.id, name });
+  } catch (e: unknown) {
+    failureToast('Failed to rename store', e);
+  }
+}
 
 const { tab: activeTab, selectTab } = usePanelTab('connect');
 
@@ -180,6 +199,18 @@ async function handleDelete() {
 
         <TabsContent value="settings" class="px-4 py-4">
           <div class="space-y-6">
+            <section class="space-y-2">
+              <h3 class="text-sm font-medium text-muted-foreground">
+                General
+              </h3>
+              <NameSettings
+                :name="store.name"
+                :id="store.id"
+                :saving="renaming"
+                @save="handleRename"
+              />
+            </section>
+
             <!-- Configuration -->
             <section class="space-y-2">
               <h3 class="text-sm font-medium text-muted-foreground">

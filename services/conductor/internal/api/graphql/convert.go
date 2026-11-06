@@ -1,6 +1,7 @@
 package graphql
 
 import (
+	"cmp"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -943,11 +944,11 @@ func convertDatabaseAllowRules(rules []conductor.DatabaseAllowRule) []model.Data
 	return result
 }
 
-func convertDatabaseBackups(b platform.DatabaseBackups) model.DatabaseBackups {
+func convertDatabaseBackups(database platform.DatabaseID, b platform.DatabaseBackups) model.DatabaseBackups {
 	backups := make([]model.DatabaseBackup, 0, len(b.Backups))
 
 	for _, backup := range b.Backups {
-		backups = append(backups, convertDatabaseBackup(backup))
+		backups = append(backups, convertDatabaseBackup(database, backup))
 	}
 
 	return model.DatabaseBackups{
@@ -961,9 +962,9 @@ func convertDatabaseBackups(b platform.DatabaseBackups) model.DatabaseBackups {
 	}
 }
 
-func convertDatabaseBackup(b platform.DatabaseBackup) model.DatabaseBackup {
+func convertDatabaseBackup(database platform.DatabaseID, b platform.DatabaseBackup) model.DatabaseBackup {
 	backup := model.DatabaseBackup{
-		ID:         b.Name,
+		ID:         database.String() + "/" + b.Name,
 		CreatedAt:  b.CreatedAt,
 		Status:     convertBackupStatus(b.Status),
 		Trigger:    convertBackupTrigger(b.Trigger),
@@ -1478,11 +1479,11 @@ func convertVariable(variable conductor.Variable) model.Variable {
 func convertVariableSource(source platform.VariableSource) model.VariableSource {
 	switch {
 	case source.Database != nil:
-		return model.DatabaseSource{ID: *source.Database, Name: source.Database.Name}
+		return model.DatabaseSource{ID: *source.Database, Name: cmp.Or(source.Name, source.Database.Name)}
 	case source.KeyValueStore != nil:
-		return model.KeyValueStoreSource{ID: *source.KeyValueStore, Name: source.KeyValueStore.Name}
+		return model.KeyValueStoreSource{ID: *source.KeyValueStore, Name: cmp.Or(source.Name, source.KeyValueStore.Name)}
 	case source.Bucket != nil:
-		return model.BucketSource{ID: *source.Bucket, Name: source.Bucket.Name}
+		return model.BucketSource{ID: *source.Bucket, Name: cmp.Or(source.Name, source.Bucket.Name)}
 	default:
 		return model.SharedSource{}
 	}

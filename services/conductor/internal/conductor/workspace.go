@@ -1,24 +1,31 @@
 package conductor
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"log/slog"
-	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/zeitlos/lucity/pkg/auth"
+	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/usererror"
 	"github.com/zeitlos/lucity/services/conductor/internal/billing"
 	"github.com/zeitlos/lucity/services/conductor/internal/directory"
 )
 
+// reservedWorkspaceIDs are top-level paths of the dashboard host. A
+// workspace's id is the first part of its dashboard URLs, so it can't be one.
+var reservedWorkspaceIDs = []string{
+	"api-tokens", "app", "assets", "auth", "billing", "brand", "checkout", "connections", "fonts",
+	"graphql", "login", "members", "playground", "projects", "settings", "webhooks", "workspace",
+}
+
 type Workspace = directory.Workspace
 type WorkspaceDetails = directory.WorkspaceDetails
 type WorkspaceMember = directory.WorkspaceMember
-
-var workspaceIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$`)
 
 func (c *Client) Workspaces(ctx context.Context) ([]Workspace, error) {
 	claims, err := auth.FromContext(ctx)
@@ -41,6 +48,10 @@ func (c *Client) Workspaces(ctx context.Context) ([]Workspace, error) {
 			}
 		}
 	}
+
+	slices.SortFunc(workspaces, func(a, b Workspace) int {
+		return cmp.Or(strings.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name)), strings.Compare(a.ID, b.ID))
+	})
 
 	return workspaces, nil
 }
@@ -181,18 +192,13 @@ func (c *Client) UpdateMemberRole(ctx context.Context, workspaceID, userID strin
 }
 
 // EnsurePersonalWorkspace creates a personal workspace for a new user if they have none.
-// The workspace ID is derived from the user's username. Idempotent: if the workspace
-// already exists and belongs to this user, returns the existing ID.
-// On genuine collision (different owner), picks {id}-0, {id}-1, etc.
+// The workspace ID is derived from the user's username. Idempotent: a user who is
+// already a member of a personal workspace gets that one back.
+// On genuine collision (different owner), a counter is added to the ID.
 // Returns the workspace ID and whether it was newly created (true) or restored (false).
 func (c *Client) EnsurePersonalWorkspace(ctx context.Context, userID, username string) (string, bool, error) {
 	if c.logto == nil {
 		return "", false, fmt.Errorf("logto not configured")
-	}
-
-	wsID := sanitizeWorkspaceID(username)
-	if wsID == "" {
-		return "", false, fmt.Errorf("cannot derive workspace ID from username %q", username)
 	}
 
 	adminRoleID, memberRoleID, err := c.orgRoleIDs(ctx)
@@ -200,48 +206,57 @@ func (c *Client) EnsurePersonalWorkspace(ctx context.Context, userID, username s
 		return "", false, fmt.Errorf("failed to resolve org role IDs: %w", err)
 	}
 
-	// Check if preferred workspace ID already exists (search by name).
-	existing, err := c.logto.OrganizationByName(ctx, wsID)
-	if err == nil {
-		// Cache the mapping
-		c.cacheOrgID(wsID, existing.ID)
+	orgs, err := c.logto.UserOrganizations(ctx, userID)
+	if err != nil {
+		return "", false, err
+	}
 
-		// Workspace exists. Check if this user is already a member.
-		members, memErr := c.logto.OrganizationMembers(ctx, existing.ID)
-		if memErr == nil {
-			for _, m := range members {
-				if m.ID == userID {
-					// User is already a member. Self-heal billing in the background.
-					go func() {
-						email := ""
-						if user, _ := c.logto.User(context.WithoutCancel(ctx), userID); user != nil {
-							email = user.PrimaryEmail
-						}
-						c.setupBilling(ctx, wsID, username, email, 14)
-					}()
-					slog.Info("personal workspace restored", "id", wsID, "user", userID)
-					return wsID, false, nil
-				}
-			}
-		}
-
-		// Check if this is a personal workspace with customData indicating personal=true.
-		// If personal and no owner matched, it might be a pre-migration workspace.
-		isPersonal, _ := existing.CustomData["personal"].(bool)
-		if isPersonal {
-			// Re-add user as admin member
-			_ = c.logto.AddOrganizationMember(ctx, existing.ID, userID)
-			_ = c.logto.AssignOrganizationRoles(ctx, existing.ID, userID, []string{adminRoleID, memberRoleID})
-			slog.Info("personal workspace restored (re-added member)", "id", wsID, "user", userID)
-			return wsID, false, nil
-		}
-
-		// Genuine collision — someone else owns this ID.
-		wsID, err = c.findAvailableWorkspaceID(ctx, wsID)
-		if err != nil {
-			return "", false, fmt.Errorf("failed to find available workspace ID: %w", err)
+	for _, org := range orgs {
+		if personal, _ := org.CustomData["personal"].(bool); personal {
+			c.cacheOrgID(org.Name, org.ID)
+			c.healBilling(ctx, org.Name, userID, username)
+			slog.Info("personal workspace restored", "id", org.Name, "user", userID)
+			return org.Name, false, nil
 		}
 	}
+
+	if legacyID := sanitizeWorkspaceID(username); legacyID != "" {
+		if existing, err := c.logto.OrganizationByName(ctx, legacyID); err == nil {
+			// Cache the mapping
+			c.cacheOrgID(legacyID, existing.ID)
+
+			// Workspace exists. Check if this user is already a member.
+			members, memErr := c.logto.OrganizationMembers(ctx, existing.ID)
+			if memErr == nil {
+				for _, m := range members {
+					if m.ID == userID {
+						c.healBilling(ctx, legacyID, userID, username)
+						slog.Info("personal workspace restored", "id", legacyID, "user", userID)
+						return legacyID, false, nil
+					}
+				}
+			}
+
+			// Check if this is a personal workspace with customData indicating personal=true.
+			// If personal and no owner matched, it might be a pre-migration workspace.
+			isPersonal, _ := existing.CustomData["personal"].(bool)
+			if isPersonal {
+				// Re-add user as admin member
+				_ = c.logto.AddOrganizationMember(ctx, existing.ID, userID)
+				_ = c.logto.AssignOrganizationRoles(ctx, existing.ID, userID, []string{adminRoleID, memberRoleID})
+				slog.Info("personal workspace restored (re-added member)", "id", legacyID, "user", userID)
+				return legacyID, false, nil
+			}
+		}
+	}
+
+	wsID := platform.DeriveID(username, "personal", func(id string) bool {
+		if slices.Contains(reservedWorkspaceIDs, id) {
+			return true
+		}
+		_, err := c.logto.OrganizationByName(ctx, id)
+		return err == nil
+	})
 
 	// Create Logto organization with personal=true in customData.
 	customData := map[string]interface{}{
@@ -277,17 +292,15 @@ func (c *Client) EnsurePersonalWorkspace(ctx context.Context, userID, username s
 	return wsID, true, nil
 }
 
-// findAvailableWorkspaceID tries {base}-0, {base}-1, ... up to {base}-9
-// to find an available workspace ID. Returns error if all slots are taken.
-func (c *Client) findAvailableWorkspaceID(ctx context.Context, base string) (string, error) {
-	for i := 0; i < 10; i++ {
-		candidate := fmt.Sprintf("%s-%d", base, i)
-		_, err := c.logto.OrganizationByName(ctx, candidate)
-		if err != nil {
-			return candidate, nil
+// healBilling self-heals a returning user's personal workspace billing in the background.
+func (c *Client) healBilling(ctx context.Context, workspace, userID, username string) {
+	go func() {
+		email := ""
+		if user, _ := c.logto.User(context.WithoutCancel(ctx), userID); user != nil {
+			email = user.PrimaryEmail
 		}
-	}
-	return "", fmt.Errorf("all workspace ID slots exhausted for base %q", base)
+		c.setupBilling(ctx, workspace, username, email, 14)
+	}()
 }
 
 // setupBilling ensures a Stripe customer and subscription exist for a workspace and
@@ -374,12 +387,12 @@ func (c *Client) CreateWorkspaceCheckout(ctx context.Context, id, name, plan str
 		return "", errors.New("billing not configured")
 	}
 
-	if !workspaceIDPattern.MatchString(id) {
-		return "", usererror.New("invalid workspace ID: must be 3-63 lowercase alphanumeric characters or hyphens")
+	if slices.Contains(reservedWorkspaceIDs, id) {
+		return "", usererror.Errorf("The ID %q is reserved, so pick another one.", id)
 	}
 
 	if _, err = c.logto.OrganizationByName(ctx, id); err == nil {
-		return "", usererror.Errorf("workspace ID %q is already taken", id)
+		return "", usererror.Errorf("Another workspace already uses the ID %q.", id)
 	}
 
 	customerID, err := c.billing.CreateCustomer(ctx, id, name, claims.Email)
@@ -502,7 +515,8 @@ func (c *Client) cacheOrgID(workspaceID, logtoOrgID string) {
 	c.orgIDCacheMu.Unlock()
 }
 
-// sanitizeWorkspaceID converts a username to a valid workspace ID.
+// sanitizeWorkspaceID is how personal workspace IDs were derived before the
+// 16-character rule. It finds workspaces created that way.
 func sanitizeWorkspaceID(login string) string {
 	id := strings.ToLower(login)
 	// Replace any non-alphanumeric characters (except hyphens) with hyphens

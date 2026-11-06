@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"strings"
 
+	pkglabels "github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/usererror"
 
@@ -95,7 +96,7 @@ func toDatabase(cluster cnpgv1.Cluster, environmentID platform.EnvironmentID) pl
 
 	database := platform.Database{
 		ID:           databaseID(cluster, environmentID),
-		Name:         cluster.Labels[databaseLabel],
+		Name:         readableName(cluster.Annotations, pkglabels.Name, cluster.Labels[databaseLabel]),
 		Instances:    cluster.Spec.Instances,
 		Status:       databaseStatus(cluster),
 		StatusReason: cluster.Status.PhaseReason,

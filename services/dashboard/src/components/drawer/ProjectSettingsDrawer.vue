@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { environmentRoute } from '@/lib/routes';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import BlockingResources from '@/components/BlockingResources.vue';
 import { computed, ref } from 'vue';
@@ -7,6 +8,15 @@ import { useMutation } from '@vue/apollo-composable';
 import { Trash2 } from '@lucide/vue';
 import { graphql } from '@/gql';
 
+const RenameProjectDocument = graphql(`
+  mutation RenameProject($project: ProjectID!, $name: String!) {
+    renameProject(project: $project, name: $name) {
+      id
+      name
+    }
+  }
+`);
+
 const DeleteProjectDocument = graphql(`
   mutation DeleteProject($id: ProjectID!) {
     deleteProject(id: $id)
@@ -14,6 +24,7 @@ const DeleteProjectDocument = graphql(`
 `);
 import { apolloClient } from '@/lib/apollo';
 import ContextDrawer from '@/components/drawer/ContextDrawer.vue';
+import NameSettings from '@/components/NameSettings.vue';
 import { Button } from '@/components/ui/button';
 import { failureToast, successToast } from '@/components/ui/sonner';
 import { describeResources, environmentResources, type EnvironmentContents } from '@/lib/resources';
@@ -32,6 +43,16 @@ const emit = defineEmits<{
 
 const router = useRouter();
 
+const { mutate: renameMutate, loading: renaming } = useMutation(RenameProjectDocument);
+
+async function handleRename(name: string) {
+  try {
+    await renameMutate({ project: props.project.id, name });
+  } catch (e: unknown) {
+    failureToast('Failed to rename project', e);
+  }
+}
+
 const { mutate: deleteProjectMutate, loading: deleting } = useMutation(DeleteProjectDocument);
 const confirmOpen = ref(false);
 
@@ -42,7 +63,7 @@ const occupied = computed(() =>
       id: environment.id,
       name: environment.name,
       detail: describeResources(environment),
-      to: { name: 'environment', params: { projectId: props.project.id, environmentId: environment.id } },
+      to: environmentRoute(environment.id),
     })),
 );
 
@@ -85,16 +106,12 @@ async function handleDelete() {
     <div class="flex min-h-full flex-col gap-6">
       <section class="space-y-2.5">
         <h3 class="text-sm font-medium text-muted-foreground">General</h3>
-        <div class="space-y-2.5 rounded-lg border p-3">
-          <div class="flex items-center justify-between gap-4">
-            <span class="text-sm text-muted-foreground">Name</span>
-            <span class="text-sm font-medium text-foreground">{{ project.name }}</span>
-          </div>
-          <div class="flex items-center justify-between gap-4">
-            <span class="text-sm text-muted-foreground">ID</span>
-            <span class="truncate font-mono text-xs text-foreground">{{ project.id }}</span>
-          </div>
-        </div>
+        <NameSettings
+          :name="project.name"
+          :id="project.id"
+          :saving="renaming"
+          @save="handleRename"
+        />
       </section>
 
       <div class="mt-auto flex items-center justify-between gap-4 rounded-lg border border-destructive/30 p-3">

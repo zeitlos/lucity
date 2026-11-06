@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { environmentRoute } from '@/lib/routes';
 import { Bot, ChevronRight } from '@lucide/vue';
 import type { Harness } from '@/gql/graphql';
 import { harnessLabel } from '@/lib/agents';
@@ -12,14 +13,7 @@ defineProps<{
 const { openPanel } = usePanel();
 
 function location(agentId: string) {
-  const parts = agentId.split('/');
-  return {
-    name: 'environment',
-    params: {
-      projectId: parts.slice(0, 2).join('/'),
-      environmentId: parts.slice(0, 3).join('/'),
-    },
-  };
+  return environmentRoute(agentId.split('/').slice(0, 3).join('/'));
 }
 
 function place(agentId: string) {

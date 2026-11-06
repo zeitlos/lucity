@@ -174,7 +174,7 @@ func (c *Client) CreateDatabaseBackup(ctx context.Context, id DatabaseID) (*plat
 	return c.platform.CreateDatabaseBackup(ctx, id)
 }
 
-func (c *Client) CreateDatabase(ctx context.Context, environment platform.EnvironmentID, name string, size, cpu, memory string) (*Database, error) {
+func (c *Client) CreateDatabase(ctx context.Context, environment platform.EnvironmentID, id, name string, size, cpu, memory string) (*Database, error) {
 	const version = "17"
 
 	capabilities, err := c.Capabilities(ctx, environment.Workspace)
@@ -220,15 +220,23 @@ func (c *Client) CreateDatabase(ctx context.Context, environment platform.Enviro
 		return nil, fmt.Errorf("read environment: %w", err)
 	}
 
-	if _, err := c.deployer.Databases().Create(ctx, environment, name, deployer.DatabaseSpec{
-		Version:   version,
-		Size:      parsedSize,
-		Resources: resources,
+	id, err = c.newResourceID(ctx, environment, id, name, "database")
+
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := c.deployer.Databases().Create(ctx, environment, id, deployer.DatabaseSpec{
+		DisplayName: name,
+		Version:     version,
+		Size:        parsedSize,
+		Resources:   resources,
 	}); err != nil {
 		return nil, fmt.Errorf("create database: %w", err)
 	}
 
 	return &Database{
+		ID:        platform.DatabaseID{Workspace: environment.Workspace, Project: environment.Project, Environment: environment.Name, Name: id},
 		Name:      name,
 		Version:   version,
 		Size:      parsedSize,
@@ -241,7 +249,7 @@ type RestoreResult struct {
 	Clamped  bool
 }
 
-func (c *Client) RestoreDatabase(ctx context.Context, source platform.DatabaseID, name string, targetTime *time.Time) (*RestoreResult, error) {
+func (c *Client) RestoreDatabase(ctx context.Context, source platform.DatabaseID, id, name string, targetTime *time.Time) (*RestoreResult, error) {
 	origin, err := c.platform.Database(ctx, source)
 
 	if err != nil {
@@ -310,10 +318,17 @@ func (c *Client) RestoreDatabase(ctx context.Context, source platform.DatabaseID
 		return nil, err
 	}
 
-	if _, err := c.deployer.Databases().Restore(ctx, source, name, deployer.DatabaseSpec{
-		Version:   origin.Version,
-		Size:      origin.Size,
-		Resources: resources,
+	id, err = c.newResourceID(ctx, source.EnvironmentID(), id, name, "database")
+
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := c.deployer.Databases().Restore(ctx, source, id, deployer.DatabaseSpec{
+		DisplayName: name,
+		Version:     origin.Version,
+		Size:        origin.Size,
+		Resources:   resources,
 	}, target); err != nil {
 		return nil, fmt.Errorf("restore database: %w", err)
 	}
@@ -321,7 +336,7 @@ func (c *Client) RestoreDatabase(ctx context.Context, source platform.DatabaseID
 	return &RestoreResult{
 		Clamped: clamped,
 		Database: Database{
-			ID:        platform.DatabaseID{Workspace: source.Workspace, Project: source.Project, Environment: source.Environment, Name: name},
+			ID:        platform.DatabaseID{Workspace: source.Workspace, Project: source.Project, Environment: source.Environment, Name: id},
 			Name:      name,
 			Version:   origin.Version,
 			Size:      origin.Size,

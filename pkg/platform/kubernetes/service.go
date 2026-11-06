@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/zeitlos/lucity/pkg/image"
+	pkglabels "github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/to"
 	"github.com/zeitlos/lucity/pkg/usererror"
@@ -354,7 +355,7 @@ func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, pods [
 
 	return platform.Service{
 		ID:   id,
-		Name: deployment.Labels[serviceLabel],
+		Name: readableName(deployment.Annotations, pkglabels.Name, deployment.Labels[serviceLabel]),
 
 		Status: serviceStatus(deployment, replicaSets, rollout),
 		Replicas: platform.ReplicaCount{

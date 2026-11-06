@@ -122,7 +122,7 @@ func repositoryFromURL(repositoryURL string) (string, error) {
 	return strings.TrimSuffix(strings.Trim(parsed.Path, "/"), ".git"), nil
 }
 
-func (c *Client) AddService(ctx context.Context, environmentID platform.EnvironmentID, name, repository, contextPath string, externalImage string, variables map[string]string, cpu, memory string, user *int64) (*Service, error) {
+func (c *Client) AddService(ctx context.Context, environmentID platform.EnvironmentID, id, name, repository, contextPath string, externalImage string, variables map[string]string, cpu, memory string, user *int64) (*Service, error) {
 	if cpu == "" {
 		cpu = defaultServiceCPU.String()
 	}
@@ -149,19 +149,34 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 
 	workspace := environmentID.Workspace
 	projectID := environmentID.Project
-	id := platform.ServiceID{
-		Workspace:   workspace,
-		Project:     projectID,
-		Environment: environmentID.Name,
-		Name:        name,
-	}
 
 	if _, err := c.platform.Environment(ctx, environmentID); err != nil {
 		return nil, err
 	}
 
-	serviceName := name
+	if name == "" && repository != "" {
+		name = strings.TrimSuffix(repository[strings.LastIndex(repository, "/")+1:], ".git")
+	}
+
+	if name == "" && externalImage != "" {
+		name = deriveServiceName(externalImage)
+	}
+
+	id, err = c.newResourceID(ctx, environmentID, id, name, "service")
+
+	if err != nil {
+		return nil, err
+	}
+
+	serviceID := platform.ServiceID{
+		Workspace:   workspace,
+		Project:     projectID,
+		Environment: environmentID.Name,
+		Name:        id,
+	}
+
 	spec := deployer.ServiceSpec{
+		DisplayName: name,
 		ContextPath: contextPath,
 		Env:         variables,
 		Resources:   resources,
@@ -184,7 +199,7 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 			return nil, err
 		}
 
-		spec.Image = c.config.RegistryPullURL + "/" + id.ImageRepository()
+		spec.Image = c.config.RegistryPullURL + "/" + serviceID.ImageRepository()
 	} else if externalImage != "" {
 		if _, err := containername.ParseReference(externalImage); err != nil {
 			return nil, usererror.Errorf("invalid image reference %q: %v", externalImage, err)
@@ -196,10 +211,6 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 
 		spec.Image = ensureImageTag(externalImage)
 		spec.Port = c.imageExposedPort(ctx, spec.Image)
-
-		if serviceName == "" {
-			serviceName = deriveServiceName(externalImage)
-		}
 	} else {
 		return nil, usererror.New("either repository or external image must be set to create a new service")
 	}
@@ -212,13 +223,13 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 		spec.SecurityContext = securityContextFor(user)
 	}
 
-	if _, err := c.deployer.Services().Create(ctx, environmentID, serviceName, spec); err != nil {
+	if _, err := c.deployer.Services().Create(ctx, environmentID, id, spec); err != nil {
 		return nil, fmt.Errorf("create service: %w", err)
 	}
 
 	service := &platform.Service{
-		ID:          id,
-		Name:        serviceName,
+		ID:          serviceID,
+		Name:        name,
 		Status:      platform.ServiceDeploying,
 		SourceURL:   spec.SourceURL,
 		ContextPath: spec.ContextPath,
@@ -231,24 +242,24 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 		commit, err := c.source.Commit(ctx, spec.SourceURL, "")
 
 		if err != nil {
-			slog.Warn("initial commit lookup failed", "project", projectID, "service", name, "error", err)
+			slog.Warn("initial commit lookup failed", "project", projectID, "service", id, "error", err)
 			return service, nil
 		}
 
 		token, err := c.source.Token(ctx, spec.SourceURL)
 
 		if err != nil {
-			slog.Warn("source token mint failed", "project", projectID, "service", name, "error", err)
+			slog.Warn("source token mint failed", "project", projectID, "service", id, "error", err)
 			return service, nil
 		}
 
 		claims, _ := auth.FromContext(ctx)
 		release := deployer.NewRelease(deployer.TriggerManual, actorFromClaims(claims))
 
-		imageName := id.ImageRepository()
+		imageName := serviceID.ImageRepository()
 
 		build, err := c.buildjob.Start(ctx, buildjob.StartOptions{
-			Service:          id,
+			Service:          serviceID,
 			RepoURL:          spec.SourceURL,
 			Commit:           commit.SHA,
 			CommitMessage:    commit.Message,
@@ -260,12 +271,12 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 		})
 
 		if err != nil {
-			slog.Warn("initial build start failed", "project", projectID, "service", name, "error", err)
+			slog.Warn("initial build start failed", "project", projectID, "service", id, "error", err)
 			return service, nil
 		}
 
 		if _, err := c.startDeploy(ctx, service.ID, build.ID.Name, commit.Message, release); err != nil {
-			slog.Warn("initial deploy start failed", "project", projectID, "service", name, "error", err)
+			slog.Warn("initial deploy start failed", "project", projectID, "service", id, "error", err)
 		}
 
 		c.startScan(ctx, service.ID, build.ID.Name, spec.SourceURL, commit.SHA, token, release.ID)

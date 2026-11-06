@@ -1,6 +1,7 @@
 type Service
 @goExtraField(name: "PlatformService", type: "github.com/zeitlos/lucity/pkg/platform.Service"){
   id: ServiceID!
+  """What people read. It can be changed, while `id` stays the same."""
   name: String!
 
   status: ServiceStatus!
@@ -134,7 +135,10 @@ type DetectedService {
 }
 
 input AddServiceInput {
-  name: String @constraint(constraint: "resource_name,min=2,max=16")
+  """What people read. Any text, and it can be changed later. Defaults to the repository or image name."""
+  name: String @constraint(constraint: "min=1,max=128")
+  """The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused."""
+  id: String @constraint(constraint: "resource_name,min=2,max=16")
   repository: String @constraint(constraint: "min=3,max=200")
   contextPath: String @constraint(constraint: "max=255")
   image: String @constraint(constraint: "max=512")
@@ -186,6 +190,8 @@ extend type Mutation {
   addService(environment: EnvironmentID!, input: AddServiceInput!): Service! @hasRole(role: WORKSPACE_MEMBER)
   """Removes a service from its environment."""
   removeService(service: ServiceID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
+  """Changes the name of a service. Its id stays the same, and nothing restarts."""
+  renameService(service: ServiceID!, name: String! @constraint(constraint: "min=1,max=128")): Service! @hasRole(role: WORKSPACE_MEMBER)
   """Sets the command a service starts with, run through a shell. An empty string goes back to the image's default."""
   setCustomStartCommand(service: ServiceID!, command: String!): Service! @hasRole(role: WORKSPACE_MEMBER)
   """Sets the branch a service builds from, starting with its next deploy. Leave it out to follow the repository's default branch."""
