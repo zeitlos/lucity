@@ -1,11 +1,13 @@
 package conductor
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"log/slog"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/zeitlos/lucity/pkg/auth"
@@ -41,6 +43,10 @@ func (c *Client) Workspaces(ctx context.Context) ([]Workspace, error) {
 			}
 		}
 	}
+
+	slices.SortFunc(workspaces, func(a, b Workspace) int {
+		return cmp.Or(strings.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name)), strings.Compare(a.ID, b.ID))
+	})
 
 	return workspaces, nil
 }
