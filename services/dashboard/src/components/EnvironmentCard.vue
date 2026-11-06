@@ -47,7 +47,7 @@ const tiles = computed<Tile[]>(() => [
     <div class="canvas-preview grid min-h-30 grid-cols-3 content-start gap-2 rounded-lg border border-border/60 p-3.5">
       <span
         v-for="tile in tiles"
-        :key="tile.id"
+        :key="`${tile.kind}:${tile.id}`"
         class="flex h-8 min-w-0 items-center gap-1.5 rounded-md border bg-card px-2 text-xs font-medium text-foreground shadow-2xs"
       >
         <span class="text-muted-foreground"><ResourceIcon :kind="tile.kind" :size="13" /></span>

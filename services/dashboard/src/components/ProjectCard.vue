@@ -84,7 +84,7 @@ const rows = computed(() => props.project.environments.map(environment => ({
         <span v-else class="flex flex-wrap items-center gap-1">
           <template v-for="(group, index) in [row.services, row.data]" :key="index">
             <span v-if="index === 1 && row.services.length && row.data.length" class="w-1" />
-            <ResourceTile v-for="tile in group" :key="tile.id" :kind="tile.kind" :name="tile.name" />
+            <ResourceTile v-for="tile in group" :key="`${tile.kind}:${tile.id}`" :kind="tile.kind" :name="tile.name" />
           </template>
         </span>
       </RouterLink>

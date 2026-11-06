@@ -97,12 +97,24 @@ export function useCanvasLayout(environmentId: MaybeRefOrGetter<string | undefin
     const current = layouts.value[envId];
     if (!current) return;
 
-    const live = new Set(nodeIds);
-    const kept = Object.fromEntries(
-      Object.entries(current).filter(([id]) => live.has(id)),
-    );
+    // TODO: remove the legacy fallback (the else branch and the `some` check below)
+    // a few releases after 2026-11. Node ids gained a "<kind>:" prefix then, and this
+    // carries positions saved under the bare resource id over to the prefixed id.
+    // When two kinds share a name, only the first takes the old position.
+    const kept: Record<string, NodePosition> = {};
+    const claimedLegacyIds = new Set<string>();
+    for (const id of nodeIds) {
+      const legacyId = id.slice(id.indexOf(':') + 1);
+      if (current[id]) {
+        kept[id] = current[id];
+      } else if (current[legacyId] && !claimedLegacyIds.has(legacyId)) {
+        kept[id] = current[legacyId];
+        claimedLegacyIds.add(legacyId);
+      }
+    }
 
-    if (Object.keys(kept).length !== Object.keys(current).length) {
+    const keptIds = Object.keys(kept);
+    if (keptIds.length !== Object.keys(current).length || keptIds.some(id => !current[id])) {
       layouts.value = { ...layouts.value, [envId]: kept };
     }
   }
