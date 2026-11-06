@@ -14,8 +14,8 @@ import (
 )
 
 // ServiceLogs is the resolver for the serviceLogs field.
-func (r *queryResolver) ServiceLogs(ctx context.Context, service platform.ServiceID, from time.Time, to *time.Time, filter *model.ServiceLogFilter, surrounding *int, limit *int) ([]model.ServiceLogEntry, error) {
-	entries, err := r.Conductor.ServiceLogs(ctx, service, from, logsUntil(to), convertServiceLogFilter(filter), surrounding, limit)
+func (r *queryResolver) ServiceLogs(ctx context.Context, service platform.ServiceID, from time.Time, to *time.Time, filter *model.ServiceLogFilter, surrounding *int, limit *int, direction *model.LogDirection) ([]model.ServiceLogEntry, error) {
+	entries, err := r.Conductor.ServiceLogs(ctx, service, from, logsUntil(to), convertServiceLogFilter(filter), surrounding, limit, convertLogDirection(direction))
 
 	if err != nil {
 		return nil, err

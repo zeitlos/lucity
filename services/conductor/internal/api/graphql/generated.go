@@ -738,7 +738,7 @@ type ComplexityRoot struct {
 		Service                  func(childComplexity int, id platform.ServiceID) int
 		ServiceLogInstances      func(childComplexity int, service platform.ServiceID, from time.Time, to *time.Time) int
 		ServiceLogVolume         func(childComplexity int, service platform.ServiceID, from time.Time, to *time.Time, filter *model.ServiceLogFilter, slots *int) int
-		ServiceLogs              func(childComplexity int, service platform.ServiceID, from time.Time, to *time.Time, filter *model.ServiceLogFilter, surrounding *int, limit *int) int
+		ServiceLogs              func(childComplexity int, service platform.ServiceID, from time.Time, to *time.Time, filter *model.ServiceLogFilter, surrounding *int, limit *int, direction *model.LogDirection) int
 		ServiceVariables         func(childComplexity int, service platform.ServiceID) int
 		SharedVariables          func(childComplexity int, environment platform.EnvironmentID) int
 		Subscription             func(childComplexity int) int
@@ -1129,7 +1129,7 @@ type QueryResolver interface {
 	GithubConnected(ctx context.Context) (bool, error)
 	KeyValueStore(ctx context.Context, id platform.KeyValueStoreID) (*model.KeyValueStore, error)
 	KeyValueStoreCredentials(ctx context.Context, keyValueStore platform.KeyValueStoreID) ([]model.KeyValueStoreCredentials, error)
-	ServiceLogs(ctx context.Context, service platform.ServiceID, from time.Time, to *time.Time, filter *model.ServiceLogFilter, surrounding *int, limit *int) ([]model.ServiceLogEntry, error)
+	ServiceLogs(ctx context.Context, service platform.ServiceID, from time.Time, to *time.Time, filter *model.ServiceLogFilter, surrounding *int, limit *int, direction *model.LogDirection) ([]model.ServiceLogEntry, error)
 	ServiceLogInstances(ctx context.Context, service platform.ServiceID, from time.Time, to *time.Time) ([]model.ServiceLogInstance, error)
 	ServiceLogVolume(ctx context.Context, service platform.ServiceID, from time.Time, to *time.Time, filter *model.ServiceLogFilter, slots *int) ([]model.ServiceLogVolume, error)
 	ModelProviders(ctx context.Context) ([]model.ModelProvider, error)
@@ -4647,7 +4647,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Query.ServiceLogs(childComplexity, args["service"].(platform.ServiceID), args["from"].(time.Time), args["to"].(*time.Time), args["filter"].(*model.ServiceLogFilter), args["surrounding"].(*int), args["limit"].(*int)), true
+		return e.ComplexityRoot.Query.ServiceLogs(childComplexity, args["service"].(platform.ServiceID), args["from"].(time.Time), args["to"].(*time.Time), args["filter"].(*model.ServiceLogFilter), args["surrounding"].(*int), args["limit"].(*int), args["direction"].(*model.LogDirection)), true
 	case "Query.serviceVariables":
 		if e.ComplexityRoot.Query.ServiceVariables == nil {
 			break
@@ -11345,6 +11345,14 @@ func (ec *executionContext) field_Query_serviceLogs_args(ctx context.Context, ra
 		return nil, err
 	}
 	args["limit"] = arg5
+	arg6, err := graphql.ProcessArgField(ctx, rawArgs, "direction",
+		func(ctx context.Context, v any) (*model.LogDirection, error) {
+			return ec.unmarshalOLogDirection2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐLogDirection(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["direction"] = arg6
 	return args, nil
 }
 
@@ -26830,7 +26838,7 @@ func (ec *executionContext) _Query_serviceLogs(ctx context.Context, field graphq
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().ServiceLogs(ctx, fc.Args["service"].(platform.ServiceID), fc.Args["from"].(time.Time), fc.Args["to"].(*time.Time), fc.Args["filter"].(*model.ServiceLogFilter), fc.Args["surrounding"].(*int), fc.Args["limit"].(*int))
+			return ec.Resolvers.Query().ServiceLogs(ctx, fc.Args["service"].(platform.ServiceID), fc.Args["from"].(time.Time), fc.Args["to"].(*time.Time), fc.Args["filter"].(*model.ServiceLogFilter), fc.Args["surrounding"].(*int), fc.Args["limit"].(*int), fc.Args["direction"].(*model.LogDirection))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -46883,6 +46891,22 @@ func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.Sele
 	_ = ctx
 	res := graphql.MarshalInt(*v)
 	return res
+}
+
+func (ec *executionContext) unmarshalOLogDirection2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐLogDirection(ctx context.Context, v any) (*model.LogDirection, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.LogDirection)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOLogDirection2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐLogDirection(ctx context.Context, sel ast.SelectionSet, v *model.LogDirection) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) unmarshalOLogStream2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐLogStream(ctx context.Context, v any) (*model.LogStream, error) {

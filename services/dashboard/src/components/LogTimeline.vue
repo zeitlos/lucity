@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { ChevronRight, X } from '@lucide/vue';
 import IconButton from '@/components/IconButton.vue';
 import { Status } from '@/components/ui/status';
@@ -39,6 +39,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'select', pod: string | null): void;
   (e: 'range', range: { from: number; to: number }): void;
+  (e: 'seek', at: number, final: boolean): void;
 }>();
 
 const COLLAPSE_AFTER = 6;
@@ -46,6 +47,11 @@ const COLLAPSE_AFTER = 6;
 const expanded = ref(false);
 const chart = ref<HTMLElement | null>(null);
 const drag = ref<{ start: number; end: number } | null>(null);
+const ghost = ref<number | null>(null);
+const grabbing = ref(false);
+let grabOffset = 0;
+let seekFrame: number | undefined;
+let settle: ReturnType<typeof setTimeout> | undefined;
 
 const span = computed(() => Math.max(props.to - props.from, 1));
 
@@ -56,11 +62,20 @@ function fraction(at: number): number {
 const peak = computed(() => Math.max(1, ...props.volume.map(slot => slot.stdout + slot.stderr)));
 const lines = computed(() => props.volume.reduce((sum, slot) => sum + slot.stdout + slot.stderr, 0));
 
-const bars = computed(() => props.volume.map(slot => ({
-  key: slot.time,
-  stdout: (slot.stdout / peak.value) * 100,
-  stderr: (slot.stderr / peak.value) * 100,
-})));
+const bars = computed(() => {
+  const starts = props.volume.map(slot => Date.parse(slot.time));
+  const step = starts.length > 1 ? starts[1]! - starts[0]! : span.value;
+  return props.volume.map((slot, index) => {
+    const left = fraction(starts[index]!);
+    return {
+      key: slot.time,
+      left: left * 100,
+      width: (fraction(starts[index]! + step) - left) * 100,
+      stdout: (slot.stdout / peak.value) * 100,
+      stderr: (slot.stderr / peak.value) * 100,
+    };
+  });
+});
 
 const ticks = computed(() => axisTicks(props.from, props.to));
 
@@ -92,8 +107,22 @@ const lanes = computed(() => {
 
 const band = computed(() => {
   if (!props.band) return null;
-  const left = fraction(props.band.from);
-  return { left: left * 100, width: Math.max(fraction(props.band.to) - left, 0.006) * 100 };
+  const left = ghost.value ?? fraction(props.band.from);
+  const width = Math.max(fraction(props.band.to) - fraction(props.band.from), 0.006);
+  return { left: left * 100, width: width * 100, at: props.from + left * span.value };
+});
+
+const bandLabel = computed(() => (band.value ? when(new Date(band.value.at).toISOString()) : ''));
+
+watch(() => props.band, () => {
+  if (grabbing.value) return;
+  clearTimeout(settle);
+  ghost.value = null;
+});
+
+onBeforeUnmount(() => {
+  clearTimeout(settle);
+  if (seekFrame !== undefined) cancelAnimationFrame(seekFrame);
 });
 
 const selection = computed(() => {
@@ -123,8 +152,51 @@ function endDrag() {
   if (!current) return;
   const start = Math.min(current.start, current.end);
   const end = Math.max(current.start, current.end);
-  if (end - start < 0.01) return;
+  if (end - start < 0.01) {
+    emit('seek', props.from + current.start * span.value, true);
+    return;
+  }
   emit('range', { from: props.from + start * span.value, to: props.from + end * span.value });
+}
+
+function grabBand(event: PointerEvent) {
+  if (!props.band) return;
+  event.stopPropagation();
+  (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+  clearTimeout(settle);
+  grabbing.value = true;
+  ghost.value = fraction(props.band.from);
+  grabOffset = position(event) - ghost.value;
+}
+
+function moveBand(event: PointerEvent) {
+  if (!grabbing.value) return;
+  ghost.value = Math.min(Math.max(position(event) - grabOffset, 0), 1);
+  seekFrame ??= requestAnimationFrame(() => {
+    seekFrame = undefined;
+    if (ghost.value !== null) emit('seek', props.from + ghost.value * span.value, false);
+  });
+}
+
+function dropBand() {
+  if (!grabbing.value || ghost.value === null) return;
+  grabbing.value = false;
+  emit('seek', props.from + ghost.value * span.value, true);
+  settle = setTimeout(() => { ghost.value = null; }, 4000);
+}
+
+function cancelBand() {
+  grabbing.value = false;
+  ghost.value = null;
+}
+
+function stepBand(event: KeyboardEvent) {
+  if (!props.band) return;
+  const step = (span.value / 50) * (event.shiftKey ? 5 : 1);
+  if (event.key === 'ArrowLeft') emit('seek', Math.max(props.band.from - step, props.from), true);
+  else if (event.key === 'ArrowRight') emit('seek', Math.min(props.band.from + step, props.to), true);
+  else return;
+  event.preventDefault();
 }
 
 function toggle(pod: string) {
@@ -139,7 +211,7 @@ function toggle(pod: string) {
       <div
         ref="chart"
         role="img"
-        aria-label="Lines over time. Drag across it to look at a shorter range."
+        aria-label="Lines over time. Click a time to jump there, or drag across it to look at a shorter range."
         class="relative flex h-10 min-w-0 flex-1 cursor-crosshair touch-none items-end gap-px select-none"
         @pointerdown="startDrag"
         @pointermove="moveDrag"
@@ -150,15 +222,32 @@ function toggle(pod: string) {
           <div v-for="slot in 60" :key="slot" class="flex-1 bg-zinc-800" :style="{ height: `${20 + ((slot * 29) % 9) * 5}%` }" />
         </template>
         <div v-else-if="!lines" class="h-px flex-1 bg-zinc-800" />
-        <div v-for="bar in lines ? bars : []" :key="bar.key" class="flex h-full flex-1 flex-col justify-end">
+        <div
+          v-for="bar in lines ? bars : []"
+          :key="bar.key"
+          class="absolute inset-y-0 flex flex-col justify-end pr-px"
+          :style="{ left: `${bar.left}%`, width: `${bar.width}%` }"
+        >
           <div class="bg-status-warn" :style="{ height: `${bar.stderr}%` }" />
           <div class="bg-zinc-600" :style="{ height: `${bar.stdout}%` }" />
         </div>
         <div
           v-if="band"
-          aria-hidden="true"
-          class="pointer-events-none absolute inset-y-0 border-x border-zinc-500 bg-zinc-100/5"
-          :style="{ left: `${band.left}%`, width: `${band.width}%` }"
+          role="slider"
+          tabindex="0"
+          aria-label="Position in the logs"
+          :aria-valuemin="from"
+          :aria-valuemax="to"
+          :aria-valuenow="Math.round(band.at)"
+          :aria-valuetext="bandLabel"
+          class="absolute inset-y-0 cursor-grab touch-none border-x border-zinc-500 bg-zinc-100/5 hover:border-zinc-300 hover:bg-zinc-100/10 focus-visible:ring-2 focus-visible:ring-zinc-500 focus-visible:outline-none"
+          :class="grabbing && 'cursor-grabbing border-zinc-300 bg-zinc-100/15'"
+          :style="{ left: `${band.left}%`, width: `max(${band.width}%, 0.5rem)` }"
+          @pointerdown="grabBand"
+          @pointermove="moveBand"
+          @pointerup="dropBand"
+          @pointercancel="cancelBand"
+          @keydown="stepBand"
         />
         <div
           v-if="selection"
@@ -222,7 +311,7 @@ function toggle(pod: string) {
               <span
                 v-if="band"
                 class="pointer-events-none absolute inset-y-0 border-x border-zinc-500 bg-zinc-100/5"
-                :style="{ left: `${band.left}%`, width: `${band.width}%` }"
+                :style="{ left: `${band.left}%`, width: `max(${band.width}%, 0.5rem)` }"
               />
             </button>
           </TooltipTrigger>

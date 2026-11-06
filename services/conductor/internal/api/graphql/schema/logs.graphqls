@@ -31,6 +31,14 @@ type ServiceLogEntry {
   event: ServiceLogEvent
 }
 
+"""Which end of a time range a page of log entries starts from."""
+enum LogDirection {
+  """From the end of the range back in time: the newest entries."""
+  BACKWARD
+  """From the start of the range forward in time: the oldest entries."""
+  FORWARD
+}
+
 input ServiceLogFilter {
   """Only lines containing this text, ignoring case. Leaves out events."""
   search: String @constraint(constraint: "max=200")
@@ -68,8 +76,8 @@ type ServiceLogVolume {
 }
 
 extend type Query {
-  """The log entries of a service between `from` and `to` (now when left out), oldest first. When there are more than `limit` (1,000 by default), the newest. With `surrounding`, every line comes with that many lines of the same instance before and after it."""
-  serviceLogs(service: ServiceID!, from: Time!, to: Time, filter: ServiceLogFilter, surrounding: Int @constraint(constraint: "min=0,max=20"), limit: Int @constraint(constraint: "min=1,max=5000")): [ServiceLogEntry!]! @hasRole(role: WORKSPACE_MEMBER)
+  """The log entries of a service between `from` and `to` (now when left out), oldest first. When there are more than `limit` (1,000 by default), `direction` decides which: the newest (BACKWARD, the default) or the oldest (FORWARD). With `surrounding`, every line comes with that many lines of the same instance before and after it."""
+  serviceLogs(service: ServiceID!, from: Time!, to: Time, filter: ServiceLogFilter, surrounding: Int @constraint(constraint: "min=0,max=20"), limit: Int @constraint(constraint: "min=1,max=5000"), direction: LogDirection = BACKWARD): [ServiceLogEntry!]! @hasRole(role: WORKSPACE_MEMBER)
   """The instances of a service that wrote lines between `from` and `to` (now when left out), the one that started last first."""
   serviceLogInstances(service: ServiceID!, from: Time!, to: Time): [ServiceLogInstance!]! @hasRole(role: WORKSPACE_MEMBER)
   """How many lines a service wrote between `from` and `to` (now when left out), in `slots` slots of equal length (60 by default)."""

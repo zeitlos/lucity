@@ -2756,6 +2756,64 @@ func (e Harness) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// Which end of a time range a page of log entries starts from.
+type LogDirection string
+
+const (
+	// From the end of the range back in time: the newest entries.
+	LogDirectionBackward LogDirection = "BACKWARD"
+	// From the start of the range forward in time: the oldest entries.
+	LogDirectionForward LogDirection = "FORWARD"
+)
+
+var AllLogDirection = []LogDirection{
+	LogDirectionBackward,
+	LogDirectionForward,
+}
+
+func (e LogDirection) IsValid() bool {
+	switch e {
+	case LogDirectionBackward, LogDirectionForward:
+		return true
+	}
+	return false
+}
+
+func (e LogDirection) String() string {
+	return string(e)
+}
+
+func (e *LogDirection) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = LogDirection(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid LogDirection", str)
+	}
+	return nil
+}
+
+func (e LogDirection) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *LogDirection) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e LogDirection) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 // Where a service wrote a line: its standard output or its error output.
 type LogStream string
 

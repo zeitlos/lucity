@@ -35,8 +35,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useEscapeToClose } from '@/composables/useEscapeToClose';
 import { useServiceLogs, type LogEntry } from '@/composables/useServiceLogs';
 import { LogStream, ServiceLogEvent } from '@/gql/graphql';
-import { formatCount } from '@/lib/format';
-import { eventText, formatRangeEdge, logClock, shortPod, type LogRange } from '@/lib/logs';
+import { formatCount, formatRelative } from '@/lib/format';
+import { eventText, formatRangeEdge, logClock, logDate, shortPod, type LogRange } from '@/lib/logs';
 import { describeError } from '@/lib/errors';
 import { logTooltipClass } from '@/lib/tooltip';
 
@@ -56,7 +56,7 @@ const pickerInput = 'h-8 border-zinc-800 bg-zinc-900 text-sm text-zinc-200 schem
 
 const serviceIdRef = computed(() => props.serviceId);
 const logs = useServiceLogs(serviceIdRef);
-const { range, search, pod, surrounding, bounds, live, searching, entries, instances, volume, loading, error, hasEarlier, loadingEarlier } = logs;
+const { range, search, pod, surrounding, bounds, live, searching, entries, instances, volume, loading, error, hasEarlier, hasLater, loadingEarlier, loadingLater } = logs;
 
 const wrap = useLocalStorage('lucity_logs_wrap', true);
 
@@ -203,7 +203,27 @@ function scheduleMeasure() {
   measuring ??= requestAnimationFrame(measure);
 }
 
+const listArea = ref<HTMLElement | null>(null);
+const dateTip = ref<{ date: string; time: string; ago: string; top: number; left: number; below: boolean } | null>(null);
+
+function showDate(event: MouseEvent, time: string) {
+  const area = listArea.value?.getBoundingClientRect();
+  const cell = (event.currentTarget as HTMLElement).getBoundingClientRect();
+  if (!area) return;
+  const below = cell.top - area.top < 56;
+  const clock = logClock(time);
+  dateTip.value = {
+    date: logDate(time),
+    time: `${clock.time}${clock.fraction}`,
+    ago: formatRelative(time),
+    top: below ? cell.bottom - area.top + 4 : cell.top - area.top - 4,
+    left: cell.left - area.left,
+    below,
+  };
+}
+
 function onScroll() {
+  dateTip.value = null;
   const el = container.value;
   if (el) behind.value = el.scrollHeight - el.scrollTop - el.clientHeight > 40;
   scheduleMeasure();
@@ -222,6 +242,38 @@ function jumpToLatest() {
   scrollToEnd();
 }
 
+function rowAt(at: number): number {
+  let low = 0;
+  let high = rows.value.length;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    if (Date.parse(rows.value[middle]!.entry.time) >= at) high = middle;
+    else low = middle + 1;
+  }
+  return Math.min(low, rows.value.length - 1);
+}
+
+function scrollToTime(at: number) {
+  const el = container.value;
+  const items = list.value?.children;
+  if (!el || !items?.length) return;
+  el.scrollTop = (items[rowAt(at)] as HTMLElement).offsetTop - 8;
+  scheduleMeasure();
+}
+
+function covers(at: number): boolean {
+  if (!shown.value.length) return false;
+  const first = Date.parse(shown.value[0]!.time);
+  const last = Date.parse(shown.value[shown.value.length - 1]!.time);
+  if (live.value) return at >= first;
+  return (at >= first || !hasEarlier.value) && (at <= last || !hasLater.value);
+}
+
+function seek(at: number, final: boolean) {
+  if (covers(at)) scrollToTime(at);
+  else if (final) logs.seek(at);
+}
+
 let restoreFrom: number | null = null;
 
 async function loadEarlier() {
@@ -229,20 +281,22 @@ async function loadEarlier() {
   await logs.loadEarlier();
 }
 
-watch(() => rows.value.length, async () => {
-  if (restoreFrom !== null) {
-    const offset = restoreFrom;
+watch([() => rows.value.length, logs.version], async () => {
+  await nextTick();
+  if (live.value) {
+    if (behind.value || paused.value) scheduleMeasure();
+    else scrollToEnd();
+    return;
+  }
+  const el = container.value;
+  if (logs.change.value === 'earlier') {
+    if (el && restoreFrom !== null) el.scrollTop = el.scrollHeight - restoreFrom;
     restoreFrom = null;
-    await nextTick();
-    if (container.value) container.value.scrollTop = container.value.scrollHeight - offset;
-    scheduleMeasure();
-    return;
+  } else if (logs.change.value === 'reset') {
+    if (logs.target.value !== null) scrollToTime(logs.target.value);
+    else scrollToEnd();
   }
-  if (live.value && (behind.value || paused.value)) {
-    scheduleMeasure();
-    return;
-  }
-  scrollToEnd();
+  scheduleMeasure();
 });
 
 watch([range, bounds], () => {
@@ -333,7 +387,7 @@ function download() {
         label="Time range"
         :options="rangeOptions"
         class="bg-zinc-900"
-        item-class="text-zinc-400 hover:text-zinc-100 focus-visible:ring-zinc-600 aria-pressed:bg-zinc-700 aria-pressed:text-zinc-100"
+        item-class="h-7 text-zinc-400 hover:text-zinc-100 focus-visible:ring-zinc-600 aria-pressed:bg-zinc-700 aria-pressed:text-zinc-100"
       />
       <Tooltip>
         <TooltipTrigger as-child>
@@ -388,10 +442,11 @@ function download() {
       :color-of="logs.colorOf"
       @select="pod = $event"
       @range="logs.setRange('custom', $event)"
+      @seek="seek"
     />
     <div v-else class="border-b border-zinc-800" />
 
-    <div class="relative min-h-0 flex-1">
+    <div ref="listArea" class="relative min-h-0 flex-1">
       <div
         ref="container"
         class="relative h-full overflow-auto py-2 font-mono text-xs leading-relaxed"
@@ -456,7 +511,11 @@ function download() {
               :class="['group relative flex items-start gap-3 px-4 hover:bg-zinc-900', row.entry.event && 'bg-zinc-900', !wrap && 'w-max min-w-full']"
             >
               <span v-if="row.error" aria-hidden="true" class="absolute inset-y-1 left-1.5 w-0.5 bg-status-warn" />
-              <span class="w-22 shrink-0 text-zinc-500 tabular-nums select-none max-md:w-14">{{ row.clock.time }}<span class="max-md:hidden">{{ row.clock.fraction }}</span></span>
+              <span
+                class="w-22 shrink-0 text-zinc-500 tabular-nums select-none hover:text-zinc-300 max-md:w-14"
+                @mouseenter="showDate($event, row.entry.time)"
+                @mouseleave="dateTip = null"
+              >{{ row.clock.time }}<span class="max-md:hidden">{{ row.clock.fraction }}</span></span>
               <span class="w-10 shrink-0 truncate select-none" :style="{ color: row.color }">{{ row.short }}</span>
               <span
                 v-if="row.entry.event"
@@ -479,6 +538,11 @@ function download() {
               />
             </div>
           </div>
+          <div v-if="hasLater" class="px-4 pt-2 font-sans">
+            <Button variant="ghost" size="xs" class="bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100" :pending="loadingLater" @click="logs.loadLater()">
+              Show later lines
+            </Button>
+          </div>
         </template>
       </div>
 
@@ -491,6 +555,18 @@ function download() {
         <ArrowDownToLine />
         Jump to latest
       </Button>
+
+      <div
+        v-if="dateTip"
+        aria-hidden="true"
+        class="pointer-events-none absolute z-10 rounded-md border border-zinc-700 bg-zinc-800 px-2 py-1 font-sans text-xs whitespace-nowrap text-zinc-100 shadow-lg"
+        :class="!dateTip.below && '-translate-y-full'"
+        :style="{ top: `${dateTip.top}px`, left: `${dateTip.left}px` }"
+      >
+        <p>{{ dateTip.date }}</p>
+        <p class="font-mono tabular-nums">{{ dateTip.time }}</p>
+        <p class="text-zinc-400">{{ dateTip.ago }}</p>
+      </div>
     </div>
   </section>
 </template>

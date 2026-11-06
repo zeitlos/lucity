@@ -29,6 +29,10 @@ export function logClock(value: string): { time: string; fraction: string } {
   };
 }
 
+export function logDate(value: string): string {
+  return new Date(value).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 export function formatRangeEdge(at: number, other: number): string {
   const sameDay = new Date(at).toDateString() === new Date(other).toDateString();
   const today = new Date(at).toDateString() === new Date().toDateString();

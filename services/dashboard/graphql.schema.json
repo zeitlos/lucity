@@ -7757,6 +7757,30 @@
       },
       {
         "kind": "ENUM",
+        "name": "LogDirection",
+        "description": "Which end of a time range a page of log entries starts from.",
+        "isOneOf": null,
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": [
+          {
+            "name": "BACKWARD",
+            "description": "From the end of the range back in time: the newest entries.",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "FORWARD",
+            "description": "From the start of the range forward in time: the oldest entries.",
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "possibleTypes": null
+      },
+      {
+        "kind": "ENUM",
         "name": "LogStream",
         "description": "Where a service wrote a line: its standard output or its error output.",
         "isOneOf": null,
@@ -14137,8 +14161,20 @@
           },
           {
             "name": "serviceLogs",
-            "description": "The log entries of a service between `from` and `to` (now when left out), oldest first. When there are more than `limit` (1,000 by default), the newest. With `surrounding`, every line comes with that many lines of the same instance before and after it.",
+            "description": "The log entries of a service between `from` and `to` (now when left out), oldest first. When there are more than `limit` (1,000 by default), `direction` decides which: the newest (BACKWARD, the default) or the oldest (FORWARD). With `surrounding`, every line comes with that many lines of the same instance before and after it.",
             "args": [
+              {
+                "name": "direction",
+                "description": null,
+                "type": {
+                  "kind": "ENUM",
+                  "name": "LogDirection",
+                  "ofType": null
+                },
+                "defaultValue": "BACKWARD",
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
               {
                 "name": "filter",
                 "description": null,

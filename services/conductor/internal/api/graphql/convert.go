@@ -1586,6 +1586,14 @@ func convertServiceLogFilter(filter *model.ServiceLogFilter) conductor.ServiceLo
 	}
 }
 
+func convertLogDirection(direction *model.LogDirection) conductor.ServiceLogDirection {
+	if direction != nil && *direction == model.LogDirectionForward {
+		return servicelogs.Forward
+	}
+
+	return servicelogs.Backward
+}
+
 func logsUntil(until *time.Time) time.Time {
 	if until == nil {
 		return time.Now()

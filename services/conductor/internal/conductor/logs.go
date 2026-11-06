@@ -9,9 +9,10 @@ import (
 )
 
 type (
-	ServiceLogEntry  = servicelogs.Entry
-	ServiceLogFilter = servicelogs.Filter
-	ServiceLogVolume = servicelogs.Volume
+	ServiceLogEntry     = servicelogs.Entry
+	ServiceLogFilter    = servicelogs.Filter
+	ServiceLogVolume    = servicelogs.Volume
+	ServiceLogDirection = servicelogs.Direction
 )
 
 // ServiceLogInstance is an instance that wrote lines in a range, with its
@@ -29,7 +30,7 @@ const (
 
 // ServiceLogs returns the log entries of a service between from and to,
 // oldest first.
-func (c *Client) ServiceLogs(ctx context.Context, service platform.ServiceID, from, to time.Time, filter ServiceLogFilter, surrounding *int, limit *int) ([]ServiceLogEntry, error) {
+func (c *Client) ServiceLogs(ctx context.Context, service platform.ServiceID, from, to time.Time, filter ServiceLogFilter, surrounding *int, limit *int, direction ServiceLogDirection) ([]ServiceLogEntry, error) {
 	from, err := c.serviceLogsFrom(ctx, service, from)
 
 	if err != nil {
@@ -48,7 +49,7 @@ func (c *Client) ServiceLogs(ctx context.Context, service platform.ServiceID, fr
 		around = *surrounding
 	}
 
-	return c.serviceLogs.Entries(ctx, service, from, to, filter, around, lines)
+	return c.serviceLogs.Entries(ctx, service, from, to, filter, around, lines, direction)
 }
 
 // ServiceLogInstances returns the instances of a service that wrote lines

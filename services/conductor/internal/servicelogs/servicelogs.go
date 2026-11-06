@@ -49,6 +49,16 @@ type Entry struct {
 	Line     string
 }
 
+// Direction picks which entries Entries keeps when there are more than its
+// limit: the newest when reading backward from to, the oldest when reading
+// forward from from.
+type Direction string
+
+const (
+	Backward Direction = "backward"
+	Forward  Direction = "forward"
+)
+
 // Filter narrows entries down. Search leaves out events.
 type Filter struct {
 	Search   string
@@ -100,16 +110,22 @@ func New(url string) *Client {
 }
 
 // Entries returns the entries between from and to, oldest first. When there
-// are more than limit, it returns the newest. With surrounding above zero, every
-// line comes with that many lines of the same instance around it.
-func (c *Client) Entries(ctx context.Context, service platform.ServiceID, from, to time.Time, filter Filter, surrounding, limit int) ([]Entry, error) {
+// are more than limit, direction decides which it keeps. With surrounding above
+// zero, every line comes with that many lines of the same instance around it.
+func (c *Client) Entries(ctx context.Context, service platform.ServiceID, from, to time.Time, filter Filter, surrounding, limit int, direction Direction) ([]Entry, error) {
 	query := entrySelector(service, filter)
 
 	if surrounding > 0 {
 		query += fmt.Sprintf(" | stream_context before %d after %d", surrounding, surrounding)
 	}
 
-	query += fmt.Sprintf(" | sort by (_time desc) | limit %d | fields %s", limit, entryFields)
+	order := "desc"
+
+	if direction == Forward {
+		order = "asc"
+	}
+
+	query += fmt.Sprintf(" | sort by (_time %s) | limit %d | fields %s", order, limit, entryFields)
 
 	rows, err := c.query(ctx, query, from, to)
 
@@ -117,10 +133,14 @@ func (c *Client) Entries(ctx context.Context, service platform.ServiceID, from, 
 		return nil, err
 	}
 
+	if direction != Forward {
+		slices.Reverse(rows)
+	}
+
 	entries := make([]Entry, 0, len(rows))
 
-	for i := len(rows) - 1; i >= 0; i-- {
-		if entry, ok := toEntry(rows[i]); ok {
+	for _, row := range rows {
+		if entry, ok := toEntry(row); ok {
 			entries = append(entries, entry)
 		}
 	}
@@ -236,7 +256,7 @@ func (c *Client) Volume(ctx context.Context, service platform.ServiceID, from, t
 func (c *Client) Tail(ctx context.Context, service platform.ServiceID, from time.Time, filter Filter, lines int) (<-chan Entry, error) {
 	started := time.Now()
 
-	initial, err := c.Entries(ctx, service, from, started, filter, 0, lines)
+	initial, err := c.Entries(ctx, service, from, started, filter, 0, lines, Backward)
 
 	if err != nil {
 		return nil, err
