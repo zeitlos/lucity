@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { environmentRoute, projectRoute, routeDrawer, routeEnvironmentId } from '@/lib/routes';
 import { computed, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { onKeyStroke } from '@vueuse/core';
@@ -47,10 +48,7 @@ const {
   handleNewProject,
 } = useContextSwitch();
 
-const environmentId = computed<string | undefined>(() => {
-  const id = route.params.environmentId;
-  return Array.isArray(id) ? id[0] : (id as string | undefined);
-});
+const environmentId = computed(() => routeEnvironmentId(route));
 
 const tabs = computed(() => {
   if (activeProjectId.value && isEnvironmentRoute.value && environmentId.value) {
@@ -138,20 +136,13 @@ async function handleLogout() {
 function projectLink(project: { id: string; environments: { id: string }[] }) {
   const target = preferredEnvironment(project.id, project.environments);
   if (target) {
-    return { name: 'environment', params: { projectId: project.id, environmentId: target.id } };
+    return environmentRoute(target.id);
   }
-  return { name: 'project', params: { projectId: project.id } };
+  return projectRoute(project.id);
 }
 
 function environmentLink(id: string) {
-  return {
-    name: 'environment',
-    params: {
-      projectId: activeProjectId.value,
-      environmentId: id,
-      drawer: isEnvironmentRoute.value ? route.params.drawer : undefined,
-    },
-  };
+  return environmentRoute(id, isEnvironmentRoute.value ? routeDrawer(route) : undefined);
 }
 
 function initial(name: string) {
@@ -248,7 +239,7 @@ const newBoxClass = 'flex size-6.5 shrink-0 items-center justify-center rounded-
           <template v-if="activeProjectId">
             <div :class="sepClass" />
             <RouterLink
-              :to="{ name: 'project', params: { projectId: activeProjectId } }"
+              :to="projectRoute(activeProjectId)"
               class="flex h-13 shrink-0 items-center gap-3 rounded-lg px-3 transition-colors hover:bg-foreground/10"
             >
               <span class="flex size-8 shrink-0 items-center justify-center rounded-sm bg-card text-sm font-semibold ring-1 ring-inset ring-foreground/15">

@@ -86,7 +86,7 @@ func (s *server) listProjects(ctx context.Context, _ *mcp.CallToolRequest, _ emp
 }
 
 type getProjectInput struct {
-	Project string `json:"project" jsonschema:"project id (workspace/project) or a bare project name resolved against the active workspace"`
+	Project string `json:"project" jsonschema:"project id (workspace/project), or the bare project id resolved against the active workspace"`
 }
 
 func (s *server) getProject(ctx context.Context, _ *mcp.CallToolRequest, input getProjectInput) (*mcp.CallToolResult, any, error) {
@@ -249,8 +249,8 @@ func (s *server) listGithubRepos(ctx context.Context, _ *mcp.CallToolRequest, in
 }
 
 type createProjectInput struct {
-	Name string `json:"name" jsonschema:"human-readable project name (1-128 chars)"`
-	ID   string `json:"id,omitempty" jsonschema:"optional URL-safe slug (2-16 chars, lowercase alphanumeric and hyphens); derived from the name if omitted"`
+	Name string `json:"name" jsonschema:"what people read, any text up to 128 chars (e.g. 'Customer Portal'); it can be renamed later"`
+	ID   string `json:"id,omitempty" jsonschema:"optional id (2-16 chars: lowercase letters, digits and hyphens, starting and ending with a letter or digit); derived from name when omitted, with a counter added if taken. Fixed once created. Use the id this tool returns, never the name, to refer to it later"`
 }
 
 func (s *server) createProject(ctx context.Context, _ *mcp.CallToolRequest, input createProjectInput) (*mcp.CallToolResult, any, error) {
@@ -280,8 +280,9 @@ func (s *server) createProject(ctx context.Context, _ *mcp.CallToolRequest, inpu
 }
 
 type createEnvironmentInput struct {
-	Project string `json:"project" jsonschema:"project id (workspace/project) or a bare project name"`
-	Name    string `json:"name" jsonschema:"environment name (2-16 chars, lowercase alphanumeric and hyphens)"`
+	Project string `json:"project" jsonschema:"project id (workspace/project), or the bare project id"`
+	Name    string `json:"name" jsonschema:"what people read, any text up to 128 chars (e.g. 'Staging'); it can be renamed later"`
+	ID      string `json:"id,omitempty" jsonschema:"optional id (2-16 chars: lowercase letters, digits and hyphens, starting and ending with a letter or digit); derived from name when omitted, with a counter added if taken. Fixed once created. Use the id this tool returns, never the name, to refer to it later"`
 }
 
 func (s *server) createEnvironment(ctx context.Context, _ *mcp.CallToolRequest, input createEnvironmentInput) (*mcp.CallToolResult, any, error) {
@@ -291,6 +292,9 @@ func (s *server) createEnvironment(ctx context.Context, _ *mcp.CallToolRequest, 
 	}
 
 	inputVar := map[string]any{"project": projectID, "name": input.Name}
+	if input.ID != "" {
+		inputVar["id"] = input.ID
+	}
 
 	const mutation = `mutation($input: CreateEnvironmentInput!) {
   createEnvironment(input: $input) { id name }

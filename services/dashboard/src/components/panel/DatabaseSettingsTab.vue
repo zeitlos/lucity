@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import NameSettings from '@/components/NameSettings.vue';
 import QueryError from '@/components/QueryError.vue';
 import { Skeleton } from '@/components/ui/skeleton';
 import FormFooter from '@/components/FormFooter.vue';
@@ -15,6 +16,14 @@ import GateTag from '@/components/GateTag.vue';
 import { aboveLimit, gatedChoices } from '@/lib/capabilities';
 import { formatCpuQuantity, formatStorage } from '@/lib/format';
 
+const RenameDatabaseDocument = graphql(`
+  mutation RenameDatabase($database: DatabaseID!, $name: String!) {
+    renameDatabase(database: $database, name: $name) {
+      id
+      name
+    }
+  }
+`);
 const DatabaseResourcesDocument = graphql(`
   query DatabaseResources($database: DatabaseID!) {
     database(id: $database) {
@@ -79,6 +88,16 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'database-removed'): void;
 }>();
+
+const { mutate: renameMutate, loading: renaming } = useMutation(RenameDatabaseDocument);
+
+async function handleRename(name: string) {
+  try {
+    await renameMutate({ database: props.databaseId, name });
+  } catch (e: unknown) {
+    failureToast('Failed to rename database', e);
+  }
+}
 
 // Compute (vertical scaling). Minimums sized for PostgreSQL.
 const cpuOptions = [
@@ -233,6 +252,18 @@ async function handleDelete() {
   />
 
   <div v-else class="space-y-6">
+    <section class="space-y-2">
+      <h3 class="text-sm font-medium text-muted-foreground">
+        General
+      </h3>
+      <NameSettings
+        :name="database.name"
+        :id="databaseId"
+        :saving="renaming"
+        @save="handleRename"
+      />
+    </section>
+
     <!-- Configuration -->
     <section class="space-y-2">
       <h3 class="text-sm font-medium text-muted-foreground">

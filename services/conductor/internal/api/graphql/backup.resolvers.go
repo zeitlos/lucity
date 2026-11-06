@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"github.com/zeitlos/lucity/pkg/platform"
+	"github.com/zeitlos/lucity/pkg/to"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 )
 
@@ -20,7 +21,7 @@ func (r *databaseResolver) Backups(ctx context.Context, obj *model.Database) (*m
 		return nil, err
 	}
 
-	return new(convertDatabaseBackups(*backups)), nil
+	return new(convertDatabaseBackups(obj.ID, *backups)), nil
 }
 
 // CreateDatabaseBackup is the resolver for the createDatabaseBackup field.
@@ -31,12 +32,12 @@ func (r *mutationResolver) CreateDatabaseBackup(ctx context.Context, database pl
 		return nil, err
 	}
 
-	return new(convertDatabaseBackup(*backup)), nil
+	return new(convertDatabaseBackup(database, *backup)), nil
 }
 
 // RestoreDatabase is the resolver for the restoreDatabase field.
 func (r *mutationResolver) RestoreDatabase(ctx context.Context, input model.RestoreDatabaseInput) (*model.RestoreDatabaseResult, error) {
-	result, err := r.Conductor.RestoreDatabase(ctx, input.Database, input.Name, input.TargetTime)
+	result, err := r.Conductor.RestoreDatabase(ctx, input.Database, to.Val(input.ID), input.Name, input.TargetTime)
 
 	if err != nil {
 		return nil, err

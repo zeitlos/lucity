@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"github.com/zeitlos/lucity/pkg/platform"
+	"github.com/zeitlos/lucity/pkg/to"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 )
 
@@ -65,7 +66,7 @@ func (r *environmentResolver) Volumes(ctx context.Context, obj *model.Environmen
 
 // CreateEnvironment is the resolver for the createEnvironment field.
 func (r *mutationResolver) CreateEnvironment(ctx context.Context, input model.CreateEnvironmentInput) (*model.Environment, error) {
-	e, err := r.Conductor.CreateEnvironment(ctx, input.Project, input.Name, input.FromEnvironment)
+	e, err := r.Conductor.CreateEnvironment(ctx, input.Project, to.Val(input.ID), input.Name, input.FromEnvironment)
 
 	if err != nil {
 		return nil, err
@@ -74,6 +75,17 @@ func (r *mutationResolver) CreateEnvironment(ctx context.Context, input model.Cr
 	result := convertEnvironment(*e)
 
 	return &result, nil
+}
+
+// RenameEnvironment is the resolver for the renameEnvironment field.
+func (r *mutationResolver) RenameEnvironment(ctx context.Context, environment platform.EnvironmentID, name string) (*model.Environment, error) {
+	result, err := r.Conductor.RenameEnvironment(ctx, environment, name)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertEnvironment(*result)), nil
 }
 
 // DeleteEnvironment is the resolver for the deleteEnvironment field.

@@ -56,7 +56,7 @@ func (s *server) instructions() string {
 	}
 	b.WriteString("Platform URL: " + s.manager.APIURL() + "\n\n")
 
-	b.WriteString("All IDs are '/'-separated composite strings whose first segment is the workspace: project=workspace/project, environment=workspace/project/environment, service=workspace/project/environment/service. Pass these IDs verbatim; single-segment values (a bare project or service name) are resolved against the active workspace.\n\n")
+	b.WriteString("All IDs are '/'-separated composite strings whose first segment is the workspace: project=workspace/project, environment=workspace/project/environment, service=workspace/project/environment/service. Pass these IDs verbatim. The workspace segment may be left out (project/environment/service), and a project may be given as its bare id. Every resource also has a name, which is what people read: it can contain spaces and can be renamed, so never pass a name where an id is expected. Create tools take a name and an optional id; leave the id out to derive it from the name, and use the id the tool returns.\n\n")
 
 	b.WriteString("Canonical flow: create_project -> add_service -> set_variables/configure_service -> get_deploy_status -> get_logs. add_service already starts a repository service's first build (an image service rolls out without one), so poll get_deploy_status with the release_id it returns instead of calling deploy. Deploys are asynchronous: poll get_deploy_status and read get_logs when a phase fails.\n\n")
 

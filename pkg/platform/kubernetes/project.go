@@ -4,6 +4,7 @@ import (
 	"context"
 	"sort"
 
+	pkglabels "github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/usererror"
 
@@ -41,11 +42,11 @@ func (c *Client) Projects(ctx context.Context, workspaceID string) ([]platform.P
 	projects := make([]platform.Project, 0, len(byProject))
 
 	for _, namespaces := range byProject {
-		projects = append(projects, toProject(namespaces[0], toEnvironments(namespaces)))
+		projects = append(projects, toProject(namespaces))
 	}
 
 	sort.Slice(projects, func(i, j int) bool {
-		return projects[i].Name < projects[j].Name
+		return projects[i].ID.Name < projects[j].ID.Name
 	})
 
 	return projects, nil
@@ -73,15 +74,24 @@ func (c *Client) Project(ctx context.Context, id platform.ProjectID) (*platform.
 		return nil, usererror.Errorf("project with id %q not found", id)
 	}
 
-	return new(toProject(namespaces[0], toEnvironments(namespaces))), nil
+	return new(toProject(namespaces)), nil
 }
 
-func toProject(namespace core.Namespace, environments []platform.Environment) platform.Project {
-	return platform.Project{
-		ID:           projectID(namespace),
-		Name:         namespace.Labels[projectLabel],
-		Environments: environments,
+func toProject(namespaces []core.Namespace) platform.Project {
+	project := platform.Project{
+		ID:           projectID(namespaces[0]),
+		Name:         namespaces[0].Labels[projectLabel],
+		Environments: toEnvironments(namespaces),
 	}
+
+	for _, namespace := range namespaces {
+		if name := namespace.Annotations[pkglabels.ProjectName]; name != "" {
+			project.Name = name
+			break
+		}
+	}
+
+	return project
 }
 
 func projectID(namespace core.Namespace) platform.ProjectID {

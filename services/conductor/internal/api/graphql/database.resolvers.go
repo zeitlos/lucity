@@ -34,7 +34,7 @@ func (r *mutationResolver) CreateDatabase(ctx context.Context, input model.Creat
 		memory = input.Resources.Memory
 	}
 
-	db, err := r.Conductor.CreateDatabase(ctx, input.Environment, input.Name, to.Val(input.Size), cpu, memory)
+	db, err := r.Conductor.CreateDatabase(ctx, input.Environment, to.Val(input.ID), input.Name, to.Val(input.Size), cpu, memory)
 	if err != nil {
 		return nil, err
 	}
@@ -65,6 +65,17 @@ func (r *mutationResolver) SetDatabaseStorage(ctx context.Context, database plat
 // DeleteDatabase is the resolver for the deleteDatabase field.
 func (r *mutationResolver) DeleteDatabase(ctx context.Context, database platform.DatabaseID) (bool, error) {
 	return r.Conductor.DeleteDatabase(ctx, database)
+}
+
+// RenameDatabase is the resolver for the renameDatabase field.
+func (r *mutationResolver) RenameDatabase(ctx context.Context, database platform.DatabaseID, name string) (*model.Database, error) {
+	result, err := r.Conductor.RenameDatabase(ctx, database, name)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertDatabase(*result)), nil
 }
 
 // ExecuteQuery is the resolver for the executeQuery field.

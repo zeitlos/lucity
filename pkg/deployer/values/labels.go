@@ -22,6 +22,8 @@ const (
 	annotationSourceMessage = "lucity.dev/source-commit-message"
 	annotationBuildID       = "lucity.dev/build-id"
 
+	annotationName = "lucity.dev/name"
+
 	annotationRelease        = "lucity.dev/release"
 	annotationReleaseTrigger = "lucity.dev/release-trigger"
 	annotationReleaseActor   = "lucity.dev/release-actor"

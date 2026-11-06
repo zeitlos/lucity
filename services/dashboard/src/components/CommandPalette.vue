@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { environmentRoute, projectRoute, routeEnvironmentId } from '@/lib/routes';
 import { computed, nextTick, ref, watch, type Component, type StyleValue } from 'vue';
 import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
@@ -286,7 +287,7 @@ function scopeFromRoute(): Scope {
   const project = { id: activeProjectId.value, name: activeProjectName.value };
   if (route.name !== 'environment') return route.name === 'project' ? { project } : {};
 
-  const environmentId = String(route.params.environmentId);
+  const environmentId = routeEnvironmentId(route) ?? '';
   const known = index.value.environments.find(e => e.id === environmentId);
   const environment = { id: environmentId, name: known?.name ?? activeEnvironment.value?.name ?? environmentId.split('/').pop() ?? '' };
   const panel = currentPanel.value;
@@ -294,11 +295,8 @@ function scopeFromRoute(): Scope {
   return { project, environment, resource: { id: panel.id, name: panel.label } };
 }
 
-function environmentRoute(environment: PaletteEnvironment, drawer?: string) {
-  return {
-    name: 'environment',
-    params: { projectId: environment.project.id, environmentId: environment.id, drawer },
-  };
+function environmentLocation(environment: PaletteEnvironment, drawer?: string) {
+  return environmentRoute(environment.id, drawer);
 }
 
 function location(environment: PaletteEnvironment) {
@@ -308,7 +306,7 @@ function location(environment: PaletteEnvironment) {
 }
 
 async function openResource(resource: PaletteResource, tab?: string) {
-  await router.push(environmentRoute(resource.environment));
+  await router.push(environmentLocation(resource.environment));
   await openPanel({ type: resource.type, id: resource.id, label: resource.name, tab: tab === 'logs' ? undefined : tab });
   if (tab !== 'logs' || currentPanel.value?.id !== resource.id) return;
   await nextTick();
@@ -329,7 +327,7 @@ function resourceItem(resource: PaletteResource, group = 'resources'): PaletteIt
 }
 
 function environmentItem(environment: PaletteEnvironment): PaletteItem {
-  const to = environmentRoute(environment);
+  const to = environmentLocation(environment);
   return {
     key: `environment:${environment.id}`,
     label: environment.name,
@@ -344,7 +342,7 @@ function environmentItem(environment: PaletteEnvironment): PaletteItem {
 }
 
 function projectItem(project: PaletteProject): PaletteItem {
-  const to = { name: 'project', params: { projectId: project.id } };
+  const to = projectRoute(project.id);
   return {
     key: `project:${project.id}`,
     label: project.name,
@@ -412,8 +410,8 @@ function actionItems(resource: PaletteResource): PaletteItem[] {
 }
 
 function environmentPageItems(environment: PaletteEnvironment): PaletteItem[] {
-  const variables = environmentRoute(environment, 'variables');
-  const settings = environmentRoute(environment, 'settings');
+  const variables = environmentLocation(environment, 'variables');
+  const settings = environmentLocation(environment, 'settings');
   return [
     { key: `variables:${environment.id}`, label: 'Shared variables', group: 'pages', hint: ['Open', 'Shared variables'], icon: Braces, to: variables, run: () => router.push(variables) },
     { key: `settings:${environment.id}`, label: 'Environment settings', group: 'pages', hint: ['Open', 'Environment settings'], icon: SlidersHorizontal, to: settings, run: () => router.push(settings) },
@@ -428,13 +426,13 @@ function newResourceItem(environment: PaletteEnvironment): PaletteItem {
     hint: ['New'],
     icon: Plus,
     keywords: 'create add service database bucket volume',
-    shortcut: route.params.environmentId === environment.id ? 'N' : undefined,
-    run: () => router.push({ ...environmentRoute(environment), query: { new: 'resource' } }),
+    shortcut: routeEnvironmentId(route) === environment.id ? 'N' : undefined,
+    run: () => router.push({ ...environmentLocation(environment), query: { new: 'resource' } }),
   };
 }
 
 function projectPageItems(project: PaletteProject): PaletteItem[] {
-  const to = { name: 'project', params: { projectId: project.id, drawer: 'settings' } };
+  const to = projectRoute(project.id, 'settings');
   return [
     { key: `project-settings:${project.id}`, label: 'Project settings', group: 'pages', hint: ['Open', 'Project settings'], icon: SlidersHorizontal, to, run: () => router.push(to) },
   ];

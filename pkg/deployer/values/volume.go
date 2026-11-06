@@ -19,7 +19,7 @@ type Volume struct {
 	Annotations map[string]string `yaml:"annotations,omitempty"`
 }
 
-func CreateVolume(env *Env, name string, size resource.Quantity) error {
+func CreateVolume(env *Env, name, displayName string, size resource.Quantity) error {
 	if _, ok := env.Volumes[name]; ok {
 		return nil
 	}
@@ -29,8 +29,9 @@ func CreateVolume(env *Env, name string, size resource.Quantity) error {
 	}
 
 	env.Volumes[name] = Volume{
-		Size:   size.String(),
-		Labels: map[string]string{labelVolume: name},
+		Size:        size.String(),
+		Labels:      map[string]string{labelVolume: name},
+		Annotations: withDisplayName(nil, displayName),
 	}
 
 	return nil

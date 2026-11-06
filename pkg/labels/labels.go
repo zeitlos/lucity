@@ -22,6 +22,13 @@ const (
 	AgentKey            = Prefix + "agent-key"
 )
 
+// Annotation keys for readable names. A resource without one is named by its id.
+const (
+	Name            = Prefix + "name"
+	ProjectName     = Prefix + "project-name"
+	EnvironmentName = Prefix + "environment-name"
+)
+
 // OCI image label constants.
 const (
 	OCISource   = "org.opencontainers.image.source"

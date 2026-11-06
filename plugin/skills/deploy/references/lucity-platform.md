@@ -30,15 +30,17 @@ exhausting the quota surfaces as `QUOTA_EXCEEDED`.
 
 ## ID formats
 
-Resources are workspace-scoped and identified by human-readable composite IDs:
+Every project, environment, service and resource has an **id** and a **name**:
 
-- **Workspace**: the tenant boundary, derived from the login token (never passed as an argument).
-- **Project**: workspace-scoped, human-readable; the project name *is* the project ID.
-- **Environment**: named within a project. `create_project` auto-creates a `development` environment; add more with `create_environment`.
-- **Service / resource**: named within a project + environment. Composite IDs read as `workspace/project/environment/service`.
+- The **id** is what tools take. It is lowercase letters, digits and hyphens, 2 to 16 characters, and never changes. Composite ids start with the workspace: project `workspace/project`, environment `workspace/project/environment`, service or resource `workspace/project/environment/<id>`. The workspace segment may be left out.
+- The **name** is what people read in the dashboard. It can contain spaces and can be renamed, so never pass a name where a tool expects an id.
 
-You generally pass the readable name to each tool; the platform resolves scope from the token and the
-project/environment you name.
+Create tools (`create_project`, `create_environment`, `add_service`, `create_database`, `create_kv_store`,
+`create_bucket`, `create_volume`) take a `name` and an optional `id`. Leave the id out and the platform
+derives it from the name, cut to 16 characters with a counter added when it is taken. Always continue
+with the id the tool returns. `create_project` auto-creates a `development` environment; add more with
+`create_environment`. Inside one environment, services, databases, key-value stores, buckets and volumes
+share one set of ids, so a database can't reuse a service's id.
 
 ## Variable references (wire, don't copy)
 

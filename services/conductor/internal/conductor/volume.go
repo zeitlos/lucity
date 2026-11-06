@@ -26,7 +26,7 @@ func (c *Client) Volume(ctx context.Context, id VolumeID) (*Volume, error) {
 	return c.platform.Volume(ctx, id)
 }
 
-func (c *Client) CreateVolume(ctx context.Context, environment platform.EnvironmentID, name, size string) (*Volume, error) {
+func (c *Client) CreateVolume(ctx context.Context, environment platform.EnvironmentID, id, name, size string) (*Volume, error) {
 	capabilities, err := c.Capabilities(ctx, environment.Workspace)
 
 	if err != nil {
@@ -47,7 +47,13 @@ func (c *Client) CreateVolume(ctx context.Context, environment platform.Environm
 		return nil, err
 	}
 
-	if _, err := c.deployer.Volumes().Create(ctx, environment, name, parsedSize); err != nil {
+	id, err = c.newResourceID(ctx, environment, id, name, "volume")
+
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := c.deployer.Volumes().Create(ctx, environment, id, name, parsedSize); err != nil {
 		return nil, fmt.Errorf("create volume: %w", err)
 	}
 
@@ -56,7 +62,7 @@ func (c *Client) CreateVolume(ctx context.Context, environment platform.Environm
 			Workspace:   environment.Workspace,
 			Project:     environment.Project,
 			Environment: environment.Name,
-			Name:        name,
+			Name:        id,
 		},
 		Name:   name,
 		Size:   parsedSize,

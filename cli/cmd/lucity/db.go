@@ -17,7 +17,7 @@ import (
 const dbUsage = `lucity db — manage databases
 
 Usage:
-  lucity db create <env> <name> [--size <size>] [--cpu <cpu>] [--memory <mem>] [--json]
+  lucity db create <env> <name> [--id <id>] [--size <size>] [--cpu <cpu>] [--memory <mem>] [--json]
   lucity db list <env> [--json]
   lucity db credentials <db> [--json]
   lucity db expose <db> [--json]
@@ -35,10 +35,12 @@ Commands:
 
 Arguments:
   <env>    Environment id (workspace/project/environment) or its relative form.
-  <name>   Database name (2-16 chars).
-  <db>     Database id (workspace/project/environment/name) or its relative form.
+  <name>   What people read, any text. Quote it when it has spaces.
+  <db>     Database id (workspace/project/environment/database) or its relative form.
 
 Flags:
+  --id <id>       Id for a new database, 2-16 lowercase letters, digits and
+                  hyphens. Derived from <name> when left out.
   --size <size>   Storage size for a new database (e.g. 32Gi)
   --cpu <cpu>     CPU limit for a new database, e.g. 500m (with --memory)
   --memory <mem>  Memory limit for a new database, e.g. 512Mi (with --cpu)
@@ -105,6 +107,7 @@ func dbCreate(ctx context.Context, args []string) error {
 	flags := flag.NewFlagSet("db create", flag.ContinueOnError)
 	flags.SetOutput(os.Stderr)
 	flags.Usage = func() { fmt.Fprint(os.Stderr, dbUsage) }
+	id := flags.String("id", "", "database id (derived from the name when left out)")
 	size := flags.String("size", "", "storage size (e.g. 32Gi)")
 	cpu := flags.String("cpu", "", "CPU limit (e.g. 500m)")
 	memory := flags.String("memory", "", "memory limit (e.g. 512Mi)")
@@ -116,7 +119,7 @@ func dbCreate(ctx context.Context, args []string) error {
 	}
 	if len(positionals) < 2 {
 		flags.Usage()
-		return errors.New("usage: lucity db create <env> <name> [--size <size>] [--cpu <cpu>] [--memory <mem>]")
+		return errors.New("usage: lucity db create <env> <name> [--id <id>] [--size <size>] [--cpu <cpu>] [--memory <mem>]")
 	}
 	if (*cpu == "") != (*memory == "") {
 		return errors.New("--cpu and --memory must be provided together")
@@ -133,6 +136,9 @@ func dbCreate(ctx context.Context, args []string) error {
 	}
 
 	input := map[string]any{"environment": environmentID, "name": nameArg}
+	if *id != "" {
+		input["id"] = *id
+	}
 	if *size != "" {
 		input["size"] = *size
 	}
@@ -149,9 +155,6 @@ func dbCreate(ctx context.Context, args []string) error {
 		return deployError("db create", err)
 	}
 	database := out.CreateDatabase
-	if strings.Trim(database.ID, "/") == "" {
-		database.ID = environmentID + "/" + nameArg
-	}
 
 	if *asJSON {
 		return printJSON(database)

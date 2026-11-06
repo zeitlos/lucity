@@ -1,7 +1,9 @@
-import { createRouter, createWebHistory } from 'vue-router';
+import { createRouter, createWebHistory, type RouteLocationNormalized } from 'vue-router';
 import { confirmDiscard } from '@/composables/useUnsavedChanges';
 import DefaultLayout from '@/layouts/DefaultLayout.vue';
 import { useAuth } from '@/composables/useAuth';
+import { apolloClient } from '@/lib/apollo';
+import { environmentRoute, projectRoute } from '@/lib/routes';
 
 const legacyWorkspaceTabs: Record<string, string> = {
   general: 'settings',
@@ -13,6 +15,14 @@ const legacyWorkspaceTabs: Record<string, string> = {
 
 const ProjectsPage = () => import('@/pages/ProjectsPage.vue');
 
+function activeWorkspaceId() {
+  return useAuth().activeWorkspace.value;
+}
+
+function legacyDrawer(to: RouteLocationNormalized) {
+  return typeof to.params.drawer === 'string' && to.params.drawer ? to.params.drawer : undefined;
+}
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -23,34 +33,61 @@ const router = createRouter({
       children: [
         {
           path: '',
+          name: 'home',
+          component: ProjectsPage,
+          beforeEnter: to => ({ name: 'projects', params: { workspace: activeWorkspaceId() }, query: to.query }),
+        },
+        {
+          path: ':workspace',
           name: 'projects',
           component: ProjectsPage,
         },
         {
-          path: ':drawer(members|connections|api-tokens|billing|settings)',
+          path: ':workspace/~/:drawer(members|connections|api-tokens|billing|settings)',
           name: 'workspace',
           component: ProjectsPage,
         },
         {
-          path: 'connections/:kind(model-providers|connectors)/:name',
+          path: ':workspace/~/connections/:kind(model-providers|connectors)/:name',
           name: 'connection',
           component: ProjectsPage,
         },
         {
-          path: 'projects/:projectId/:drawer(settings)?',
+          path: ':workspace/:project/:tilde(~)?/:drawer(settings)?',
           name: 'project',
           component: () => import('@/pages/ProjectPage.vue'),
         },
         {
-          path: 'projects/:projectId/environments/:environmentId/:drawer(variables|settings)?',
+          path: ':workspace/:project/:environment/:tilde(~)?/:drawer(variables|settings)?',
           name: 'environment',
           component: () => import('@/pages/EnvironmentPage.vue'),
         },
         {
+          path: 'projects/:projectId/:drawer(settings)?',
+          component: ProjectsPage,
+          beforeEnter: to => projectRoute(String(to.params.projectId), legacyDrawer(to)),
+        },
+        {
+          path: 'projects/:projectId/environments/:environmentId/:drawer(variables|settings)?',
+          component: ProjectsPage,
+          beforeEnter: to => environmentRoute(String(to.params.environmentId), legacyDrawer(to)),
+        },
+        {
+          path: ':drawer(members|connections|api-tokens|billing|settings)',
+          component: ProjectsPage,
+          beforeEnter: to => ({ name: 'workspace', params: { workspace: activeWorkspaceId(), drawer: legacyDrawer(to) } }),
+        },
+        {
+          path: 'connections/:kind(model-providers|connectors)/:name',
+          component: ProjectsPage,
+          beforeEnter: to => ({ name: 'connection', params: { workspace: activeWorkspaceId(), kind: String(to.params.kind), name: String(to.params.name) } }),
+        },
+        {
           path: 'workspace/settings',
-          redirect: to => ({
+          component: ProjectsPage,
+          beforeEnter: to => ({
             name: 'workspace',
-            params: { drawer: legacyWorkspaceTabs[String(to.query.tab)] ?? 'settings' },
+            params: { workspace: activeWorkspaceId(), drawer: legacyWorkspaceTabs[String(to.query.tab)] ?? 'settings' },
           }),
         },
       ],
@@ -88,6 +125,20 @@ const router = createRouter({
 
 router.beforeEach(() => confirmDiscard());
 
+router.beforeEach((to) => {
+  if (!to.params.drawer || to.params.tilde) return;
+
+  if (to.name === 'project') {
+    return { name: 'environment', params: { workspace: to.params.workspace, project: to.params.project, environment: to.params.drawer } };
+  }
+
+  if (to.name === 'environment') {
+    return { name: 'environment', params: { workspace: to.params.workspace, project: to.params.project, environment: to.params.environment } };
+  }
+});
+
+let workspaceChanged = false;
+
 router.beforeEach(async (to) => {
   if (!to.meta.requiresAuth) return;
 
@@ -104,6 +155,25 @@ router.beforeEach(async (to) => {
   if (!activeWorkspace.value) {
     return { name: 'login', query: { error: 'no_workspace' } };
   }
+
+  const workspace = to.params.workspace;
+
+  if (typeof workspace === 'string' && workspace && workspace !== activeWorkspace.value) {
+    const { user, setActiveWorkspace } = useAuth();
+
+    if (!user.value?.workspaces.some(membership => membership.workspace === workspace)) {
+      return { name: 'projects', params: { workspace: activeWorkspace.value } };
+    }
+
+    setActiveWorkspace(workspace);
+    workspaceChanged = true;
+  }
+});
+
+router.afterEach(() => {
+  if (!workspaceChanged) return;
+  workspaceChanged = false;
+  apolloClient.resetStore();
 });
 
 export default router;

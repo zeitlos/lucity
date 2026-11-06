@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { environmentRoute, projectRoute } from '@/lib/routes';
+import { lastSegment } from '@/lib/id';
 import SegmentedControl from '@/components/SegmentedControl.vue';
 import ContextDrawer from '@/components/drawer/ContextDrawer.vue';
 import QueryError from '@/components/QueryError.vue';
@@ -178,9 +180,9 @@ watch(paletteOpen, (open) => {
 function projectLink(project: { id: string; environments: { id: string }[] }) {
   const target = preferredEnvironment(project.id, project.environments);
   if (target) {
-    return { name: 'environment', params: { projectId: project.id, environmentId: target.id } };
+    return environmentRoute(target.id);
   }
-  return { name: 'project', params: { projectId: project.id } };
+  return projectRoute(project.id);
 }
 
 function allServices(project: { environments: { services?: { id: string; name: string; sourceUrl: string }[] }[] }) {
@@ -188,8 +190,9 @@ function allServices(project: { environments: { services?: { id: string; name: s
   const out: { name: string; sourceUrl: string }[] = [];
   for (const env of project.environments) {
     for (const svc of env.services ?? []) {
-      if (!seen.has(svc.name)) {
-        seen.add(svc.name);
+      const id = lastSegment(svc.id);
+      if (!seen.has(id)) {
+        seen.add(id);
         out.push(svc);
       }
     }

@@ -215,14 +215,14 @@ func (c *Client) CreateAgent(ctx context.Context, environment EnvironmentID, nam
 
 	id := AgentID{Workspace: environment.Workspace, Project: environment.Project, Environment: environment.Name, Name: name}
 
-	existing, err := c.deployer.Agents().Agents(ctx, environment)
+	taken, err := c.resourceIDs(ctx, environment)
 
 	if err != nil {
 		return nil, err
 	}
 
-	if _, ok := existing[name]; ok {
-		return nil, usererror.Errorf("an agent named %q already exists", name)
+	if user, ok := taken[name]; ok {
+		return nil, usererror.Errorf("%s already uses the ID %q.", user, name)
 	}
 
 	ws, err := c.workspaceRelease(ctx, id.Workspace)

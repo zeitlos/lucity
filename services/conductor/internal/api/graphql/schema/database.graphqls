@@ -1,6 +1,7 @@
 type Database
 @goExtraField(name: "Primary", type: "string"){
   id: DatabaseID!
+  """What people read. It can be changed, while `id` stays the same."""
   name: String!
   version: String!
   instances: Int!
@@ -75,7 +76,10 @@ type DatabaseCredentials {
 
 input CreateDatabaseInput {
   environment: EnvironmentID!
-  name: String! @constraint(constraint: "resource_name,min=2,max=16")
+  """What people read, such as `Orders`. Any text, and it can be changed later."""
+  name: String! @constraint(constraint: "min=1,max=128")
+  """The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused."""
+  id: String @constraint(constraint: "resource_name,min=2,max=16")
   size: String
   resources: ResourcesInput
 }
@@ -108,6 +112,8 @@ extend type Mutation {
   setDatabaseStorage(database: DatabaseID!, size: String!): Database! @hasRole(role: WORKSPACE_MEMBER)
   """Deletes a database and all of its data."""
   deleteDatabase(database: DatabaseID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
+  """Changes the name of a database. Its id stays the same, and nothing restarts."""
+  renameDatabase(database: DatabaseID!, name: String! @constraint(constraint: "min=1,max=128")): Database! @hasRole(role: WORKSPACE_MEMBER)
   """Runs one SQL statement against a database, as the user from its credentials, and returns up to 1,000 rows with values as text. The statement commits right away and times out after 30 seconds."""
   executeQuery(database: DatabaseID!, query: String!): QueryResult! @hasRole(role: WORKSPACE_MEMBER)
   """Gives a database a public hostname on port 5432. Clients have to connect with TLS, and nobody can connect until you allow their address with `addDatabaseAllowRule`."""

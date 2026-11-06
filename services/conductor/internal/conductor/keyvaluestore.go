@@ -31,7 +31,7 @@ func (c *Client) KeyValueStore(ctx context.Context, id KeyValueStoreID) (*KeyVal
 	return c.platform.KeyValueStore(ctx, id)
 }
 
-func (c *Client) CreateKeyValueStore(ctx context.Context, environment platform.EnvironmentID, name, size string) (*KeyValueStore, error) {
+func (c *Client) CreateKeyValueStore(ctx context.Context, environment platform.EnvironmentID, id, name, size string) (*KeyValueStore, error) {
 	const version = "8"
 
 	capabilities, err := c.Capabilities(ctx, environment.Workspace)
@@ -58,15 +58,23 @@ func (c *Client) CreateKeyValueStore(ctx context.Context, environment platform.E
 		return nil, err
 	}
 
-	if _, err := c.deployer.KeyValueStores().Create(ctx, environment, name, deployer.KeyValueStoreSpec{
-		Version:  version,
-		Size:     parsedSize,
-		Password: randCrockford32(32),
+	id, err = c.newResourceID(ctx, environment, id, name, "store")
+
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := c.deployer.KeyValueStores().Create(ctx, environment, id, deployer.KeyValueStoreSpec{
+		DisplayName: name,
+		Version:     version,
+		Size:        parsedSize,
+		Password:    randCrockford32(32),
 	}); err != nil {
 		return nil, fmt.Errorf("create key-value store: %w", err)
 	}
 
 	return &KeyValueStore{
+		ID:      platform.KeyValueStoreID{Workspace: environment.Workspace, Project: environment.Project, Environment: environment.Name, Name: id},
 		Name:    name,
 		Version: version,
 		Size:    parsedSize,

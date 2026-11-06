@@ -34,7 +34,7 @@ func (r *mutationResolver) AddService(ctx context.Context, environment platform.
 		variables[variable.Key] = variable.Value
 	}
 
-	service, err := r.Conductor.AddService(ctx, environment, to.Val(input.Name), to.Val(input.Repository), to.Val(input.ContextPath), to.Val(input.Image), variables, cpu, memory, toInt64Ptr(input.User))
+	service, err := r.Conductor.AddService(ctx, environment, to.Val(input.ID), to.Val(input.Name), to.Val(input.Repository), to.Val(input.ContextPath), to.Val(input.Image), variables, cpu, memory, toInt64Ptr(input.User))
 
 	if err != nil {
 		return nil, err
@@ -46,6 +46,17 @@ func (r *mutationResolver) AddService(ctx context.Context, environment platform.
 // RemoveService is the resolver for the removeService field.
 func (r *mutationResolver) RemoveService(ctx context.Context, service platform.ServiceID) (bool, error) {
 	return r.Conductor.RemoveService(ctx, service)
+}
+
+// RenameService is the resolver for the renameService field.
+func (r *mutationResolver) RenameService(ctx context.Context, service platform.ServiceID, name string) (*model.Service, error) {
+	result, err := r.Conductor.RenameService(ctx, service, name)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertService(*result)), nil
 }
 
 // SetCustomStartCommand is the resolver for the setCustomStartCommand field.

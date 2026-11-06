@@ -21,7 +21,66 @@ type ServiceVariable struct {
 }
 
 func (c *Client) AvailableVariables(ctx context.Context, environment platform.EnvironmentID) ([]Variable, error) {
-	return c.platform.AvailableVariables(ctx, environment)
+	variables, err := c.platform.AvailableVariables(ctx, environment)
+
+	if err != nil {
+		return nil, err
+	}
+
+	names, err := c.sourceNames(ctx, environment)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for i, variable := range variables {
+		switch source := variable.Source; {
+		case source.Database != nil:
+			variables[i].Source.Name = names[source.Database.String()]
+		case source.KeyValueStore != nil:
+			variables[i].Source.Name = names[source.KeyValueStore.String()]
+		case source.Bucket != nil:
+			variables[i].Source.Name = names[source.Bucket.String()]
+		}
+	}
+
+	return variables, nil
+}
+
+func (c *Client) sourceNames(ctx context.Context, environment platform.EnvironmentID) (map[string]string, error) {
+	names := map[string]string{}
+
+	databases, err := c.platform.Databases(ctx, environment)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for _, database := range databases {
+		names[database.ID.String()] = database.Name
+	}
+
+	stores, err := c.platform.KeyValueStores(ctx, environment)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for _, store := range stores {
+		names[store.ID.String()] = store.Name
+	}
+
+	buckets, err := c.objectStorage.Buckets(ctx, environment, false)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for _, bucket := range buckets {
+		names[bucket.ID.String()] = bucket.Name
+	}
+
+	return names, nil
 }
 
 func (c *Client) SetSharedVariables(ctx context.Context, environment platform.EnvironmentID, vars map[string]string) (bool, error) {

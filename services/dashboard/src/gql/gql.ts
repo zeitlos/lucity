@@ -25,8 +25,9 @@ type Documents = {
     "\n  mutation CreateDatabase($input: CreateDatabaseInput!) {\n    createDatabase(input: $input) {\n      id\n      name\n      version\n      size\n    }\n  }\n": typeof types.CreateDatabaseDocument,
     "\n  mutation CreateKeyValueStore($input: CreateKeyValueStoreInput!) {\n    createKeyValueStore(input: $input) {\n      id\n      name\n      version\n      size\n    }\n  }\n": typeof types.CreateKeyValueStoreDocument,
     "\n  mutation CreateBucket($input: CreateBucketInput!) {\n    createBucket(input: $input) {\n      id\n      name\n      region\n      endpoint\n    }\n  }\n": typeof types.CreateBucketDocument,
-    "\n  mutation CreateVolume($environment: EnvironmentID!, $name: String!, $size: String!) {\n    createVolume(environment: $environment, name: $name, size: $size) {\n      id\n      name\n      size\n    }\n  }\n": typeof types.CreateVolumeDocument,
+    "\n  mutation CreateVolume($environment: EnvironmentID!, $name: String!, $id: String, $size: String!) {\n    createVolume(environment: $environment, name: $name, id: $id, size: $size) {\n      id\n      name\n      size\n    }\n  }\n": typeof types.CreateVolumeDocument,
     "\n  query AgentPaletteConnectors {\n    connectors {\n      id\n      name\n      url\n    }\n  }\n": typeof types.AgentPaletteConnectorsDocument,
+    "\n  query CreatePaletteProjects {\n    projects {\n      id\n    }\n  }\n": typeof types.CreatePaletteProjectsDocument,
     "\n  mutation CreateAgent($environment: EnvironmentID!, $name: String!, $harness: Harness!, $instructions: String!, $connectors: [AgentConnectorInput!]) {\n    createAgent(environment: $environment, name: $name, harness: $harness, instructions: $instructions, connectors: $connectors) {\n      id\n      name\n    }\n  }\n": typeof types.CreateAgentDocument,
     "\n  mutation CreateEnvironment($input: CreateEnvironmentInput!) {\n    createEnvironment(input: $input) {\n      id\n      name\n    }\n  }\n": typeof types.CreateEnvironmentDocument,
     "\n  mutation CreateWorkspaceCheckout($input: CreateWorkspaceCheckoutInput!) {\n    createWorkspaceCheckout(input: $input) {\n      url\n    }\n  }\n": typeof types.CreateWorkspaceCheckoutDocument,
@@ -50,11 +51,13 @@ type Documents = {
     "\n  mutation ReplaceConnectorCredential($connector: ConnectorID!, $credential: String!) {\n    replaceConnectorCredential(connector: $connector, credential: $credential) {\n      id\n      credentialHint\n      status\n      checkedAt\n      tools {\n        name\n        description\n      }\n    }\n  }\n": typeof types.ReplaceConnectorCredentialDocument,
     "\n  mutation RefreshConnector($connector: ConnectorID!) {\n    refreshConnector(connector: $connector) {\n      id\n      status\n      checkedAt\n      tools {\n        name\n        description\n      }\n    }\n  }\n": typeof types.RefreshConnectorDocument,
     "\n  mutation DeleteConnector($connector: ConnectorID!) {\n    deleteConnector(connector: $connector)\n  }\n": typeof types.DeleteConnectorDocument,
+    "\n  mutation RenameEnvironment($environment: EnvironmentID!, $name: String!) {\n    renameEnvironment(environment: $environment, name: $name) {\n      id\n      name\n    }\n  }\n": typeof types.RenameEnvironmentDocument,
     "\n  mutation DeleteEnvironment($environment: EnvironmentID!) {\n    deleteEnvironment(environment: $environment)\n  }\n": typeof types.DeleteEnvironmentDocument,
     "\n  query ModelProvider($id: ModelProviderID!) {\n    modelProvider(id: $id) {\n      id\n      name\n      api\n      url\n      keyHint\n      status\n      checkedAt\n      models\n      agents {\n        id\n        name\n        harness\n      }\n    }\n  }\n": typeof types.ModelProviderDocument,
     "\n  mutation ReplaceModelProviderKey($provider: ModelProviderID!, $apiKey: String!) {\n    replaceModelProviderKey(provider: $provider, apiKey: $apiKey) {\n      id\n      keyHint\n      status\n      checkedAt\n      models\n    }\n  }\n": typeof types.ReplaceModelProviderKeyDocument,
     "\n  mutation RefreshModelProvider($provider: ModelProviderID!) {\n    refreshModelProvider(provider: $provider) {\n      id\n      status\n      checkedAt\n      models\n    }\n  }\n": typeof types.RefreshModelProviderDocument,
     "\n  mutation DeleteModelProvider($provider: ModelProviderID!) {\n    deleteModelProvider(provider: $provider)\n  }\n": typeof types.DeleteModelProviderDocument,
+    "\n  mutation RenameProject($project: ProjectID!, $name: String!) {\n    renameProject(project: $project, name: $name) {\n      id\n      name\n    }\n  }\n": typeof types.RenameProjectDocument,
     "\n  mutation DeleteProject($id: ProjectID!) {\n    deleteProject(id: $id)\n  }\n": typeof types.DeleteProjectDocument,
     "\n  query SharedVariables($environment: EnvironmentID!) {\n    sharedVariables(environment: $environment) {\n      key\n      value\n    }\n  }\n": typeof types.SharedVariablesDocument,
     "\n  mutation UpdateSharedVariables($environment: EnvironmentID!, $set: [VariableInput!]!, $unset: [String!]!) {\n    updateSharedVariables(environment: $environment, set: $set, unset: $unset)\n  }\n": typeof types.UpdateSharedVariablesDocument,
@@ -88,6 +91,7 @@ type Documents = {
     "\n  mutation BucketObjectUploadUrl($bucket: BucketID!, $key: String!) {\n    bucketObjectUploadUrl(bucket: $bucket, key: $key)\n  }\n": typeof types.BucketObjectUploadUrlDocument,
     "\n  query BucketObjectDownloadUrl($bucket: BucketID!, $key: String!) {\n    bucketObjectDownloadUrl(bucket: $bucket, key: $key)\n  }\n": typeof types.BucketObjectDownloadUrlDocument,
     "\n  mutation DeleteBucketObject($bucket: BucketID!, $key: String!) {\n    deleteBucketObject(bucket: $bucket, key: $key)\n  }\n": typeof types.DeleteBucketObjectDocument,
+    "\n  mutation RenameBucket($bucket: BucketID!, $name: String!) {\n    renameBucket(bucket: $bucket, name: $name) {\n      id\n      name\n    }\n  }\n": typeof types.RenameBucketDocument,
     "\n  mutation DeleteBucket($bucket: BucketID!) {\n    deleteBucket(bucket: $bucket)\n  }\n": typeof types.DeleteBucketDocument,
     "\n  query BuildLogsStatus($id: BuildID!) {\n    build(id: $id) {\n      id\n      status\n      startedAt\n      finishedAt\n    }\n  }\n": typeof types.BuildLogsStatusDocument,
     "\n  mutation AddDatabaseAllowRule($database: DatabaseID!, $rule: DatabaseAllowRuleInput!) {\n    addDatabaseAllowRule(database: $database, rule: $rule) {\n      id\n      allowRules {\n        range\n        description\n      }\n    }\n  }\n": typeof types.AddDatabaseAllowRuleDocument,
@@ -103,16 +107,19 @@ type Documents = {
     "\n  query DatabaseMetrics($id: DatabaseID!, $range: MetricsRange!, $grouping: MetricGrouping!) {\n    database(id: $id) {\n      id\n      instances\n      size\n      resources {\n        cpu\n        memory\n      }\n      connectionLimit\n      metrics(\n        metrics: [\n          CPU_USAGE\n          MEMORY_USAGE\n          STORAGE_USED\n          CONNECTIONS\n          TRANSACTIONS\n          CACHE_HIT_RATIO\n          ROWS_READ\n          ROWS_WRITTEN\n          DEADLOCKS\n          REPLICATION_LAG\n        ]\n        range: $range\n        grouping: $grouping\n      ) {\n        metric\n        instance\n        role\n        points {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n": typeof types.DatabaseMetricsDocument,
     "\n  query DatabaseQueryStatistics($id: DatabaseID!) {\n    database(id: $id) {\n      id\n      queryStatistics {\n        enabled\n        since\n        queries {\n          query\n          calls\n          rows\n          totalMilliseconds\n          meanMilliseconds\n          share\n        }\n      }\n    }\n  }\n": typeof types.DatabaseQueryStatisticsDocument,
     "\n  mutation ExecuteQuery($database: DatabaseID!, $query: String!) {\n    executeQuery(database: $database, query: $query) {\n      columns\n      rows\n      affectedRows\n    }\n  }\n": typeof types.ExecuteQueryDocument,
+    "\n  mutation RenameDatabase($database: DatabaseID!, $name: String!) {\n    renameDatabase(database: $database, name: $name) {\n      id\n      name\n    }\n  }\n": typeof types.RenameDatabaseDocument,
     "\n  query DatabaseResources($database: DatabaseID!) {\n    database(id: $database) {\n      id\n      size\n      resources {\n        cpu\n        memory\n      }\n    }\n  }\n": typeof types.DatabaseResourcesDocument,
     "\n  mutation SetDatabaseResources($database: DatabaseID!, $resources: ResourcesInput!) {\n    setDatabaseResources(database: $database, resources: $resources) {\n      id\n      status\n      resources {\n        cpu\n        memory\n      }\n    }\n  }\n": typeof types.SetDatabaseResourcesDocument,
     "\n  mutation SetDatabaseStorage($database: DatabaseID!, $size: String!) {\n    setDatabaseStorage(database: $database, size: $size) {\n      id\n      status\n      size\n    }\n  }\n": typeof types.SetDatabaseStorageDocument,
     "\n  mutation DeleteDatabase($database: DatabaseID!) {\n    deleteDatabase(database: $database)\n  }\n": typeof types.DeleteDatabaseDocument,
     "\n  query DatabaseTables($database: DatabaseID!) {\n    databaseTables(database: $database) {\n      name\n      schema\n      estimatedRows\n      columns {\n        name\n        type\n        nullable\n        primaryKey\n      }\n    }\n  }\n": typeof types.DatabaseTablesDocument,
     "\n  query DatabaseTableData(\n    $database: DatabaseID!\n    $table: String!\n    $schema: String\n    $limit: Int\n    $offset: Int\n  ) {\n    databaseTableData(\n      database: $database\n      table: $table\n      schema: $schema\n      limit: $limit\n      offset: $offset\n    ) {\n      columns\n      rows\n      totalEstimatedRows\n    }\n  }\n": typeof types.DatabaseTableDataDocument,
+    "\n  mutation RenameKeyValueStore($keyValueStore: KeyValueStoreID!, $name: String!) {\n    renameKeyValueStore(keyValueStore: $keyValueStore, name: $name) {\n      id\n      name\n    }\n  }\n": typeof types.RenameKeyValueStoreDocument,
     "\n  query KeyValueStoreCredentials($keyValueStore: KeyValueStoreID!) {\n    keyValueStoreCredentials(keyValueStore: $keyValueStore) {\n      type\n      host\n      port\n      password\n      uri\n    }\n  }\n": typeof types.KeyValueStoreCredentialsDocument,
     "\n  mutation DeleteKeyValueStore($keyValueStore: KeyValueStoreID!) {\n    deleteKeyValueStore(keyValueStore: $keyValueStore)\n  }\n": typeof types.DeleteKeyValueStoreDocument,
     "\n  query ServiceSecurity($id: ServiceID!) {\n    service(id: $id) {\n      id\n      sourceUrl\n      vulnerabilityReport {\n        summary {\n          critical\n          high\n          medium\n          low\n          unknown\n          total\n        }\n      }\n      secretScanReport {\n        commit\n        scannedAt\n        findings {\n          rule\n          file\n          line\n          commit\n          secret\n          author\n          url\n          verified\n        }\n      }\n    }\n  }\n": typeof types.ServiceSecurityDocument,
     "\n  query ServiceMetrics($id: ServiceID!, $range: MetricsRange!, $grouping: MetricGrouping!) {\n    service(id: $id) {\n      id\n      replicas {\n        desired\n      }\n      resources {\n        cpu\n        memory\n      }\n      deployments {\n        createdAt\n      }\n      metrics(metrics: [CPU_USAGE, MEMORY_USAGE], range: $range, grouping: $grouping) {\n        metric\n        replica\n        points {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n": typeof types.ServiceMetricsDocument,
+    "\n  mutation RenameService($service: ServiceID!, $name: String!) {\n    renameService(service: $service, name: $name) {\n      id\n      name\n    }\n  }\n": typeof types.RenameServiceDocument,
     "\n  mutation RemoveService($service: ServiceID!) {\n    removeService(service: $service)\n  }\n": typeof types.RemoveServiceDocument,
     "\n  mutation SetCustomStartCommand($service: ServiceID!, $command: String!) {\n    setCustomStartCommand(service: $service, command: $command) {\n      id\n    }\n  }\n": typeof types.SetCustomStartCommandDocument,
     "\n  mutation GenerateDomain($service: ServiceID!) {\n    generateDomain(service: $service) {\n      id\n      endpoints {\n        host\n        port\n        type\n        protocol\n        redirectTo\n        dns {\n          status\n          requiredRecords {\n            type\n            host\n            value\n          }\n        }\n      }\n    }\n  }\n": typeof types.GenerateDomainDocument,
@@ -132,6 +139,7 @@ type Documents = {
     "\n  query LinkedVariableValues($environment: EnvironmentID!) {\n    availableVariables(environment: $environment) {\n      id\n      value\n    }\n  }\n": typeof types.LinkedVariableValuesDocument,
     "\n  mutation UpdateServiceVariables($service: ServiceID!, $set: [ServiceVariableInput!]!, $unset: [String!]!) {\n    updateServiceVariables(service: $service, set: $set, unset: $unset)\n  }\n": typeof types.UpdateServiceVariablesDocument,
     "\n  query ServiceVulnerabilities($id: ServiceID!) {\n    service(id: $id) {\n      id\n      vulnerabilityReport {\n        image\n        summary {\n          critical\n          high\n          medium\n          low\n          unknown\n          total\n        }\n        vulnerabilities {\n          id\n          severity\n          source\n          title\n          reference\n          packages {\n            name\n            installedVersion\n            fixedVersion\n            path\n          }\n        }\n      }\n    }\n  }\n": typeof types.ServiceVulnerabilitiesDocument,
+    "\n  mutation RenameVolume($volume: VolumeID!, $name: String!) {\n    renameVolume(volume: $volume, name: $name) {\n      id\n      name\n    }\n  }\n": typeof types.RenameVolumeDocument,
     "\n  mutation DeleteVolume($volume: VolumeID!) {\n    deleteVolume(volume: $volume)\n  }\n": typeof types.DeleteVolumeDocument,
     "\n  mutation ExpandVolume($volume: VolumeID!, $size: String!) {\n    expandVolume(volume: $volume, size: $size) {\n      id\n      size\n    }\n  }\n": typeof types.ExpandVolumeDocument,
     "\n  mutation UnmountVolume($volume: VolumeID!) {\n    unmountVolume(volume: $volume) {\n      id\n      mount {\n        service\n        path\n      }\n    }\n  }\n": typeof types.UnmountVolumeDocument,
@@ -142,6 +150,7 @@ type Documents = {
     "\n  subscription BuildLogs($id: BuildID!) {\n    buildLogs(id: $id)\n  }\n": typeof types.BuildLogsDocument,
     "\n  subscription DeployLogs($id: DeployID!) {\n    deployLogs(id: $id)\n  }\n": typeof types.DeployLogsDocument,
     "\n  subscription ScanLogs($id: ScanID!) {\n    scanLogs(id: $id)\n  }\n": typeof types.ScanLogsDocument,
+    "\n  query EnvironmentResourceIds($environment: EnvironmentID!) {\n    environment(environment: $environment) {\n      id\n      services {\n        id\n      }\n      databases {\n        id\n      }\n      volumes {\n        id\n      }\n      keyValueStores {\n        id\n      }\n      buckets {\n        id\n      }\n    }\n  }\n": typeof types.EnvironmentResourceIdsDocument,
     "\n  subscription ServiceLogs($service: ServiceID!, $tailLines: Int) {\n    serviceLogs(service: $service, tailLines: $tailLines) {\n      line\n      pod\n    }\n  }\n": typeof types.ServiceLogsDocument,
     "\n  query Workspace {\n    workspace {\n      id\n      name\n      personal\n      suspended\n      members {\n        id\n        email\n        name\n        role\n      }\n    }\n  }\n": typeof types.WorkspaceDocument,
     "\n  mutation CompletePaymentMethodCheckout($sessionId: String!) {\n    completePaymentMethodCheckout(sessionId: $sessionId) {\n      id\n    }\n  }\n": typeof types.CompletePaymentMethodCheckoutDocument,
@@ -169,8 +178,9 @@ const documents: Documents = {
     "\n  mutation CreateDatabase($input: CreateDatabaseInput!) {\n    createDatabase(input: $input) {\n      id\n      name\n      version\n      size\n    }\n  }\n": types.CreateDatabaseDocument,
     "\n  mutation CreateKeyValueStore($input: CreateKeyValueStoreInput!) {\n    createKeyValueStore(input: $input) {\n      id\n      name\n      version\n      size\n    }\n  }\n": types.CreateKeyValueStoreDocument,
     "\n  mutation CreateBucket($input: CreateBucketInput!) {\n    createBucket(input: $input) {\n      id\n      name\n      region\n      endpoint\n    }\n  }\n": types.CreateBucketDocument,
-    "\n  mutation CreateVolume($environment: EnvironmentID!, $name: String!, $size: String!) {\n    createVolume(environment: $environment, name: $name, size: $size) {\n      id\n      name\n      size\n    }\n  }\n": types.CreateVolumeDocument,
+    "\n  mutation CreateVolume($environment: EnvironmentID!, $name: String!, $id: String, $size: String!) {\n    createVolume(environment: $environment, name: $name, id: $id, size: $size) {\n      id\n      name\n      size\n    }\n  }\n": types.CreateVolumeDocument,
     "\n  query AgentPaletteConnectors {\n    connectors {\n      id\n      name\n      url\n    }\n  }\n": types.AgentPaletteConnectorsDocument,
+    "\n  query CreatePaletteProjects {\n    projects {\n      id\n    }\n  }\n": types.CreatePaletteProjectsDocument,
     "\n  mutation CreateAgent($environment: EnvironmentID!, $name: String!, $harness: Harness!, $instructions: String!, $connectors: [AgentConnectorInput!]) {\n    createAgent(environment: $environment, name: $name, harness: $harness, instructions: $instructions, connectors: $connectors) {\n      id\n      name\n    }\n  }\n": types.CreateAgentDocument,
     "\n  mutation CreateEnvironment($input: CreateEnvironmentInput!) {\n    createEnvironment(input: $input) {\n      id\n      name\n    }\n  }\n": types.CreateEnvironmentDocument,
     "\n  mutation CreateWorkspaceCheckout($input: CreateWorkspaceCheckoutInput!) {\n    createWorkspaceCheckout(input: $input) {\n      url\n    }\n  }\n": types.CreateWorkspaceCheckoutDocument,
@@ -194,11 +204,13 @@ const documents: Documents = {
     "\n  mutation ReplaceConnectorCredential($connector: ConnectorID!, $credential: String!) {\n    replaceConnectorCredential(connector: $connector, credential: $credential) {\n      id\n      credentialHint\n      status\n      checkedAt\n      tools {\n        name\n        description\n      }\n    }\n  }\n": types.ReplaceConnectorCredentialDocument,
     "\n  mutation RefreshConnector($connector: ConnectorID!) {\n    refreshConnector(connector: $connector) {\n      id\n      status\n      checkedAt\n      tools {\n        name\n        description\n      }\n    }\n  }\n": types.RefreshConnectorDocument,
     "\n  mutation DeleteConnector($connector: ConnectorID!) {\n    deleteConnector(connector: $connector)\n  }\n": types.DeleteConnectorDocument,
+    "\n  mutation RenameEnvironment($environment: EnvironmentID!, $name: String!) {\n    renameEnvironment(environment: $environment, name: $name) {\n      id\n      name\n    }\n  }\n": types.RenameEnvironmentDocument,
     "\n  mutation DeleteEnvironment($environment: EnvironmentID!) {\n    deleteEnvironment(environment: $environment)\n  }\n": types.DeleteEnvironmentDocument,
     "\n  query ModelProvider($id: ModelProviderID!) {\n    modelProvider(id: $id) {\n      id\n      name\n      api\n      url\n      keyHint\n      status\n      checkedAt\n      models\n      agents {\n        id\n        name\n        harness\n      }\n    }\n  }\n": types.ModelProviderDocument,
     "\n  mutation ReplaceModelProviderKey($provider: ModelProviderID!, $apiKey: String!) {\n    replaceModelProviderKey(provider: $provider, apiKey: $apiKey) {\n      id\n      keyHint\n      status\n      checkedAt\n      models\n    }\n  }\n": types.ReplaceModelProviderKeyDocument,
     "\n  mutation RefreshModelProvider($provider: ModelProviderID!) {\n    refreshModelProvider(provider: $provider) {\n      id\n      status\n      checkedAt\n      models\n    }\n  }\n": types.RefreshModelProviderDocument,
     "\n  mutation DeleteModelProvider($provider: ModelProviderID!) {\n    deleteModelProvider(provider: $provider)\n  }\n": types.DeleteModelProviderDocument,
+    "\n  mutation RenameProject($project: ProjectID!, $name: String!) {\n    renameProject(project: $project, name: $name) {\n      id\n      name\n    }\n  }\n": types.RenameProjectDocument,
     "\n  mutation DeleteProject($id: ProjectID!) {\n    deleteProject(id: $id)\n  }\n": types.DeleteProjectDocument,
     "\n  query SharedVariables($environment: EnvironmentID!) {\n    sharedVariables(environment: $environment) {\n      key\n      value\n    }\n  }\n": types.SharedVariablesDocument,
     "\n  mutation UpdateSharedVariables($environment: EnvironmentID!, $set: [VariableInput!]!, $unset: [String!]!) {\n    updateSharedVariables(environment: $environment, set: $set, unset: $unset)\n  }\n": types.UpdateSharedVariablesDocument,
@@ -232,6 +244,7 @@ const documents: Documents = {
     "\n  mutation BucketObjectUploadUrl($bucket: BucketID!, $key: String!) {\n    bucketObjectUploadUrl(bucket: $bucket, key: $key)\n  }\n": types.BucketObjectUploadUrlDocument,
     "\n  query BucketObjectDownloadUrl($bucket: BucketID!, $key: String!) {\n    bucketObjectDownloadUrl(bucket: $bucket, key: $key)\n  }\n": types.BucketObjectDownloadUrlDocument,
     "\n  mutation DeleteBucketObject($bucket: BucketID!, $key: String!) {\n    deleteBucketObject(bucket: $bucket, key: $key)\n  }\n": types.DeleteBucketObjectDocument,
+    "\n  mutation RenameBucket($bucket: BucketID!, $name: String!) {\n    renameBucket(bucket: $bucket, name: $name) {\n      id\n      name\n    }\n  }\n": types.RenameBucketDocument,
     "\n  mutation DeleteBucket($bucket: BucketID!) {\n    deleteBucket(bucket: $bucket)\n  }\n": types.DeleteBucketDocument,
     "\n  query BuildLogsStatus($id: BuildID!) {\n    build(id: $id) {\n      id\n      status\n      startedAt\n      finishedAt\n    }\n  }\n": types.BuildLogsStatusDocument,
     "\n  mutation AddDatabaseAllowRule($database: DatabaseID!, $rule: DatabaseAllowRuleInput!) {\n    addDatabaseAllowRule(database: $database, rule: $rule) {\n      id\n      allowRules {\n        range\n        description\n      }\n    }\n  }\n": types.AddDatabaseAllowRuleDocument,
@@ -247,16 +260,19 @@ const documents: Documents = {
     "\n  query DatabaseMetrics($id: DatabaseID!, $range: MetricsRange!, $grouping: MetricGrouping!) {\n    database(id: $id) {\n      id\n      instances\n      size\n      resources {\n        cpu\n        memory\n      }\n      connectionLimit\n      metrics(\n        metrics: [\n          CPU_USAGE\n          MEMORY_USAGE\n          STORAGE_USED\n          CONNECTIONS\n          TRANSACTIONS\n          CACHE_HIT_RATIO\n          ROWS_READ\n          ROWS_WRITTEN\n          DEADLOCKS\n          REPLICATION_LAG\n        ]\n        range: $range\n        grouping: $grouping\n      ) {\n        metric\n        instance\n        role\n        points {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n": types.DatabaseMetricsDocument,
     "\n  query DatabaseQueryStatistics($id: DatabaseID!) {\n    database(id: $id) {\n      id\n      queryStatistics {\n        enabled\n        since\n        queries {\n          query\n          calls\n          rows\n          totalMilliseconds\n          meanMilliseconds\n          share\n        }\n      }\n    }\n  }\n": types.DatabaseQueryStatisticsDocument,
     "\n  mutation ExecuteQuery($database: DatabaseID!, $query: String!) {\n    executeQuery(database: $database, query: $query) {\n      columns\n      rows\n      affectedRows\n    }\n  }\n": types.ExecuteQueryDocument,
+    "\n  mutation RenameDatabase($database: DatabaseID!, $name: String!) {\n    renameDatabase(database: $database, name: $name) {\n      id\n      name\n    }\n  }\n": types.RenameDatabaseDocument,
     "\n  query DatabaseResources($database: DatabaseID!) {\n    database(id: $database) {\n      id\n      size\n      resources {\n        cpu\n        memory\n      }\n    }\n  }\n": types.DatabaseResourcesDocument,
     "\n  mutation SetDatabaseResources($database: DatabaseID!, $resources: ResourcesInput!) {\n    setDatabaseResources(database: $database, resources: $resources) {\n      id\n      status\n      resources {\n        cpu\n        memory\n      }\n    }\n  }\n": types.SetDatabaseResourcesDocument,
     "\n  mutation SetDatabaseStorage($database: DatabaseID!, $size: String!) {\n    setDatabaseStorage(database: $database, size: $size) {\n      id\n      status\n      size\n    }\n  }\n": types.SetDatabaseStorageDocument,
     "\n  mutation DeleteDatabase($database: DatabaseID!) {\n    deleteDatabase(database: $database)\n  }\n": types.DeleteDatabaseDocument,
     "\n  query DatabaseTables($database: DatabaseID!) {\n    databaseTables(database: $database) {\n      name\n      schema\n      estimatedRows\n      columns {\n        name\n        type\n        nullable\n        primaryKey\n      }\n    }\n  }\n": types.DatabaseTablesDocument,
     "\n  query DatabaseTableData(\n    $database: DatabaseID!\n    $table: String!\n    $schema: String\n    $limit: Int\n    $offset: Int\n  ) {\n    databaseTableData(\n      database: $database\n      table: $table\n      schema: $schema\n      limit: $limit\n      offset: $offset\n    ) {\n      columns\n      rows\n      totalEstimatedRows\n    }\n  }\n": types.DatabaseTableDataDocument,
+    "\n  mutation RenameKeyValueStore($keyValueStore: KeyValueStoreID!, $name: String!) {\n    renameKeyValueStore(keyValueStore: $keyValueStore, name: $name) {\n      id\n      name\n    }\n  }\n": types.RenameKeyValueStoreDocument,
     "\n  query KeyValueStoreCredentials($keyValueStore: KeyValueStoreID!) {\n    keyValueStoreCredentials(keyValueStore: $keyValueStore) {\n      type\n      host\n      port\n      password\n      uri\n    }\n  }\n": types.KeyValueStoreCredentialsDocument,
     "\n  mutation DeleteKeyValueStore($keyValueStore: KeyValueStoreID!) {\n    deleteKeyValueStore(keyValueStore: $keyValueStore)\n  }\n": types.DeleteKeyValueStoreDocument,
     "\n  query ServiceSecurity($id: ServiceID!) {\n    service(id: $id) {\n      id\n      sourceUrl\n      vulnerabilityReport {\n        summary {\n          critical\n          high\n          medium\n          low\n          unknown\n          total\n        }\n      }\n      secretScanReport {\n        commit\n        scannedAt\n        findings {\n          rule\n          file\n          line\n          commit\n          secret\n          author\n          url\n          verified\n        }\n      }\n    }\n  }\n": types.ServiceSecurityDocument,
     "\n  query ServiceMetrics($id: ServiceID!, $range: MetricsRange!, $grouping: MetricGrouping!) {\n    service(id: $id) {\n      id\n      replicas {\n        desired\n      }\n      resources {\n        cpu\n        memory\n      }\n      deployments {\n        createdAt\n      }\n      metrics(metrics: [CPU_USAGE, MEMORY_USAGE], range: $range, grouping: $grouping) {\n        metric\n        replica\n        points {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n": types.ServiceMetricsDocument,
+    "\n  mutation RenameService($service: ServiceID!, $name: String!) {\n    renameService(service: $service, name: $name) {\n      id\n      name\n    }\n  }\n": types.RenameServiceDocument,
     "\n  mutation RemoveService($service: ServiceID!) {\n    removeService(service: $service)\n  }\n": types.RemoveServiceDocument,
     "\n  mutation SetCustomStartCommand($service: ServiceID!, $command: String!) {\n    setCustomStartCommand(service: $service, command: $command) {\n      id\n    }\n  }\n": types.SetCustomStartCommandDocument,
     "\n  mutation GenerateDomain($service: ServiceID!) {\n    generateDomain(service: $service) {\n      id\n      endpoints {\n        host\n        port\n        type\n        protocol\n        redirectTo\n        dns {\n          status\n          requiredRecords {\n            type\n            host\n            value\n          }\n        }\n      }\n    }\n  }\n": types.GenerateDomainDocument,
@@ -276,6 +292,7 @@ const documents: Documents = {
     "\n  query LinkedVariableValues($environment: EnvironmentID!) {\n    availableVariables(environment: $environment) {\n      id\n      value\n    }\n  }\n": types.LinkedVariableValuesDocument,
     "\n  mutation UpdateServiceVariables($service: ServiceID!, $set: [ServiceVariableInput!]!, $unset: [String!]!) {\n    updateServiceVariables(service: $service, set: $set, unset: $unset)\n  }\n": types.UpdateServiceVariablesDocument,
     "\n  query ServiceVulnerabilities($id: ServiceID!) {\n    service(id: $id) {\n      id\n      vulnerabilityReport {\n        image\n        summary {\n          critical\n          high\n          medium\n          low\n          unknown\n          total\n        }\n        vulnerabilities {\n          id\n          severity\n          source\n          title\n          reference\n          packages {\n            name\n            installedVersion\n            fixedVersion\n            path\n          }\n        }\n      }\n    }\n  }\n": types.ServiceVulnerabilitiesDocument,
+    "\n  mutation RenameVolume($volume: VolumeID!, $name: String!) {\n    renameVolume(volume: $volume, name: $name) {\n      id\n      name\n    }\n  }\n": types.RenameVolumeDocument,
     "\n  mutation DeleteVolume($volume: VolumeID!) {\n    deleteVolume(volume: $volume)\n  }\n": types.DeleteVolumeDocument,
     "\n  mutation ExpandVolume($volume: VolumeID!, $size: String!) {\n    expandVolume(volume: $volume, size: $size) {\n      id\n      size\n    }\n  }\n": types.ExpandVolumeDocument,
     "\n  mutation UnmountVolume($volume: VolumeID!) {\n    unmountVolume(volume: $volume) {\n      id\n      mount {\n        service\n        path\n      }\n    }\n  }\n": types.UnmountVolumeDocument,
@@ -286,6 +303,7 @@ const documents: Documents = {
     "\n  subscription BuildLogs($id: BuildID!) {\n    buildLogs(id: $id)\n  }\n": types.BuildLogsDocument,
     "\n  subscription DeployLogs($id: DeployID!) {\n    deployLogs(id: $id)\n  }\n": types.DeployLogsDocument,
     "\n  subscription ScanLogs($id: ScanID!) {\n    scanLogs(id: $id)\n  }\n": types.ScanLogsDocument,
+    "\n  query EnvironmentResourceIds($environment: EnvironmentID!) {\n    environment(environment: $environment) {\n      id\n      services {\n        id\n      }\n      databases {\n        id\n      }\n      volumes {\n        id\n      }\n      keyValueStores {\n        id\n      }\n      buckets {\n        id\n      }\n    }\n  }\n": types.EnvironmentResourceIdsDocument,
     "\n  subscription ServiceLogs($service: ServiceID!, $tailLines: Int) {\n    serviceLogs(service: $service, tailLines: $tailLines) {\n      line\n      pod\n    }\n  }\n": types.ServiceLogsDocument,
     "\n  query Workspace {\n    workspace {\n      id\n      name\n      personal\n      suspended\n      members {\n        id\n        email\n        name\n        role\n      }\n    }\n  }\n": types.WorkspaceDocument,
     "\n  mutation CompletePaymentMethodCheckout($sessionId: String!) {\n    completePaymentMethodCheckout(sessionId: $sessionId) {\n      id\n    }\n  }\n": types.CompletePaymentMethodCheckoutDocument,
@@ -363,11 +381,15 @@ export function graphql(source: "\n  mutation CreateBucket($input: CreateBucketI
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation CreateVolume($environment: EnvironmentID!, $name: String!, $size: String!) {\n    createVolume(environment: $environment, name: $name, size: $size) {\n      id\n      name\n      size\n    }\n  }\n"): (typeof documents)["\n  mutation CreateVolume($environment: EnvironmentID!, $name: String!, $size: String!) {\n    createVolume(environment: $environment, name: $name, size: $size) {\n      id\n      name\n      size\n    }\n  }\n"];
+export function graphql(source: "\n  mutation CreateVolume($environment: EnvironmentID!, $name: String!, $id: String, $size: String!) {\n    createVolume(environment: $environment, name: $name, id: $id, size: $size) {\n      id\n      name\n      size\n    }\n  }\n"): (typeof documents)["\n  mutation CreateVolume($environment: EnvironmentID!, $name: String!, $id: String, $size: String!) {\n    createVolume(environment: $environment, name: $name, id: $id, size: $size) {\n      id\n      name\n      size\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  query AgentPaletteConnectors {\n    connectors {\n      id\n      name\n      url\n    }\n  }\n"): (typeof documents)["\n  query AgentPaletteConnectors {\n    connectors {\n      id\n      name\n      url\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query CreatePaletteProjects {\n    projects {\n      id\n    }\n  }\n"): (typeof documents)["\n  query CreatePaletteProjects {\n    projects {\n      id\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -463,6 +485,10 @@ export function graphql(source: "\n  mutation DeleteConnector($connector: Connec
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
+export function graphql(source: "\n  mutation RenameEnvironment($environment: EnvironmentID!, $name: String!) {\n    renameEnvironment(environment: $environment, name: $name) {\n      id\n      name\n    }\n  }\n"): (typeof documents)["\n  mutation RenameEnvironment($environment: EnvironmentID!, $name: String!) {\n    renameEnvironment(environment: $environment, name: $name) {\n      id\n      name\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
 export function graphql(source: "\n  mutation DeleteEnvironment($environment: EnvironmentID!) {\n    deleteEnvironment(environment: $environment)\n  }\n"): (typeof documents)["\n  mutation DeleteEnvironment($environment: EnvironmentID!) {\n    deleteEnvironment(environment: $environment)\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -480,6 +506,10 @@ export function graphql(source: "\n  mutation RefreshModelProvider($provider: Mo
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation DeleteModelProvider($provider: ModelProviderID!) {\n    deleteModelProvider(provider: $provider)\n  }\n"): (typeof documents)["\n  mutation DeleteModelProvider($provider: ModelProviderID!) {\n    deleteModelProvider(provider: $provider)\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation RenameProject($project: ProjectID!, $name: String!) {\n    renameProject(project: $project, name: $name) {\n      id\n      name\n    }\n  }\n"): (typeof documents)["\n  mutation RenameProject($project: ProjectID!, $name: String!) {\n    renameProject(project: $project, name: $name) {\n      id\n      name\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -615,6 +645,10 @@ export function graphql(source: "\n  mutation DeleteBucketObject($bucket: Bucket
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
+export function graphql(source: "\n  mutation RenameBucket($bucket: BucketID!, $name: String!) {\n    renameBucket(bucket: $bucket, name: $name) {\n      id\n      name\n    }\n  }\n"): (typeof documents)["\n  mutation RenameBucket($bucket: BucketID!, $name: String!) {\n    renameBucket(bucket: $bucket, name: $name) {\n      id\n      name\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
 export function graphql(source: "\n  mutation DeleteBucket($bucket: BucketID!) {\n    deleteBucket(bucket: $bucket)\n  }\n"): (typeof documents)["\n  mutation DeleteBucket($bucket: BucketID!) {\n    deleteBucket(bucket: $bucket)\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -675,6 +709,10 @@ export function graphql(source: "\n  mutation ExecuteQuery($database: DatabaseID
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
+export function graphql(source: "\n  mutation RenameDatabase($database: DatabaseID!, $name: String!) {\n    renameDatabase(database: $database, name: $name) {\n      id\n      name\n    }\n  }\n"): (typeof documents)["\n  mutation RenameDatabase($database: DatabaseID!, $name: String!) {\n    renameDatabase(database: $database, name: $name) {\n      id\n      name\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
 export function graphql(source: "\n  query DatabaseResources($database: DatabaseID!) {\n    database(id: $database) {\n      id\n      size\n      resources {\n        cpu\n        memory\n      }\n    }\n  }\n"): (typeof documents)["\n  query DatabaseResources($database: DatabaseID!) {\n    database(id: $database) {\n      id\n      size\n      resources {\n        cpu\n        memory\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -699,6 +737,10 @@ export function graphql(source: "\n  query DatabaseTableData(\n    $database: Da
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
+export function graphql(source: "\n  mutation RenameKeyValueStore($keyValueStore: KeyValueStoreID!, $name: String!) {\n    renameKeyValueStore(keyValueStore: $keyValueStore, name: $name) {\n      id\n      name\n    }\n  }\n"): (typeof documents)["\n  mutation RenameKeyValueStore($keyValueStore: KeyValueStoreID!, $name: String!) {\n    renameKeyValueStore(keyValueStore: $keyValueStore, name: $name) {\n      id\n      name\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
 export function graphql(source: "\n  query KeyValueStoreCredentials($keyValueStore: KeyValueStoreID!) {\n    keyValueStoreCredentials(keyValueStore: $keyValueStore) {\n      type\n      host\n      port\n      password\n      uri\n    }\n  }\n"): (typeof documents)["\n  query KeyValueStoreCredentials($keyValueStore: KeyValueStoreID!) {\n    keyValueStoreCredentials(keyValueStore: $keyValueStore) {\n      type\n      host\n      port\n      password\n      uri\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -712,6 +754,10 @@ export function graphql(source: "\n  query ServiceSecurity($id: ServiceID!) {\n 
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  query ServiceMetrics($id: ServiceID!, $range: MetricsRange!, $grouping: MetricGrouping!) {\n    service(id: $id) {\n      id\n      replicas {\n        desired\n      }\n      resources {\n        cpu\n        memory\n      }\n      deployments {\n        createdAt\n      }\n      metrics(metrics: [CPU_USAGE, MEMORY_USAGE], range: $range, grouping: $grouping) {\n        metric\n        replica\n        points {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query ServiceMetrics($id: ServiceID!, $range: MetricsRange!, $grouping: MetricGrouping!) {\n    service(id: $id) {\n      id\n      replicas {\n        desired\n      }\n      resources {\n        cpu\n        memory\n      }\n      deployments {\n        createdAt\n      }\n      metrics(metrics: [CPU_USAGE, MEMORY_USAGE], range: $range, grouping: $grouping) {\n        metric\n        replica\n        points {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation RenameService($service: ServiceID!, $name: String!) {\n    renameService(service: $service, name: $name) {\n      id\n      name\n    }\n  }\n"): (typeof documents)["\n  mutation RenameService($service: ServiceID!, $name: String!) {\n    renameService(service: $service, name: $name) {\n      id\n      name\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -791,6 +837,10 @@ export function graphql(source: "\n  query ServiceVulnerabilities($id: ServiceID
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
+export function graphql(source: "\n  mutation RenameVolume($volume: VolumeID!, $name: String!) {\n    renameVolume(volume: $volume, name: $name) {\n      id\n      name\n    }\n  }\n"): (typeof documents)["\n  mutation RenameVolume($volume: VolumeID!, $name: String!) {\n    renameVolume(volume: $volume, name: $name) {\n      id\n      name\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
 export function graphql(source: "\n  mutation DeleteVolume($volume: VolumeID!) {\n    deleteVolume(volume: $volume)\n  }\n"): (typeof documents)["\n  mutation DeleteVolume($volume: VolumeID!) {\n    deleteVolume(volume: $volume)\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -828,6 +878,10 @@ export function graphql(source: "\n  subscription DeployLogs($id: DeployID!) {\n
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  subscription ScanLogs($id: ScanID!) {\n    scanLogs(id: $id)\n  }\n"): (typeof documents)["\n  subscription ScanLogs($id: ScanID!) {\n    scanLogs(id: $id)\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query EnvironmentResourceIds($environment: EnvironmentID!) {\n    environment(environment: $environment) {\n      id\n      services {\n        id\n      }\n      databases {\n        id\n      }\n      volumes {\n        id\n      }\n      keyValueStores {\n        id\n      }\n      buckets {\n        id\n      }\n    }\n  }\n"): (typeof documents)["\n  query EnvironmentResourceIds($environment: EnvironmentID!) {\n    environment(environment: $environment) {\n      id\n      services {\n        id\n      }\n      databases {\n        id\n      }\n      volumes {\n        id\n      }\n      keyValueStores {\n        id\n      }\n      buckets {\n        id\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

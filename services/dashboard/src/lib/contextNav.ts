@@ -1,3 +1,4 @@
+import { environmentRoute, projectRoute } from '@/lib/routes';
 import { Braces, Cable, CreditCard, KeyRound, Layers, LayoutGrid, SlidersHorizontal, Users, Workflow } from '@lucide/vue';
 
 export function workspaceNavItems(isAdmin: boolean, agents: boolean) {
@@ -14,15 +15,15 @@ export function workspaceNavItems(isAdmin: boolean, agents: boolean) {
 
 export function projectNavItems(projectId: string) {
   return [
-    { key: 'environments', label: 'Environments', icon: Layers, to: { name: 'project', params: { projectId } } },
-    { key: 'settings', label: 'Settings', icon: SlidersHorizontal, to: { name: 'project', params: { projectId, drawer: 'settings' } } },
+    { key: 'environments', label: 'Environments', icon: Layers, to: projectRoute(projectId) },
+    { key: 'settings', label: 'Settings', icon: SlidersHorizontal, to: projectRoute(projectId, 'settings') },
   ];
 }
 
 export function environmentNavItems(projectId: string, environmentId: string) {
   return [
-    { key: 'canvas', label: 'Canvas', icon: Workflow, to: { name: 'environment', params: { projectId, environmentId } } },
-    { key: 'variables', label: 'Variables', icon: Braces, to: { name: 'environment', params: { projectId, environmentId, drawer: 'variables' } } },
-    { key: 'settings', label: 'Settings', icon: SlidersHorizontal, to: { name: 'environment', params: { projectId, environmentId, drawer: 'settings' } } },
+    { key: 'canvas', label: 'Canvas', icon: Workflow, to: environmentRoute(environmentId) },
+    { key: 'variables', label: 'Variables', icon: Braces, to: environmentRoute(environmentId, 'variables') },
+    { key: 'settings', label: 'Settings', icon: SlidersHorizontal, to: environmentRoute(environmentId, 'settings') },
   ];
 }

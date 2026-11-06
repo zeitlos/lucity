@@ -58,6 +58,9 @@ export const apolloClient = new ApolloClient({
       VulnerabilityReport: {
         merge: true,
       },
+      Vulnerability: {
+        keyFields: false,
+      },
       Endpoint: {
         keyFields: ['host', 'port'],
       },

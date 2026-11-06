@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { lastSegment } from '@/lib/id';
 import { computed } from 'vue';
 import type { RouteLocationRaw } from 'vue-router';
 import { FolderGit2 } from '@lucide/vue';
@@ -48,8 +49,8 @@ interface Tile {
 }
 
 function uniqueTiles(kind: ResourceKind, items: NamedResource[]): Tile[] {
-  const names = [...new Set(items.map(item => item.name))];
-  return names.map(name => ({ key: `${kind}/${name}`, kind, name }));
+  const byId = new Map(items.map(item => [lastSegment(item.id), item.name]));
+  return [...byId].map(([id, name]) => ({ key: `${kind}/${id}`, kind, name }));
 }
 
 function tiles(project: Project) {

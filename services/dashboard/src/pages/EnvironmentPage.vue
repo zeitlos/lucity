@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { environmentRoute, projectRoute, routeEnvironmentId, routeProjectId } from '@/lib/routes';
 import QueryError from '@/components/QueryError.vue';
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -329,19 +330,9 @@ import { rememberEnvironment } from '@/lib/lastEnvironment';
 const route = useRoute();
 const router = useRouter();
 
-const environmentId = computed(() => {
-  const id = route.params.environmentId;
-  return Array.isArray(id) ? id[0]! : (id as string);
-});
+const environmentId = computed(() => routeEnvironmentId(route) ?? '');
 
-const projectId = computed(() => {
-  // EnvironmentID format: workspace/project/env-name. ProjectID is the first two segments.
-  const parts = environmentId.value.split('/');
-  if (parts.length >= 2) {
-    return `${parts[0]}/${parts[1]}`;
-  }
-  return '';
-});
+const projectId = computed(() => routeProjectId(route) ?? '');
 
 const { result, loading, error, refetch } = useQuery(
   EnvironmentDocument,
@@ -748,7 +739,7 @@ usePageTitle(() => [
 ]);
 
 function closeDrawer() {
-  router.push({ name: 'environment', params: { projectId: projectId.value, environmentId: environmentId.value } });
+  router.push(environmentRoute(environmentId.value));
 }
 
 async function closeOverlays() {
@@ -783,7 +774,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
         :items="railItems"
         :active-key="activeKey"
         up-label="Up to project"
-        :up-to="{ name: 'project', params: { projectId } }"
+        :up-to="projectRoute(projectId)"
         :project-id="projectId"
       />
 
@@ -813,7 +804,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
           :items="railItems"
           :active-key="activeKey"
           up-label="Up to project"
-          :up-to="{ name: 'project', params: { projectId } }"
+          :up-to="projectRoute(projectId)"
           :project-id="projectId"
         />
 

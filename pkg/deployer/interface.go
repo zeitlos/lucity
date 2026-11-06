@@ -27,6 +27,7 @@ type Interface interface {
 type ServiceClient interface {
 	Create(ctx context.Context, env platform.EnvironmentID, name string, spec ServiceSpec) (RevisionID, error)
 	Delete(ctx context.Context, id platform.ServiceID) error
+	SetDisplayName(ctx context.Context, id platform.ServiceID, displayName string) (RevisionID, error)
 
 	SetImage(ctx context.Context, id platform.ServiceID, ref image.Ref, provenance ImageProvenance, release ReleaseMeta) (RevisionID, error)
 	SetReplicas(ctx context.Context, id platform.ServiceID, replicas int) (RevisionID, error)
@@ -56,6 +57,7 @@ type DatabaseClient interface {
 	Create(ctx context.Context, env platform.EnvironmentID, name string, spec DatabaseSpec) (RevisionID, error)
 	Restore(ctx context.Context, source platform.DatabaseID, name string, spec DatabaseSpec, targetTime *time.Time) (RevisionID, error)
 	Delete(ctx context.Context, id platform.DatabaseID) error
+	SetDisplayName(ctx context.Context, id platform.DatabaseID, displayName string) (RevisionID, error)
 	SetResources(ctx context.Context, id platform.DatabaseID, resources Resources) (RevisionID, error)
 	SetStorage(ctx context.Context, id platform.DatabaseID, size resource.Quantity) (RevisionID, error)
 	Expose(ctx context.Context, id platform.DatabaseID, host string) error
@@ -69,11 +71,13 @@ type DatabaseClient interface {
 type KeyValueStoreClient interface {
 	Create(ctx context.Context, env platform.EnvironmentID, name string, spec KeyValueStoreSpec) (RevisionID, error)
 	Delete(ctx context.Context, id platform.KeyValueStoreID) error
+	SetDisplayName(ctx context.Context, id platform.KeyValueStoreID, displayName string) (RevisionID, error)
 }
 
 type VolumeClient interface {
-	Create(ctx context.Context, env platform.EnvironmentID, name string, size resource.Quantity) (RevisionID, error)
+	Create(ctx context.Context, env platform.EnvironmentID, name, displayName string, size resource.Quantity) (RevisionID, error)
 	Delete(ctx context.Context, id platform.VolumeID) error
+	SetDisplayName(ctx context.Context, id platform.VolumeID, displayName string) (RevisionID, error)
 	Expand(ctx context.Context, id platform.VolumeID, size resource.Quantity) (RevisionID, error)
 }
 
@@ -133,6 +137,7 @@ type VariableRef struct {
 }
 
 type ServiceSpec struct {
+	DisplayName          string
 	Image                string
 	SourceURL            string
 	ContextPath          string
@@ -152,9 +157,10 @@ type ImageProvenance struct {
 }
 
 type DatabaseSpec struct {
-	Version   string
-	Size      resource.Quantity
-	Resources Resources
+	DisplayName string
+	Version     string
+	Size        resource.Quantity
+	Resources   Resources
 }
 
 // AllowRule lets clients from Range connect to a database's public hostname.
@@ -164,9 +170,10 @@ type AllowRule struct {
 }
 
 type KeyValueStoreSpec struct {
-	Version  string
-	Size     resource.Quantity
-	Password string
+	DisplayName string
+	Version     string
+	Size        resource.Quantity
+	Password    string
 }
 
 type Autoscaling struct {

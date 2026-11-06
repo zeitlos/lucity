@@ -19,6 +19,7 @@ type Variable struct {
 }
 
 type VariableSource struct {
+	Name          string
 	Database      *DatabaseID
 	KeyValueStore *KeyValueStoreID
 	Bucket        *BucketID

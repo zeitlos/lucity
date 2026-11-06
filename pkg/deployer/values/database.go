@@ -77,11 +77,12 @@ type PostgresRestore struct {
 }
 
 type DatabaseSpec struct {
-	Version    string
-	Size       resource.Quantity
-	Resources  Resources
-	Parameters map[string]string
-	Restore    *PostgresRestore
+	DisplayName string
+	Version     string
+	Size        resource.Quantity
+	Resources   Resources
+	Parameters  map[string]string
+	Restore     *PostgresRestore
 }
 
 func CreateDatabase(env *Env, name string, spec DatabaseSpec) error {
@@ -95,12 +96,13 @@ func CreateDatabase(env *Env, name string, spec DatabaseSpec) error {
 	}
 
 	env.Databases.Postgres[name] = Postgres{
-		Version:    spec.Version,
-		Size:       spec.Size.String(),
-		Resources:  spec.Resources,
-		Parameters: spec.Parameters,
-		Labels:     map[string]string{labelDatabase: name},
-		Restore:    spec.Restore,
+		Version:     spec.Version,
+		Size:        spec.Size.String(),
+		Resources:   spec.Resources,
+		Parameters:  spec.Parameters,
+		Labels:      map[string]string{labelDatabase: name},
+		Annotations: withDisplayName(nil, spec.DisplayName),
+		Restore:     spec.Restore,
 	}
 
 	return nil

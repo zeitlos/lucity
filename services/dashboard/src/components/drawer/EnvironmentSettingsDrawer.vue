@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { projectRoute } from '@/lib/routes';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import BlockingResources from '@/components/BlockingResources.vue';
 import { computed, ref } from 'vue';
@@ -7,6 +8,15 @@ import { useMutation } from '@vue/apollo-composable';
 import { Trash2 } from '@lucide/vue';
 import { graphql } from '@/gql';
 
+const RenameEnvironmentDocument = graphql(`
+  mutation RenameEnvironment($environment: EnvironmentID!, $name: String!) {
+    renameEnvironment(environment: $environment, name: $name) {
+      id
+      name
+    }
+  }
+`);
+
 const DeleteEnvironmentDocument = graphql(`
   mutation DeleteEnvironment($environment: EnvironmentID!) {
     deleteEnvironment(environment: $environment)
@@ -14,6 +24,7 @@ const DeleteEnvironmentDocument = graphql(`
 `);
 import { apolloClient } from '@/lib/apollo';
 import ContextDrawer from '@/components/drawer/ContextDrawer.vue';
+import NameSettings from '@/components/NameSettings.vue';
 import { Button } from '@/components/ui/button';
 import { failureToast, successToast } from '@/components/ui/sonner';
 import { usePanel } from '@/composables/usePanel';
@@ -33,6 +44,16 @@ const emit = defineEmits<{
 }>();
 
 const router = useRouter();
+
+const { mutate: renameMutate, loading: renaming } = useMutation(RenameEnvironmentDocument);
+
+async function handleRename(name: string) {
+  try {
+    await renameMutate({ environment: props.environment.id, name });
+  } catch (e: unknown) {
+    failureToast('Failed to rename environment', e);
+  }
+}
 
 const { mutate: deleteEnvironmentMutate, loading: deleting } = useMutation(DeleteEnvironmentDocument);
 const confirmOpen = ref(false);
@@ -80,7 +101,7 @@ async function handleDelete() {
     apolloClient.cache.gc();
 
     confirmOpen.value = false;
-    router.push({ name: 'project', params: { projectId: props.projectId } });
+    router.push(projectRoute(props.projectId));
     successToast(`Environment "${name}" deleted`);
   } catch (e: unknown) {
     failureToast('Failed to delete environment', e);
@@ -96,16 +117,12 @@ async function handleDelete() {
     <div class="flex min-h-full flex-col gap-6">
       <section class="space-y-2.5">
         <h3 class="text-sm font-medium text-muted-foreground">General</h3>
-        <div class="space-y-2.5 rounded-lg border p-3">
-          <div class="flex items-center justify-between gap-4">
-            <span class="text-sm text-muted-foreground">Name</span>
-            <span class="text-sm font-medium text-foreground">{{ environment.name }}</span>
-          </div>
-          <div class="flex items-center justify-between gap-4">
-            <span class="text-sm text-muted-foreground">ID</span>
-            <span class="truncate font-mono text-xs text-foreground">{{ environment.id }}</span>
-          </div>
-        </div>
+        <NameSettings
+          :name="environment.name"
+          :id="environment.id"
+          :saving="renaming"
+          @save="handleRename"
+        />
       </section>
 
       <div class="mt-auto flex items-center justify-between gap-4 rounded-lg border border-destructive/30 p-3">

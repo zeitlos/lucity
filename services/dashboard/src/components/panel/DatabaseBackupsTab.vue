@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import NameIdField from '@/components/NameIdField.vue';
+import { isValidId } from '@/lib/id';
+import { useResourceIds } from '@/composables/useResourceIds';
 import QueryError from '@/components/QueryError.vue';
 import { ref, computed, watch } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
@@ -141,21 +144,19 @@ const inputMax = computed(() => toLocalInput(latest.value));
 const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 const restoreName = ref('');
+const restoreId = ref('');
+const takenIds = useResourceIds(() => props.databaseId.split('/').slice(0, 3).join('/'));
 
 watch(
   () => props.databaseName,
   name => {
-    const suffix = '-r1';
-    restoreName.value = `${name.slice(0, 16 - suffix.length)}${suffix}`;
+    restoreName.value = `${name} restored`;
   },
   { immediate: true },
 );
 
 const nameValid = computed(
-  () =>
-    /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(restoreName.value)
-    && restoreName.value.length >= 2
-    && restoreName.value.length <= 16,
+  () => restoreName.value.trim().length > 0 && isValidId(restoreId.value) && !takenIds.value.has(restoreId.value),
 );
 
 const { mutate: createBackup, loading: backingUp } = useMutation(CreateDatabaseBackupDocument);
@@ -189,14 +190,15 @@ async function handleRestore() {
     const response = await restoreMutate({
       input: {
         database: props.databaseId,
-        name: restoreName.value,
+        name: restoreName.value.trim(),
+        id: restoreId.value,
         targetTime,
       },
     });
 
     const clamped = response?.data?.restoreDatabase.clampedToLatest;
 
-    successToast(`Restoring into ${restoreName.value}`, {
+    successToast(`Restoring into "${restoreName.value.trim()}"`, {
       description: clamped
         ? 'Nothing was written after the most recent archived point, so it restores to there.'
         : 'It appears on the canvas as soon as the data is back.',
@@ -415,21 +417,17 @@ const visibleEntries = computed(() => (showAll.value ? entries.value : entries.v
               </label>
             </div>
 
-            <div class="space-y-1.5">
-              <label for="restore-name" class="text-sm font-medium text-foreground">
-                New database name
-              </label>
-              <Input
-                id="restore-name"
-                v-model="restoreName"
-                :disabled="!hasWindow"
-                maxlength="16"
-                class="h-9 max-w-xs"
-              />
-              <p class="text-xs text-muted-foreground">
-                Up to 16 characters. Lowercase letters, numbers and dashes.
-              </p>
-            </div>
+            <NameIdField
+              v-model:name="restoreName"
+              v-model:id="restoreId"
+              fallback="database"
+              :taken="takenIds"
+              scope="environment"
+              :disabled="!hasWindow"
+              name-label="New database name"
+              name-placeholder="e.g. Orders restored"
+              class="max-w-sm"
+            />
 
             <div class="flex justify-end">
               <Button :pending="restoring" :disabled="!canRestore" @click="handleRestore">
