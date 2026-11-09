@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/component: identity-provider
 spec:
-  replicas: 1
+  replicas: {{ .Values.logto.replicaCount }}
   selector:
     matchLabels:
       app.kubernetes.io/name: logto
@@ -33,6 +33,16 @@ spec:
       {{- with .Values.logto.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if gt (int .Values.logto.replicaCount) 1 }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: logto
+              app.kubernetes.io/instance: {{ .Release.Name }}
       {{- end }}
       initContainers:
         # Wait for CNPG PostgreSQL to be ready
