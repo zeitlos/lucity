@@ -28,11 +28,6 @@ func New(vmURL string) (*Client, error) {
 	}, nil
 }
 
-func (c *Client) Ping(ctx context.Context) error {
-	_, err := c.QueryVector(ctx, "vm_app_uptime_seconds", time.Now())
-	return err
-}
-
 type Sample struct {
 	Labels map[string]string
 	Value  float64

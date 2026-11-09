@@ -71,7 +71,7 @@ func main() {
 
 	vmClient, err := metering.NewVMClient(config.VictoriaMetricsURL)
 	if err != nil {
-		slog.Error("failed to connect to VictoriaMetrics", "error", err)
+		slog.Error("failed to create the VictoriaMetrics client", "error", err)
 		os.Exit(1)
 	}
 

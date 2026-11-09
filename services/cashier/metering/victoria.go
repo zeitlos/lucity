@@ -14,16 +14,11 @@ type VMClient struct {
 	client *victoria.Client
 }
 
-// NewVMClient connects to VictoriaMetrics at vmURL (e.g. http://lucity-infra-victoria-metrics-single-server:8428).
+// NewVMClient returns a client for VictoriaMetrics at vmURL (e.g. http://lucity-infra-victoria-metrics-single-server:8428).
 func NewVMClient(vmURL string) (*VMClient, error) {
 	client, err := victoria.New(vmURL)
 	if err != nil {
 		return nil, err
-	}
-
-	// Sanity check: VM exposes vm_app_uptime_seconds for itself.
-	if err := client.Ping(context.Background()); err != nil {
-		return nil, fmt.Errorf("failed to ping VictoriaMetrics: %w", err)
 	}
 
 	return &VMClient{client: client}, nil
