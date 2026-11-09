@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { Bot } from '@lucide/vue';
-import { useGuardedTab } from '@/composables/useUnsavedChanges';
+import { usePanelTab } from '@/composables/usePanel';
 import type { Agent } from '@/lib/agents';
 import PanelShell from '@/components/PanelShell.vue';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AgentAccessTab from './AgentAccessTab.vue';
 import AgentAuditTab from './AgentAuditTab.vue';
+import AgentChannelsTab from './AgentChannelsTab.vue';
 import AgentChatTab from './AgentChatTab.vue';
 import AgentSettingsTab from './AgentSettingsTab.vue';
 
@@ -20,7 +21,7 @@ const emit = defineEmits<{
   (e: 'agent-removed'): void;
 }>();
 
-const { tab: activeTab, selectTab } = useGuardedTab('chat');
+const { tab: activeTab, selectTab } = usePanelTab('chat');
 </script>
 
 <template>
@@ -35,6 +36,7 @@ const { tab: activeTab, selectTab } = useGuardedTab('chat');
           <TabsTrigger value="chat">Chat</TabsTrigger>
           <TabsTrigger value="audit">Audit</TabsTrigger>
           <TabsTrigger value="access">Access</TabsTrigger>
+          <TabsTrigger value="channels">Channels</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
       </div>
@@ -53,6 +55,10 @@ const { tab: activeTab, selectTab } = useGuardedTab('chat');
             :agent="agent"
             :service-names="serviceNames"
           />
+        </TabsContent>
+
+        <TabsContent value="channels" class="px-4 py-4">
+          <AgentChannelsTab :agent="agent" />
         </TabsContent>
 
         <TabsContent value="settings" class="px-4 py-4">

@@ -40,6 +40,8 @@ scalar VariableID
 scalar ModelProviderID
 """A connector connected to a workspace, as `workspace/connector`. For example `acme/linear`."""
 scalar ConnectorID
+"""A chat app connected to a workspace, as `workspace/chatApp`. For example `acme/telegram`."""
+scalar ChatAppID
 """An agent, as `workspace/project/environment/agent`. For example `acme/shop/production/ops-agent`."""
 scalar AgentID
 """A session of an agent, as the agent id followed by the session. For example `acme/shop/production/ops-agent/s-q7m2xk`."""

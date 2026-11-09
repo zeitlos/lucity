@@ -32,6 +32,14 @@ enum AgentTurnEndReason {
   FAILED
 }
 
+"""The chat a session started in, or a message came through."""
+type AgentOrigin {
+  chatApp: ChatApp!
+  channel: ChatChannel!
+  """Opens the thread in the chat app. Null where the chat app has no links to it."""
+  url: String
+}
+
 """One conversation with an agent. Every member of the workspace can see it and take part."""
 type AgentSession {
   id: AgentSessionID!
@@ -43,6 +51,8 @@ type AgentSession {
   model: AgentModel!
   effort: Effort!
   status: AgentSessionStatus!
+  """The chat the session started in. Null for one started in Lucity."""
+  origin: AgentOrigin
   """Everything that happened in the session, oldest first."""
   events: [AgentSessionEvent!]! @goField(forceResolver: true)
 }
@@ -73,6 +83,8 @@ type AgentUserMessage {
   """Null once that person has left the workspace."""
   author: WorkspaceMember
   text: String!
+  """The chat the message came through. Null for one sent in Lucity."""
+  via: AgentOrigin
 }
 
 """Text the agent wrote."""

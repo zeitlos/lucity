@@ -82,6 +82,14 @@ var efforts = []string{"low", "medium", "high", "max"}
 
 type Model = harness.Model
 
+// Origin is the chat a session started in, or a message came through: a chat
+// app of the agent's workspace, a channel in it and the thread there.
+type Origin struct {
+	ChatApp string `json:"chatApp"`
+	Channel string `json:"channel"`
+	Thread  string `json:"thread,omitempty"`
+}
+
 type Session struct {
 	ID               string    `json:"id"`
 	Title            string    `json:"title"`
@@ -89,6 +97,7 @@ type Session struct {
 	StartedAt        time.Time `json:"startedAt"`
 	Model            Model     `json:"model"`
 	Effort           string    `json:"effort,omitempty"`
+	Origin           *Origin   `json:"origin,omitempty"`
 	HarnessSessionID string    `json:"harnessSessionId,omitempty"`
 }
 
@@ -116,6 +125,7 @@ type Event struct {
 	Type     string    `json:"type"`
 	Text     string    `json:"text,omitempty"`
 	Author   string    `json:"author,omitempty"`
+	Via      *Origin   `json:"via,omitempty"`
 	ToolCall *ToolCall `json:"toolCall,omitempty"`
 	Approval *Approval `json:"approval,omitempty"`
 	Notice   *Notice   `json:"notice,omitempty"`

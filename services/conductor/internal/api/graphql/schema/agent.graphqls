@@ -44,6 +44,12 @@ type AgentConnector {
   hiddenTools: [String!]!
 }
 
+"""A chat or channel an agent talks in. Linked members of the workspace talk to the agent there, and answer its approvals."""
+type AgentChannel {
+  chatApp: ChatApp!
+  channel: ChatChannel!
+}
+
 """A model an agent can use, from one of the workspace's model providers."""
 type AgentModel {
   provider: ModelProvider!
@@ -59,6 +65,8 @@ type Agent {
   instructions: String!
   status: AgentStatus! @goField(forceResolver: true)
   connectors: [AgentConnector!]!
+  """The chats and channels the agent talks in."""
+  channels: [AgentChannel!]!
   """Hosts on the internet the agent may reach directly, without credentials. `*.example.com` covers the subdomains of `example.com`."""
   allowedHosts: [String!]!
   """Whether the agent may reach the other services of its environment."""
@@ -72,6 +80,12 @@ input AgentConnectorInput {
   approval: Approval!
   """Tool names of the connector to hide from the agent."""
   hiddenTools: [String!] @constraint(constraint: "max=256,dive,min=1,max=128")
+}
+
+input AgentChannelInput {
+  chatApp: ChatAppID!
+  """The chat app's own ID of the chat or channel."""
+  channel: String! @constraint(constraint: "min=1,max=64")
 }
 
 input AgentModelInput {
@@ -97,6 +111,8 @@ extend type Mutation {
   updateAgent(agent: AgentID!, harness: Harness!, instructions: String! @constraint(constraint: "max=65536")): Agent! @hasRole(role: WORKSPACE_MEMBER)
   """Replaces the connectors an agent is granted."""
   setAgentConnectors(agent: AgentID!, connectors: [AgentConnectorInput!]! @constraint(constraint: "max=64")): Agent! @hasRole(role: WORKSPACE_MEMBER)
+  """Replaces the chats and channels an agent talks in. A chat it isn't in yet is looked up as the chat app's bot, which has to be a member of it. One chat talks to one agent."""
+  setAgentChannels(agent: AgentID!, channels: [AgentChannelInput!]! @constraint(constraint: "max=64")): Agent! @hasRole(role: WORKSPACE_MEMBER)
   """Replaces the network rules of an agent. `allowedHosts` takes hostnames, or `*.example.com` for the subdomains of a domain. IP addresses and a bare `*` aren't accepted."""
   setAgentNetwork(agent: AgentID!, allowedHosts: [String!]! @constraint(constraint: "max=64,dive,min=1,max=253"), privateNetwork: Boolean!): Agent! @hasRole(role: WORKSPACE_MEMBER)
   """Deletes an agent with its sessions and files."""

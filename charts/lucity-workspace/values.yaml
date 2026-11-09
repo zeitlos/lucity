@@ -26,6 +26,19 @@
 #       - name: create_issue
 #         description: Create a new issue
 #
+# chatApps:                                    # bots agents talk through, read by switchboard
+#   telegram:
+#     kind: telegram                           # telegram | mattermost
+#     credential: <bot token>
+#     account: "@acme_ops_bot"
+#     status: valid
+#     checkedAt: "2026-11-09T14:05:00Z"
+#   mattermost:
+#     kind: mattermost
+#     url: https://chat.acme.com               # the Mattermost server
+#     credential: <bot token>
+#     account: "@lucity"
+#
 # agents:                                      # keyed by project/environment/agent
 #   shop/production/ops-agent:
 #     keyHash: sha256:<hex of the agent's gateway key>
@@ -33,6 +46,10 @@
 #     connectors: [linear]
 #     hiddenTools:
 #       linear: [delete_issue]
+#     channels:                                # chats the agent talks in, one agent per chat
+#       - chatApp: telegram
+#         channel: "-1001234567890"            # the chat app's own ID of the chat or channel
+#         name: Ops on-call
 #
 # Model providers, connectors and agents go through the shared agent gateway,
 # which only reads routes, backends, policies and credentials from its own
@@ -41,6 +58,10 @@
 # <workspace>.model.<name> or <workspace>.connector.<name>, served under
 # /<workspace>/models/<name>/ and /<workspace>/connectors/<name>/. Every agent
 # becomes a key entry the gateway authenticates against.
+#
+# Chat apps and agent channels don't go through the gateway. Each chat app
+# becomes a Secret and each agent with channels a ConfigMap in switchboard's
+# namespace, so switchboard never reads the gateway's credentials.
 
 workspace: ""
 
@@ -49,8 +70,14 @@ gateway:
   name: lucity-agent-gateway
   listener: http
 
+# Switchboard's namespace, where chat apps and agent channels are rendered.
+switchboard:
+  namespace: ""
+
 modelProviders: {}
 
 connectors: {}
+
+chatApps: {}
 
 agents: {}

@@ -54,6 +54,7 @@ type OrganizationMember struct {
 	Avatar       string                  `json:"avatar,omitempty"`
 	OrgRoles     []OrganizationRole      `json:"organizationRoles,omitempty"`
 	Identities   map[string]UserIdentity `json:"identities,omitempty"`
+	CustomData   map[string]any          `json:"customData,omitempty"`
 	CreatedAt    int64                   `json:"createdAt,omitempty"`
 	LastSignInAt int64                   `json:"lastSignInAt,omitempty"`
 }

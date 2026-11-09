@@ -112,6 +112,55 @@ func (c ConnectorID) MarshalGQL(w io.Writer) {
 	graphql.MarshalString(c.String()).MarshalGQL(w)
 }
 
+type ChatAppID struct {
+	Workspace string
+	Name      string
+}
+
+func ParseChatAppID(s string) (ChatAppID, error) {
+	workspace, name, ok := strings.Cut(s, "/")
+
+	if !ok || workspace == "" || name == "" || strings.Contains(name, "/") {
+		return ChatAppID{}, usererror.Errorf("invalid chat app id %q", s)
+	}
+
+	return ChatAppID{Workspace: workspace, Name: name}, nil
+}
+
+func (c ChatAppID) LogValue() slog.Value {
+	return slog.StringValue(c.String())
+}
+
+func (c ChatAppID) String() string {
+	return c.Workspace + "/" + c.Name
+}
+
+func (c ChatAppID) WorkspaceID() string {
+	return c.Workspace
+}
+
+func (c *ChatAppID) UnmarshalGQL(val interface{}) error {
+	str, ok := val.(string)
+
+	if !ok {
+		return usererror.New("ChatAppID must be a string")
+	}
+
+	parsed, err := ParseChatAppID(str)
+
+	if err != nil {
+		return err
+	}
+
+	*c = parsed
+
+	return nil
+}
+
+func (c ChatAppID) MarshalGQL(w io.Writer) {
+	graphql.MarshalString(c.String()).MarshalGQL(w)
+}
+
 type AgentID struct {
 	Workspace   string
 	Project     string
@@ -250,14 +299,17 @@ func (a AgentSessionID) MarshalGQL(w io.Writer) {
 var (
 	_ WorkspaceScoped     = ModelProviderID{}
 	_ WorkspaceScoped     = ConnectorID{}
+	_ WorkspaceScoped     = ChatAppID{}
 	_ WorkspaceScoped     = AgentID{}
 	_ WorkspaceScoped     = AgentSessionID{}
 	_ graphql.Marshaler   = ModelProviderID{}
 	_ graphql.Marshaler   = ConnectorID{}
+	_ graphql.Marshaler   = ChatAppID{}
 	_ graphql.Marshaler   = AgentID{}
 	_ graphql.Marshaler   = AgentSessionID{}
 	_ graphql.Unmarshaler = (*ModelProviderID)(nil)
 	_ graphql.Unmarshaler = (*ConnectorID)(nil)
+	_ graphql.Unmarshaler = (*ChatAppID)(nil)
 	_ graphql.Unmarshaler = (*AgentID)(nil)
 	_ graphql.Unmarshaler = (*AgentSessionID)(nil)
 )

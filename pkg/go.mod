@@ -7,6 +7,7 @@ require (
 	github.com/blang/semver/v4 v4.0.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.19.0
 	github.com/cloudnative-pg/cloudnative-pg v1.30.1
+	github.com/coder/websocket v1.8.15
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/distribution/reference v0.6.0
 	github.com/google/go-containerregistry v0.22.1

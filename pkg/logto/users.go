@@ -12,20 +12,45 @@ import (
 )
 
 type User struct {
-	ID           string `json:"id"`
-	PrimaryEmail string `json:"primaryEmail,omitempty"`
-	Username     string `json:"username,omitempty"`
-	Name         string `json:"name,omitempty"`
-	Avatar       string `json:"avatar,omitempty"`
+	ID           string         `json:"id"`
+	PrimaryEmail string         `json:"primaryEmail,omitempty"`
+	Username     string         `json:"username,omitempty"`
+	Name         string         `json:"name,omitempty"`
+	Avatar       string         `json:"avatar,omitempty"`
+	CustomData   map[string]any `json:"customData,omitempty"`
 }
 
 // User returns a single user by ID.
 func (c *Client) User(ctx context.Context, id string) (*User, error) {
 	var user User
-	if err := c.doJSON(ctx, "GET", "/api/users/"+id, nil, &user); err != nil {
+	if err := c.doJSON(ctx, "GET", "/api/users/"+url.PathEscape(id), nil, &user); err != nil {
 		return nil, fmt.Errorf("failed to get user %q: %w", id, err)
 	}
 	return &user, nil
+}
+
+// UpdateUserCustomData merges changes into a user's custom data, reading it
+// first and writing it back whole. A key set to nil clears it.
+func (c *Client) UpdateUserCustomData(ctx context.Context, id string, changes map[string]any) error {
+	user, err := c.User(ctx, id)
+	if err != nil {
+		return err
+	}
+	customData := map[string]any{}
+	for key, value := range user.CustomData {
+		customData[key] = value
+	}
+	for key, value := range changes {
+		customData[key] = value
+	}
+	payload, err := json.Marshal(map[string]any{"customData": customData})
+	if err != nil {
+		return err
+	}
+	if err := c.doJSON(ctx, "PATCH", "/api/users/"+url.PathEscape(id)+"/custom-data", bytes.NewReader(payload), nil); err != nil {
+		return fmt.Errorf("failed to update custom data of user %q: %w", id, err)
+	}
+	return nil
 }
 
 // UserByEmail finds a user by email. Returns nil if not found.

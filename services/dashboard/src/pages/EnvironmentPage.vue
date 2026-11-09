@@ -279,6 +279,19 @@ const EnvironmentAgentsDocument = graphql(`
             name
           }
         }
+        channels {
+          chatApp {
+            id
+            name
+            kind
+            account
+            url
+          }
+          channel {
+            id
+            name
+          }
+        }
       }
     }
   }

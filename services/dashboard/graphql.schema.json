@@ -160,6 +160,30 @@
             "deprecationReason": null
           },
           {
+            "name": "channels",
+            "description": "The chats and channels the agent talks in.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": null,
+                "kind": "LIST",
+                "ofType": {
+                  "name": null,
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "name": "AgentChannel",
+                    "kind": "OBJECT",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "connectors",
             "description": null,
             "args": [],
@@ -659,6 +683,94 @@
       },
       {
         "kind": "OBJECT",
+        "name": "AgentChannel",
+        "description": "A chat or channel an agent talks in. Linked members of the workspace talk to the agent there, and answer its approvals.",
+        "isOneOf": null,
+        "fields": [
+          {
+            "name": "channel",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "ChatChannel",
+                "kind": "OBJECT",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "chatApp",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "ChatApp",
+                "kind": "OBJECT",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "AgentChannelInput",
+        "description": null,
+        "isOneOf": false,
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "channel",
+            "description": "The chat app's own ID of the chat or channel.",
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "String",
+                "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "chatApp",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "ChatAppID",
+                "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
         "name": "AgentConnector",
         "description": "A connector granted to an agent.",
         "isOneOf": null,
@@ -1068,6 +1180,62 @@
       },
       {
         "kind": "OBJECT",
+        "name": "AgentOrigin",
+        "description": "The chat a session started in, or a message came through.",
+        "isOneOf": null,
+        "fields": [
+          {
+            "name": "channel",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "ChatChannel",
+                "kind": "OBJECT",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "chatApp",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "ChatApp",
+                "kind": "OBJECT",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "url",
+            "description": "Opens the thread in the chat app. Null where the chat app has no links to it.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
         "name": "AgentSession",
         "description": "One conversation with an agent. Every member of the workspace can see it and take part.",
         "isOneOf": null,
@@ -1140,6 +1308,18 @@
                 "kind": "OBJECT",
                 "ofType": null
               }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "origin",
+            "description": "The chat the session started in. Null for one started in Lucity.",
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "AgentOrigin",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -1679,6 +1859,18 @@
                 "kind": "SCALAR",
                 "ofType": null
               }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "via",
+            "description": "The chat the message came through. Null for one sent in Lucity.",
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "AgentOrigin",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -3045,6 +3237,373 @@
             "ofType": null
           }
         ]
+      },
+      {
+        "kind": "OBJECT",
+        "name": "ChatAccount",
+        "description": "A chat account linked to you. It counts as you when you talk to agents or answer their approvals there.",
+        "isOneOf": null,
+        "fields": [
+          {
+            "name": "handle",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "String",
+                "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "kind",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "ChatAppKind",
+                "kind": "ENUM",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "server",
+            "description": "The Mattermost server the account lives on. Null for Telegram.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "ChatAccountLink",
+        "description": "A started link of a chat account. It finishes once the code reaches the chat app's bot from the account being linked.",
+        "isOneOf": null,
+        "fields": [
+          {
+            "name": "code",
+            "description": "The code to send the bot. In Mattermost, send `link <code>` to the bot in a direct message.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "String",
+                "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "expiresAt",
+            "description": "When the code stops working.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "Time",
+                "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "url",
+            "description": "Opens a chat with the Telegram bot that sends it the code. Null for Mattermost.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "ChatApp",
+        "description": "A bot in a chat app, connected to the workspace. Agents talk through it in the chats they are added to, and never see its token.",
+        "isOneOf": null,
+        "fields": [
+          {
+            "name": "account",
+            "description": "The bot's handle, such as `@acme_ops_bot`.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "String",
+                "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "agents",
+            "description": "The agents with a channel in this chat app.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": null,
+                "kind": "LIST",
+                "ofType": {
+                  "name": null,
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "name": "Agent",
+                    "kind": "OBJECT",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "channels",
+            "description": "The channels the bot is a member of, asked of the chat app on every read. Telegram can't list a bot's chats, so a Telegram bot has none.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": null,
+                "kind": "LIST",
+                "ofType": {
+                  "name": null,
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "name": "ChatChannel",
+                    "kind": "OBJECT",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "checkedAt",
+            "description": "When the token was last checked.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Time",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "credentialHint",
+            "description": "The last four characters of the token. The token itself is never returned.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "ChatAppID",
+                "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "kind",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "ChatAppKind",
+                "kind": "ENUM",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "name",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "String",
+                "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "status",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "CredentialStatus",
+                "kind": "ENUM",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "url",
+            "description": "The Mattermost server the bot lives on. Null for Telegram.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "SCALAR",
+        "name": "ChatAppID",
+        "description": "A chat app connected to a workspace, as `workspace/chatApp`. For example `acme/telegram`.",
+        "isOneOf": null,
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "ENUM",
+        "name": "ChatAppKind",
+        "description": "The chat app a bot lives in.",
+        "isOneOf": null,
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": [
+          {
+            "name": "MATTERMOST",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "TELEGRAM",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "ChatChannel",
+        "description": "A chat or channel in a chat app.",
+        "isOneOf": null,
+        "fields": [
+          {
+            "name": "id",
+            "description": "The chat app's own ID of the chat or channel.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "String",
+                "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "name",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "String",
+                "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
       },
       {
         "kind": "OBJECT",
@@ -8909,6 +9468,83 @@
             "deprecationReason": null
           },
           {
+            "name": "createChatApp",
+            "description": "Connects a bot as a chat app, after checking its token with the chat app. `url` is the Mattermost server, and must use https.",
+            "args": [
+              {
+                "name": "kind",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "ChatAppKind",
+                    "kind": "ENUM",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "name",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "String",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "token",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "String",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "url",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "ChatApp",
+                "kind": "OBJECT",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "createConnector",
             "description": "Connects a remote MCP server as a connector. `url` must use https. The connector is checked by listing its tools, and one that can't be reached or turns the credential down is not stored. The credential is sent as a bearer token.",
             "args": [
@@ -9437,6 +10073,39 @@
             "deprecationReason": null
           },
           {
+            "name": "deleteChatApp",
+            "description": "Disconnects a chat app and removes every agent's channels in it.",
+            "args": [
+              {
+                "name": "chatApp",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "ChatAppID",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "Boolean",
+                "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "deleteConnector",
             "description": "Disconnects a connector and removes it from every agent it was granted to.",
             "args": [
@@ -9926,6 +10595,39 @@
             "deprecationReason": null
           },
           {
+            "name": "linkChatAccount",
+            "description": "Starts linking your account in a chat app to you. Nothing is linked until the code reaches the bot from that account.",
+            "args": [
+              {
+                "name": "chatApp",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "ChatAppID",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "ChatAccountLink",
+                "kind": "OBJECT",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "mountVolume",
             "description": "Mounts a volume into a service at an absolute `path`. A volume mounts into one service, and from then on the service runs a single instance and every rollout has a short downtime.",
             "args": [
@@ -9983,6 +10685,39 @@
               "name": null,
               "ofType": {
                 "name": "Volume",
+                "kind": "OBJECT",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "refreshChatApp",
+            "description": "Checks the token again.",
+            "args": [
+              {
+                "name": "chatApp",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "ChatAppID",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "ChatApp",
                 "kind": "OBJECT",
                 "ofType": null
               }
@@ -10050,6 +10785,51 @@
               "ofType": {
                 "name": "ModelProvider",
                 "kind": "OBJECT",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "removeChatAccount",
+            "description": "Unlinks one of your chat accounts. `server` names the Mattermost server, and is left out for Telegram.",
+            "args": [
+              {
+                "name": "kind",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "ChatAppKind",
+                    "kind": "ENUM",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "server",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "Boolean",
+                "kind": "SCALAR",
                 "ofType": null
               }
             },
@@ -10564,6 +11344,55 @@
             "deprecationReason": null
           },
           {
+            "name": "replaceChatAppToken",
+            "description": "Replaces the token of a chat app, after checking the new one.",
+            "args": [
+              {
+                "name": "chatApp",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "ChatAppID",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "token",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "String",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "ChatApp",
+                "kind": "OBJECT",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "replaceConnectorCredential",
             "description": "Replaces the credential of a connector, after checking the new one.",
             "args": [
@@ -10835,6 +11664,63 @@
               "name": null,
               "ofType": {
                 "name": "AgentSession",
+                "kind": "OBJECT",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "setAgentChannels",
+            "description": "Replaces the chats and channels an agent talks in. A chat it isn't in yet is looked up as the chat app's bot, which has to be a member of it. One chat talks to one agent.",
+            "args": [
+              {
+                "name": "agent",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "AgentID",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "channels",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": null,
+                    "kind": "LIST",
+                    "ofType": {
+                      "name": null,
+                      "kind": "NON_NULL",
+                      "ofType": {
+                        "name": "AgentChannelInput",
+                        "kind": "INPUT_OBJECT",
+                        "ofType": null
+                      }
+                    }
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "Agent",
                 "kind": "OBJECT",
                 "ofType": null
               }
@@ -13116,6 +14002,112 @@
               "name": null,
               "ofType": {
                 "name": "Build",
+                "kind": "OBJECT",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "chatApp",
+            "description": "One chat app.",
+            "args": [
+              {
+                "name": "id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "ChatAppID",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "ChatApp",
+                "kind": "OBJECT",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "chatApps",
+            "description": "The chat apps of the workspace.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": null,
+                "kind": "LIST",
+                "ofType": {
+                  "name": null,
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "name": "ChatApp",
+                    "kind": "OBJECT",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "chatChannel",
+            "description": "Looks up a chat or channel as the chat app's bot, which only works for one the bot is a member of.",
+            "args": [
+              {
+                "name": "channel",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "String",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "chatApp",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "ChatAppID",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "ChatChannel",
                 "kind": "OBJECT",
                 "ofType": null
               }
@@ -17414,6 +18406,30 @@
                 "name": "String",
                 "kind": "SCALAR",
                 "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "chatAccounts",
+            "description": "The chat accounts linked to you.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": null,
+                "kind": "LIST",
+                "ofType": {
+                  "name": null,
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "name": "ChatAccount",
+                    "kind": "OBJECT",
+                    "ofType": null
+                  }
+                }
               }
             },
             "isDeprecated": false,

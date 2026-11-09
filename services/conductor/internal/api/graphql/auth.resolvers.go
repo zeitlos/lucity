@@ -20,3 +20,8 @@ func (r *queryResolver) Me(ctx context.Context) (*model.User, error) {
 	}
 	return convertUser(u), nil
 }
+
+// User returns UserResolver implementation.
+func (r *Resolver) User() UserResolver { return &userResolver{r} }
+
+type userResolver struct{ *Resolver }

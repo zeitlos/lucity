@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/zeitlos/lucity/pkg/agentrunner"
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/deployer/values"
 	"github.com/zeitlos/lucity/pkg/domains"
@@ -21,7 +22,6 @@ import (
 	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/usererror"
 	"github.com/zeitlos/lucity/services/conductor/internal/agentaudit"
-	"github.com/zeitlos/lucity/services/conductor/internal/agentrunner"
 	"github.com/zeitlos/lucity/services/conductor/internal/backuparchive"
 	"github.com/zeitlos/lucity/services/conductor/internal/billing"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"

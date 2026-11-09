@@ -5,7 +5,7 @@ import { Plus } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { AgentSessionStatus, Effort } from '@/gql/graphql';
 import { memberName } from '@/lib/agentSession';
-import { missingModelsHint, type Agent, type AgentModelOption } from '@/lib/agents';
+import { chatAppKindLabel, missingModelsHint, type Agent, type AgentModelOption } from '@/lib/agents';
 import { agentSessionStatus } from '@/lib/status';
 import QueryError from '@/components/QueryError.vue';
 import RelativeTime from '@/components/RelativeTime.vue';
@@ -27,6 +27,7 @@ const AgentSessionsDocument = graphql(`
         effort
         startedBy { id name email }
         model { name provider { id name } }
+        origin { chatApp { id kind } channel { id name } url }
       }
     }
   }
@@ -149,7 +150,7 @@ function statusWord(status: AgentSessionStatus) {
             <span class="truncate text-sm font-medium text-foreground">{{ session.title }}</span>
             <span class="flex items-center gap-2 text-xs text-muted-foreground">
               <span class="min-w-0 truncate">
-                {{ memberName(session.startedBy) }} · <RelativeTime :value="session.startedAt" />
+                {{ memberName(session.startedBy) }}<template v-if="session.origin"> in {{ chatAppKindLabel(session.origin.chatApp.kind) }}</template> · <RelativeTime :value="session.startedAt" />
               </span>
               <span class="flex-1" />
               <Status

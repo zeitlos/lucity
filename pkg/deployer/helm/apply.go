@@ -90,7 +90,7 @@ func (c *Client) applyEnv(ctx context.Context, envID platform.EnvironmentID, mut
 		return "", err
 	}
 
-	rel, err := installOrUpgrade(ctx, config, releaseName, namespace, c.chart, valsMap, releaseKinds)
+	rel, err := installOrUpgrade(ctx, config, releaseName, namespace, c.chart, valsMap, releaseKinds, nil)
 
 	if err != nil {
 		return "", err
@@ -126,8 +126,9 @@ func (c *Client) backupStore(envID platform.EnvironmentID) values.BackupStore {
 // installOrUpgrade dispatches to action.Install or action.Upgrade based on
 // whether the release already exists. The helm SDK's Upgrade.Install field
 // is purely informational — it does NOT auto-install missing releases.
-// Callers must check history and route manually.
-func installOrUpgrade(ctx context.Context, config *action.Configuration, releaseName, namespace string, chart *helmchart.Chart, vals map[string]any, kinds map[schema.GroupKind]bool) (release.Releaser, error) {
+// Callers must check history and route manually. elsewhere names the kinds the
+// release may render into namespaces other than its own.
+func installOrUpgrade(ctx context.Context, config *action.Configuration, releaseName, namespace string, chart *helmchart.Chart, vals map[string]any, kinds map[schema.GroupKind]bool, elsewhere map[string]map[schema.GroupKind]bool) (release.Releaser, error) {
 	exists, replace, err := releaseState(config, releaseName)
 
 	if err != nil {
@@ -141,7 +142,7 @@ func installOrUpgrade(ctx context.Context, config *action.Configuration, release
 		install.Replace = replace
 		install.ServerSideApply = false
 		install.WaitStrategy = kube.HookOnlyStrategy
-		install.PostRenderer = releaseGuard{namespace: namespace, kinds: kinds}
+		install.PostRenderer = releaseGuard{namespace: namespace, kinds: kinds, elsewhere: elsewhere}
 		install.PostRenderStrategy = action.PostRenderStrategyCombined
 
 		rel, err := install.RunWithContext(ctx, chart, vals)
@@ -158,7 +159,7 @@ func installOrUpgrade(ctx context.Context, config *action.Configuration, release
 	upgrade.MaxHistory = maxReleaseHistory
 	upgrade.ServerSideApply = "false"
 	upgrade.WaitStrategy = kube.HookOnlyStrategy
-	upgrade.PostRenderer = releaseGuard{namespace: namespace, kinds: kinds}
+	upgrade.PostRenderer = releaseGuard{namespace: namespace, kinds: kinds, elsewhere: elsewhere}
 	upgrade.PostRenderStrategy = action.PostRenderStrategyCombined
 
 	rel, err := upgrade.RunWithContext(ctx, releaseName, chart, vals)

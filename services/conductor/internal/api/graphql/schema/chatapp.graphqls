@@ -1,0 +1,79 @@
+"""The chat app a bot lives in."""
+enum ChatAppKind {
+  TELEGRAM
+  MATTERMOST
+}
+
+"""A bot in a chat app, connected to the workspace. Agents talk through it in the chats they are added to, and never see its token."""
+type ChatApp {
+  id: ChatAppID!
+  name: String!
+  kind: ChatAppKind!
+  """The bot's handle, such as `@acme_ops_bot`."""
+  account: String!
+  """The Mattermost server the bot lives on. Null for Telegram."""
+  url: String
+  """The last four characters of the token. The token itself is never returned."""
+  credentialHint: String
+  status: CredentialStatus!
+  """When the token was last checked."""
+  checkedAt: Time
+  """The channels the bot is a member of, asked of the chat app on every read. Telegram can't list a bot's chats, so a Telegram bot has none."""
+  channels: [ChatChannel!]! @goField(forceResolver: true)
+  """The agents with a channel in this chat app."""
+  agents: [Agent!]! @goField(forceResolver: true)
+}
+
+"""A chat or channel in a chat app."""
+type ChatChannel {
+  """The chat app's own ID of the chat or channel."""
+  id: String!
+  name: String!
+}
+
+"""A chat account linked to you. It counts as you when you talk to agents or answer their approvals there."""
+type ChatAccount {
+  kind: ChatAppKind!
+  """The Mattermost server the account lives on. Null for Telegram."""
+  server: String
+  handle: String!
+}
+
+"""A started link of a chat account. It finishes once the code reaches the chat app's bot from the account being linked."""
+type ChatAccountLink {
+  """Opens a chat with the Telegram bot that sends it the code. Null for Mattermost."""
+  url: String
+  """The code to send the bot. In Mattermost, send `link <code>` to the bot in a direct message."""
+  code: String!
+  """When the code stops working."""
+  expiresAt: Time!
+}
+
+extend type User {
+  """The chat accounts linked to you."""
+  chatAccounts: [ChatAccount!]! @goField(forceResolver: true)
+}
+
+extend type Query {
+  """The chat apps of the workspace."""
+  chatApps: [ChatApp!]! @hasRole(role: WORKSPACE_MEMBER)
+  """One chat app."""
+  chatApp(id: ChatAppID!): ChatApp! @hasRole(role: WORKSPACE_MEMBER)
+  """Looks up a chat or channel as the chat app's bot, which only works for one the bot is a member of."""
+  chatChannel(chatApp: ChatAppID!, channel: String! @constraint(constraint: "min=1,max=64")): ChatChannel! @hasRole(role: WORKSPACE_MEMBER)
+}
+
+extend type Mutation {
+  """Connects a bot as a chat app, after checking its token with the chat app. `url` is the Mattermost server, and must use https."""
+  createChatApp(name: String! @constraint(constraint: "resource_name,min=2,max=32"), kind: ChatAppKind!, url: String @constraint(constraint: "min=1,max=512"), token: String! @constraint(constraint: "min=1,max=4096")): ChatApp! @hasRole(role: WORKSPACE_ADMIN)
+  """Replaces the token of a chat app, after checking the new one."""
+  replaceChatAppToken(chatApp: ChatAppID!, token: String! @constraint(constraint: "min=1,max=4096")): ChatApp! @hasRole(role: WORKSPACE_ADMIN)
+  """Checks the token again."""
+  refreshChatApp(chatApp: ChatAppID!): ChatApp! @hasRole(role: WORKSPACE_ADMIN)
+  """Disconnects a chat app and removes every agent's channels in it."""
+  deleteChatApp(chatApp: ChatAppID!): Boolean! @hasRole(role: WORKSPACE_ADMIN)
+  """Starts linking your account in a chat app to you. Nothing is linked until the code reaches the bot from that account."""
+  linkChatAccount(chatApp: ChatAppID!): ChatAccountLink! @hasRole(role: WORKSPACE_MEMBER)
+  """Unlinks one of your chat accounts. `server` names the Mattermost server, and is left out for Telegram."""
+  removeChatAccount(kind: ChatAppKind!, server: String @constraint(constraint: "min=1,max=512")): Boolean! @hasRole(role: AUTHENTICATED)
+}

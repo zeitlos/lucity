@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
-import { ChevronRight, Plug, Plus, Sparkles } from '@lucide/vue';
+import { ChevronRight, MessageSquare, Plug, Plus, Sparkles } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { CredentialStatus } from '@/gql/graphql';
-import { modelApiLabel, resourceName } from '@/lib/agents';
+import { chatAppKindLabel, modelApiLabel, resourceName } from '@/lib/agents';
 import { credentialStatus } from '@/lib/status';
 import BrandTile from '@/components/BrandTile.vue';
 import EmptyState from '@/components/EmptyState.vue';
-import NewConnectionDialog from '@/components/NewConnectionDialog.vue';
+import NewChatAppDialog from '@/components/NewChatAppDialog.vue';
+import NewConnectorDialog from '@/components/NewConnectorDialog.vue';
+import NewModelProviderDialog from '@/components/NewModelProviderDialog.vue';
 import QueryError from '@/components/QueryError.vue';
 import ContextDrawer from '@/components/drawer/ContextDrawer.vue';
 import { Button } from '@/components/ui/button';
@@ -33,6 +35,14 @@ const ConnectionsDocument = graphql(`
         name
       }
     }
+    chatApps {
+      id
+      name
+      kind
+      account
+      url
+      status
+    }
   }
 `);
 
@@ -48,6 +58,7 @@ const { result, loading, error, refetch } = useQuery(ConnectionsDocument);
 
 const modelProviders = computed(() => result.value?.modelProviders ?? []);
 const connectors = computed(() => result.value?.connectors ?? []);
+const chatApps = computed(() => result.value?.chatApps ?? []);
 
 const skeletonSections = [
   {
@@ -60,9 +71,25 @@ const skeletonSections = [
     description: 'Tools agents call through Lucity, once they are granted them.',
     rows: ['w-20', 'w-28'],
   },
+  {
+    title: 'Chat apps',
+    description: 'Bots agents talk through, in the chats they are added to.',
+    rows: ['w-24'],
+  },
 ];
 
-const newOpen = ref(false);
+const newModelProviderOpen = ref(false);
+const newConnectorOpen = ref(false);
+const newChatAppOpen = ref(false);
+
+function chatAppHost(url: string | null | undefined) {
+  if (!url) return '';
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
+}
 
 function plural(count: number, noun: string) {
   return `${count} ${noun}${count === 1 ? '' : 's'}`;
@@ -76,16 +103,10 @@ function attention(status: CredentialStatus, credential: string) {
 
 <template>
   <ContextDrawer title="Connections" @close="emit('close')">
-    <template v-if="isAdmin" #actions>
-      <Button size="xs" @click="newOpen = true">
-        <Plus />
-        New connection
-      </Button>
-    </template>
 
     <div class="space-y-8">
       <p class="text-sm text-muted-foreground">
-        Model providers and connectors for every project in this workspace. Agents use them without ever seeing a key.
+        Model providers, connectors and chat apps for every project in this workspace. Agents use them without ever seeing a key.
       </p>
 
       <template v-if="loading && !result">
@@ -121,9 +142,15 @@ function attention(status: CredentialStatus, credential: string) {
 
       <template v-else>
         <section class="space-y-4">
-          <div class="space-y-1 text-sm text-muted-foreground/80">
-            <h3 class="text-sm font-medium text-muted-foreground">Model providers</h3>
-            <p>Every agent can use their models, as far as its harness supports them.</p>
+          <div class="flex items-start justify-between gap-4">
+            <div class="space-y-1 text-sm text-muted-foreground/80">
+              <h3 class="text-sm font-medium text-muted-foreground">Model providers</h3>
+              <p>Every agent can use their models, as far as its harness supports them.</p>
+            </div>
+            <Button v-if="isAdmin" variant="outline" size="xs" class="shrink-0" @click="newModelProviderOpen = true">
+              <Plus />
+              New model provider
+            </Button>
           </div>
 
           <EmptyState
@@ -156,9 +183,15 @@ function attention(status: CredentialStatus, credential: string) {
         </section>
 
         <section class="space-y-4">
-          <div class="space-y-1 text-sm text-muted-foreground/80">
-            <h3 class="text-sm font-medium text-muted-foreground">Connectors</h3>
-            <p>Tools agents call through Lucity, once they are granted them.</p>
+          <div class="flex items-start justify-between gap-4">
+            <div class="space-y-1 text-sm text-muted-foreground/80">
+              <h3 class="text-sm font-medium text-muted-foreground">Connectors</h3>
+              <p>Tools agents call through Lucity, once they are granted them.</p>
+            </div>
+            <Button v-if="isAdmin" variant="outline" size="xs" class="shrink-0" @click="newConnectorOpen = true">
+              <Plus />
+              New connector
+            </Button>
           </div>
 
           <EmptyState
@@ -189,9 +222,54 @@ function attention(status: CredentialStatus, credential: string) {
             </RouterLink>
           </div>
         </section>
+
+        <section class="space-y-4">
+          <div class="flex items-start justify-between gap-4">
+            <div class="space-y-1 text-sm text-muted-foreground/80">
+              <h3 class="text-sm font-medium text-muted-foreground">Chat apps</h3>
+              <p>Bots agents talk through, in the chats they are added to.</p>
+            </div>
+            <Button v-if="isAdmin" variant="outline" size="xs" class="shrink-0" @click="newChatAppOpen = true">
+              <Plus />
+              New chat app
+            </Button>
+          </div>
+
+          <EmptyState
+            v-if="chatApps.length === 0"
+            size="compact"
+            :icon="MessageSquare"
+            title="No chat apps yet"
+            :description="isAdmin ? 'Connect a Telegram or Mattermost bot.' : 'An admin of the workspace connects them.'"
+          />
+          <div v-else class="-mx-4 divide-y border-y">
+            <RouterLink
+              v-for="app in chatApps"
+              :key="app.id"
+              :to="{ name: 'connection', params: { kind: 'chat-apps', name: resourceName(app.id) } }"
+              class="flex items-center gap-3 py-2.5 pr-3 pl-4 transition-colors hover:bg-muted/50"
+            >
+              <BrandTile :name="chatAppKindLabel(app.kind)" />
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-medium text-foreground">{{ app.name }}</p>
+                <p class="truncate text-xs text-muted-foreground">
+                  {{ chatAppKindLabel(app.kind) }} bot · {{ app.account }}<template v-if="app.url"> on {{ chatAppHost(app.url) }}</template>
+                </p>
+              </div>
+              <Status variant="text" :tone="attention(app.status, 'Token').tone" class="shrink-0 text-xs">
+                {{ attention(app.status, 'Token').label }}
+              </Status>
+              <ChevronRight :size="16" class="shrink-0 text-muted-foreground" />
+            </RouterLink>
+          </div>
+        </section>
       </template>
     </div>
 
-    <NewConnectionDialog v-if="isAdmin" v-model:open="newOpen" @created="refetch()" />
+    <template v-if="isAdmin">
+      <NewModelProviderDialog v-model:open="newModelProviderOpen" @created="refetch()" />
+      <NewConnectorDialog v-model:open="newConnectorOpen" @created="refetch()" />
+      <NewChatAppDialog v-model:open="newChatAppOpen" @created="refetch()" />
+    </template>
   </ContextDrawer>
 </template>

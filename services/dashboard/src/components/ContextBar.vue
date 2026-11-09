@@ -3,12 +3,13 @@ import { environmentRoute, projectRoute, routeDrawer, routeEnvironmentId } from 
 import { computed, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { onKeyStroke } from '@vueuse/core';
-import { BookOpen, Check, ChevronDown, Download, LogOut, Plus } from '@lucide/vue';
+import { BookOpen, Check, ChevronDown, Download, Link2, LogOut, Plus } from '@lucide/vue';
 import IconButton from '@/components/IconButton.vue';
 import MenuIcon from '@/components/MenuIcon.vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 import TrialIndicator from '@/components/TrialIndicator.vue';
 import CreateWorkspaceDialog from '@/components/CreateWorkspaceDialog.vue';
+import LinkedAccountsDialog from '@/components/LinkedAccountsDialog.vue';
 import CreateEnvironmentDialog from '@/components/CreateEnvironmentDialog.vue';
 import ProjectEjectDialog from '@/components/ProjectEjectDialog.vue';
 import WorkspaceSwitchDialog from '@/components/WorkspaceSwitchDialog.vue';
@@ -30,6 +31,7 @@ const route = useRoute();
 const router = useRouter();
 const { user, logout, isWorkspaceAdmin } = useAuth();
 const { agents } = useCapabilities();
+const linkedAccountsOpen = ref(false);
 const { workspaceColor } = useWorkspaceColor();
 const {
   activeWorkspace,
@@ -285,6 +287,15 @@ const newBoxClass = 'flex size-6.5 shrink-0 items-center justify-center rounded-
             </Avatar>
             <span class="min-w-0 flex-1 truncate text-sm font-semibold">{{ user.name || user.email }}</span>
             <IconButton
+              v-if="agents"
+              label="Linked accounts"
+              size="icon"
+              class="text-muted-foreground"
+              @click="linkedAccountsOpen = true"
+            >
+              <Link2 />
+            </IconButton>
+            <IconButton
               label="Docs"
               size="icon"
               class="text-muted-foreground"
@@ -340,6 +351,7 @@ const newBoxClass = 'flex size-6.5 shrink-0 items-center justify-center rounded-
   </div>
 
   <CreateWorkspaceDialog v-model:open="wsDialogOpen" />
+  <LinkedAccountsDialog v-if="agents" v-model:open="linkedAccountsOpen" />
   <CreateEnvironmentDialog
     v-if="activeProjectId"
     v-model:open="envDialogOpen"

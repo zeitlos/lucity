@@ -12,6 +12,7 @@ import (
 	"github.com/blang/semver/v4"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/zeitlos/lucity/charts"
+	"github.com/zeitlos/lucity/pkg/agentrunner"
 	helmDeployer "github.com/zeitlos/lucity/pkg/deployer/helm"
 	"github.com/zeitlos/lucity/pkg/deployer/values"
 	"github.com/zeitlos/lucity/pkg/domains"
@@ -23,7 +24,6 @@ import (
 	"github.com/zeitlos/lucity/pkg/pipeline"
 	platformK8s "github.com/zeitlos/lucity/pkg/platform/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/agentaudit"
-	"github.com/zeitlos/lucity/services/conductor/internal/agentrunner"
 	webhookhttp "github.com/zeitlos/lucity/services/conductor/internal/api/webhook/http"
 	"github.com/zeitlos/lucity/services/conductor/internal/backuparchive"
 	"github.com/zeitlos/lucity/services/conductor/internal/billing"
@@ -196,10 +196,11 @@ type Config struct {
 
 	// Agents. Their model and connector calls go through the shared agent
 	// gateway, whose access log VictoriaLogs keeps for the audit.
-	AgentsEnabled   bool   `envconfig:"AGENTS_ENABLED" default:"false"`
-	AgentsNamespace string `envconfig:"AGENTS_NAMESPACE" default:"lucity-agents"`
-	AgentImage      string `envconfig:"AGENT_IMAGE"`
-	AgentGatewayURL string `envconfig:"AGENT_GATEWAY_URL" default:"http://lucity-agent-gateway.lucity-agents.svc.cluster.local"`
+	AgentsEnabled        bool   `envconfig:"AGENTS_ENABLED" default:"false"`
+	AgentsNamespace      string `envconfig:"AGENTS_NAMESPACE" default:"lucity-agents"`
+	SwitchboardNamespace string `envconfig:"SWITCHBOARD_NAMESPACE" default:"lucity-switchboard"`
+	AgentImage           string `envconfig:"AGENT_IMAGE"`
+	AgentGatewayURL      string `envconfig:"AGENT_GATEWAY_URL" default:"http://lucity-agent-gateway.lucity-agents.svc.cluster.local"`
 
 	CardGateAccountAge time.Duration `envconfig:"CARD_GATE_ACCOUNT_AGE" default:"2160h"`
 	VictoriaLogsURL    string        `envconfig:"VICTORIA_LOGS_URL"`
@@ -426,10 +427,11 @@ func main() {
 		workspaceChart.Metadata.Version = version.String()
 
 		agents = helmDeployer.AgentConfig{
-			Image:          config.AgentImage,
-			GatewayURL:     config.AgentGatewayURL,
-			Namespace:      config.AgentsNamespace,
-			WorkspaceChart: workspaceChart,
+			Image:                config.AgentImage,
+			GatewayURL:           config.AgentGatewayURL,
+			Namespace:            config.AgentsNamespace,
+			SwitchboardNamespace: config.SwitchboardNamespace,
+			WorkspaceChart:       workspaceChart,
 		}
 	}
 

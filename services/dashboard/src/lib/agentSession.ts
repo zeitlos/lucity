@@ -2,6 +2,7 @@ import {
   AgentApprovalStatus,
   AgentSessionStatus,
   AgentTurnEndReason,
+  type ChatAppKind,
   type AgentNoticeSeverity,
   type AgentToolCallStatus,
 } from '@/gql/graphql';
@@ -17,6 +18,13 @@ export interface UserMessageEvent {
   time: string;
   text: string;
   author?: SessionMember | null;
+  via?: SessionOrigin | null;
+}
+
+export interface SessionOrigin {
+  chatApp: { id: string; kind: ChatAppKind };
+  channel: { id: string; name: string };
+  url?: string | null;
 }
 
 export interface MessageEvent {

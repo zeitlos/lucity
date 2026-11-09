@@ -28,6 +28,7 @@ generates:
         VariableID: string
         ModelProviderID: string
         ConnectorID: string
+        ChatAppID: string
         AgentID: string
         AgentSessionID: string
     presetConfig:

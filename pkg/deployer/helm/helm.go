@@ -65,14 +65,16 @@ type BackupConfig struct {
 }
 
 // AgentConfig is what agents need from the platform: the runner image, the
-// agent gateway's base URL (without a workspace) and namespace, and the chart
-// of the workspace releases that live next to the gateway. A zero AgentConfig
-// leaves the agents of a release as they are and refuses workspace changes.
+// agent gateway's base URL (without a workspace) and namespace, switchboard's
+// namespace, and the chart of the workspace releases that live next to the
+// gateway. A zero AgentConfig leaves the agents of a release as they are and
+// refuses workspace changes.
 type AgentConfig struct {
-	Image          string
-	GatewayURL     string
-	Namespace      string
-	WorkspaceChart *chart.Chart
+	Image                string
+	GatewayURL           string
+	Namespace            string
+	SwitchboardNamespace string
+	WorkspaceChart       *chart.Chart
 }
 
 // The shared agent gateway, and the listener workspace routes attach to.

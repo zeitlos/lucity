@@ -3,10 +3,11 @@ package graphql
 import (
 	"strings"
 
+	"github.com/zeitlos/lucity/pkg/agentrunner"
+	"github.com/zeitlos/lucity/pkg/chat"
 	"github.com/zeitlos/lucity/pkg/deployer/values"
 	"github.com/zeitlos/lucity/pkg/usererror"
 	"github.com/zeitlos/lucity/services/conductor/internal/agentaudit"
-	"github.com/zeitlos/lucity/services/conductor/internal/agentrunner"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 )
@@ -80,6 +81,57 @@ func convertConnector(connector conductor.Connector) model.Connector {
 		Status:         convertCredentialStatus(connector.Status),
 		CheckedAt:      connector.CheckedAt,
 		Tools:          tools,
+	}
+}
+
+func parseChatAppKind(kind model.ChatAppKind) string {
+	if kind == model.ChatAppKindMattermost {
+		return chat.Mattermost
+	}
+
+	return chat.Telegram
+}
+
+func convertChatAppKind(kind string) model.ChatAppKind {
+	if kind == chat.Mattermost {
+		return model.ChatAppKindMattermost
+	}
+
+	return model.ChatAppKindTelegram
+}
+
+func convertChatApp(app conductor.ChatApp) model.ChatApp {
+	return model.ChatApp{
+		ID:             app.ID,
+		Name:           app.ID.Name,
+		Kind:           convertChatAppKind(app.Kind),
+		Account:        app.Account,
+		URL:            optional(app.URL),
+		CredentialHint: optional(app.CredentialHint),
+		Status:         convertCredentialStatus(app.Status),
+		CheckedAt:      app.CheckedAt,
+	}
+}
+
+func convertChatChannels(channels []conductor.ChatChannel) []model.ChatChannel {
+	result := make([]model.ChatChannel, 0, len(channels))
+
+	for _, channel := range channels {
+		result = append(result, model.ChatChannel{ID: channel.ID, Name: channel.Name})
+	}
+
+	return result
+}
+
+func convertAgentOrigin(origin *conductor.AgentOrigin) *model.AgentOrigin {
+	if origin == nil {
+		return nil
+	}
+
+	return &model.AgentOrigin{
+		ChatApp: new(convertChatApp(origin.ChatApp)),
+		Channel: &model.ChatChannel{ID: origin.Channel.ID, Name: origin.Channel.Name},
+		URL:     optional(origin.URL),
 	}
 }
 
@@ -163,6 +215,15 @@ func convertAgent(agent conductor.Agent) model.Agent {
 		})
 	}
 
+	channels := make([]model.AgentChannel, 0, len(agent.Channels))
+
+	for _, channel := range agent.Channels {
+		channels = append(channels, model.AgentChannel{
+			ChatApp: new(convertChatApp(channel.ChatApp)),
+			Channel: &model.ChatChannel{ID: channel.Channel.ID, Name: channel.Channel.Name},
+		})
+	}
+
 	allowedHosts := agent.AllowedHosts
 
 	if allowedHosts == nil {
@@ -175,6 +236,7 @@ func convertAgent(agent conductor.Agent) model.Agent {
 		Harness:        convertHarness(agent.Harness),
 		Instructions:   agent.Instructions,
 		Connectors:     connectors,
+		Channels:       channels,
 		AllowedHosts:   allowedHosts,
 		PrivateNetwork: agent.PrivateNetwork,
 	}
@@ -258,6 +320,7 @@ func convertAgentSession(session conductor.AgentSession) model.AgentSession {
 		Model:     new(convertAgentModel(session.Model)),
 		Effort:    convertEffort(session.Effort),
 		Status:    convertAgentSessionStatus(session.Status),
+		Origin:    convertAgentOrigin(session.Origin),
 	}
 }
 
@@ -272,7 +335,7 @@ func convertWorkspaceMemberOrNil(member *conductor.WorkspaceMember) *model.Works
 func convertAgentSessionEvent(event conductor.AgentSessionEvent) model.AgentSessionEvent {
 	switch event.Type {
 	case agentrunner.EventUserMessage:
-		return model.AgentUserMessage{ID: event.ID, Time: event.Time, Author: convertWorkspaceMemberOrNil(event.Author), Text: event.Text}
+		return model.AgentUserMessage{ID: event.ID, Time: event.Time, Author: convertWorkspaceMemberOrNil(event.Author), Text: event.Text, Via: convertAgentOrigin(event.Via)}
 	case agentrunner.EventMessage:
 		return model.AgentMessage{ID: event.ID, Time: event.Time, Text: event.Text}
 	case agentrunner.EventToolCall:

@@ -2,15 +2,19 @@ package conductor
 
 import (
 	"context"
+	"net/url"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/zeitlos/lucity/pkg/agentrunner"
 	"github.com/zeitlos/lucity/pkg/auth"
+	"github.com/zeitlos/lucity/pkg/chat"
 	"github.com/zeitlos/lucity/pkg/deployer/values"
+	"github.com/zeitlos/lucity/pkg/mattermost"
 	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/usererror"
-	"github.com/zeitlos/lucity/services/conductor/internal/agentrunner"
 )
 
 type AgentSession struct {
@@ -21,12 +25,22 @@ type AgentSession struct {
 	Model     AgentModel
 	Effort    string
 	Status    string
+	Origin    *AgentOrigin
 }
 
 type AgentSessionEvent struct {
 	agentrunner.Event
 	Author    *WorkspaceMember
 	DecidedBy *WorkspaceMember
+	Via       *AgentOrigin
+}
+
+// AgentOrigin is the chat a session started in, or a message came through,
+// with a link to the thread there when the chat app has one.
+type AgentOrigin struct {
+	ChatApp ChatApp
+	Channel ChatChannel
+	URL     string
 }
 
 // AgentModelSpec picks a model of a workspace's model provider.
@@ -99,17 +113,66 @@ func (c *Client) toAgentSession(ctx context.Context, agent AgentID, session agen
 		Model:     sessionModel(agent.Workspace, session.Model, ws),
 		Effort:    session.Effort,
 		Status:    session.Status,
+		Origin:    agentOrigin(agent, session.Origin, ws),
 	}
 }
 
-func (c *Client) toAgentSessionEvent(ctx context.Context, event agentrunner.Event, people *members) AgentSessionEvent {
-	converted := AgentSessionEvent{Event: event, Author: people.lookup(ctx, event.Author)}
+func (c *Client) toAgentSessionEvent(ctx context.Context, agent AgentID, event agentrunner.Event, ws *values.Workspace, people *members) AgentSessionEvent {
+	converted := AgentSessionEvent{Event: event, Author: people.lookup(ctx, event.Author), Via: agentOrigin(agent, event.Via, ws)}
 
 	if event.Approval != nil {
 		converted.DecidedBy = people.lookup(ctx, event.Approval.DecidedBy)
 	}
 
 	return converted
+}
+
+// agentOrigin resolves an origin the runner reported. The runner is untrusted,
+// so the chat app is looked up by name in the agent's own workspace, and an
+// origin naming none of its chat apps is dropped.
+func agentOrigin(agent AgentID, origin *agentrunner.Origin, ws *values.Workspace) *AgentOrigin {
+	if origin == nil {
+		return nil
+	}
+
+	app, ok := ws.ChatApps[origin.ChatApp]
+
+	if !ok {
+		return nil
+	}
+
+	channel := ChatChannel{ID: origin.Channel, Name: origin.Channel}
+
+	for _, known := range ws.Agents[values.AgentGrantKey(agent)].Channels {
+		if known.ChatApp == origin.ChatApp && known.Channel == origin.Channel {
+			channel.Name = known.Name
+		}
+	}
+
+	return &AgentOrigin{
+		ChatApp: toChatApp(ChatAppID{Workspace: agent.Workspace, Name: origin.ChatApp}, app),
+		Channel: channel,
+		URL:     threadURL(app, origin.Channel, origin.Thread),
+	}
+}
+
+// threadURL links to a thread in a chat app: a Mattermost post, or a message
+// or topic in a Telegram supergroup. Other Telegram chats have no links.
+func threadURL(app values.ChatApp, channel, thread string) string {
+	if thread == "" {
+		return ""
+	}
+
+	switch app.Kind {
+	case chat.Mattermost:
+		return mattermost.New(app.URL, "", nil).Permalink(thread)
+	case chat.Telegram:
+		if id, ok := strings.CutPrefix(channel, "-100"); ok {
+			return "https://t.me/c/" + id + "/" + url.PathEscape(thread)
+		}
+	}
+
+	return ""
 }
 
 func sessionModel(workspace string, model agentrunner.Model, ws *values.Workspace) AgentModel {
@@ -177,11 +240,17 @@ func (c *Client) AgentSessionEvents(ctx context.Context, id AgentSessionID) ([]A
 		return nil, err
 	}
 
+	ws, err := c.workspaceRelease(ctx, id.Agent.Workspace)
+
+	if err != nil {
+		return nil, err
+	}
+
 	people := c.members(id.Agent.Workspace)
 	events := make([]AgentSessionEvent, 0, len(session.Events))
 
 	for _, event := range session.Events {
-		events = append(events, c.toAgentSessionEvent(ctx, event, people))
+		events = append(events, c.toAgentSessionEvent(ctx, id.Agent, event, ws, people))
 	}
 
 	return events, nil
@@ -226,7 +295,7 @@ func (c *Client) StartAgentSession(ctx context.Context, agent AgentID, message s
 
 	session, err := c.agentRunner.StartSession(ctx, agent, agentrunner.StartRequest{
 		Message:   message,
-		Model:     runnerModel,
+		Model:     &runnerModel,
 		Effort:    effort,
 		StartedBy: actor,
 	})
@@ -303,7 +372,7 @@ func (c *Client) SendAgentMessage(ctx context.Context, id AgentSessionID, messag
 		return nil, err
 	}
 
-	session, err := c.agentRunner.SendMessage(ctx, id, message, actor)
+	session, err := c.agentRunner.SendMessage(ctx, id, message, actor, nil)
 
 	if err != nil {
 		return nil, err
@@ -347,6 +416,12 @@ func (c *Client) SubscribeAgentSessionEvents(ctx context.Context, id AgentSessio
 		return nil, usererror.Errorf("invalid event %q", after)
 	}
 
+	ws, err := c.workspaceRelease(ctx, id.Agent.Workspace)
+
+	if err != nil {
+		return nil, err
+	}
+
 	events, err := c.agentRunner.Events(ctx, id, after)
 
 	if err != nil {
@@ -361,7 +436,7 @@ func (c *Client) SubscribeAgentSessionEvents(ctx context.Context, id AgentSessio
 
 		for event := range events {
 			select {
-			case out <- c.toAgentSessionEvent(ctx, event, people):
+			case out <- c.toAgentSessionEvent(ctx, id.Agent, event, ws, people):
 			case <-ctx.Done():
 				return
 			}

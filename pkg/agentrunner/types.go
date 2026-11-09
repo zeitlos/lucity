@@ -22,6 +22,15 @@ type Status struct {
 	LastEffort string `json:"lastEffort,omitempty"`
 }
 
+// Origin is the chat a session started in, or a message came through. ChatApp
+// is the chat app's name within the agent's workspace, never a workspace-qualified
+// ID: the runner is untrusted, so the workspace always comes from the agent.
+type Origin struct {
+	ChatApp string `json:"chatApp"`
+	Channel string `json:"channel"`
+	Thread  string `json:"thread,omitempty"`
+}
+
 type Session struct {
 	ID        string    `json:"id"`
 	Title     string    `json:"title"`
@@ -30,6 +39,7 @@ type Session struct {
 	Model     Model     `json:"model"`
 	Effort    string    `json:"effort"`
 	Status    string    `json:"status"`
+	Origin    *Origin   `json:"origin,omitempty"`
 	Events    []Event   `json:"events,omitempty"`
 }
 
@@ -39,6 +49,7 @@ type Event struct {
 	Type     string    `json:"type"`
 	Text     string    `json:"text,omitempty"`
 	Author   string    `json:"author,omitempty"`
+	Via      *Origin   `json:"via,omitempty"`
 	ToolCall *ToolCall `json:"toolCall,omitempty"`
 	Approval *Approval `json:"approval,omitempty"`
 	Notice   *Notice   `json:"notice,omitempty"`
@@ -182,6 +193,18 @@ func sanitizeModel(model *Model) bool {
 	return isRef(model.Provider, maxNameLen) && oneOf(model.API, modelAPIs) && isRef(model.Name, maxNameLen)
 }
 
+func sanitizeOrigin(origin *Origin) *Origin {
+	if origin == nil || !isRef(origin.ChatApp, maxNameLen) || !isRef(origin.Channel, maxRefLen) {
+		return nil
+	}
+
+	if !isRef(origin.Thread, maxRefLen) {
+		origin.Thread = ""
+	}
+
+	return origin
+}
+
 func sanitizeSession(session *Session) bool {
 	if !platform.IsValidSessionName(session.ID) || !oneOf(session.Status, sessionStatuses) || !oneOf(session.Effort, efforts) || !sanitizeModel(&session.Model) {
 		return false
@@ -192,6 +215,8 @@ func sanitizeSession(session *Session) bool {
 	if !isRef(session.StartedBy, maxUserIDLen) {
 		session.StartedBy = ""
 	}
+
+	session.Origin = sanitizeOrigin(session.Origin)
 
 	events := session.Events[:0]
 
@@ -217,6 +242,12 @@ func sanitizeEvent(event *Event) bool {
 
 	if !isRef(event.Author, maxUserIDLen) {
 		event.Author = ""
+	}
+
+	if event.Type == EventUserMessage {
+		event.Via = sanitizeOrigin(event.Via)
+	} else {
+		event.Via = nil
 	}
 
 	switch event.Type {

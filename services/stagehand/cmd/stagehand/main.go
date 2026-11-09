@@ -104,10 +104,11 @@ type Config struct {
 	EdgeHeaderEnforced     bool   `envconfig:"EDGE_HEADER_ENFORCED" default:"false"`
 
 	// Agents, the same settings as the conductor's.
-	AgentsEnabled   bool   `envconfig:"AGENTS_ENABLED" default:"false"`
-	AgentsNamespace string `envconfig:"AGENTS_NAMESPACE" default:"lucity-agents"`
-	AgentImage      string `envconfig:"AGENT_IMAGE"`
-	AgentGatewayURL string `envconfig:"AGENT_GATEWAY_URL" default:"http://lucity-agent-gateway.lucity-agents.svc.cluster.local"`
+	AgentsEnabled        bool   `envconfig:"AGENTS_ENABLED" default:"false"`
+	AgentsNamespace      string `envconfig:"AGENTS_NAMESPACE" default:"lucity-agents"`
+	SwitchboardNamespace string `envconfig:"SWITCHBOARD_NAMESPACE" default:"lucity-switchboard"`
+	AgentImage           string `envconfig:"AGENT_IMAGE"`
+	AgentGatewayURL      string `envconfig:"AGENT_GATEWAY_URL" default:"http://lucity-agent-gateway.lucity-agents.svc.cluster.local"`
 }
 
 func main() {
@@ -161,10 +162,11 @@ func main() {
 		workspaceChart.Metadata.Version = version.String()
 
 		agents = helmDeployer.AgentConfig{
-			Image:          config.AgentImage,
-			GatewayURL:     config.AgentGatewayURL,
-			Namespace:      config.AgentsNamespace,
-			WorkspaceChart: workspaceChart,
+			Image:                config.AgentImage,
+			GatewayURL:           config.AgentGatewayURL,
+			Namespace:            config.AgentsNamespace,
+			SwitchboardNamespace: config.SwitchboardNamespace,
+			WorkspaceChart:       workspaceChart,
 		}
 	}
 

@@ -89,6 +89,8 @@ import WorkspaceMembersDrawer from '@/components/drawer/WorkspaceMembersDrawer.v
 import ApiTokensDrawer from '@/components/drawer/ApiTokensDrawer.vue';
 import ConnectionsDrawer from '@/components/drawer/ConnectionsDrawer.vue';
 import ConnectorDrawer from '@/components/drawer/ConnectorDrawer.vue';
+import ChatAppDrawer from '@/components/drawer/ChatAppDrawer.vue';
+import AddChannelLinkDialog from '@/components/AddChannelLinkDialog.vue';
 import ModelProviderDrawer from '@/components/drawer/ModelProviderDrawer.vue';
 import WorkspaceBillingDrawer from '@/components/drawer/WorkspaceBillingDrawer.vue';
 import WorkspaceSettingsDrawer from '@/components/drawer/WorkspaceSettingsDrawer.vue';
@@ -432,6 +434,18 @@ onKeyStroke('/', (event) => {
                 @close="closeDrawer"
               />
             </div>
+            <div
+              v-else-if="agents && connection?.kind === 'chat-apps'"
+              :key="`chat-apps/${connection.name}`"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full max-md:top-3"
+            >
+              <ChatAppDrawer
+                :workspace="activeWorkspace"
+                :name="connection.name"
+                :is-admin="isWorkspaceAdmin"
+                @close="closeDrawer"
+              />
+            </div>
           </Transition>
 
           <Transition name="slide-drawer">
@@ -476,6 +490,14 @@ onKeyStroke('/', (event) => {
         v-model:open="paletteOpen"
         context="projects"
         :initial-view="initialPaletteView"
+      />
+
+      <AddChannelLinkDialog
+        v-if="agents && route.name === 'add-channel'"
+        :workspace="activeWorkspace"
+        :chat-app="String(route.query.chatApp ?? '')"
+        :channel="String(route.query.channel ?? '')"
+        @close="router.push({ name: 'projects', params: { workspace: activeWorkspace } })"
       />
     </div>
 </template>

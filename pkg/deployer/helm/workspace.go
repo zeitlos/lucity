@@ -12,6 +12,7 @@ import (
 	"helm.sh/helm/v4/pkg/kube"
 	"helm.sh/helm/v4/pkg/release"
 	"helm.sh/helm/v4/pkg/storage/driver"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/deployer/values"
@@ -60,6 +61,7 @@ func (c *Client) applyWorkspace(ctx context.Context, workspace string, mutate fu
 
 	ws.Workspace = workspace
 	ws.Gateway = values.WorkspaceGateway{Name: AgentGatewayName, Listener: AgentGatewayListener}
+	ws.Switchboard = values.WorkspaceSwitchboard{Namespace: c.agents.SwitchboardNamespace}
 
 	if err := mutate(ws); err != nil {
 		return err
@@ -81,7 +83,9 @@ func (c *Client) applyWorkspace(ctx context.Context, workspace string, mutate fu
 		return err
 	}
 
-	_, err = installOrUpgrade(ctx, config, workspaceReleaseName(workspace), c.agents.Namespace, c.agents.WorkspaceChart, vals, workspaceKinds)
+	_, err = installOrUpgrade(ctx, config, workspaceReleaseName(workspace), c.agents.Namespace, c.agents.WorkspaceChart, vals, workspaceKinds, map[string]map[schema.GroupKind]bool{
+		c.agents.SwitchboardNamespace: switchboardKinds,
+	})
 
 	return err
 }
@@ -143,9 +147,27 @@ func (w *workspaceClient) DeleteConnector(ctx context.Context, id platform.Conne
 	})
 }
 
+func (w *workspaceClient) SetChatApp(ctx context.Context, id platform.ChatAppID, app values.ChatApp) error {
+	return w.client.applyWorkspace(ctx, id.Workspace, func(ws *values.Workspace) error {
+		return values.SetChatApp(ws, id.Name, app)
+	})
+}
+
+func (w *workspaceClient) DeleteChatApp(ctx context.Context, id platform.ChatAppID) error {
+	return w.client.applyWorkspace(ctx, id.Workspace, func(ws *values.Workspace) error {
+		return values.DeleteChatApp(ws, id.Name)
+	})
+}
+
 func (w *workspaceClient) SetAgentGrant(ctx context.Context, id platform.AgentID, grant values.AgentGrant) error {
 	return w.client.applyWorkspace(ctx, id.Workspace, func(ws *values.Workspace) error {
 		return values.SetAgentGrant(ws, id, grant)
+	})
+}
+
+func (w *workspaceClient) SetAgentChannels(ctx context.Context, id platform.AgentID, channels []values.AgentChannel) error {
+	return w.client.applyWorkspace(ctx, id.Workspace, func(ws *values.Workspace) error {
+		return values.SetAgentChannels(ws, id, channels)
 	})
 }
 

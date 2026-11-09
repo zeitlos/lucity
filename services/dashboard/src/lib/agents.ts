@@ -1,9 +1,14 @@
-import { AgentStatus, Approval, Effort, Harness, ModelApi } from '@/gql/graphql';
+import { AgentStatus, Approval, ChatAppKind, Effort, Harness, ModelApi } from '@/gql/graphql';
 
 export interface AgentConnectorGrant {
   connector: { id: string; name: string };
   approval: Approval;
   hiddenTools: string[];
+}
+
+export interface AgentChannel {
+  chatApp: { id: string; name: string; kind: ChatAppKind; account: string; url?: string | null };
+  channel: { id: string; name: string };
 }
 
 export interface Agent {
@@ -13,6 +18,7 @@ export interface Agent {
   instructions: string;
   status: AgentStatus;
   connectors: AgentConnectorGrant[];
+  channels: AgentChannel[];
   allowedHosts: string[];
   privateNetwork: boolean;
 }
@@ -88,6 +94,15 @@ export const connectorPresets: ConnectorPreset[] = [
   { id: 'linear', label: 'Linear', name: 'linear', url: 'https://mcp.linear.app/mcp' },
   { id: 'mcp', label: 'Any MCP server', name: '', url: '' },
 ];
+
+export const chatAppKinds: { value: ChatAppKind; label: string }[] = [
+  { value: ChatAppKind.Telegram, label: 'Telegram' },
+  { value: ChatAppKind.Mattermost, label: 'Mattermost' },
+];
+
+export function chatAppKindLabel(kind: ChatAppKind): string {
+  return chatAppKinds.find(option => option.value === kind)?.label ?? kind;
+}
 
 export interface AgentModelOption {
   provider: { id: string; name: string };

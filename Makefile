@@ -1,4 +1,4 @@
-.PHONY: build dev dev-conductor dev-cashier dev-dashboard dev-docs dev-logs dev-stop dev-agent cockpit cockpit-dev generate-graphql generate-cli-docs lint minikube dns infra infra-down infra-forward infra-forward-stop db-forward deploy-prod deploy-prod-infra
+.PHONY: build dev dev-conductor dev-cashier dev-dashboard dev-docs dev-logs dev-stop cockpit cockpit-dev generate-graphql generate-cli-docs lint minikube dns infra infra-down infra-forward infra-forward-stop db-forward deploy-prod deploy-prod-infra
 
 # Build all Go services
 build:
@@ -183,26 +183,6 @@ deploy-dev:
 		-f deployments/lucity-dev/values.yaml \
 		-f deployments/lucity-dev/secrets.yaml \
 		$(HELM_ARGS)
-
-# One release of charts/lucity-agent per agent, configured by deployments/lucity-dev/<agent>-values.yaml
-# Usage: make deploy-dev-agent VERSION=26.9.2 AGENT=ops-agent
-AGENT ?= ops-agent
-
-deploy-dev-agent:
-	@test -f deployments/lucity-dev/$(AGENT)-secrets.yaml || { echo "Error: deployments/lucity-dev/$(AGENT)-secrets.yaml not found. Copy deployments/$(AGENT)-secrets.yaml.example and fill in values."; exit 1; }
-	helm upgrade --install $(AGENT) \
-		oci://ghcr.io/zeitlos/lucity/charts/lucity-agent \
-		$(if $(VERSION),--version $(VERSION)) \
-		--kube-context $(DEV_CONTEXT) \
-		-n lucity-agents --create-namespace \
-		-f deployments/lucity-dev/$(AGENT)-values.yaml \
-		-f deployments/lucity-dev/$(AGENT)-secrets.yaml \
-		$(HELM_ARGS)
-
-# The same agent from the working tree, run locally in Docker against lucity-dev with a temporary ServiceAccount that carries its RBAC
-# Usage: make dev-agent AGENT=ops-agent
-dev-agent:
-	@AGENT=$(AGENT) DEV_CONTEXT=$(DEV_CONTEXT) bash scripts/dev-agent.sh
 
 # Sync workspace
 sync:

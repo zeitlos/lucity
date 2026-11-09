@@ -1,0 +1,203 @@
+{{- if .Values.agents.enabled }}
+{{- $ns := .Values.switchboard.namespace }}
+{{- $shared := list "DASHBOARD_URL" "LOGTO_ENDPOINT" }}
+{{- $sharedSecrets := list "LOGTO_M2M_APP_ID" "LOGTO_M2M_APP_SECRET" }}
+# Switchboard runs the chat apps of every workspace. The workspace releases
+# render chat app Secrets and agent channels into their own namespace, the
+# only one switchboard can read, so it never sees the gateway's credentials.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $ns }}
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+    app.kubernetes.io/component: switchboard
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "lucity.fullname" . }}-switchboard
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+    app.kubernetes.io/component: switchboard
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "lucity.fullname" . }}-switchboard
+  namespace: {{ $ns }}
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [secrets, configmaps]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "lucity.fullname" . }}-switchboard
+  namespace: {{ $ns }}
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "lucity.fullname" . }}-switchboard
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "lucity.fullname" . }}-switchboard
+    namespace: {{ .Release.Namespace }}
+---
+# Agent runners are reached the way the conductor reaches them, through the
+# apiserver's service proxy.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "lucity.fullname" . }}-switchboard
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [services/proxy]
+    verbs: [get, create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "lucity.fullname" . }}-switchboard
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "lucity.fullname" . }}-switchboard
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "lucity.fullname" . }}-switchboard
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lucity.fullname" . }}-switchboard
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+    app.kubernetes.io/component: switchboard
+spec:
+  # Telegram allows one poller per bot, so exactly one switchboard runs.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "lucity.selectorLabels" (dict "name" "switchboard" "release" .Release.Name) | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/secrets: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
+      labels:
+        {{- include "lucity.labels" . | nindent 8 }}
+        {{- include "lucity.selectorLabels" (dict "name" "switchboard" "release" .Release.Name) | nindent 8 }}
+    spec:
+      {{- with .Values.switchboard.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.switchboard.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.switchboard.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "lucity.fullname" . }}-switchboard
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+      containers:
+        - name: switchboard
+          image: "{{ .Values.switchboard.image.repository }}:{{ .Values.switchboard.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.switchboard.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            readOnlyRootFilesystem: true
+          env:
+            - name: NAMESPACE
+              value: {{ $ns | quote }}
+            {{- range $key := $shared }}
+            {{- with index $.Values.conductor.env $key }}
+            - name: {{ $key }}
+              value: {{ . | quote }}
+            {{- end }}
+            {{- end }}
+            {{- range $key := $sharedSecrets }}
+            {{- with index $.Values.conductor.envSecret $key }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "lucity.fullname" $ }}
+                  key: {{ . }}
+            {{- end }}
+            {{- end }}
+          {{- with .Values.switchboard.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+---
+# Switchboard takes no traffic, and reaches only DNS, the apiserver, Logto
+# and the public internet: chat app servers are chosen by workspaces, so
+# private ranges stay out of reach.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: {{ include "lucity.fullname" . }}-switchboard-egress
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: switchboard
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: kube-system
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: ANY
+    - toEntities:
+        - kube-apiserver
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: {{ .Release.Namespace }}
+            app.kubernetes.io/name: logto
+      toPorts:
+        - ports:
+            - port: "3001"
+              protocol: TCP
+    - toCIDRSet:
+        - cidr: 0.0.0.0/0
+          except:
+            {{- range .Values.agents.gateway.privateCIDRs }}
+            {{- if not (contains ":" .) }}
+            - {{ . }}
+            {{- end }}
+            {{- end }}
+        - cidr: ::/0
+          except:
+            {{- range .Values.agents.gateway.privateCIDRs }}
+            {{- if contains ":" . }}
+            - {{ . }}
+            {{- end }}
+            {{- end }}
+{{- end }}

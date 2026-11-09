@@ -185,8 +185,11 @@ func (r *Runner) Session(id string) (SessionDetail, error) {
 	return s.detail(), nil
 }
 
-func (r *Runner) Create(ctx context.Context, message string, model *Model, effort, startedBy string) (SessionStatus, error) {
+func (r *Runner) Create(ctx context.Context, message string, model *Model, effort, startedBy string, origin *Origin) (SessionStatus, error) {
 	if err := validate(message, effort); err != nil {
+		return SessionStatus{}, err
+	}
+	if err := validateOrigin(origin); err != nil {
 		return SessionStatus{}, err
 	}
 	lastModel, lastEffort := r.store.defaults()
@@ -225,6 +228,7 @@ func (r *Runner) Create(ctx context.Context, message string, model *Model, effor
 		StartedAt:        time.Now().UTC(),
 		Model:            *model,
 		Effort:           effort,
+		Origin:           origin,
 		HarnessSessionID: created.ID,
 	}, nil)
 	r.register(s)
@@ -244,14 +248,17 @@ func (r *Runner) Create(ctx context.Context, message string, model *Model, effor
 		r.unregister(s)
 		return SessionStatus{}, err
 	}
-	if err := r.prompt(s, client, message, startedBy); err != nil {
+	if err := r.prompt(s, client, message, startedBy, origin); err != nil {
 		return SessionStatus{}, err
 	}
 	return s.snapshot(), nil
 }
 
-func (r *Runner) Send(ctx context.Context, id, message, author string) (SessionStatus, error) {
+func (r *Runner) Send(ctx context.Context, id, message, author string, via *Origin) (SessionStatus, error) {
 	if err := validate(message, ""); err != nil {
+		return SessionStatus{}, err
+	}
+	if err := validateOrigin(via); err != nil {
 		return SessionStatus{}, err
 	}
 	s, err := r.session(id)
@@ -269,7 +276,7 @@ func (r *Runner) Send(ctx context.Context, id, message, author string) (SessionS
 	if err != nil {
 		return SessionStatus{}, err
 	}
-	if err := r.prompt(s, client, message, author); err != nil {
+	if err := r.prompt(s, client, message, author, via); err != nil {
 		return SessionStatus{}, err
 	}
 	return s.snapshot(), nil
@@ -510,7 +517,7 @@ func (r *Runner) Permission(ctx context.Context, request acp.PermissionRequest) 
 	}
 }
 
-func (r *Runner) prompt(s *session, client *acp.Client, message, author string) error {
+func (r *Runner) prompt(s *session, client *acp.Client, message, author string, via *Origin) error {
 	s.mu.Lock()
 	if s.turn != nil {
 		s.mu.Unlock()
@@ -521,7 +528,7 @@ func (r *Runner) prompt(s *session, client *acp.Client, message, author string) 
 	s.turn = t
 	harnessSessionID := s.record.HarnessSessionID
 	r.flush(s)
-	r.record(s, Event{Type: EventUserMessage, Text: truncate(message, maxMessage), Author: author})
+	r.record(s, Event{Type: EventUserMessage, Text: truncate(message, maxMessage), Author: author, Via: via})
 	s.mu.Unlock()
 
 	go func() {
@@ -827,6 +834,16 @@ func validate(message, effort string) error {
 	}
 	if effort != "" && !slices.Contains(efforts, effort) {
 		return InvalidError{fmt.Errorf("effort must be one of %s", strings.Join(efforts, ", "))}
+	}
+	return nil
+}
+
+func validateOrigin(origin *Origin) error {
+	if origin == nil {
+		return nil
+	}
+	if origin.ChatApp == "" || origin.Channel == "" || len(origin.ChatApp) > 64 || len(origin.Channel) > 128 || len(origin.Thread) > 128 {
+		return InvalidError{errors.New("origin needs a chat app and a channel")}
 	}
 	return nil
 }

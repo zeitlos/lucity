@@ -274,3 +274,23 @@ agents:
       - fc00::/7
       - fe80::/10
       - ::1/128
+
+# -- Switchboard, part of agent workspaces: runs every workspace's chat apps
+#    (Telegram and Mattermost bots) and bridges them to agents.
+switchboard:
+  # -- The namespace workspace releases render chat apps and agent channels
+  #    into, and the only one switchboard can read
+  namespace: lucity-switchboard
+  image:
+    repository: ghcr.io/zeitlos/lucity/switchboard
+    tag: ""
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}

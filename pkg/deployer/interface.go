@@ -103,14 +103,18 @@ type AgentClient interface {
 
 // WorkspaceClient changes a workspace release: configuration that belongs to
 // a workspace rather than to one of its environments, such as its model
-// providers and connectors, and the gateway keys and grants of its agents.
+// providers, connectors and chat apps, and the gateway keys, grants and chat
+// channels of its agents.
 type WorkspaceClient interface {
 	Workspace(ctx context.Context, workspace string) (*values.Workspace, error)
 	SetModelProvider(ctx context.Context, id platform.ModelProviderID, provider values.ModelProvider) error
 	DeleteModelProvider(ctx context.Context, id platform.ModelProviderID) error
 	SetConnector(ctx context.Context, id platform.ConnectorID, connector values.Connector) error
 	DeleteConnector(ctx context.Context, id platform.ConnectorID) error
+	SetChatApp(ctx context.Context, id platform.ChatAppID, app values.ChatApp) error
+	DeleteChatApp(ctx context.Context, id platform.ChatAppID) error
 	SetAgentGrant(ctx context.Context, id platform.AgentID, grant values.AgentGrant) error
+	SetAgentChannels(ctx context.Context, id platform.AgentID, channels []values.AgentChannel) error
 	DeleteAgentGrant(ctx context.Context, id platform.AgentID) error
 	Delete(ctx context.Context, workspace string) error
 

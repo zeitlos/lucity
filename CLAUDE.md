@@ -6,7 +6,7 @@ Open-source PaaS on Kubernetes with full ejectability. Monorepo with a single Go
 
 - **Go workspace**: `go.work` with multi-module layout (Go 1.27)
 - **Module path**: `github.com/zeitlos/lucity`
-- **Monorepo**: `services/conductor` (control plane), `services/stagehand` (workload changes nobody asked for: plan-based placement), `services/cashier` (usage metering), `services/exporter` (external usage metrics), `services/dashboard` (Vue), `services/switchboard` (agent chat bridge, experimental), `pkg/` (shared Go), `charts/` (Helm)
+- **Monorepo**: `services/conductor` (control plane), `services/stagehand` (workload changes nobody asked for: plan-based placement), `services/cashier` (usage metering), `services/exporter` (external usage metrics), `services/dashboard` (Vue), `services/switchboard` (chat apps for agents), `pkg/` (shared Go), `charts/` (Helm)
 - **Platform images**: `ghcr.io/zeitlos/lucity/{conductor,stagehand,cashier,exporter,dashboard,docs,switchboard}`
 - **User workload images**: Zot (self-hosted OCI registry, `localhost:5000` in dev)
 - **Coding rules**: see `.claude/rules/` for architecture, Go, frontend, GraphQL, marketing, and working conventions
@@ -51,7 +51,7 @@ Each Lucity instance supports multiple workspaces. A workspace is the tenant bou
 | Cashier | 9009 (metrics) | Stripe + VictoriaMetrics + Kubernetes (read) | Usage metering into Stripe meter events, monthly plan credits |
 | Exporter | 9007 (HTTP) | Prometheus `/metrics` | Usage from external providers (object storage sizes) as metrics, scraped by the node-local otel agent |
 | Dashboard | 5173 | HTTP | Vue 3 SPA |
-| Switchboard | none, outbound only | Telegram Bot API + ACP | On-call agent bridge: Telegram topics to an ACP agent (`claude-agent-acp`), approvals as buttons. Deployed per agent with `charts/lucity-agent` |
+| Switchboard | none, outbound only | Telegram Bot API + Mattermost + runner API | Chat apps of every workspace: Telegram and Mattermost bots bridged to agent runners, approvals in the chat. Reads chat apps and agent channels from its own namespace |
 
 ### Conductor internal layout
 

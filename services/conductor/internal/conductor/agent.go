@@ -9,9 +9,9 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/zeitlos/lucity/pkg/agentrunner"
 	"github.com/zeitlos/lucity/pkg/deployer/values"
 	"github.com/zeitlos/lucity/pkg/usererror"
-	"github.com/zeitlos/lucity/services/conductor/internal/agentrunner"
 )
 
 type Agent struct {
@@ -19,6 +19,7 @@ type Agent struct {
 	Harness        values.Harness
 	Instructions   string
 	Connectors     []AgentConnector
+	Channels       []AgentChannel
 	AllowedHosts   []string
 	PrivateNetwork bool
 }
@@ -193,6 +194,7 @@ func toAgent(id AgentID, agent values.Agent, ws *values.Workspace) Agent {
 		Harness:        agent.Harness,
 		Instructions:   agent.Instructions,
 		Connectors:     connectors,
+		Channels:       toAgentChannels(id, grant, ws),
 		AllowedHosts:   slices.Clone(agent.Network.AllowedHosts),
 		PrivateNetwork: agent.Network.PrivateNetwork,
 	}

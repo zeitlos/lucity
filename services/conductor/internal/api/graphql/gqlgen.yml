@@ -63,6 +63,8 @@ models:
     model: github.com/zeitlos/lucity/services/conductor/internal/conductor.ModelProviderID
   ConnectorID:
     model: github.com/zeitlos/lucity/services/conductor/internal/conductor.ConnectorID
+  ChatAppID:
+    model: github.com/zeitlos/lucity/services/conductor/internal/conductor.ChatAppID
   AgentID:
     model: github.com/zeitlos/lucity/services/conductor/internal/conductor.AgentID
   AgentSessionID:

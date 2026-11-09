@@ -78,15 +78,16 @@ func (s *Server) session(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) create(w http.ResponseWriter, r *http.Request) {
 	var request struct {
-		Message   string        `json:"message"`
-		Model     *runner.Model `json:"model"`
-		Effort    string        `json:"effort"`
-		StartedBy string        `json:"startedBy"`
+		Message   string         `json:"message"`
+		Model     *runner.Model  `json:"model"`
+		Effort    string         `json:"effort"`
+		StartedBy string         `json:"startedBy"`
+		Origin    *runner.Origin `json:"origin"`
 	}
 	if !decode(w, r, &request) {
 		return
 	}
-	session, err := s.runner.Create(r.Context(), request.Message, request.Model, request.Effort, request.StartedBy)
+	session, err := s.runner.Create(r.Context(), request.Message, request.Model, request.Effort, request.StartedBy, request.Origin)
 	if err != nil {
 		fail(w, err)
 		return
@@ -96,13 +97,14 @@ func (s *Server) create(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) send(w http.ResponseWriter, r *http.Request) {
 	var request struct {
-		Message string `json:"message"`
-		Author  string `json:"author"`
+		Message string         `json:"message"`
+		Author  string         `json:"author"`
+		Via     *runner.Origin `json:"via"`
 	}
 	if !decode(w, r, &request) {
 		return
 	}
-	session, err := s.runner.Send(r.Context(), r.PathValue("id"), request.Message, request.Author)
+	session, err := s.runner.Send(r.Context(), r.PathValue("id"), request.Message, request.Author, request.Via)
 	if err != nil {
 		fail(w, err)
 		return

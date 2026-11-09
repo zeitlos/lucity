@@ -56,6 +56,8 @@ type Agent struct {
 	Instructions string           `json:"instructions"`
 	Status       AgentStatus      `json:"status"`
 	Connectors   []AgentConnector `json:"connectors"`
+	// The chats and channels the agent talks in.
+	Channels []AgentChannel `json:"channels"`
 	// Hosts on the internet the agent may reach directly, without credentials. `*.example.com` covers the subdomains of `example.com`.
 	AllowedHosts []string `json:"allowedHosts"`
 	// Whether the agent may reach the other services of its environment.
@@ -93,6 +95,18 @@ type AgentAuditEntry struct {
 	InputTokens  *int             `json:"inputTokens,omitempty"`
 	OutputTokens *int             `json:"outputTokens,omitempty"`
 	Result       AgentAuditResult `json:"result"`
+}
+
+// A chat or channel an agent talks in. Linked members of the workspace talk to the agent there, and answer its approvals.
+type AgentChannel struct {
+	ChatApp *ChatApp     `json:"chatApp"`
+	Channel *ChatChannel `json:"channel"`
+}
+
+type AgentChannelInput struct {
+	ChatApp platform.ChatAppID `json:"chatApp"`
+	// The chat app's own ID of the chat or channel.
+	Channel string `json:"channel"`
 }
 
 // A connector granted to an agent.
@@ -141,6 +155,14 @@ type AgentNotice struct {
 
 func (AgentNotice) IsAgentSessionEvent() {}
 
+// The chat a session started in, or a message came through.
+type AgentOrigin struct {
+	ChatApp *ChatApp     `json:"chatApp"`
+	Channel *ChatChannel `json:"channel"`
+	// Opens the thread in the chat app. Null where the chat app has no links to it.
+	URL *string `json:"url,omitempty"`
+}
+
 // One conversation with an agent. Every member of the workspace can see it and take part.
 type AgentSession struct {
 	ID    platform.AgentSessionID `json:"id"`
@@ -152,6 +174,8 @@ type AgentSession struct {
 	Model  *AgentModel        `json:"model"`
 	Effort Effort             `json:"effort"`
 	Status AgentSessionStatus `json:"status"`
+	// The chat the session started in. Null for one started in Lucity.
+	Origin *AgentOrigin `json:"origin,omitempty"`
 	// Everything that happened in the session, oldest first.
 	Events []AgentSessionEvent `json:"events"`
 }
@@ -191,6 +215,8 @@ type AgentUserMessage struct {
 	// Null once that person has left the workspace.
 	Author *WorkspaceMember `json:"author,omitempty"`
 	Text   string           `json:"text"`
+	// The chat the message came through. Null for one sent in Lucity.
+	Via *AgentOrigin `json:"via,omitempty"`
 }
 
 func (AgentUserMessage) IsAgentSessionEvent() {}
@@ -301,6 +327,51 @@ type Capabilities struct {
 	Agents         *BasicCapability    `json:"agents"`
 	Members        *CountCapability    `json:"members"`
 	CustomDomains  *CountCapability    `json:"customDomains"`
+}
+
+// A chat account linked to you. It counts as you when you talk to agents or answer their approvals there.
+type ChatAccount struct {
+	Kind ChatAppKind `json:"kind"`
+	// The Mattermost server the account lives on. Null for Telegram.
+	Server *string `json:"server,omitempty"`
+	Handle string  `json:"handle"`
+}
+
+// A started link of a chat account. It finishes once the code reaches the chat app's bot from the account being linked.
+type ChatAccountLink struct {
+	// Opens a chat with the Telegram bot that sends it the code. Null for Mattermost.
+	URL *string `json:"url,omitempty"`
+	// The code to send the bot. In Mattermost, send `link <code>` to the bot in a direct message.
+	Code string `json:"code"`
+	// When the code stops working.
+	ExpiresAt time.Time `json:"expiresAt"`
+}
+
+// A bot in a chat app, connected to the workspace. Agents talk through it in the chats they are added to, and never see its token.
+type ChatApp struct {
+	ID   platform.ChatAppID `json:"id"`
+	Name string             `json:"name"`
+	Kind ChatAppKind        `json:"kind"`
+	// The bot's handle, such as `@acme_ops_bot`.
+	Account string `json:"account"`
+	// The Mattermost server the bot lives on. Null for Telegram.
+	URL *string `json:"url,omitempty"`
+	// The last four characters of the token. The token itself is never returned.
+	CredentialHint *string          `json:"credentialHint,omitempty"`
+	Status         CredentialStatus `json:"status"`
+	// When the token was last checked.
+	CheckedAt *time.Time `json:"checkedAt,omitempty"`
+	// The channels the bot is a member of, asked of the chat app on every read. Telegram can't list a bot's chats, so a Telegram bot has none.
+	Channels []ChatChannel `json:"channels"`
+	// The agents with a channel in this chat app.
+	Agents []Agent `json:"agents"`
+}
+
+// A chat or channel in a chat app.
+type ChatChannel struct {
+	// The chat app's own ID of the chat or channel.
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 type CheckoutSession struct {
@@ -1064,6 +1135,8 @@ type User struct {
 	Email      *string               `json:"email,omitempty"`
 	AvatarURL  string                `json:"avatarUrl"`
 	Workspaces []WorkspaceMembership `json:"workspaces"`
+	// The chat accounts linked to you.
+	ChatAccounts []ChatAccount `json:"chatAccounts"`
 }
 
 type Variable struct {
@@ -2018,6 +2091,62 @@ func (e *BuildStatus) UnmarshalJSON(b []byte) error {
 }
 
 func (e BuildStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// The chat app a bot lives in.
+type ChatAppKind string
+
+const (
+	ChatAppKindTelegram   ChatAppKind = "TELEGRAM"
+	ChatAppKindMattermost ChatAppKind = "MATTERMOST"
+)
+
+var AllChatAppKind = []ChatAppKind{
+	ChatAppKindTelegram,
+	ChatAppKindMattermost,
+}
+
+func (e ChatAppKind) IsValid() bool {
+	switch e {
+	case ChatAppKindTelegram, ChatAppKindMattermost:
+		return true
+	}
+	return false
+}
+
+func (e ChatAppKind) String() string {
+	return string(e)
+}
+
+func (e *ChatAppKind) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ChatAppKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ChatAppKind", str)
+	}
+	return nil
+}
+
+func (e ChatAppKind) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *ChatAppKind) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e ChatAppKind) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

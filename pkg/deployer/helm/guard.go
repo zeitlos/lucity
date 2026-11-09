@@ -43,9 +43,16 @@ var workspaceKinds = map[schema.GroupKind]bool{
 	{Group: "agentgateway.dev", Kind: "AgentgatewayPolicy"}:  true,
 }
 
+// switchboardKinds are the kinds the lucity-workspace chart renders into
+// switchboard's namespace: chat apps and agent channels.
+var switchboardKinds = map[schema.GroupKind]bool{
+	{Kind: "Secret"}:    true,
+	{Kind: "ConfigMap"}: true,
+}
+
 // releaseGuard is a post-renderer that rejects a render containing a list,
 // an object of a kind the chart does not render, or an object outside the
-// release namespace. It decodes each document the way Helm does before
+// release namespace, unless elsewhere allows its kind in that namespace. It decodes each document the way Helm does before
 // applying it, and returns the manifests unchanged.
 //
 // It is a stopgap until tenant releases are applied by impersonating a
@@ -54,6 +61,7 @@ var workspaceKinds = map[schema.GroupKind]bool{
 type releaseGuard struct {
 	namespace string
 	kinds     map[schema.GroupKind]bool
+	elsewhere map[string]map[schema.GroupKind]bool
 }
 
 func (g releaseGuard) Run(manifests *bytes.Buffer) (*bytes.Buffer, error) {
@@ -82,7 +90,7 @@ func (g releaseGuard) Run(manifests *bytes.Buffer) (*bytes.Buffer, error) {
 			return nil, fmt.Errorf("release renders a disallowed object: %s %q", kind, object.GetName())
 		}
 
-		if namespace := object.GetNamespace(); namespace != "" && namespace != g.namespace {
+		if namespace := object.GetNamespace(); namespace != "" && namespace != g.namespace && !g.elsewhere[namespace][kind] {
 			return nil, fmt.Errorf("release renders %s %q into namespace %q", kind, object.GetName(), namespace)
 		}
 	}

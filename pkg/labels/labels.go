@@ -20,6 +20,8 @@ const (
 	CustomDomain        = Prefix + "custom-domain"
 	Agent               = Prefix + "agent"
 	AgentKey            = Prefix + "agent-key"
+	ChatApp             = Prefix + "chat-app"
+	AgentChannels       = Prefix + "agent-channels"
 )
 
 // Annotation keys for readable names. A resource without one is named by its id.

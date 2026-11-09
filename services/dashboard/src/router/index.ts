@@ -48,8 +48,13 @@ const router = createRouter({
           component: ProjectsPage,
         },
         {
-          path: ':workspace/~/connections/:kind(model-providers|connectors)/:name',
+          path: ':workspace/~/connections/:kind(model-providers|connectors|chat-apps)/:name',
           name: 'connection',
+          component: ProjectsPage,
+        },
+        {
+          path: ':workspace/~/add-channel',
+          name: 'add-channel',
           component: ProjectsPage,
         },
         {
@@ -78,7 +83,7 @@ const router = createRouter({
           beforeEnter: to => ({ name: 'workspace', params: { workspace: activeWorkspaceId(), drawer: legacyDrawer(to) } }),
         },
         {
-          path: 'connections/:kind(model-providers|connectors)/:name',
+          path: 'connections/:kind(model-providers|connectors|chat-apps)/:name',
           component: ProjectsPage,
           beforeEnter: to => ({ name: 'connection', params: { workspace: activeWorkspaceId(), kind: String(to.params.kind), name: String(to.params.name) } }),
         },
@@ -139,6 +144,27 @@ router.beforeEach((to) => {
 
 let workspaceChanged = false;
 
+const returnKey = 'lucity_return_to';
+
+function rememberReturn(path: string) {
+  if (path === '/') return;
+  try {
+    sessionStorage.setItem(returnKey, path);
+  } catch {
+    return;
+  }
+}
+
+function takeReturn(): string | null {
+  try {
+    const path = sessionStorage.getItem(returnKey);
+    sessionStorage.removeItem(returnKey);
+    return path;
+  } catch {
+    return null;
+  }
+}
+
 router.beforeEach(async (to) => {
   if (!to.meta.requiresAuth) return;
 
@@ -149,11 +175,18 @@ router.beforeEach(async (to) => {
   }
 
   if (!isAuthenticated.value) {
+    rememberReturn(to.fullPath);
     return { name: 'login' };
   }
 
   if (!activeWorkspace.value) {
     return { name: 'login', query: { error: 'no_workspace' } };
+  }
+
+  const returnTo = takeReturn();
+
+  if (returnTo && returnTo !== to.fullPath) {
+    return returnTo;
   }
 
   const workspace = to.params.workspace;

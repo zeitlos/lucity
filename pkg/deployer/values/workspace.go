@@ -14,6 +14,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/zeitlos/lucity/pkg/chat"
 	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/usererror"
 )
@@ -25,14 +26,23 @@ import (
 type Workspace struct {
 	Workspace      string                   `yaml:"workspace"`
 	Gateway        WorkspaceGateway         `yaml:"gateway"`
+	Switchboard    WorkspaceSwitchboard     `yaml:"switchboard"`
 	ModelProviders map[string]ModelProvider `yaml:"modelProviders"`
 	Connectors     map[string]Connector     `yaml:"connectors"`
+	ChatApps       map[string]ChatApp       `yaml:"chatApps"`
 	Agents         map[string]AgentGrant    `yaml:"agents"`
 }
 
 type WorkspaceGateway struct {
 	Name     string `yaml:"name"`
 	Listener string `yaml:"listener"`
+}
+
+// WorkspaceSwitchboard is where switchboard reads chat apps and agent
+// channels from: its own namespace, so it never sees the gateway's
+// credentials.
+type WorkspaceSwitchboard struct {
+	Namespace string `yaml:"namespace"`
 }
 
 type ModelAPI string
@@ -73,14 +83,35 @@ type ConnectorTool struct {
 	Description string `yaml:"description,omitempty"`
 }
 
+// ChatApp is a bot in a chat app that agents talk through: a Telegram bot, or
+// a bot account on a Mattermost server at URL. Account is the bot's handle.
+type ChatApp struct {
+	Kind       string           `yaml:"kind"`
+	URL        string           `yaml:"url,omitempty"`
+	Credential string           `yaml:"credential"`
+	Account    string           `yaml:"account"`
+	Status     CredentialStatus `yaml:"status"`
+	CheckedAt  string           `yaml:"checkedAt,omitempty"`
+}
+
+// AgentChannel is a place in a chat app an agent talks in: a Telegram chat or
+// a Mattermost channel, by the chat app's own ID. Name is how it read when it
+// was added.
+type AgentChannel struct {
+	ChatApp string `yaml:"chatApp"`
+	Channel string `yaml:"channel"`
+	Name    string `yaml:"name"`
+}
+
 // AgentGrant is an agent's entry in its workspace release: the hash of its
-// gateway key, the namespace the key is accepted from, and the connectors it
-// may call. Keyed by project/environment/agent.
+// gateway key, the namespace the key is accepted from, the connectors it may
+// call and the chat channels it talks in. Keyed by project/environment/agent.
 type AgentGrant struct {
 	KeyHash     string              `yaml:"keyHash"`
 	Namespace   string              `yaml:"namespace"`
 	Connectors  []string            `yaml:"connectors,omitempty"`
 	HiddenTools map[string][]string `yaml:"hiddenTools,omitempty"`
+	Channels    []AgentChannel      `yaml:"channels,omitempty"`
 }
 
 const (
@@ -90,11 +121,14 @@ const (
 	maxToolDescriptionLen = 1024
 	maxCredentialLen      = 4096
 	maxUpstreamURLLen     = 512
+	maxChatNameLen        = 256
+	maxChannels           = 64
 )
 
 var (
 	keyHashRe  = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 	toolNameRe = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,128}$`)
+	channelRe  = regexp.MustCompile(`^-?[A-Za-z0-9_]{1,64}$`)
 	urlPathRe  = regexp.MustCompile(`^(/[A-Za-z0-9._~!$&'()*+,;=:@%-]*)*$`)
 
 	internalSuffixes = []string{".local", ".localhost", ".internal", ".svc", ".home.arpa", ".lan"}
@@ -105,6 +139,7 @@ func NewWorkspace(workspace string) *Workspace {
 		Workspace:      workspace,
 		ModelProviders: map[string]ModelProvider{},
 		Connectors:     map[string]Connector{},
+		ChatApps:       map[string]ChatApp{},
 		Agents:         map[string]AgentGrant{},
 	}
 }
@@ -188,11 +223,60 @@ func DeleteConnector(ws *Workspace, name string) error {
 	return nil
 }
 
+func SetChatApp(ws *Workspace, name string, app ChatApp) error {
+	if ws.ChatApps == nil {
+		ws.ChatApps = map[string]ChatApp{}
+	}
+
+	ws.ChatApps[name] = app
+
+	return nil
+}
+
+// DeleteChatApp removes a chat app and every agent channel in it.
+func DeleteChatApp(ws *Workspace, name string) error {
+	if _, ok := ws.ChatApps[name]; !ok {
+		return usererror.Errorf("chat app %q not found", name)
+	}
+
+	delete(ws.ChatApps, name)
+
+	for key, grant := range ws.Agents {
+		grant.Channels = slices.DeleteFunc(slices.Clone(grant.Channels), func(c AgentChannel) bool { return c.ChatApp == name })
+		ws.Agents[key] = grant
+	}
+
+	return nil
+}
+
+// IsValidChannel reports whether channel can be a chat app's ID of a chat or
+// channel: a Telegram chat ID, or a Mattermost channel ID.
+func IsValidChannel(channel string) bool {
+	return channelRe.MatchString(channel)
+}
+
+// SetAgentGrant sets an agent's key and connectors. Its channels stay as they
+// are: only SetAgentChannels changes them, so neither overwrites the other.
 func SetAgentGrant(ws *Workspace, id platform.AgentID, grant AgentGrant) error {
 	if ws.Agents == nil {
 		ws.Agents = map[string]AgentGrant{}
 	}
 
+	grant.Channels = ws.Agents[AgentGrantKey(id)].Channels
+	ws.Agents[AgentGrantKey(id)] = grant
+
+	return nil
+}
+
+// SetAgentChannels replaces the chat channels an agent talks in.
+func SetAgentChannels(ws *Workspace, id platform.AgentID, channels []AgentChannel) error {
+	grant, ok := ws.Agents[AgentGrantKey(id)]
+
+	if !ok {
+		return usererror.Errorf("agent %q not found", id.Name)
+	}
+
+	grant.Channels = channels
 	ws.Agents[AgentGrantKey(id)] = grant
 
 	return nil
@@ -288,6 +372,47 @@ func ValidateWorkspace(ws *Workspace, workspace string) error {
 		}
 	}
 
+	if len(ws.ChatApps) > 0 && !isValidName(ws.Switchboard.Namespace) {
+		return fmt.Errorf("chat apps need the switchboard namespace, got %q", ws.Switchboard.Namespace)
+	}
+
+	for name, app := range ws.ChatApps {
+		if !isValidName(name) {
+			return usererror.Errorf("invalid chat app name %q", name)
+		}
+
+		switch app.Kind {
+		case chat.Telegram:
+			if app.URL != "" {
+				return usererror.Errorf("chat app %q: a Telegram bot has no server URL", name)
+			}
+		case chat.Mattermost:
+			if err := ValidateUpstreamURL(app.URL); err != nil {
+				return usererror.Errorf("chat app %q: %v", name, err)
+			}
+		default:
+			return usererror.Errorf("chat app %q: unsupported kind %q", name, app.Kind)
+		}
+
+		if app.Credential == "" {
+			return usererror.Errorf("chat app %q needs a token", name)
+		}
+
+		if err := validateCredential(app.Credential); err != nil {
+			return usererror.Errorf("chat app %q: %v", name, err)
+		}
+
+		if !isPrintable(app.Account, maxChatNameLen) {
+			return fmt.Errorf("chat app %q: invalid account %q", name, app.Account)
+		}
+
+		if err := validateCheck(app.Status, app.CheckedAt); err != nil {
+			return fmt.Errorf("chat app %q: %w", name, err)
+		}
+	}
+
+	channelOwners := map[AgentChannel]string{}
+
 	for key, grant := range ws.Agents {
 		parts := strings.Split(key, "/")
 
@@ -329,6 +454,32 @@ func ValidateWorkspace(ws *Workspace, workspace string) error {
 					return usererror.Errorf("agent %q: invalid tool name %q", parts[2], tool)
 				}
 			}
+		}
+
+		if len(grant.Channels) > maxChannels {
+			return usererror.Errorf("agent %q is in more than %d channels", parts[2], maxChannels)
+		}
+
+		for _, channel := range grant.Channels {
+			if _, ok := ws.ChatApps[channel.ChatApp]; !ok {
+				return usererror.Errorf("agent %q: unknown chat app %q", parts[2], channel.ChatApp)
+			}
+
+			if !IsValidChannel(channel.Channel) {
+				return usererror.Errorf("agent %q: invalid channel %q", parts[2], channel.Channel)
+			}
+
+			if !isPrintable(channel.Name, maxChatNameLen) {
+				return usererror.Errorf("agent %q: invalid channel name %q", parts[2], channel.Name)
+			}
+
+			place := AgentChannel{ChatApp: channel.ChatApp, Channel: channel.Channel}
+
+			if owner, ok := channelOwners[place]; ok {
+				return usererror.Errorf("%q in chat app %q is already a channel of agent %q", channel.Name, channel.ChatApp, owner)
+			}
+
+			channelOwners[place] = parts[2]
 		}
 	}
 

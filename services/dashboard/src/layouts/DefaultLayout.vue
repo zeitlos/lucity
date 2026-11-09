@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { RouterLink, RouterView, useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
-import { BookOpen, Bug, Download, Lightbulb, LogOut } from '@lucide/vue';
+import { BookOpen, Bug, Download, Lightbulb, Link2, LogOut } from '@lucide/vue';
 import { useAuth } from '@/composables/useAuth';
 import { useWorkspaceColor } from '@/composables/useWorkspaceColor';
 import { useReportBug } from '@/composables/useReportBug';
@@ -31,6 +31,7 @@ import BaseLogo from '@/components/BaseLogo.vue';
 import CommandPalette from '@/components/CommandPalette.vue';
 import ContextBar from '@/components/ContextBar.vue';
 import ContextNav from '@/components/ContextNav.vue';
+import LinkedAccountsDialog from '@/components/LinkedAccountsDialog.vue';
 import MenuIcon from '@/components/MenuIcon.vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 import SuspensionBanner from '@/components/SuspensionBanner.vue';
@@ -51,6 +52,7 @@ const { workspaceColor } = useWorkspaceColor();
 const { report, requestFeature } = useReportBug();
 const { flex: logoFlex, flexTo: flexLogo } = useLogoFlex();
 const { agents } = useCapabilities();
+const linkedAccountsOpen = ref(false);
 const { result: wsResult } = useQuery(WorkspaceDocument, null, { fetchPolicy: 'cache-and-network' });
 const workspace = computed(() => wsResult.value?.workspace ?? null);
 const suspended = computed(() => workspace.value?.suspended ?? false);
@@ -137,6 +139,15 @@ async function handleLogout() {
                   </div>
                 </div>
 
+                <DropdownMenuItem
+                  v-if="agents"
+                  class="h-9 gap-2.5 rounded-xl px-1.5 text-sm"
+                  @select="linkedAccountsOpen = true"
+                >
+                  <MenuIcon :icon="Link2" />
+                  Linked accounts
+                </DropdownMenuItem>
+
                 <template v-if="workspace">
                   <DropdownMenuSeparator class="mx-1 mb-1.5 mt-0" />
                   <div class="flex h-9 items-center gap-2.5 px-1.5">
@@ -195,6 +206,8 @@ async function handleLogout() {
           </DropdownMenu>
         </div>
       </header>
+
+      <LinkedAccountsDialog v-if="agents" v-model:open="linkedAccountsOpen" />
 
       <main class="flex min-h-0 flex-1 flex-col pb-2 max-md:pb-0">
         <RouterView />

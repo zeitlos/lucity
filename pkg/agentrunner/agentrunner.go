@@ -225,18 +225,21 @@ func (c *Client) Session(ctx context.Context, id platform.AgentSessionID) (*Sess
 }
 
 type StartRequest struct {
-	Message   string `json:"message"`
-	Model     Model  `json:"model"`
-	Effort    string `json:"effort"`
-	StartedBy string `json:"startedBy"`
+	Message   string  `json:"message"`
+	Model     *Model  `json:"model,omitempty"`
+	Effort    string  `json:"effort,omitempty"`
+	StartedBy string  `json:"startedBy"`
+	Origin    *Origin `json:"origin,omitempty"`
 }
 
 func (c *Client) StartSession(ctx context.Context, agent platform.AgentID, request StartRequest) (*Session, error) {
 	return c.session(ctx, agent, http.MethodPost, []string{"sessions"}, request, maxBody)
 }
 
-func (c *Client) SendMessage(ctx context.Context, id platform.AgentSessionID, message, author string) (*Session, error) {
-	return c.session(ctx, id.Agent, http.MethodPost, []string{"sessions", id.Session, "messages"}, map[string]string{"message": message, "author": author}, maxBody)
+// SendMessage sends a message to a session. via is the chat it came through,
+// or nil for one sent in Lucity.
+func (c *Client) SendMessage(ctx context.Context, id platform.AgentSessionID, message, author string, via *Origin) (*Session, error) {
+	return c.session(ctx, id.Agent, http.MethodPost, []string{"sessions", id.Session, "messages"}, map[string]any{"message": message, "author": author, "via": via}, maxBody)
 }
 
 func (c *Client) SetModel(ctx context.Context, id platform.AgentSessionID, model Model, effort string) (*Session, error) {
