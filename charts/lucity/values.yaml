@@ -228,7 +228,7 @@ networkPolicy:
 
 # -- Docs
 docs:
-  replicaCount: 1
+  replicaCount: 2
   image:
     repository: ghcr.io/zeitlos/lucity/docs
     tag: ""
