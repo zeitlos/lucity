@@ -882,6 +882,12 @@ victoria-metrics-alert:
                 labels: { severity: warning }
                 annotations:
                   summary: "Cannot connect to platform service {{ $labels.envoy_cluster_name }} ({{ $value | humanize }}/s)"
+              - alert: CiliumOperatorDegraded
+                expr: max by (k8s_pod_name) (cilium_hive_status{status="degraded"}) > 0
+                for: 10m
+                labels: { severity: critical }
+                annotations:
+                  summary: "cilium-operator {{ $labels.k8s_pod_name }} is degraded: new routes and custom domains may not reach the gateway until it is restarted"
           - name: load-balancers
             rules:
               # Hard per-type ceiling (lb11 = 10,000) past which new connections
@@ -1202,6 +1208,7 @@ alertingTelegram:
 # -- Logto Identity Provider (OIDC + Organizations)
 logto:
   enabled: false
+  replicaCount: 2
   image:
     repository: ghcr.io/logto-io/logto
     tag: "1.44.0"
