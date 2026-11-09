@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useMutation, useQuery } from '@vue/apollo-composable';
-import { Check, Hash, MessageSquare } from '@lucide/vue';
+import { Check, Hash, MessageSquare, RotateCw } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { ChatAppKind } from '@/gql/graphql';
 import { chatAppKindLabel, type Agent } from '@/lib/agents';
 import { mobileSheetClass } from '@/lib/dialog';
 import CopyButton from '@/components/CopyButton.vue';
+import IconButton from '@/components/IconButton.vue';
 import DialogIcon from '@/components/DialogIcon.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import QueryError from '@/components/QueryError.vue';
@@ -161,7 +162,19 @@ async function add() {
           </div>
 
           <div v-if="isMattermost" class="space-y-2">
-            <p class="text-sm font-medium text-foreground">Channel</p>
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-sm font-medium text-foreground">Channel</p>
+              <IconButton
+                type="button"
+                label="Refresh channels"
+                size="icon-xs"
+                class="shrink-0"
+                :pending="channelsLoading"
+                @click="refetchChannels()"
+              >
+                <RotateCw />
+              </IconButton>
+            </div>
             <div v-if="channelsLoading && !channelsResult" class="divide-y overflow-hidden rounded-lg border">
               <div v-for="width in ['w-20', 'w-28', 'w-16']" :key="width" class="flex items-center gap-3 px-3 py-2">
                 <Skeleton class="size-4 rounded-sm" />
@@ -200,7 +213,7 @@ async function add() {
                 <p class="text-sm leading-relaxed">Send this in the group.</p>
                 <div class="flex items-center gap-2 rounded-md bg-muted/40 py-1.5 pr-1.5 pl-3">
                   <span class="min-w-0 flex-1 truncate font-mono text-sm">{{ connectCommand }}</span>
-                  <CopyButton :value="connectCommand" label="Copy command" />
+                  <CopyButton type="button" :value="connectCommand" label="Copy command" />
                 </div>
               </div>
             </li>
