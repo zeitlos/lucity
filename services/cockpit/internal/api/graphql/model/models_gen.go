@@ -27,6 +27,15 @@ type Billing struct {
 	SubscriptionURL string `json:"subscriptionURL"`
 }
 
+// A version of the app chart and the environments that run it.
+type ChartVersion struct {
+	Version string `json:"version"`
+	// Environments whose deployed release runs this version.
+	Releases int `json:"releases"`
+	// When the oldest of those releases was deployed.
+	Since time.Time `json:"since"`
+}
+
 type Environment struct {
 	// The environment as `workspace/project/environment`.
 	ID          string    `json:"id"`
@@ -35,6 +44,40 @@ type Environment struct {
 	RunningPods int       `json:"runningPods"`
 	PendingPods int       `json:"pendingPods"`
 	Services    []Service `json:"services"`
+}
+
+// How much of something is in use.
+type Limit struct {
+	Name  string    `json:"name"`
+	Unit  LimitUnit `json:"unit"`
+	Value float64   `json:"value"`
+	// Null when the provider's cap is unknown.
+	Cap *float64 `json:"cap,omitempty"`
+	// Values over the last 30 days, oldest first.
+	History []Point `json:"history"`
+}
+
+// The limits of one provider or resource.
+type LimitGroup struct {
+	Name   string  `json:"name"`
+	Limits []Limit `json:"limits"`
+}
+
+type LogHour struct {
+	Start    time.Time `json:"start"`
+	Errors   int       `json:"errors"`
+	Warnings int       `json:"warnings"`
+}
+
+// One message of one service at one level.
+type LogMessage struct {
+	Level    LogLevel `json:"level"`
+	Message  string   `json:"message"`
+	Service  string   `json:"service"`
+	Count24h int      `json:"count24h"`
+	Count7d  int      `json:"count7d"`
+	// Reaches back at most 30 days.
+	FirstSeenAt time.Time `json:"firstSeenAt"`
 }
 
 type Member struct {
@@ -55,7 +98,93 @@ type Member struct {
 type Mutation struct {
 }
 
+// One node's room. Requests count every pod that isn't finished. Memory is in bytes, CPU in cores.
+type Node struct {
+	Name              string    `json:"name"`
+	InstanceType      string    `json:"instanceType"`
+	CreatedAt         time.Time `json:"createdAt"`
+	AttachedVolumes   int       `json:"attachedVolumes"`
+	VolumeLimit       int       `json:"volumeLimit"`
+	Pods              int       `json:"pods"`
+	PodLimit          int       `json:"podLimit"`
+	MemoryAllocatable int       `json:"memoryAllocatable"`
+	MemoryRequested   int       `json:"memoryRequested"`
+	// Null when the metrics have no recent sample.
+	MemoryUsed     *int    `json:"memoryUsed,omitempty"`
+	CPUAllocatable float64 `json:"cpuAllocatable"`
+	CPURequested   float64 `json:"cpuRequested"`
+	// Null when the metrics have no recent sample.
+	CPUUsed *float64 `json:"cpuUsed,omitempty"`
+}
+
+// Nodes that share a node-pool label.
+type NodePool struct {
+	// Empty for nodes without a node-pool label.
+	Name  string `json:"name"`
+	Nodes []Node `json:"nodes"`
+}
+
+// Errors and warnings of the platform services.
+type PlatformLogs struct {
+	// The last 24 hours, oldest first. The last hour is the current one, so far.
+	Hours       []LogHour `json:"hours"`
+	Errors24h   int       `json:"errors24h"`
+	Errors7d    int       `json:"errors7d"`
+	Warnings24h int       `json:"warnings24h"`
+	Warnings7d  int       `json:"warnings7d"`
+	// Messages seen over the last 7 days, most frequent in the last 24 hours first, at most 20.
+	Messages []LogMessage `json:"messages"`
+}
+
+// What runs on the cluster now. Each trend holds the hourly values of the last 24 hours, oldest first.
+type PlatformTotals struct {
+	RunningPods int `json:"runningPods"`
+	PendingPods int `json:"pendingPods"`
+	// Failed pods outside of Jobs. Build, deploy and scan attempts are left out.
+	FailedPods        int `json:"failedPods"`
+	RunningContainers int `json:"runningContainers"`
+	// Workspaces with at least one running pod.
+	RunningWorkspaces int `json:"runningWorkspaces"`
+	Workspaces        int `json:"workspaces"`
+	// Environment releases.
+	Releases int `json:"releases"`
+	// Environment releases whose newest revision failed.
+	FailedReleases int `json:"failedReleases"`
+	// Names of the alerts firing now.
+	FiringAlerts           []string  `json:"firingAlerts"`
+	RunningPodsTrend       []float64 `json:"runningPodsTrend"`
+	RunningContainersTrend []float64 `json:"runningContainersTrend"`
+	RunningWorkspacesTrend []float64 `json:"runningWorkspacesTrend"`
+	ReleasesTrend          []float64 `json:"releasesTrend"`
+	FiringAlertsTrend      []float64 `json:"firingAlertsTrend"`
+}
+
+type Point struct {
+	Time  time.Time `json:"time"`
+	Value float64   `json:"value"`
+}
+
 type Query struct {
+}
+
+// A background loop of the platform, such as the release pass.
+type Routine struct {
+	// The loop's name in the metrics, such as `releases`.
+	Name string `json:"name"`
+	// Passes per hour over the last 24 hours, oldest first. The last hour is the current one, so far.
+	Hours []RoutineHour `json:"hours"`
+	// Average duration of a pass over the last 24 hours, in seconds. Null without passes.
+	AverageDuration *float64 `json:"averageDuration,omitempty"`
+	// The average against the 7 days before the last 24 hours, as a ratio: 0.5 is 50% slower. Null without passes in either window.
+	AverageDurationChange *float64 `json:"averageDurationChange,omitempty"`
+	// Null when it hasn't passed in the last 7 days.
+	LastPassedAt *time.Time `json:"lastPassedAt,omitempty"`
+}
+
+type RoutineHour struct {
+	Start  time.Time `json:"start"`
+	Passed int       `json:"passed"`
+	Failed int       `json:"failed"`
 }
 
 type Service struct {
@@ -154,6 +283,116 @@ type WorkspaceStanding struct {
 	Good    int       `json:"good"`
 	Billing int       `json:"billing"`
 	Abuse   int       `json:"abuse"`
+}
+
+type LimitUnit string
+
+const (
+	LimitUnitCount LimitUnit = "COUNT"
+	LimitUnitBytes LimitUnit = "BYTES"
+)
+
+var AllLimitUnit = []LimitUnit{
+	LimitUnitCount,
+	LimitUnitBytes,
+}
+
+func (e LimitUnit) IsValid() bool {
+	switch e {
+	case LimitUnitCount, LimitUnitBytes:
+		return true
+	}
+	return false
+}
+
+func (e LimitUnit) String() string {
+	return string(e)
+}
+
+func (e *LimitUnit) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = LimitUnit(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid LimitUnit", str)
+	}
+	return nil
+}
+
+func (e LimitUnit) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *LimitUnit) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e LimitUnit) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type LogLevel string
+
+const (
+	LogLevelError LogLevel = "ERROR"
+	LogLevelWarn  LogLevel = "WARN"
+)
+
+var AllLogLevel = []LogLevel{
+	LogLevelError,
+	LogLevelWarn,
+}
+
+func (e LogLevel) IsValid() bool {
+	switch e {
+	case LogLevelError, LogLevelWarn:
+		return true
+	}
+	return false
+}
+
+func (e LogLevel) String() string {
+	return string(e)
+}
+
+func (e *LogLevel) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = LogLevel(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid LogLevel", str)
+	}
+	return nil
+}
+
+func (e LogLevel) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *LogLevel) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e LogLevel) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
 }
 
 type PaymentMethod string

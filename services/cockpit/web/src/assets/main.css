@@ -20,6 +20,13 @@
     --status-danger-background: oklch(0.92 0.045 25);
     --status-progress: oklch(0.50 0.20 300);
 
+    --ink: oklch(0.22 0.02 55);
+    --ink-foreground: oklch(0.96 0.02 80);
+    --ink-muted-foreground: oklch(0.77 0.03 70);
+
+    --environment-dev: oklch(0.56 0.13 245);
+    --environment-prod: oklch(0.56 0.21 25);
+
     --radius: 0.875rem;
 
     --shadow-xs: 0 2px 12px -3px oklch(0.50 0.02 55 / 0.08);
@@ -52,6 +59,11 @@
   --color-status-danger: var(--status-danger);
   --color-status-danger-background: var(--status-danger-background);
   --color-status-progress: var(--status-progress);
+  --color-ink: var(--ink);
+  --color-ink-foreground: var(--ink-foreground);
+  --color-ink-muted-foreground: var(--ink-muted-foreground);
+  --color-environment-dev: var(--environment-dev);
+  --color-environment-prod: var(--environment-prod);
   --font-sans: 'Sora', system-ui, sans-serif;
   --font-mono: 'Fira Code', monospace;
   --radius-xs: calc(var(--radius) - 8px);

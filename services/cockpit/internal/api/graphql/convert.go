@@ -242,3 +242,164 @@ func optionalTime(value time.Time) *time.Time {
 	}
 	return &value
 }
+
+func convertTotals(totals cockpit.Totals) *model.PlatformTotals {
+	return &model.PlatformTotals{
+		RunningPods:            totals.RunningPods,
+		PendingPods:            totals.PendingPods,
+		FailedPods:             totals.FailedPods,
+		RunningContainers:      totals.RunningContainers,
+		RunningWorkspaces:      totals.RunningWorkspaces,
+		Workspaces:             totals.Workspaces,
+		Releases:               totals.Releases,
+		FailedReleases:         totals.FailedReleases,
+		FiringAlerts:           totals.FiringAlerts,
+		RunningPodsTrend:       totals.RunningPodsTrend,
+		RunningContainersTrend: totals.RunningContainersTrend,
+		RunningWorkspacesTrend: totals.RunningWorkspacesTrend,
+		ReleasesTrend:          totals.ReleasesTrend,
+		FiringAlertsTrend:      totals.FiringAlertsTrend,
+	}
+}
+
+func convertRoutines(routines []cockpit.Routine) []model.Routine {
+	result := make([]model.Routine, 0, len(routines))
+
+	for _, routine := range routines {
+		converted := model.Routine{
+			Name:                  routine.Name,
+			Hours:                 make([]model.RoutineHour, 0, len(routine.Hours)),
+			AverageDurationChange: routine.AverageDurationChange,
+			LastPassedAt:          routine.LastPassedAt,
+		}
+
+		if routine.AverageDuration != nil {
+			seconds := routine.AverageDuration.Seconds()
+			converted.AverageDuration = &seconds
+		}
+
+		for _, hour := range routine.Hours {
+			converted.Hours = append(converted.Hours, model.RoutineHour{Start: hour.Start, Passed: hour.Passed, Failed: hour.Failed})
+		}
+
+		result = append(result, converted)
+	}
+
+	return result
+}
+
+func convertLimitGroups(groups []cockpit.LimitGroup) []model.LimitGroup {
+	result := make([]model.LimitGroup, 0, len(groups))
+
+	for _, group := range groups {
+		converted := model.LimitGroup{Name: group.Name, Limits: make([]model.Limit, 0, len(group.Limits))}
+
+		for _, limit := range group.Limits {
+			history := make([]model.Point, 0, len(limit.History))
+
+			for _, point := range limit.History {
+				history = append(history, model.Point{Time: point.Time, Value: point.Value})
+			}
+
+			converted.Limits = append(converted.Limits, model.Limit{
+				Name:    limit.Name,
+				Unit:    convertLimitUnit(limit.Unit),
+				Value:   limit.Value,
+				Cap:     limit.Cap,
+				History: history,
+			})
+		}
+
+		result = append(result, converted)
+	}
+
+	return result
+}
+
+func convertLimitUnit(unit cockpit.LimitUnit) model.LimitUnit {
+	if unit == cockpit.LimitUnitBytes {
+		return model.LimitUnitBytes
+	}
+
+	return model.LimitUnitCount
+}
+
+func convertNodePools(pools []cockpit.NodePool) []model.NodePool {
+	result := make([]model.NodePool, 0, len(pools))
+
+	for _, pool := range pools {
+		converted := model.NodePool{Name: pool.Name, Nodes: make([]model.Node, 0, len(pool.Nodes))}
+
+		for _, node := range pool.Nodes {
+			item := model.Node{
+				Name:              node.Name,
+				InstanceType:      node.InstanceType,
+				CreatedAt:         node.CreatedAt,
+				AttachedVolumes:   node.AttachedVolumes,
+				VolumeLimit:       node.VolumeLimit,
+				Pods:              node.Pods,
+				PodLimit:          node.PodLimit,
+				MemoryAllocatable: int(node.MemoryAllocatable),
+				MemoryRequested:   int(node.MemoryRequested),
+				CPUAllocatable:    node.CPUAllocatable,
+				CPURequested:      node.CPURequested,
+				CPUUsed:           node.CPUUsed,
+			}
+
+			if node.MemoryUsed != nil {
+				used := int(*node.MemoryUsed)
+				item.MemoryUsed = &used
+			}
+
+			converted.Nodes = append(converted.Nodes, item)
+		}
+
+		result = append(result, converted)
+	}
+
+	return result
+}
+
+func convertPlatformLogs(logs cockpit.PlatformLogs) *model.PlatformLogs {
+	result := &model.PlatformLogs{
+		Hours:       make([]model.LogHour, 0, len(logs.Hours)),
+		Errors24h:   logs.Errors24h,
+		Errors7d:    logs.Errors7d,
+		Warnings24h: logs.Warnings24h,
+		Warnings7d:  logs.Warnings7d,
+		Messages:    make([]model.LogMessage, 0, len(logs.Messages)),
+	}
+
+	for _, hour := range logs.Hours {
+		result.Hours = append(result.Hours, model.LogHour{Start: hour.Start, Errors: hour.Errors, Warnings: hour.Warnings})
+	}
+
+	for _, message := range logs.Messages {
+		level := model.LogLevelWarn
+
+		if message.Level == cockpit.LogLevelError {
+			level = model.LogLevelError
+		}
+
+		result.Messages = append(result.Messages, model.LogMessage{
+			Level:       level,
+			Message:     message.Message,
+			Service:     message.Service,
+			Count24h:    message.Count24h,
+			Count7d:     message.Count7d,
+			FirstSeenAt: message.FirstSeenAt,
+		})
+	}
+
+	return result
+}
+
+func convertChartVersions(versions []cockpit.ChartVersion) []model.ChartVersion {
+	result := make([]model.ChartVersion, 0, len(versions))
+
+	for _, version := range versions {
+		result = append(result, model.ChartVersion{Version: version.Version, Releases: version.Releases, Since: version.Since})
+	}
+
+	return result
+}

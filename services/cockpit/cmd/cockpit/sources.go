@@ -16,6 +16,7 @@ import (
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8slabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/metadata"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/portforward"
@@ -26,6 +27,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/victoria"
 	"github.com/zeitlos/lucity/services/cockpit/internal/cockpit"
 	"github.com/zeitlos/lucity/services/cockpit/internal/rybbit"
+	"github.com/zeitlos/lucity/services/cockpit/internal/victorialogs"
 )
 
 const (
@@ -34,6 +36,8 @@ const (
 	identityPort      = 3001
 	metricsService    = "lucity-infra-victoria-metrics-single-server"
 	metricsPort       = 8428
+	logsService       = "lucity-infra-victoria-logs-single-server"
+	logsPort          = 9428
 	analyticsSite     = 1
 )
 
@@ -100,6 +104,12 @@ func connect(ctx context.Context, environment, deployments string) (*cockpit.Cli
 		return nil, err
 	}
 
+	objects, err := metadata.NewForConfig(config)
+
+	if err != nil {
+		return nil, err
+	}
+
 	identityURL, err := forward(ctx, config, kube, identityService, identityPort)
 
 	if err != nil {
@@ -116,6 +126,14 @@ func connect(ctx context.Context, environment, deployments string) (*cockpit.Cli
 
 	if err != nil {
 		return nil, err
+	}
+
+	var logs *victorialogs.Client
+
+	if logsURL, err := forward(ctx, config, kube, logsService, logsPort); err == nil {
+		logs = victorialogs.New(logsURL)
+	} else {
+		slog.Warn("platform logs are unavailable", "environment", environment, "error", err)
 	}
 
 	token, err := exec.CommandContext(ctx, "gh", "auth", "token").Output()
@@ -151,7 +169,7 @@ func connect(ctx context.Context, environment, deployments string) (*cockpit.Cli
 		return nil, err
 	}
 
-	return cockpit.New(environment, filepath.Join(cacheDirectory, "lucity-cockpit"), identity, billingClient, kube, metrics, github, analytics, stripeAccount), nil
+	return cockpit.New(environment, filepath.Join(cacheDirectory, "lucity-cockpit"), identity, billingClient, kube, objects, metrics, logs, github, analytics, stripeAccount), nil
 }
 
 func analyticsClient(directory string) (*rybbit.Client, error) {

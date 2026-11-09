@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
+import { computed, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, useTemplateRef, watch, watchEffect } from 'vue';
 import { useMutation, useQuery } from '@vue/apollo-composable';
 import { ArrowDown, ArrowUp, Ban, ChevronLeft, Copy, CreditCard, RefreshCw, Search, X } from '@lucide/vue';
 
@@ -11,6 +11,7 @@ import TrendCharts from '@/components/TrendCharts.vue';
 import UserDrawer from '@/components/UserDrawer.vue';
 import WorkspacePeek from '@/components/WorkspacePeek.vue';
 import { Plan } from '@/gql/graphql';
+import { dock } from '@/lib/dock';
 import { age, gigabytes, loadedTime, memory, relativeTime } from '@/lib/format';
 import { displayName, findUser } from '@/lib/users';
 import {
@@ -303,14 +304,28 @@ const filterBarObserver = new ResizeObserver(([entry]) => {
   filterBarHeight.value = entry!.borderBoxSize[0]!.blockSize;
 });
 
-onMounted(() => {
-  window.addEventListener('keydown', onKeydown);
-  filterBarObserver.observe(filterBar.value!);
+const active = ref(false);
+
+watchEffect(() => {
+  if (!active.value) return;
+
+  dock.hidden = selected.value.size > 0;
+  dock.right = drawers.value.length ? 480 : 0;
 });
 
-onBeforeUnmount(() => {
+onMounted(() => filterBarObserver.observe(filterBar.value!));
+onBeforeUnmount(() => filterBarObserver.disconnect());
+
+onActivated(() => {
+  active.value = true;
+  window.addEventListener('keydown', onKeydown);
+});
+
+onDeactivated(() => {
+  active.value = false;
+  dock.hidden = false;
+  dock.right = 0;
   window.removeEventListener('keydown', onKeydown);
-  filterBarObserver.disconnect();
 });
 </script>
 
