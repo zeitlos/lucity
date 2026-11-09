@@ -140,6 +140,17 @@ spec:
                 - source_labels: [__meta_kubernetes_pod_label_k8s_app, __meta_kubernetes_pod_container_port_name]
                   regex: cilium;hubble-metrics
                   action: keep
+            - job_name: cilium-operator
+              scrape_interval: 30s
+              {{- include "lucity-infra.otel.nodeLocalPods" "kube-system" | nindent 14 }}
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_pod_label_io_cilium_app, __meta_kubernetes_pod_container_port_name]
+                  regex: operator;prometheus
+                  action: keep
+              metric_relabel_configs:
+                - source_labels: [__name__]
+                  regex: cilium_hive_status
+                  action: keep
             - job_name: cert-manager
               scrape_interval: 60s
               {{- include "lucity-infra.otel.nodeLocalPods" "cert-manager" | nindent 14 }}
