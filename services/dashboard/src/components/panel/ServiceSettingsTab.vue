@@ -1539,7 +1539,7 @@ async function handleRemoveService() {
                     {{ hostnameError }}
                   </p>
                   <p v-else-if="isApexInput && !redirectEnabled" class="px-1 text-xs text-muted-foreground">
-                    An apex domain needs an ALIAS record at your DNS provider. If yours does not support that, redirect it to a subdomain instead.
+                    An apex domain needs an ALIAS or ANAME record, or a CNAME on the root domain where your DNS provider allows one, like Cloudflare. If it has neither, redirect the domain to a subdomain.
                   </p>
                 </div>
                 <div class="flex flex-wrap items-center gap-3">
@@ -1620,7 +1620,7 @@ async function handleRemoveService() {
                 :key="record.type + record.host + record.value"
                 class="rounded-md border bg-muted/30 px-3 py-2 text-xs"
               >
-                <p class="mb-1 font-mono font-semibold">{{ record.type }}</p>
+                <p class="mb-1 font-mono font-semibold">{{ record.type === DnsRecordType.Alias ? 'ALIAS or CNAME' : record.type }}</p>
                 <div class="grid grid-cols-[3rem_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1">
                   <span class="text-muted-foreground">Name</span>
                   <span class="min-w-0 break-all font-mono">{{ record.host }}</span>
@@ -1636,7 +1636,7 @@ async function handleRemoveService() {
               v-if="recordsEndpoint.dns.requiredRecords.some(r => r.type === DnsRecordType.Alias)"
               class="text-xs text-muted-foreground"
             >
-              ALIAS, ANAME or CNAME flattening, depending on your DNS provider. Without that support, redirect the domain to a subdomain instead.
+              Use an ALIAS or ANAME record if your DNS provider has one. If it allows a CNAME on the root domain, like Cloudflare, add a CNAME. If it has neither, redirect the domain to a subdomain.
             </p>
           </div>
           <div v-else class="flex items-center justify-center py-6">
