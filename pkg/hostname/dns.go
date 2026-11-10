@@ -201,7 +201,7 @@ func firstAnswer[T any](ctx context.Context, servers []string, lookup func(conte
 func authoritativeServers(ctx context.Context, host string) ([]string, error) {
 	sys := net.Resolver{}
 
-	for name := strings.TrimSuffix(host, "."); name != ""; name = parentDomain(name) {
+	for name := strings.TrimSuffix(host, "."); name != "" && !isRegistrySuffix(name); name = parentDomain(name) {
 		nameservers, err := sys.LookupNS(ctx, name)
 
 		if err != nil {

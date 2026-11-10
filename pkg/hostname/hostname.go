@@ -86,6 +86,12 @@ func registrableDomain(host string) string {
 	return domain
 }
 
+func isRegistrySuffix(name string) bool {
+	suffix, icann := publicsuffix.PublicSuffix(name)
+
+	return icann && suffix == name
+}
+
 func isApex(host string) bool {
 	return registrableDomain(host) == strings.TrimSuffix(host, ".")
 }
