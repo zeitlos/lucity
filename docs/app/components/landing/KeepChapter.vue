@@ -31,10 +31,10 @@ const folderPath = 'M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-
     </LandingChapterHeading>
 
     <LandingStage tint="keep" class="mt-14 flex flex-wrap items-end gap-x-10 gap-y-7 px-4 pt-11 sm:px-10">
-      <div class="min-w-0 flex-[1.5_1_460px] self-center pb-11">
+      <div class="min-w-0 flex-[1.5_1_460px] self-center pb-2 xl:pb-11">
         <img src="/img/landing/sketch-eject.svg" alt="Your project on Lucity, and the same project as a copy running anywhere else, carried over as one zip" width="760" height="300" class="mx-auto block h-auto w-full max-w-[820px]">
-        <p class="mt-5 flex items-center justify-center gap-2.5 text-lg font-medium text-[oklch(0.32_0.05_0)]">
-          <UIcon name="i-lucide-check" class="size-4 shrink-0 text-[oklch(0.50_0.18_0)]" />
+        <p class="mt-5 flex items-start gap-2.5 text-lg font-medium text-[oklch(0.32_0.05_0)] sm:items-center sm:justify-center">
+          <UIcon name="i-lucide-check" class="mt-1.5 size-4 shrink-0 text-[oklch(0.50_0.18_0)] sm:mt-0" />
           No account, no license key, no call home.
         </p>
       </div>
@@ -58,7 +58,7 @@ const folderPath = 'M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-
             </span>
             <span>{{ entry.note }}</span>
           </div>
-          <div v-for="filler in 3" :key="filler" class="finder-row" aria-hidden="true"><span /><span /></div>
+          <div v-for="filler in 3" :key="filler" class="finder-row filler" aria-hidden="true"><span /><span /></div>
         </div>
       </div>
     </LandingStage>
@@ -161,7 +161,8 @@ const folderPath = 'M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-
   }
 
   .finder-head > span:last-child,
-  .finder-row > span:last-child {
+  .finder-row > span:last-child,
+  .filler + .filler {
     display: none;
   }
 }

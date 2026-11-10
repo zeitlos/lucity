@@ -162,6 +162,13 @@ const current = computed(() => parts[open.value]!);
   min-height: 640px;
 }
 
+@media (max-width: 767px) {
+  .scene {
+    min-height: 0;
+    gap: 28px;
+  }
+}
+
 .sketch {
   display: block;
   width: min(100%, 370px);

@@ -125,8 +125,8 @@ onBeforeUnmount(() => {
     class="site-footer px-6"
     :class="plain ? 'pt-20 pb-16' : 'dark relative isolate overflow-hidden bg-stone-950 pb-9'"
   >
-    <div v-if="!plain" class="site-footer__dusk pointer-events-none absolute inset-x-0 top-0 -z-20 h-195" aria-hidden="true" />
-    <svg v-if="!plain" class="site-footer__grain pointer-events-none absolute top-0 left-0 -z-10 h-195 w-full" aria-hidden="true">
+    <div v-if="!plain" class="site-footer__dusk pointer-events-none absolute inset-x-0 top-0 -z-20 h-150 sm:h-195" aria-hidden="true" />
+    <svg v-if="!plain" class="site-footer__grain pointer-events-none absolute top-0 left-0 -z-10 h-150 w-full sm:h-195" aria-hidden="true">
       <filter id="site-footer-grain" x="0" y="0" width="100%" height="100%">
         <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch" />
         <feColorMatrix type="matrix" values="0.33 0.33 0.33 0 0 0.33 0.33 0.33 0 0 0.33 0.33 0.33 0 0 0 0 0 0 1" />
@@ -135,7 +135,7 @@ onBeforeUnmount(() => {
     </svg>
 
     <div class="mx-auto max-w-content">
-      <div v-if="!plain" class="pt-125 text-center">
+      <div v-if="!plain" class="pt-90 text-center sm:pt-125">
         <p class="mx-auto font-display text-4xl leading-tight text-balance text-stone-50 sm:text-5xl sm:leading-tight lg:text-6xl lg:leading-tight">
           Don’t <span class="whitespace-nowrap">half-ass</span> your DevOps.
         </p>
@@ -159,7 +159,7 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <nav aria-label="Footer" class="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-3 lg:grid-cols-5" :class="{ 'mt-34': !plain }">
+      <nav aria-label="Footer" class="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-3 lg:grid-cols-5" :class="{ 'mt-24 sm:mt-34': !plain }">
         <div v-for="column in columns" :key="column.title">
           <h2 class="text-base font-semibold text-neutral-900 dark:text-neutral-100">
             {{ column.title }}

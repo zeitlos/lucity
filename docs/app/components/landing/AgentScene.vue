@@ -441,6 +441,17 @@ const github = 'M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6
   }
 }
 
+@media (max-width: 520px) {
+  .ag-row > img {
+    width: 76px;
+  }
+
+  .bb {
+    padding: 0 14px;
+    white-space: nowrap;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ag * {
     animation: none !important;

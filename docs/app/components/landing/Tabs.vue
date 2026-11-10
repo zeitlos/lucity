@@ -57,6 +57,22 @@ const selected = defineModel<number>({ required: true });
   box-shadow: 0 1px 2px oklch(0.25 0.04 55 / .14), 0 0 0 1px oklch(0.25 0.04 55 / .08);
 }
 
+@media (max-width: 640px) {
+  .tabs {
+    display: grid;
+    grid-auto-columns: minmax(0, 1fr);
+    grid-auto-flow: column;
+    width: 100%;
+  }
+
+  .tab {
+    padding: 6px 8px;
+    font-size: 15px;
+    line-height: 1.25;
+    text-wrap: balance;
+  }
+}
+
 .tab:focus-visible {
   outline: 2px solid oklch(0.55 0.15 300);
   outline-offset: 2px;

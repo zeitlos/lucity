@@ -512,6 +512,17 @@ const history = [
   }
 }
 
+@media (max-width: 520px) {
+  .pu-step {
+    grid-template-columns: 64px minmax(0, 1fr) auto;
+    padding: 9px 12px;
+  }
+
+  .pu-time {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .push * {
     animation: none !important;
