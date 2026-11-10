@@ -46,8 +46,8 @@ const features = [
         </SecurityTerminal>
 
         <div class="keys-note">
-          <h3 class="font-display text-2xl/tight text-stone-900">Rotate first.</h3>
-          <p class="mt-2.5 text-base text-[oklch(0.38_0.05_60)]">
+          <h3 class="font-display text-2xl/tight text-stone-900 dark:text-stone-100">Rotate first.</h3>
+          <p class="mt-2.5 text-base text-[oklch(0.38_0.05_60)] dark:text-stone-300">
             Deleting the file does not take a key out of your history. Rotating it is what makes it harmless, and the finding stays for as long as the commit does.
           </p>
         </div>

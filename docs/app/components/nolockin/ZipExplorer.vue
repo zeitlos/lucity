@@ -276,6 +276,14 @@ databases:
   color: oklch(0.36 0.05 0);
 }
 
+.dark .pane h3 {
+  color: oklch(0.95 0.02 80);
+}
+
+.dark .pane p {
+  color: oklch(0.85 0.03 75);
+}
+
 .code {
   flex: 1;
   margin-top: 22px;

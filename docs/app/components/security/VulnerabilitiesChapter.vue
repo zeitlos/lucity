@@ -33,8 +33,8 @@ const features = [
     <LandingStage tint="keep" class="mt-12 px-4 pt-6 pb-10 sm:px-9 sm:pt-9">
       <div class="vul">
         <div class="vul-note">
-          <h3 class="font-display text-2xl/tight text-stone-900">It keeps looking after you ship.</h3>
-          <p class="mt-2.5 text-base text-[oklch(0.38_0.05_8)]">
+          <h3 class="font-display text-2xl/tight text-stone-900 dark:text-stone-100">It keeps looking after you ship.</h3>
+          <p class="mt-2.5 text-base text-[oklch(0.38_0.05_8)] dark:text-stone-300">
             A check at build time goes quiet the moment the build is done. This one runs against what is live, so the list changes when the world does.
           </p>
         </div>

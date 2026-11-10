@@ -5,19 +5,20 @@ const github = 'M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6
 <template>
   <div class="ag">
     <div class="ag-note">
-      <h3 class="font-display text-2xl/tight text-stone-900">Your agent deploys. You stay in charge.</h3>
-      <p class="mt-2.5 text-base text-[oklch(0.36_0.04_300)]">
+      <h3 class="font-display text-2xl/tight text-stone-900 dark:text-stone-100">Your agent deploys. You stay in charge.</h3>
+      <p class="mt-2.5 text-base text-[oklch(0.36_0.04_300)] dark:text-[oklch(0.85_0.04_300)]">
         The plugin works with Claude Code, Codex, Cursor and any other MCP client. It asks before it creates anything paid, and it sees the names of your variables, never their values.
       </p>
       <p class="mt-3 text-base">
-        <NuxtLink to="/docs/claude-plugin" class="font-semibold text-stone-900 underline decoration-1 underline-offset-4">Set up the plugin</NuxtLink>
+        <NuxtLink to="/docs/claude-plugin" class="font-semibold text-stone-900 underline decoration-1 underline-offset-4 dark:text-stone-100">Set up the plugin</NuxtLink>
       </p>
     </div>
 
     <div class="ag-chat" role="img" aria-label="You ask your agent to deploy the project. It sets up a service, then asks before it creates a paid database. After your yes, the database appears on the canvas next to the service, and the app goes live.">
       <div class="ag-you ag-chip" aria-hidden="true">deploy this to Lucity</div>
       <div class="ag-row" aria-hidden="true">
-        <img src="/img/landing/robot.svg" alt="" width="300" height="280">
+        <img class="day" src="/img/landing/robot.svg" alt="" width="300" height="280">
+        <img class="night" src="/img/landing/robot-night.svg" alt="" width="300" height="280">
         <div class="ag-stack">
           <div class="bubble ag-a"><p>A Next.js app that reads DATABASE_URL. I'm setting up a project and a service.</p></div>
           <div class="bubble ag-b">
@@ -119,6 +120,15 @@ const github = 'M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6
   display: flex;
   align-items: flex-end;
   gap: 2px;
+}
+
+.ag-row > img.night,
+.dark .ag-row > img.day {
+  display: none;
+}
+
+.dark .ag-row > img.night {
+  display: block;
 }
 
 .ag-row > img {

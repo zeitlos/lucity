@@ -55,14 +55,14 @@ function drag(index: number, event: PointerEvent) {
 <template>
   <div class="scr">
     <div class="scr-note">
-      <h3 class="font-display text-2xl/tight text-stone-900">Script it, or leave it to your pipeline.</h3>
-      <p class="mt-2.5 text-base text-[oklch(0.36_0.04_300)]">
+      <h3 class="font-display text-2xl/tight text-stone-900 dark:text-stone-100">Script it, or leave it to your pipeline.</h3>
+      <p class="mt-2.5 text-base text-[oklch(0.36_0.04_300)] dark:text-[oklch(0.85_0.04_300)]">
         One CLI for your terminal and your CI. GitHub Actions deploys without a stored token, and the API does everything the dashboard does.
       </p>
       <p class="mt-3 flex flex-wrap items-baseline gap-x-5 gap-y-1.5 text-base">
-        <NuxtLink to="/docs/cli" class="font-semibold text-stone-900 underline decoration-1 underline-offset-4">CLI reference</NuxtLink>
-        <NuxtLink to="/docs/api" class="font-semibold text-stone-900 underline decoration-1 underline-offset-4">API</NuxtLink>
-        <span class="drag-hint text-sm text-[oklch(0.42_0.05_300)]">Go on, drag the windows.</span>
+        <NuxtLink to="/docs/cli" class="font-semibold text-stone-900 underline decoration-1 underline-offset-4 dark:text-stone-100">CLI reference</NuxtLink>
+        <NuxtLink to="/docs/api" class="font-semibold text-stone-900 underline decoration-1 underline-offset-4 dark:text-stone-100">API</NuxtLink>
+        <span class="drag-hint text-sm text-[oklch(0.42_0.05_300)] dark:text-[oklch(0.78_0.05_300)]">Go on, drag the windows.</span>
       </p>
     </div>
 

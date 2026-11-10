@@ -16,15 +16,15 @@ const rest = groups.slice(1);
       <div class="grid items-start gap-x-16 gap-y-8 lg:grid-cols-[1.25fr_1fr]">
         <div class="grid min-w-0 gap-7">
           <div>
-            <p class="mb-2.5 text-base font-semibold text-[oklch(0.25_0.03_55)]">{{ first.label }}</p>
+            <p class="mb-2.5 text-base font-semibold text-[oklch(0.25_0.03_55)] dark:text-stone-100">{{ first.label }}</p>
             <LandingTabs v-model="first.selected.value" :options="first.options" :label="first.label" />
           </div>
           <div class="grid min-w-0 gap-7">
             <div v-for="group in rest" :key="group.label">
-              <p class="mb-2.5 text-base font-semibold text-[oklch(0.25_0.03_55)]">{{ group.label }}</p>
+              <p class="mb-2.5 text-base font-semibold text-[oklch(0.25_0.03_55)] dark:text-stone-100">{{ group.label }}</p>
               <LandingTabs v-model="group.selected.value" :options="group.options" :label="group.label" />
             </div>
-            <p class="max-w-[640px] text-[15px] text-[oklch(0.38_0.05_60)]">
+            <p class="max-w-[640px] text-[15px] text-[oklch(0.38_0.05_60)] dark:text-stone-300">
               Assumes each instance gets half a vCPU per GB of memory, uses {{ estimate.memoryShare }} of its memory and {{ estimate.cpuShare }} of its CPU on average, and that a database runs as two instances that hold half of their memory. Your app will differ. Billing in the dashboard shows the real numbers as they add up.
             </p>
             <div class="reach" aria-hidden="true">
@@ -69,6 +69,10 @@ const rest = groups.slice(1);
 
 .estimator-stage :deep(.tab) {
   --tab-off: oklch(0.36 0.05 60);
+}
+
+.dark .estimator-stage :deep(.tab) {
+  --tab-off: oklch(0.84 0.04 66);
 }
 
 .out,

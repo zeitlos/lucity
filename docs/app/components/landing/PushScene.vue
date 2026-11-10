@@ -25,8 +25,8 @@ const history = [
     </div>
 
     <div class="push-note">
-      <h3 class="font-display text-2xl/tight text-stone-900">Push. That was the deploy.</h3>
-      <p class="mt-2.5 text-base text-[oklch(0.36_0.04_300)]">
+      <h3 class="font-display text-2xl/tight text-stone-900 dark:text-stone-100">Push. That was the deploy.</h3>
+      <p class="mt-2.5 text-base text-[oklch(0.36_0.04_300)] dark:text-[oklch(0.85_0.04_300)]">
         Lucity builds it, scans it for leaked keys and rolls it out with no downtime. Every deployment can be inspected, redeployed or rolled back.
       </p>
     </div>

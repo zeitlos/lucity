@@ -34,7 +34,8 @@ const variables = [
     <LandingStage tint="joy" class="min-w-0 flex-[1_1_520px]">
       <div class="scene">
         <div class="scene-row" aria-hidden="true">
-          <img src="/img/landing/robot.svg" alt="" width="300" height="280">
+          <img class="day" src="/img/landing/robot.svg" alt="" width="300" height="280">
+          <img class="night" src="/img/landing/robot-night.svg" alt="" width="300" height="280">
           <div class="bubble"><p>STRIPE_SECRET is set. I can check that it is there. I cannot read it, and I do not need to.</p></div>
         </div>
         <SecurityTerminal
@@ -71,6 +72,15 @@ const variables = [
   display: flex;
   align-items: flex-end;
   gap: 2px;
+}
+
+.scene-row img.night,
+.dark .scene-row img.day {
+  display: none;
+}
+
+.dark .scene-row img.night {
+  display: block;
 }
 
 .scene-row img {

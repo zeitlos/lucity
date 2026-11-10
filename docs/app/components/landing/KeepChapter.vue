@@ -32,9 +32,10 @@ const folderPath = 'M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-
 
     <LandingStage tint="keep" class="mt-14 flex flex-wrap items-end gap-x-10 gap-y-7 px-4 pt-11 sm:px-10">
       <div class="min-w-0 flex-[1.5_1_460px] self-center pb-2 xl:pb-11">
-        <img src="/img/landing/sketch-eject.svg" alt="Your project on Lucity, and the same project as a copy running anywhere else, carried over as one zip" width="760" height="300" class="mx-auto block h-auto w-full max-w-[820px]">
-        <p class="mt-5 flex items-start gap-2.5 text-lg font-medium text-[oklch(0.32_0.05_0)] sm:items-center sm:justify-center">
-          <UIcon name="i-lucide-check" class="mt-1.5 size-4 shrink-0 text-[oklch(0.50_0.18_0)] sm:mt-0" />
+        <img src="/img/landing/sketch-eject.svg" alt="Your project on Lucity, and the same project as a copy running anywhere else, carried over as one zip" width="760" height="300" class="mx-auto block h-auto w-full max-w-[820px] dark:hidden">
+        <img src="/img/landing/sketch-eject-night.svg" alt="" width="760" height="300" class="mx-auto hidden h-auto w-full max-w-[820px] dark:block">
+        <p class="mt-5 flex items-start gap-2.5 text-lg font-medium text-[oklch(0.32_0.05_0)] sm:items-center dark:text-[oklch(0.90_0.03_0)] sm:justify-center">
+          <UIcon name="i-lucide-check" class="mt-1.5 size-4 shrink-0 text-[oklch(0.50_0.18_0)] sm:mt-0 dark:text-[oklch(0.78_0.14_0)]" />
           No account, no license key, no call home.
         </p>
       </div>

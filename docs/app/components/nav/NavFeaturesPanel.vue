@@ -48,7 +48,8 @@ const depth = [
 
     <template #stage>
       <NavStage to="/features" tint="keep" action="See every feature">
-        <img src="/img/landing/sketch-releases.svg" alt="" class="mx-auto mb-2.5 block h-auto w-full max-w-55">
+        <img src="/img/landing/sketch-releases.svg" alt="" class="mx-auto mb-2.5 block h-auto w-full max-w-55 dark:hidden">
+        <img src="/img/landing/sketch-releases-night.svg" alt="" class="mx-auto mb-2.5 hidden h-auto w-full max-w-55 dark:block">
         <span class="font-display text-[25px]/[1.15]">The parts you need to run what you build.</span>
       </NavStage>
     </template>

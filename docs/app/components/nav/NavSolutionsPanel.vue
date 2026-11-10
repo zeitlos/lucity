@@ -40,7 +40,8 @@ const platforms = [
 
     <template #stage>
       <NavStage to="/agents" tint="joy" action="See how it works">
-        <img src="/img/landing/robot.svg" alt="" width="132" height="123" class="-mt-1.5 mb-1.5 -ml-2.5 block h-auto w-33">
+        <img src="/img/landing/robot.svg" alt="" width="132" height="123" class="-mt-1.5 mb-1.5 -ml-2.5 block h-auto w-33 dark:hidden">
+        <img src="/img/landing/robot-night.svg" alt="" width="132" height="123" class="-mt-1.5 mb-1.5 -ml-2.5 hidden h-auto w-33 dark:block">
         <span class="font-display text-[25px]/[1.15]">Agent hosting</span>
         <span class="mt-2 text-[15px]/[1.45] text-[oklch(0.36_0.04_300)] dark:text-[oklch(0.84_0.04_300)]">Host the agents you already run, right next to your app.</span>
       </NavStage>

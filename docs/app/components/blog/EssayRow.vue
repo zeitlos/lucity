@@ -22,7 +22,10 @@ defineProps<{
     </span>
     <div v-else class="trail thumb" :class="{ sketch: !post.image }" aria-hidden="true">
       <img v-if="post.image" :src="post.image.src" alt="" loading="lazy" decoding="async">
-      <img v-else src="/img/landing/sketch-eject.svg" alt="" width="380" height="150" loading="lazy" decoding="async">
+      <template v-else>
+        <img class="day" src="/img/landing/sketch-eject.svg" alt="" width="380" height="150" loading="lazy" decoding="async">
+        <img class="night" src="/img/landing/sketch-eject-night.svg" alt="" width="380" height="150" loading="lazy" decoding="async">
+      </template>
     </div>
   </NuxtLink>
 </template>
@@ -62,6 +65,22 @@ defineProps<{
 
 .thumb.sketch {
   background: oklch(0.928 0.026 8);
+}
+
+.dark .thumb.sketch {
+  background: oklch(0.285 0.05 8);
+}
+
+.thumb.sketch .night {
+  display: none;
+}
+
+.dark .thumb.sketch .night {
+  display: block;
+}
+
+.dark .thumb.sketch .day {
+  display: none;
 }
 
 .thumb.sketch img {

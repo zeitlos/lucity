@@ -119,7 +119,8 @@ const current = computed(() => parts[open.value]!);
 
       <LandingStage tint="grow" class="min-w-0 flex-[1.55_1_560px] px-4 pt-6 sm:px-8">
         <div class="scene">
-          <img class="sketch" :src="`/img/landing/${current.sketch}`" alt="" width="340" height="260" :style="current.sketchWidth ? { width: current.sketchWidth } : undefined">
+          <img class="sketch sketch-day" :src="`/img/landing/${current.sketch}`" alt="" width="340" height="260" :style="current.sketchWidth ? { width: current.sketchWidth } : undefined">
+          <img class="sketch sketch-night" :src="`/img/landing/${current.sketch.replace('.svg', '-night.svg')}`" alt="" width="340" height="260" :style="current.sketchWidth ? { width: current.sketchWidth } : undefined">
           <div class="rise" :class="{ 'rise-dark': current.shotDark }">
             <img :src="`/img/landing/${current.shot}`" :alt="current.shotAlt">
           </div>
@@ -173,6 +174,18 @@ const current = computed(() => parts[open.value]!);
   display: block;
   width: min(100%, 370px);
   height: auto;
+}
+
+.sketch-night {
+  display: none;
+}
+
+.dark .sketch-night {
+  display: block;
+}
+
+.dark .sketch-day {
+  display: none;
 }
 
 .rise {

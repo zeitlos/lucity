@@ -153,6 +153,15 @@ const mark = 'M 130 0 L 130 76 C 130 102.64, 114.4 112, 70 112 L 60 112 C 15.6 1
   color: oklch(0.25 0.03 55);
 }
 
+.dark .workspace {
+  background: oklch(1 0 0 / .08);
+  box-shadow: inset 0 0 0 1.5px oklch(1 0 0 / .14);
+}
+
+.dark .workspace > b {
+  color: oklch(0.95 0.02 80);
+}
+
 .environments {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));

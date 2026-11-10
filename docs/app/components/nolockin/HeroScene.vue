@@ -192,6 +192,25 @@ const folderPath = 'M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-
   color: oklch(0.25 0.03 55);
 }
 
+.dark .scene-list {
+  background-color: oklch(0.285 0.05 8);
+  background-image: radial-gradient(circle at 1px 1px, oklch(1 0 0 / .10) 1px, transparent 0);
+  box-shadow: inset 0 0 0 1px oklch(1 0 0 / .09);
+  color: oklch(0.85 0.03 75);
+}
+
+.dark .scene-list li {
+  border-top-color: oklch(1 0 0 / .14);
+}
+
+.dark .scene-list li > span {
+  color: oklch(0.78 0.13 0);
+}
+
+.dark .scene-list b {
+  color: oklch(0.95 0.02 80);
+}
+
 .scene {
   position: relative;
   height: 696px;
@@ -686,6 +705,26 @@ const folderPath = 'M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-
   color: oklch(0.38 0.04 20);
 }
 
+.dark .honest {
+  color: oklch(0.80 0.11 0);
+}
+
+.dark .strip-rail {
+  background: oklch(1 0 0 / .14);
+}
+
+.dark .strip-rail div {
+  background: oklch(0.72 0.19 0);
+}
+
+.dark .strip-name {
+  color: oklch(0.95 0.02 80);
+}
+
+.dark .strip-note {
+  color: oklch(0.85 0.03 75);
+}
+
 .nlh-dla,
 .nlh-ns0,
 .nlh-ns1,
@@ -750,6 +789,10 @@ const folderPath = 'M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-
 .nlh-bar3 { animation: nlh-bar3 26s linear infinite both; }
 .nlh-tt3 { animation: nlh-tt3 26s linear infinite both; }
 .nlh-nt3 { animation: nlh-nt3 26s linear infinite both; }
+.dark .nlh-tt0 { animation-name: nlh-ttd0; }
+.dark .nlh-tt1 { animation-name: nlh-ttd1; }
+.dark .nlh-tt2 { animation-name: nlh-ttd2; }
+.dark .nlh-tt3 { animation-name: nlh-ttd3; }
 
 @keyframes nlh-press { 0% { transform: scale(1); } 9.62% { transform: scale(1); } 10% { transform: scale(.95); } 10.38% { transform: scale(.95); } 10.96% { transform: scale(1); } 100% { transform: scale(1); } }
 @keyframes nlh-dla { 0% { opacity: 1; } 11.15% { opacity: 1; } 11.73% { opacity: 0; } 95.77% { opacity: 0; } 95.85% { opacity: 1; } 100% { opacity: 1; } }
@@ -796,6 +839,10 @@ const folderPath = 'M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-
 @keyframes nlh-bar3 { 0% { transform: scaleX(0); opacity: 1; } 63.46% { transform: scaleX(0); opacity: 1; } 88.46% { transform: scaleX(1); opacity: 1; } 94.62% { transform: scaleX(1); opacity: 1; } 95.96% { transform: scaleX(1); opacity: 0; } 96.15% { transform: scaleX(1); opacity: 0; } 96.23% { transform: scaleX(0); opacity: 0; } 96.54% { transform: scaleX(0); opacity: 0; } 97.31% { transform: scaleX(0); opacity: 1; } 100% { transform: scaleX(0); opacity: 1; } }
 @keyframes nlh-tt3 { 0% { color: oklch(0.50 0.04 20); } 63.46% { color: oklch(0.50 0.04 20); } 64.23% { color: oklch(0.25 0.03 55); } 94.62% { color: oklch(0.25 0.03 55); } 96.35% { color: oklch(0.50 0.04 20); } 100% { color: oklch(0.50 0.04 20); } }
 @keyframes nlh-nt3 { 0% { opacity: 0.45; } 63.85% { opacity: 0.45; } 65% { opacity: 1; } 94.62% { opacity: 1; } 96.35% { opacity: 0.45; } 100% { opacity: 0.45; } }
+@keyframes nlh-ttd0 { 0% { color: oklch(0.70 0.03 65); } 0.77% { color: oklch(0.95 0.02 80); } 94.62% { color: oklch(0.95 0.02 80); } 96.35% { color: oklch(0.70 0.03 65); } 100% { color: oklch(0.70 0.03 65); } }
+@keyframes nlh-ttd1 { 0% { color: oklch(0.70 0.03 65); } 17.31% { color: oklch(0.70 0.03 65); } 18.08% { color: oklch(0.95 0.02 80); } 94.62% { color: oklch(0.95 0.02 80); } 96.35% { color: oklch(0.70 0.03 65); } 100% { color: oklch(0.70 0.03 65); } }
+@keyframes nlh-ttd2 { 0% { color: oklch(0.70 0.03 65); } 34.62% { color: oklch(0.70 0.03 65); } 35.38% { color: oklch(0.95 0.02 80); } 94.62% { color: oklch(0.95 0.02 80); } 96.35% { color: oklch(0.70 0.03 65); } 100% { color: oklch(0.70 0.03 65); } }
+@keyframes nlh-ttd3 { 0% { color: oklch(0.70 0.03 65); } 63.46% { color: oklch(0.70 0.03 65); } 64.23% { color: oklch(0.95 0.02 80); } 94.62% { color: oklch(0.95 0.02 80); } 96.35% { color: oklch(0.70 0.03 65); } 100% { color: oklch(0.70 0.03 65); } }
 
 @media (max-width: 1391px) {
   .scene {

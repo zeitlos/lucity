@@ -119,7 +119,15 @@ const starters = [
               alt="A project on Lucity, and the same project as a copy running anywhere else, carried over as one zip"
               width="760"
               height="300"
-              class="m-auto block h-auto w-full max-w-[700px]"
+              class="m-auto block h-auto w-full max-w-[700px] dark:hidden"
+            >
+            <img
+              v-if="!featured.image"
+              src="/img/landing/sketch-eject-night.svg"
+              alt=""
+              width="760"
+              height="300"
+              class="m-auto hidden h-auto w-full max-w-[700px] dark:block"
             >
             <p v-if="featured.quote" class="quote -mb-4.5 max-w-[560px] self-start bg-white px-5 pt-5 pb-9 font-display text-xl/[1.3] text-stone-900 sm:ml-3 sm:px-8 sm:pt-6.5 sm:pb-10 sm:text-[26px]/[1.3]">
               {{ featured.quote }}
