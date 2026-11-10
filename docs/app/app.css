@@ -8,12 +8,6 @@
   --container-wide: 96rem;
   --container-page: 112.5rem;
 
-  --animate-tech-scroll: tech-scroll 90s linear infinite;
-  @keyframes tech-scroll {
-    from { transform: translateX(0); }
-    to { transform: translateX(-50%); }
-  }
-
   /* Fonts — exact match to dashboard */
   --font-sans: 'Mona Sans', system-ui, sans-serif;
   --font-mono: 'Fira Code', monospace;

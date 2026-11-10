@@ -14,9 +14,8 @@ useSeo({
 const appUrl = '/app';
 
 const trialPoints = [
-  '14-day free trial',
-  'CHF 5 in credits included',
-  'Built in Switzerland, hosted in the EU',
+  '14 days free, up to CHF 5 of usage',
+  'No lock-in, leave anytime',
 ];
 </script>
 
@@ -30,7 +29,11 @@ const trialPoints = [
         <span class="squiggle squiggle-keep">yours to keep</span>.
       </h1>
 
-      <div class="mt-8 flex flex-col gap-3 sm:mt-12 sm:flex-row sm:items-center sm:gap-4">
+      <p class="mt-8 max-w-3xl text-xl leading-relaxed text-stone-700 sm:text-2xl sm:leading-relaxed dark:text-stone-300">
+        Connect a repo and Lucity runs it, with databases, domains, backups and scaling built in. A cloud platform made in Switzerland and hosted in the EU.
+      </p>
+
+      <div class="mt-8 flex flex-col gap-3 sm:mt-11 sm:flex-row sm:items-center sm:gap-4">
         <a
           :href="`${appUrl}/login`"
           class="flex items-center justify-center gap-3 rounded-lg border border-transparent bg-primary px-7 py-3.5 text-lg font-semibold text-white shadow-sm transition-colors hover:bg-primary-600 sm:py-4 sm:text-xl"
@@ -57,17 +60,21 @@ const trialPoints = [
     <HeroDemo class="w-full 3xl:col-span-7" />
   </section>
 
-  <TechCarousel class="mt-20 sm:mt-32" />
+  <LandingTechMarquee class="mt-20 sm:mt-26" />
 
-  <FounderLetter class="mt-20 sm:mt-32" />
+  <LandingJoyChapter class="mt-24 sm:mt-38" />
 
-  <TestimonialQuote class="mt-24 sm:mt-40" />
+  <LandingGrowChapter class="mt-24 sm:mt-38" />
 
-  <DeploymentTrilemma class="mt-24 sm:mt-40" />
+  <LandingGuardRails class="mt-24 sm:mt-34" />
 
-  <LucityBend class="mt-12" />
+  <LandingKeepChapter class="mt-24 sm:mt-38" />
 
-  <BentoGrid class="mt-24 sm:mt-40" />
+  <LandingPriceCompare class="mt-24 sm:mt-34" />
+
+  <LandingRecentlyShipped />
+
+  <LandingFaq class="mt-20 sm:mt-28" />
 </template>
 
 <style scoped>
