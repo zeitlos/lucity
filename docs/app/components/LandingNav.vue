@@ -18,6 +18,8 @@ const links = [
   { label: 'Pricing', to: '/pricing' },
 ];
 
+const overDark = useHeaderOverDark();
+
 const tucked = ref(false);
 const menuOpen = ref(false);
 
@@ -36,7 +38,7 @@ onBeforeUnmount(() => window.removeEventListener('scroll', onScroll));
 <template>
   <header
     class="sticky top-0 z-50 px-6 pt-6 pb-4"
-    :class="{ 'max-lg:bg-stone-100 max-lg:dark:bg-stone-950': menuOpen }"
+    :class="{ 'dark': overDark, 'max-lg:bg-stone-100 max-lg:dark:bg-stone-950': menuOpen }"
   >
     <div class="nav-blur" aria-hidden="true">
       <div class="nav-blur__layer" />

@@ -1,3 +1,3 @@
 <template>
-  <SiteFooter />
+  <SiteFooter plain />
 </template>

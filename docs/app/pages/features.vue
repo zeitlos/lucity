@@ -1,6 +1,8 @@
 <script setup lang="ts">
 definePageMeta({
-  layout: 'default',
+  layout: 'landing',
+  header: false,
+  footer: false,
 });
 
 useSeo({

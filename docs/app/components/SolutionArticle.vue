@@ -120,8 +120,6 @@ const others = computed(() =>
         </footer>
       </article>
     </UContainer>
-
-    <FooterCta class="solution-cta" />
   </div>
 </template>
 
@@ -236,10 +234,6 @@ const others = computed(() =>
   border: 1px solid var(--ui-border);
   padding: 0.5rem 0.75rem;
   text-align: start;
-}
-
-.solution-cta {
-  margin-top: 6rem;
 }
 
 .solution-footer {

@@ -11,5 +11,6 @@ useHead({
     <AnnouncementBanner />
     <LandingNav />
     <slot />
+    <SiteFooter />
   </div>
 </template>

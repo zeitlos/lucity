@@ -68,10 +68,6 @@ const trialPoints = [
   <LucityBend class="mt-12" />
 
   <BentoGrid class="mt-24 sm:mt-40" />
-
-  <FooterCta class="mt-24 sm:mt-40" />
-
-  <SiteFooter class="mt-12 sm:mt-24" />
 </template>
 
 <style scoped>
