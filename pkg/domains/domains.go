@@ -169,8 +169,9 @@ func (c *Client) AttachPending(ctx context.Context, workspaces map[string]bool) 
 	return nil
 }
 
-// Verified reports whether the DNS records of a custom domain point at the
-// platform.
+// Verified reports whether a custom domain publishes the ownership record of
+// the workspace. Where the domain routes is not checked, so a domain behind a
+// proxy verifies too.
 func (c *Client) Verified(ctx context.Context, workspaceID, host string, redirect bool) (bool, error) {
 	dnsStatus, err := c.hostname.DNSStatus(ctx, workspaceID, host, redirect)
 
