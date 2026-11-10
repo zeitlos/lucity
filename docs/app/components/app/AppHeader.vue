@@ -12,6 +12,10 @@ provide('navigation', await useContentSectionNavigation());
 
 const navItems = computed(() => [
   {
+    label: 'Features',
+    to: '/features',
+  },
+  {
     label: 'Docs',
     to: '/docs/quickstart',
     active: inDocs.value,

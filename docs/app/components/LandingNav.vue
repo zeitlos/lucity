@@ -12,6 +12,7 @@ const logoMenu = [[{
 }]];
 
 const links = [
+  { label: 'Features', to: '/features' },
   { label: 'Docs', to: '/docs/quickstart' },
   { label: 'Blog', to: '/blog' },
   { label: 'Pricing', to: '/pricing' },
