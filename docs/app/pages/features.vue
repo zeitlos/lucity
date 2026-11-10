@@ -217,16 +217,17 @@ const comparisons = [
     <section class="mx-auto max-w-content px-6 pt-20 sm:pt-32" aria-labelledby="features-title">
       <h1
         id="features-title"
-        class="font-display text-4xl/[1.15] text-neutral-800 max-sm:text-balance sm:text-5xl/[1.1] md:text-6xl/[1.1] lg:text-7xl/22 dark:text-neutral-100"
+        class="load-in font-display text-4xl/[1.15] text-neutral-800 max-sm:text-balance sm:text-5xl/[1.1] md:text-6xl/[1.1] lg:text-7xl/22 dark:text-neutral-100"
+        style="--load-order: 0"
       >
         The parts you need <br class="max-sm:hidden">
         to run what you build.
       </h1>
-      <p class="mt-6 max-w-3xl text-xl leading-relaxed text-neutral-700 sm:text-2xl sm:leading-relaxed dark:text-neutral-300">
+      <p class="load-in mt-6 max-w-3xl text-xl leading-relaxed text-neutral-700 sm:text-2xl sm:leading-relaxed dark:text-neutral-300" style="--load-order: 1">
         Add a service, a database or a domain to a project and it runs, already wired to the rest. You only pay for what it uses.
       </p>
 
-      <div class="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+      <div class="load-in mt-9 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4" style="--load-order: 2">
         <a
           :href="`${appUrl}/login`"
           class="flex items-center justify-center gap-3 rounded-lg border border-transparent bg-primary px-6 py-3.5 text-lg font-semibold text-white shadow-sm transition-colors hover:bg-primary-600"
@@ -244,7 +245,8 @@ const comparisons = [
 
       <nav
         aria-label="Groups on this page"
-        class="mt-18 grid grid-cols-2 gap-x-8 border-b border-default sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6"
+        class="load-in mt-18 grid grid-cols-2 gap-x-8 border-b border-default sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6"
+        style="--load-order: 3"
       >
         <a
           v-for="group in groups"

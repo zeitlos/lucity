@@ -38,4 +38,8 @@ const features = [
 .joy-stage :deep(.tab) {
   --tab-off: oklch(0.38 0.05 300);
 }
+
+.dark .joy-stage :deep(.tab) {
+  --tab-off: oklch(0.84 0.04 300);
+}
 </style>

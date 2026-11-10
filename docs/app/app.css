@@ -515,3 +515,31 @@
 .docs-body table tbody tr:last-child td:last-child {
   border-end-end-radius: 0.75rem;
 }
+
+/* ---------------------------------------------------------------- *
+ * Page-load reveal
+ *
+ * Put `load-in` on a hero element and number it with an inline
+ * `--load-order` (0 for the heading, then 1, 2, 3 in reading order).
+ * It fades up out of a blur, one element after the other. CSS only, so
+ * it runs on the server-rendered page and again on every route change.
+ * Large frames can pass `--load-blur: 0px` to fade without the blur.
+ * ---------------------------------------------------------------- */
+@keyframes load-in {
+  from {
+    opacity: 0;
+    filter: blur(var(--load-blur, 10px));
+    transform: translateY(var(--load-shift, 14px));
+  }
+}
+
+.load-in {
+  animation: load-in 1s cubic-bezier(0.25, 0.1, 0.25, 1) backwards;
+  animation-delay: calc(60ms + var(--load-order, 0) * 160ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .load-in {
+    animation: none;
+  }
+}

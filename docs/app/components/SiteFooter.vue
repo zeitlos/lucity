@@ -8,7 +8,9 @@ const columns = [
     title: 'Product',
     links: [
       { label: 'Features', to: '/features' },
-      { label: 'No lock-in', to: '/docs/eject' },
+      { label: 'Agent hosting', to: '/agents' },
+      { label: 'Security', to: '/security' },
+      { label: 'No lock-in', to: '/no-lock-in' },
       { label: 'Pricing', to: '/pricing' },
       { label: 'Self-hosting', to: '/docs/self-hosting' },
     ],

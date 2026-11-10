@@ -1,0 +1,23 @@
+[
+  {
+    "date": "6 Nov",
+    "items": [
+      { "name": "A log explorer", "text": "Search by keyword, go back up to 14 days and filter by instance, including ones that already crashed." },
+      { "name": "A canvas that updates live", "text": "Deploys, scaling and new resources show up within a second. No reload." },
+      { "name": "Jump anywhere with ⌘K", "text": "One palette for every project, environment and resource." }
+    ]
+  },
+  {
+    "date": "2 Nov",
+    "items": [
+      { "name": "Database metrics and top queries", "text": "CPU, memory, connections and the slowest statements, per database." },
+      { "name": "Allowed addresses for public databases", "text": "An exposed database only accepts the ranges you list." }
+    ]
+  },
+  {
+    "date": "2 Oct",
+    "items": [
+      { "name": "A global edge in front of every service", "text": "Visitors connect to a location near them, with nothing to change in DNS." }
+    ]
+  }
+]

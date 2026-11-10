@@ -35,7 +35,7 @@ const selected = defineModel<number>({ required: true });
   gap: 4px;
   padding: 4px;
   border-radius: 12px;
-  background: oklch(0.25 0.04 55 / .07);
+  background: var(--tabs-track, oklch(0.25 0.04 55 / .07));
 }
 
 .tab {
