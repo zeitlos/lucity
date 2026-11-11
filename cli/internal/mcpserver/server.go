@@ -131,7 +131,7 @@ func wrapGraphQL(operation string, err error) error {
 		if strings.Contains(lower, "another operation (install/upgrade/rollback) is in progress") {
 			return fmt.Errorf("%s failed: %s — the environment is still applying another change, such as a build's rollout or an earlier config change; retry in a few seconds", operation, message)
 		}
-		if strings.Contains(lower, "not found") {
+		if strings.Contains(lower, `" not found`) {
 			return fmt.Errorf("%s failed: %s — check the id and its format (list_projects / get_project to discover valid ids); the id's first segment must be your active workspace", operation, message)
 		}
 		return fmt.Errorf("%s failed: %s", operation, message)

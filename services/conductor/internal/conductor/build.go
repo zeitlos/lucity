@@ -112,6 +112,10 @@ func (c *Client) deploy(ctx context.Context, serviceID ServiceID, gitRef string,
 		return nil, err
 	}
 
+	if service.SourceURL == "" {
+		return nil, usererror.New("this service runs a prebuilt image, so there is nothing to build: it rolls out its image on its own, and every settings change rolls it out again")
+	}
+
 	ref := gitRef
 
 	if ref == "" {

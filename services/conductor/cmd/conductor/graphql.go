@@ -140,7 +140,11 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 					if suspended {
 						slog.Warn("mutation blocked: workspace suspended", "workspace", workspace, "operation", oc.OperationName)
 
-						return nil, usererror.New("workspace suspended: update your payment method to continue")
+						if abuse, _ := org.CustomData["abuse"].(bool); abuse {
+							return nil, usererror.Errorf("this workspace is suspended; choose a paid plan at %s/%s/~/billing to continue", dashboardURL, workspace)
+						}
+
+						return nil, usererror.Errorf("this workspace is suspended because of a payment issue; add or update a payment method at %s/%s/~/billing to continue", dashboardURL, workspace)
 					}
 				}
 

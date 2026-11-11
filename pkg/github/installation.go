@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -9,6 +10,8 @@ import (
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	gh "github.com/google/go-github/v92/github"
 	"golang.org/x/oauth2"
+
+	"github.com/zeitlos/lucity/pkg/usererror"
 )
 
 // InstallationID discovers the GitHub App installation ID for the authenticated user.
@@ -199,6 +202,12 @@ func (a *App) FindInstallation(ctx context.Context, repository string) (int64, e
 	}
 
 	inst, _, err := client.Apps.GetRepositoryInstallation(ctx, owner, repo)
+
+	var response *gh.ErrorResponse
+
+	if errors.As(err, &response) && response.Response != nil && response.Response.StatusCode == http.StatusNotFound {
+		return 0, usererror.Errorf("the GitHub App has no access to %s: install it on %q, or add the repository to its installation", repository, owner)
+	}
 
 	if err != nil {
 		return 0, fmt.Errorf("find installation for %s: %w", repository, err)
