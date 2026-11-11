@@ -1,5 +1,12 @@
 [
   {
+    "date": "11 Nov",
+    "items": [
+      { "name": "Deploy one app from a monorepo", "text": "Lucity lists the apps it finds in your repository and you pick the one to deploy." },
+      { "name": "Custom domains behind a proxy", "text": "Keep your DNS provider's proxy on. Your domain still verifies and gets its certificate." }
+    ]
+  },
+  {
     "date": "6 Nov",
     "items": [
       { "name": "A log explorer", "text": "Search by keyword, go back up to 14 days and filter by instance, including ones that already crashed." },
@@ -12,12 +19,6 @@
     "items": [
       { "name": "Database metrics and top queries", "text": "CPU, memory, connections and the slowest statements, per database." },
       { "name": "Allowed addresses for public databases", "text": "An exposed database only accepts the ranges you list." }
-    ]
-  },
-  {
-    "date": "2 Oct",
-    "items": [
-      { "name": "A global edge in front of every service", "text": "Visitors connect to a location near them, with nothing to change in DNS." }
     ]
   }
 ]

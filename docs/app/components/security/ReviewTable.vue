@@ -39,11 +39,6 @@ const rows: Row[] = [
     check: { label: 'Domains', to: '/docs/domains' },
   },
   {
-    area: 'At rest',
-    answer: '[ENCRYPTION AT REST: DISKS, BUCKETS AND BACKUPS, TO CONFIRM]',
-    check: { label: '[LINK]' },
-  },
-  {
     area: 'Access',
     answer: 'Two roles per workspace, admin and member. API tokens carry a role, are shown once and can be revoked at once. Deploys from GitHub Actions need no stored token.',
     check: { label: 'Workspaces', to: '/docs/workspaces' },
@@ -70,14 +65,14 @@ const rows: Row[] = [
   },
   {
     area: 'Certifications',
-    answer: '[NONE OF OUR OWN YET, TO CONFIRM. NAME THE CERTIFICATIONS OF THE DATA CENTERS IF WE WANT TO CITE THEM]',
-    check: { label: '[LINK]' },
+    answer: 'None of our own yet. Apps and databases run in Hetzner data centers in Germany, which are certified to ISO/IEC 27001:2022.',
+    check: { label: 'Hetzner certification', href: 'https://www.hetzner.com/unternehmen/zertifizierung/' },
   },
   {
     id: 'report',
     area: 'Reporting a vulnerability',
-    answer: '[SECURITY CONTACT AND DISCLOSURE POLICY]',
-    check: { label: '[LINK TO security.txt]' },
+    answer: 'Email security@lucity.cloud, not a public issue. We acknowledge within 2 business days and follow coordinated disclosure, with up to 90 days for a fix.',
+    check: { label: 'Disclosure policy', href: 'https://github.com/zeitlos/lucity/security/policy' },
   },
 ];
 

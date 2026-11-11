@@ -251,13 +251,14 @@ const linkClass = 'font-semibold text-stone-900 underline decoration-1 underline
           </p>
           <div class="mt-8 flex flex-wrap items-center gap-x-5 gap-y-4">
             <a
-              href="#sample"
+              href="/downloads/shop-ejected.zip"
+              download
               class="flex items-center justify-center gap-3 rounded-lg border border-transparent bg-primary px-7 py-3.5 text-lg font-semibold text-white shadow-sm transition-colors hover:bg-primary-600 max-sm:w-full sm:py-4 sm:text-xl"
             >
               Download a sample export
               <UIcon name="i-lucide-download" class="size-5 shrink-0" />
             </a>
-            <span class="text-base text-stone-600 dark:text-stone-400">shop-ejected.zip · [SIZE] · [SAMPLE EXPORT LINK]</span>
+            <span class="text-base text-stone-600 dark:text-stone-400">shop-ejected.zip · 27 KB</span>
           </div>
         </div>
         <nav aria-label="Read next" class="min-w-[min(280px,100%)] flex-[0_1_360px] text-lg">

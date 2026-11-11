@@ -9,12 +9,19 @@ export interface Release {
 export const releasesUrl = 'https://github.com/zeitlos/lucity/releases';
 
 const tags: Record<string, string> = {
+  '11 Nov': 'v26.11.3',
   '6 Nov': 'v26.11.2',
   '2 Nov': 'v26.11.1',
-  '2 Oct': 'v26.10.1',
 };
 
 const earlier: Release[] = [
+  {
+    date: '2 Oct',
+    tag: 'v26.10.1',
+    items: [
+      { name: 'A global edge in front of every service', text: 'Visitors connect to a location near them, with nothing to change in DNS.' },
+    ],
+  },
   {
     date: '29 Sep',
     tag: 'v26.9.2',
