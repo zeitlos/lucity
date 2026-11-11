@@ -47,7 +47,7 @@ func (s *server) registerProject(m *mcp.Server) {
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "detect_services",
-		Description: "Inspect a source repository and detect deployable services (language, framework, context path, start command, suggested port). repository is owner/repo or a full https URL, as for add_service, e.g. acme/shop; the workspace's GitHub installation must be able to read it. Detection looks at the repository root; in a monorepo pass context_path (e.g. apps/web) for each app folder, and pass the same context_path to add_service.",
+		Description: "Inspect a source repository and detect deployable services (language, framework, context path, start command, suggested port). repository is owner/repo or a full https URL, as for add_service, e.g. acme/shop; the workspace's GitHub installation must be able to read it. Detection looks at the repository root. When the root has nothing to run, as in a monorepo, it returns every folder up to two levels down that can be built, each with its context_path such as apps/web. Pass that context_path to add_service, and pass context_path here to inspect one folder instead of the root.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, DestructiveHint: ptr(false)},
 	}, s.detectServices)
 

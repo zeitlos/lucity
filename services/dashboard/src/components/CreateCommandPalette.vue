@@ -263,6 +263,7 @@ const serviceIdRef = ref<InstanceType<typeof IdSegment> | null>(null);
 const serviceIdMessage = computed(() => serviceStep.value === 'name' ? serviceIdRef.value?.message ?? null : null);
 const isServiceValid = computed(() => serviceName.value.trim().length > 0 && idAvailable(serviceId.value, serviceTaken.value));
 const serviceDetected = computed(() => activeDetected.value !== null);
+const detectedFolder = computed(() => activeDetected.value && activeDetected.value.contextPath !== '/' ? activeDetected.value.contextPath : null);
 
 const wizardInput = computed<string>({
   get() {
@@ -578,6 +579,18 @@ function selectDetectedService(index: number) {
   serviceName.value = detected.name;
   serviceContextPath.value = detected.contextPath || '/';
   enterServiceWizard();
+}
+
+function selectOtherFolder() {
+  selectedDetectedIndex.value = -1;
+  serviceName.value = confirmRepo.value?.fullName.split('/').pop() || '';
+  serviceContextPath.value = '/';
+  enterServiceWizard();
+}
+
+function folderParts(contextPath: string) {
+  const index = contextPath.lastIndexOf('/');
+  return { parent: contextPath.slice(0, index + 1), base: contextPath.slice(index + 1) };
 }
 
 function startManualService(repo: { fullName: string; htmlUrl: string }) {
@@ -958,7 +971,7 @@ const currentItemCount = computed(() => {
     case 'main': return mainItems.value.length;
     case 'github-repos': return repos.value.length;
     case 'container-image': return imageResults.value.length;
-    case 'select-services': return detectedServices.value.length;
+    case 'select-services': return detectedServices.value.length + 1;
     case 'service-wizard': return wizardItems.value.length;
     case 'agent': return agentStep.value === 'harness' ? harnesses.length : 0;
     default: return 0;
@@ -1022,9 +1035,11 @@ onKeyStroke('Enter', (e) => {
       break;
     }
     case 'select-services':
+      e.preventDefault();
       if (focusedIndex.value < detectedServices.value.length) {
-        e.preventDefault();
         selectDetectedService(focusedIndex.value);
+      } else {
+        selectOtherFolder();
       }
       break;
     case 'service-wizard':
@@ -1821,15 +1836,15 @@ void activeEnvironment;
               >
                 <ArrowLeft />
               </IconButton>
-              <span class="ml-1 text-sm font-medium text-foreground">Select a service</span>
+              <span class="ml-1 text-sm font-medium text-foreground">Select a folder</span>
               <div class="flex-1" />            </div>
             <div class="max-h-80 overflow-y-auto p-1">
               <p class="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-                Detected in {{ confirmRepo?.fullName }}
+                {{ confirmRepo?.fullName }}
               </p>
               <button
                 v-for="(svc, index) in detectedServices"
-                :key="`${svc.name}-${svc.contextPath}`"
+                :key="svc.contextPath"
                 :data-focused="focusedIndex === index"
                 class="flex w-full items-center gap-2.5 rounded-lg px-2 py-2.5 text-left text-sm text-popover-foreground transition-colors"
                 :class="focusedIndex === index ? 'bg-accent' : 'hover:bg-accent'"
@@ -1837,14 +1852,39 @@ void activeEnvironment;
                 @mouseenter="focusedIndex = index"
               >
                 <FrameworkIcon :framework="svc.framework" :language="svc.language" :size="20" />
-                <div class="min-w-0 flex-1">
-                  <div class="font-medium">{{ svc.name }}</div>
-                  <div class="truncate text-xs text-muted-foreground">
-                    {{ svc.framework || svc.language || 'Service' }} &middot;
-                    <span class="font-mono">{{ svc.contextPath }}</span>
-                  </div>
-                </div>
-                <ChevronRight :size="14" class="shrink-0 text-muted-foreground" />
+                <span class="min-w-0 flex-1 truncate">
+                  <span class="text-muted-foreground">{{ folderParts(svc.contextPath).parent }}</span>{{ folderParts(svc.contextPath).base }}
+                </span>
+                <span
+                  v-if="focusedIndex === index"
+                  class="flex shrink-0 items-center gap-1 text-xs font-medium text-green-500"
+                >
+                  select
+                  <CornerDownLeft :size="14" />
+                </span>
+                <span
+                  v-else-if="svc.startCommand"
+                  class="max-w-44 shrink-0 truncate font-mono text-xs text-muted-foreground"
+                >{{ svc.startCommand }}</span>
+              </button>
+              <button
+                :data-focused="focusedIndex === detectedServices.length"
+                class="flex w-full items-center gap-2.5 rounded-lg px-2 py-2.5 text-left text-sm text-muted-foreground transition-colors"
+                :class="focusedIndex === detectedServices.length ? 'bg-accent' : 'hover:bg-accent'"
+                @click="selectOtherFolder"
+                @mouseenter="focusedIndex = detectedServices.length"
+              >
+                <span class="flex w-5 shrink-0 justify-center">
+                  <FolderGit2 :size="16" />
+                </span>
+                <span class="flex-1">Other folder</span>
+                <span
+                  v-if="focusedIndex === detectedServices.length"
+                  class="flex shrink-0 items-center gap-1 text-xs font-medium text-green-500"
+                >
+                  open
+                  <CornerDownLeft :size="14" />
+                </span>
               </button>
             </div>
           </template>
@@ -1904,6 +1944,12 @@ void activeEnvironment;
                 :class="serviceIdMessage.error ? 'text-destructive' : 'text-muted-foreground'"
               >
                 {{ serviceIdMessage.text }}
+              </p>
+              <p
+                v-if="serviceStep === 'name' && detectedFolder"
+                class="px-3 py-1.5 text-xs text-muted-foreground"
+              >
+                Builds from <span class="font-mono text-foreground">{{ detectedFolder }}</span>
               </p>
 
               <button
