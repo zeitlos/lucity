@@ -251,8 +251,7 @@ func varsSet(ctx context.Context, args []string) error {
 			literals[key] = value
 			appendKey(key)
 		case strings.HasPrefix(token, "-"):
-			fmt.Fprint(os.Stderr, varsUsage)
-			return fmt.Errorf("unknown flag %q", token)
+			return fmt.Errorf("unknown flag %s; lucity vars set takes --from-file, --ref, --json", token)
 		default:
 			key, value, err := splitAssignment(token, "variable")
 			if err != nil {

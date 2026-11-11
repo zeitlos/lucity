@@ -251,7 +251,7 @@ func cmdLogin(ctx context.Context, args []string) error {
 	flags.SetOutput(os.Stderr)
 	flags.Usage = func() { fmt.Fprint(os.Stderr, loginUsage) }
 	apiURL := flags.String("api", "", "platform URL (e.g. https://lucity.cloud)")
-	if err := flags.Parse(args); err != nil {
+	if err := parseFlags(flags, args); err != nil {
 		return err
 	}
 
@@ -418,7 +418,7 @@ func cmdToken(ctx context.Context, args []string) error {
 	flags.SetOutput(os.Stderr)
 	flags.Usage = func() { fmt.Fprint(os.Stderr, tokenUsage) }
 	account := flags.Bool("account", false, "print the account token used for GitHub-backed calls")
-	if err := flags.Parse(args); err != nil {
+	if err := parseFlags(flags, args); err != nil {
 		return err
 	}
 

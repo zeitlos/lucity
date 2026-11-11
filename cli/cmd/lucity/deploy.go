@@ -124,7 +124,7 @@ func cmdDeploy(ctx context.Context, args []string) error {
 		serviceArg = rest[0]
 		rest = rest[1:]
 	}
-	if err := flags.Parse(rest); err != nil {
+	if err := parseFlags(flags, rest); err != nil {
 		return err
 	}
 	if serviceArg == "" {

@@ -100,6 +100,8 @@ usage, and surface them before you deploy.
 it** — do not silently deploy an empty database and call it done. To load it:
 - **Small schema / migrations**: `run_sql`. (It executes from the conductor; against a remote platform
   it works, but for anything large prefer the dump path below.)
+- **Rows you need outside this conversation** (a file, a local database, `jq`): `lucity db query <db> "<sql>" --json`
+  in a shell, up to 1,000 rows per statement. It returns data, not credentials, so you may run it yourself.
 - **Bulk dumps**: the credentials a local `psql`/`pg_restore` needs are never shown to you, so the user
   runs the import from their own terminal. Hand them the steps with the database id filled in:
   `lucity db expose <db>` (temporary public hostname, open only to the machine that ran it),

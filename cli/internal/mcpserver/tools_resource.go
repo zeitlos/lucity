@@ -40,7 +40,7 @@ func (s *server) registerResource(m *mcp.Server) {
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "run_sql",
-		Description: "Run a SQL statement against a database, for schema setup and quick checks. Returns up to 200 rows. Bulk dump imports need the database credentials, which are never shown here, so the user runs those from their own terminal.",
+		Description: "Run a SQL statement against a database, for schema setup and quick checks. Returns up to 200 rows into this conversation; to work with results outside it (save to a file, load into a local database, process with jq), run `lucity db query <db> \"<sql>\" --json` in a shell instead, which returns up to 1,000 rows. Bulk dump imports need the database credentials, which are never shown here, so the user runs those from their own terminal.",
 	}, s.runSQL)
 }
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -104,10 +105,42 @@ func positionalArgs(flags *flag.FlagSet, args []string) ([]string, error) {
 		positionals = append(positionals, rest[0])
 		rest = rest[1:]
 	}
-	if err := flags.Parse(rest); err != nil {
+	if err := parseFlags(flags, rest); err != nil {
 		return nil, err
 	}
 	return append(positionals, flags.Args()...), nil
+}
+
+func parseFlags(flags *flag.FlagSet, args []string) error {
+	usage := flags.Usage
+	flags.Usage = func() {}
+	flags.SetOutput(io.Discard)
+	err := flags.Parse(args)
+	flags.Usage = usage
+	flags.SetOutput(os.Stderr)
+
+	if errors.Is(err, flag.ErrHelp) {
+		usage()
+		return err
+	}
+	if name, unknown := strings.CutPrefix(fmt.Sprint(err), "flag provided but not defined: "); unknown {
+		return fmt.Errorf("unknown flag --%s; lucity %s %s", strings.TrimLeft(name, "-"), flags.Name(), acceptedFlags(flags))
+	}
+	if err != nil {
+		return errors.New(strings.Replace(err.Error(), " for flag -", " for flag --", 1))
+	}
+	return nil
+}
+
+func acceptedFlags(flags *flag.FlagSet) string {
+	var names []string
+	flags.VisitAll(func(f *flag.Flag) {
+		names = append(names, "--"+f.Name)
+	})
+	if len(names) == 0 {
+		return "takes no flags"
+	}
+	return "takes " + strings.Join(names, ", ")
 }
 
 func cmdStatus(ctx context.Context, args []string) error {

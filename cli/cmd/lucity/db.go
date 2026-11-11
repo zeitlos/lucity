@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"text/tabwriter"
@@ -20,6 +21,7 @@ Usage:
   lucity db create <env> <name> [--id <id>] [--size <size>] [--cpu <cpu>] [--memory <mem>] [--json]
   lucity db list <env> [--json]
   lucity db credentials <db> [--json]
+  lucity db query <db> [<sql>] [--file <path>] [--json]
   lucity db expose <db> [--json]
   lucity db unexpose <db> [--json]
   lucity db delete <db> [--yes] [--json]
@@ -28,6 +30,7 @@ Commands:
   create        Create a PostgreSQL database in an environment
   list          List the databases in an environment
   credentials   Print the connection details, password included
+  query         Run one SQL statement and print its rows, at most 1,000
   expose        Give the database a public hostname, reachable over TLS from
                 this machine's address only
   unexpose      Remove the public hostname and its allowed addresses again
@@ -44,8 +47,17 @@ Flags:
   --size <size>   Storage size for a new database (e.g. 32Gi)
   --cpu <cpu>     CPU limit for a new database, e.g. 500m (with --memory)
   --memory <mem>  Memory limit for a new database, e.g. 512Mi (with --cpu)
+  --file <path>   Read the SQL for query from a file, or from stdin with -
   --yes           Skip the confirmation prompt on delete
   --json          Emit the result as JSON on stdout
+
+'lucity db query' runs the statement as the database's own user and commits it
+right away. Values come back as text, NULL as null in --json. For more than
+1,000 rows, page with LIMIT and OFFSET, or expose the database and use pg_dump.
+
+Examples:
+  lucity db query shop/production/main "select id, email from users limit 10"
+  lucity db query shop/production/main --file report.sql --json | jq '.rows'
 
 Needs a signed-in session or a workspace API token. A keyless GitHub Actions
 session cannot manage databases.
@@ -86,6 +98,8 @@ func cmdDB(ctx context.Context, args []string) error {
 		return dbCreate(ctx, rest)
 	case "list":
 		return dbList(ctx, rest)
+	case "query":
+		return dbQuery(ctx, rest)
 	case "credentials":
 		return dbCredentials(ctx, rest)
 	case "expose":
@@ -214,6 +228,105 @@ func dbList(ctx context.Context, args []string) error {
 		fmt.Fprintf(writer, "%s\t%s\t%s\t%t\t%s\n", database.Name, database.Status, database.Size, database.Public, database.ID)
 	}
 	return writer.Flush()
+}
+
+const maxQueryRows = 1000
+
+type queryResultView struct {
+	Columns      []string    `json:"columns"`
+	Rows         [][]*string `json:"rows"`
+	AffectedRows int         `json:"affectedRows"`
+}
+
+func dbQuery(ctx context.Context, args []string) error {
+	flags := flag.NewFlagSet("db query", flag.ContinueOnError)
+	flags.SetOutput(os.Stderr)
+	flags.Usage = func() { fmt.Fprint(os.Stderr, dbUsage) }
+	file := flags.String("file", "", "read the SQL from a file, or stdin with -")
+	asJSON := flags.Bool("json", false, "emit the result as JSON")
+
+	positionals, err := positionalArgs(flags, args)
+	if err != nil {
+		return err
+	}
+	if len(positionals) == 0 {
+		flags.Usage()
+		return errors.New("missing <db> argument")
+	}
+	statement, err := queryStatement(positionals[1:], *file)
+	if err != nil {
+		return err
+	}
+
+	client, workspace, err := resolveClient(ctx)
+	if err != nil {
+		return err
+	}
+	databaseID, err := ids.Resource(workspace, positionals[0])
+	if err != nil {
+		return err
+	}
+
+	const mutation = `mutation($database: DatabaseID!, $query: String!) {
+  executeQuery(database: $database, query: $query) { columns rows affectedRows }
+}`
+	var out struct {
+		ExecuteQuery queryResultView `json:"executeQuery"`
+	}
+	if err := client.GraphQL(ctx, mutation, map[string]any{"database": databaseID, "query": statement}, &out); err != nil {
+		return deployError("db query", err)
+	}
+	result := out.ExecuteQuery
+
+	if len(result.Rows) >= maxQueryRows {
+		fmt.Fprintf(os.Stderr, "Showing the first %d rows; page with LIMIT and OFFSET for more.\n", maxQueryRows)
+	}
+	if *asJSON {
+		return printJSON(result)
+	}
+	if len(result.Columns) == 0 {
+		fmt.Printf("%d rows affected\n", result.AffectedRows)
+		return nil
+	}
+	writer := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
+	fmt.Fprintln(writer, strings.Join(result.Columns, "\t"))
+	for _, row := range result.Rows {
+		cells := make([]string, len(row))
+		for i, cell := range row {
+			if cell == nil {
+				cells[i] = "NULL"
+				continue
+			}
+			cells[i] = strings.NewReplacer("\n", `\n`, "\t", `\t`).Replace(*cell)
+		}
+		fmt.Fprintln(writer, strings.Join(cells, "\t"))
+	}
+	return writer.Flush()
+}
+
+func queryStatement(arguments []string, file string) (string, error) {
+	switch {
+	case file != "" && len(arguments) > 0:
+		return "", errors.New("pass the SQL either as an argument or with --file, not both")
+	case file == "-":
+		content, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return "", fmt.Errorf("read stdin: %w", err)
+		}
+		return string(content), nil
+	case file != "":
+		content, err := os.ReadFile(file)
+		if err != nil {
+			return "", err
+		}
+		return string(content), nil
+	case len(arguments) == 1:
+		return arguments[0], nil
+	case len(arguments) > 1:
+		return "", errors.New("pass the SQL as one quoted argument")
+	default:
+		return "", errors.New("missing SQL: pass it as an argument or with --file")
+	}
 }
 
 func dbCredentials(ctx context.Context, args []string) error {
