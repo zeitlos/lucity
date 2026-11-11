@@ -13,6 +13,9 @@ Any of:
 1. `composer.json` (the `php` requirement)
 2. Default `8.4`
 
+No other version file is read (no `.php-version`, `.tool-versions` or `mise.toml`); pin the version in
+`composer.json`'s `require.php`.
+
 Only PHP 8.2+ is supported.
 
 ## Build behavior
@@ -52,5 +55,6 @@ config), `/start-container.sh` (startup process).
 - **Laravel serves the wrong directory** → set `RAILPACK_PHP_ROOT_DIR` to `/app/public`.
 - **Migrations run on a DB not yet reachable at boot** → set `RAILPACK_SKIP_MIGRATIONS=true` and run migrations separately.
 - **Frontend assets not built** → ensure the `build` script in `package.json` produces assets; see `node.md`.
+- **`composer install` fails on a path repository** (a `"type": "path"` package in the repo) → Railpack copies only the `composer.json` / `composer.lock` files (and `artisan`) before installing, not the package sources, so the path package is incomplete. Set `RAILPACK_INSTALL_CMD` to `composer install --no-dev --optimize-autoloader --no-interaction`, which runs with all files present.
 
 Docs: https://railpack.com/languages/php

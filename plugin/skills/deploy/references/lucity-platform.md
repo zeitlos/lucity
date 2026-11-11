@@ -24,7 +24,8 @@ CPU and memory use Kubernetes quantity strings:
 - Memory: binary suffixes — `256Mi`, `512Mi`, `1Gi`, `2Gi`.
 
 Pass `cpu` and `memory` (both together) to `add_service` / `create_database` to size a resource at
-creation, or set them later with `configure_service`; omit them for platform defaults. Each service or
+creation, or set them later with `configure_service`; omit them for platform defaults (a service gets
+`512Mi` of memory). Each service or
 database has its own ceiling below the whole-workspace quota: a larger request is rejected, and
 exhausting the quota surfaces as `QUOTA_EXCEEDED`.
 
@@ -66,11 +67,27 @@ you expect to `check_variables`. It answers match, mismatch, missing, or ref.
 
 ## Build vs. runtime variables
 
-Variables reach the app at runtime. `RAILPACK_*` variables additionally reach the **Railpack build** as
-environment variables, so build-time pins (`RAILPACK_NODE_VERSION`, `RAILPACK_BUILD_CMD`, ...) must be
-present before the first build, which `add_service` starts as soon as it creates a repository service.
-Pass them in its initial variables. Changing a build-time variable requires a fresh `deploy` (rebuild);
-changing a pure runtime variable takes effect on the next rollout.
+Variables reach the app at runtime. The **literal values set on the service itself** also reach the
+Railpack build; refs and shared variables never do. A variable matters at build time when Railpack reads
+it (`RAILPACK_NODE_VERSION`, `RAILPACK_BUILD_CMD`, ...) or when a framework inlines it into the bundle
+(`NEXT_PUBLIC_*`, `VITE_*`, `NUXT_PUBLIC_*`, `REACT_APP_*`, `PUBLIC_*` in SvelteKit and Astro). Those must
+be present before the first build, which `add_service` starts as soon as it creates a repository
+service, so pass them in its initial variables as literal values. Changing one requires a fresh `deploy`
+(rebuild); changing a pure runtime variable takes effect on the next rollout.
+
+## HTTPS ends at the edge
+
+Public traffic is HTTPS up to the platform's edge; the app itself receives plain HTTP with
+`X-Forwarded-Proto: https` and `X-Forwarded-For`. A framework that doesn't trust the proxy builds
+`http://` URLs, redirects in a loop when it forces HTTPS, rejects CSRF origins, or won't set secure
+cookies. The fix is one setting in the app, a code change to propose to the user:
+
+- **Laravel**: trust all proxies, `$middleware->trustProxies(at: '*');` in `bootstrap/app.php`
+  (Laravel 11+), or `protected $proxies = '*';` in `TrustProxies` (older).
+- **Express**: `app.set('trust proxy', true)`.
+- **Django**: `SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')`, plus the public origin
+  in `CSRF_TRUSTED_ORIGINS` and the host in `ALLOWED_HOSTS`.
+- **Rails**: `config.assume_ssl = true` (7.1+) next to `config.force_ssl = true`.
 
 ## Public database access (SNI + TLS)
 
@@ -107,7 +124,8 @@ Bound remediation to 3 iterations, then report honestly rather than looping.
 ## Release queue
 
 Each environment runs one release (build, scan, deploy) at a time, and builds share a small
-cluster-wide cap. Several services added back to back therefore build one after another; a later build
+cluster-wide cap. `cancel_build` stops a queued or running build; its release ends `CANCELLED` and the
+service keeps serving what it served. Several services added back to back therefore build one after another; a later build
 showing as queued is waiting its turn. `get_deploy_status` without `release_id` returns the newest
 release, which after a config change is a settings-only release that can read `SUPERSEDED` with no
 build info while the service is healthy. Pass the `release_id` you are tracking.

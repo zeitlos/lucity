@@ -56,10 +56,15 @@ On disagreement, or when detection is missing something, configure via the **thr
 2. **Custom install/build** — `RAILPACK_INSTALL_CMD` and `RAILPACK_BUILD_CMD` (set as variables; they override provider defaults).
 3. **Custom start** — the service start command via `configure_service`. It runs without a shell, replacing the image's entrypoint: write variables as `$(PORT)`, and wrap `&&`, pipes or `${VAR:-default}` in `sh -c '…'`.
 
-These are set as service variables. Build-time `RAILPACK_*` variables must exist **before the first
-build**, and `add_service` starts that build the moment it creates a repository service, so pass them
-in its initial variables. A `RAILPACK_*` variable set afterwards only reaches the next `deploy`. Consult
-`references/<provider>.md` for the exact variable names and gotchas. If a detected provider has no
+These are set as service variables. Build-time variables (`RAILPACK_*`, and values a frontend
+framework inlines into its bundle such as `NEXT_PUBLIC_*`, `VITE_*`, `NUXT_PUBLIC_*`) must exist
+**before the first build**, and `add_service` starts that build the moment it creates a repository
+service, so pass them in its initial variables as literal values. One set afterwards only reaches the
+next `deploy`. Builds see literal values set on the service itself, never refs or shared variables.
+Avoid single quotes in `RAILPACK_INSTALL_CMD` / `RAILPACK_BUILD_CMD`: Railpack wraps them in
+`sh -c '…'` without escaping, so a quote inside ends the string early and backslashes get eaten
+(`printf '%s\n'` writes a literal `n`). Use double quotes, or put the logic in a script in the repo.
+Consult `references/<provider>.md` for the exact variable names and gotchas. If a detected provider has no
 reference file, use the generic mechanisms above and https://railpack.com/languages/<provider>.
 
 ## 4. Universal platform contracts
@@ -68,6 +73,17 @@ Every service must satisfy these (details in `references/lucity-platform.md`):
 
 - **Port**: the platform injects a `PORT` env var, **`8080` for repository services** unless you change the service port with `configure_service`. The framework's usual port (`8000`, `3000`) is only the fallback in a start command like `${PORT:-8000}` and never applies. The app MUST bind `0.0.0.0:$PORT`, not a hardcoded port or `localhost`. Most Railpack providers wire this automatically; verify the app respects `$PORT`. **Settle each service's port before writing its internal URL into another service**: changing it later silently breaks every consumer that still points at the old port.
 - **Config via env only**: no config files baked with secrets; read everything from env vars.
+- **HTTPS ends at the edge**: the app receives plain HTTP with `X-Forwarded-Proto: https`. Frameworks that
+  don't trust the proxy build `http://` URLs, loop on HTTPS redirects, reject CSRF origins, or drop
+  secure cookies. Each needs a one-line setting, which is a code change to propose (see
+  `references/lucity-platform.md` for Laravel, Express, Django and Rails).
+- **Memory**: a service gets **512Mi** unless sized. A dev-style start (`nodemon`, `next dev`, `vite`,
+  `tsc --watch`, a `start` script that runs a watcher) gets `OOM_KILLED` there and isn't meant for
+  production anyway: use the production start command, and only then size memory.
+- **Migrations and seeds**: there is no separate pre-start step yet. Chain them into the start command
+  with a shell, e.g. `sh -c 'npm run migrate && exec npm start'` (`exec` so the app gets the stop
+  signal). They run on every instance start, so they must be safe to repeat. Laravel (Railpack's start
+  script) and Django (its default start command) already migrate.
 - **Ephemeral filesystem**: containers lose local writes on restart. Persistent data → a volume (`create_volume`, **10Gi minimum**, one service per volume, single replica) or a bucket (`create_bucket`, for anything that scales). Never assume local disk survives.
 - **Service-to-service links use the internal endpoint**: read the `type: INTERNAL` host from `get_project` (or the `add_service` result) plus the service `port`, and set it as a literal variable on the consumer (e.g. `API_URL=http://lucity-app-api.<namespace>.svc.cluster.local:3000`). Never build the hostname by hand (the namespace carries a hash) and never expect cross-environment reach: internal DNS only works within one environment.
 - **Env files are a config manifest, not a security task**: read a committed `.env`, `env.zip`, or `.env.example` for the KEYS it lists (which variables the app expects) so you know what to wire from platform resources, what to generate, and what the user has to add. Never trust or copy the values. Do NOT hunt for or audit leaked secrets: the platform scans every release automatically (see §5) and flags them; duplicating that locally is wasted effort.
@@ -90,7 +106,8 @@ Provision what the platform offers: `create_database` (PostgreSQL), `create_kv_s
 Storage, a hosted third-party API, SendGrid/Stripe/etc., an external database) need credentials you
 cannot create, and so do values that must match something elsewhere, like `RAILS_MASTER_KEY`. **Ask
 the user to add them** in the dashboard, in the service's **Variables** tab, instead of pasting them
-into the chat. Name the exact keys, then confirm they exist with `list_variables`. Do NOT stub, fake,
+into the chat. Multi-line values (PEM keys, certificates, JSON credentials) keep their line breaks when
+pasted there, or the user runs `lucity vars set <service> --from-file KEY=./key.pem`. Name the exact keys, then confirm they exist with `list_variables`. Do NOT stub, fake,
 or hack placeholder values to force the app past its boot checks — a half-broken deploy is worse than a
 clear "this app needs these credentials." Detect these from the dependency manifest (e.g.
 `azure-storage-blob`, `@google-cloud/storage`, `boto3` pointed at non-Lucity endpoints) and from env
@@ -112,9 +129,10 @@ it** — do not silently deploy an empty database and call it done. To load it:
 Creating paid resources is a business question — ask before provisioning.
 
 **Secret scanning is automatic.** The platform runs trufflehog + gitleaks as a `scan` phase of every
-release; you do not scan locally. Read the structured result directly from `get_deploy_status` — the
-release `scan` object gives `status` and `findingsCount` (no log parsing). Report any findings to the
-user; `get_logs kind=scan` is only a fallback for raw detail.
+release; you do not scan locally. Read the structured result directly from `get_deploy_status`: the
+release `scan` object gives `status` and `findingsCount`, and with `FINDINGS` its `secretScan.findings`
+list rule, file, line and whether the credential is verified live. Report them to the user; verified
+ones need rotating.
 
 ## 6. Deploy loop with self-heal
 
@@ -123,37 +141,40 @@ instead of looping forever.
 
 1. `add_service` already started the first Railpack build + rollout (an image service rolls out
    without a build). Do **not** call `deploy` now, which only builds a second time.
-2. Poll `get_deploy_status` every ~10s with the `release_id` that `add_service` returned. Config changes
-   made meanwhile create newer releases that would otherwise hide the build, and one issued while the
-   rollout runs can fail with "another operation ... is in progress", so retry it after a few seconds.
+2. Call `get_deploy_status` with the `release_id` that `add_service` returned and `wait` (seconds, up
+   to 300): it blocks until the release settles, so you don't poll. Call it again with `wait` if it is
+   still going. Config changes made meanwhile create newer releases that would otherwise hide the build,
+   and one issued while the rollout runs can fail with "another operation ... is in progress", so retry
+   it after a few seconds.
    - **Always pass `release_id`.** Without it you get the newest release, and after a config change that
      is a settings-only release which can show as `SUPERSEDED` with no build info even though the
      service is healthy. That is not a failure.
-   - **Waiting between polls**: Claude Code blocks a foreground `sleep` and no MCP tool waits, so run a
-     short `sleep` in the background (or use a monitor) and poll when it fires.
    - **Releases run one at a time per environment** (and builds share a small cluster-wide cap). Adding
      several services back to back does not build them in parallel: the later builds sit queued until
-     the earlier release finishes. A queued build is waiting its turn, not stuck.
+     the earlier release finishes. A queued build is waiting its turn, not stuck. A build queued for the
+     wrong commit can be stopped with `cancel_build`.
 3. On failure, classify by the **signal**, not the technology:
 
-> **`deploy` rebuilds from source (minutes). Config changes do not need it.** `set_variables`, `configure_service` (resources, port, start command), and volume mounts each roll the service out automatically with its **current image** in seconds. So every fix below that is config-only (a version pin for the *next* build aside) is applied and then you just poll `get_deploy_status` — **only call `deploy` again when you changed the source or a build-time `RAILPACK_*` variable.**
+> **`deploy` rebuilds from source (minutes). Config changes do not need it.** `set_variables`, `configure_service` (resources, port, start command), and volume mounts each roll the service out automatically with its **current image** in seconds. So every fix below that is config-only (a version pin for the *next* build aside) is applied and then you just check `get_deploy_status` with `wait`. **Only call `deploy` again when you changed the source or a variable the build reads** (`RAILPACK_*`, framework build-time values). A build that fetches content which changes without a commit (a static site pulling from a CMS) needs `deploy` with `no_cache`, or it reuses the old result.
 
 **Build FAILED** — `get_logs kind=build`:
 - Version mismatch → pin `RAILPACK_<PROVIDER>_VERSION`.
 - Missing system package → add `RAILPACK_BUILD_APT_PACKAGES` / `RAILPACK_DEPLOY_APT_PACKAGES` or `RAILPACK_PACKAGES` (see `references/railpack-config.md`).
 - Wrong build command → set `RAILPACK_BUILD_CMD`.
+- Killed while building (exit code 137, or `buildkit solve failed … EOF`) → the build ran out of memory, often while prerendering; the builder prints a hint line. There is no setting for build memory: reduce what the build does at once (fewer prerendered pages, lower parallelism) or report it to the user.
 Then `deploy` again.
 
 **Deploy FAILED** — `get_logs kind=deploy`: bad config applied during rollout; read the message and fix the offending variable/setting.
 
 **Rollout failure reasons** (from `get_deploy_status`):
 - `OOM_KILLED` → double the memory with `configure_service` (up to the per-service ceiling). It rolls out automatically with the current image; just re-check status. No rebuild.
-- `CRASH_LOOP` → `get_logs kind=runtime`. Usually wrong start command, `PORT` not honored, or a missing env var. Fix it with `configure_service` (start command) or `set_variables` — the change rolls out automatically with the current image; re-check status. No `deploy`/rebuild unless you changed source.
+- `CRASH_LOOP` → `get_logs kind=runtime` (it includes instances that already crashed or were replaced, so there is no need to swap the start command for `sleep` to look around). Usually wrong start command, `PORT` not honored, or a missing env var. Fix it with `configure_service` (start command) or `set_variables` — the change rolls out automatically with the current image; re-check status. No `deploy`/rebuild unless you changed source.
 - `IMAGE_PULL_FAILED` → the image ref is wrong or unreachable (prebuilt-image deploys); fix the ref.
 - `CONFIG_ERROR` → an invalid variable or setting; correct it.
 - `UNSCHEDULABLE` → no node has room for the requested resources; lower the request or the user adds capacity.
 - `QUOTA_EXCEEDED` → the workspace quota is hit; the user raises it in the dashboard (you cannot).
 - `NOT_READY` / `DEADLINE_EXCEEDED` → the app started but never became healthy in time; check runtime logs for a slow or failing boot.
+- An instance that is stuck while code and config are fine → `restart_service` (fresh instances, same image, no build). Don't set a dummy variable to force a restart.
 
 **NEVER silently modify the user's code.** If the fix requires a code change (e.g. the app truly
 ignores `$PORT`), propose the change, explain why, and let the user apply it. Configuration lives on
@@ -184,14 +205,18 @@ the platform; code lives in the repo.
 Account/projects: `get_account`, `list_projects`, `get_project`, `create_project` (auto-creates a
 `development` environment), `create_environment`.
 Detection/source: `detect_services`, `list_github_repos`.
-Services: `add_service` (starts the first build right away and returns its `release_id`; put build-time
-`RAILPACK_*` pins in its initial variables so that build sees them; optional `cpu`/`memory` to size it),
-`configure_service` (start command, resources), `set_variables`, `list_variables`, `check_variables`
-(confirm a variable holds an expected value without revealing it).
-Resources: `create_database` (optional `cpu`/`memory`), `create_kv_store`, `create_bucket`,
-`create_volume` (10Gi to 128Gi; optional `mount_service` + `mount_path`), `run_sql`.
-Deploy: `deploy` (rebuild after a source or `RAILPACK_*` change), `get_deploy_status`, `get_logs`,
-`rollback`, `add_domain`.
+Services: `add_service` (starts the first build right away and returns its `release_id`; its initial
+variables take literals, refs and `generate`, and build-time pins belong there so that build sees them;
+optional `cpu`/`memory` to size it), `configure_service` (start command, port, replicas, resources,
+user, `auto_deploy`, `ci_deploy`, `context_path`), `restart_service`, `set_variables`, `list_variables`
+(pass `environment` to list refs before a service exists), `check_variables` (confirm a variable holds an
+expected value without revealing it).
+Resources: `create_database` / `create_kv_store` (optional `wait`; database `cpu`/`memory`),
+`create_bucket`, `configure_bucket` (public or private), `create_volume` (10Gi to 128Gi; optional
+`mount_service` + `mount_path`), `run_sql`.
+Deploy: `deploy` (rebuild after a source or build-time variable change; `no_cache` to build from
+scratch), `get_deploy_status` (`wait` to block until settled), `get_logs`, `cancel_build`, `rollback`,
+`add_domain`.
 
 There are no delete tools — the user removes projects, services, and resources from the dashboard.
 
