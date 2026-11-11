@@ -27,6 +27,12 @@ func (s *server) registerResource(m *mcp.Server) {
 	}, s.createBucket)
 
 	mcp.AddTool(m, &mcp.Tool{
+		Name:        "configure_bucket",
+		Description: "Change bucket settings. public=true makes every object readable by anyone at the bucket's publicEndpoint, public=false makes it private again. Writing always needs credentials.",
+		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(false)},
+	}, s.configureBucket)
+
+	mcp.AddTool(m, &mcp.Tool{
 		Name:        "create_volume",
 		Description: "Provision a persistent volume in an environment. size is a Kubernetes quantity between 10Gi and 128Gi (e.g. 10Gi); it can grow later but never shrink. Optionally mount it into a service at a path; a volume mounts into one service only, and that service must run a single replica.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(false)},
@@ -195,6 +201,37 @@ func (s *server) createBucket(ctx context.Context, _ *mcp.CallToolRequest, input
 		"bucket": out.CreateBucket,
 		"note":   "S3-compatible; wire its credentials into a service via set_variables refs from list_variables' available list",
 	})
+}
+
+type configureBucketInput struct {
+	Bucket string `json:"bucket" jsonschema:"bucket id (workspace/project/environment/bucket)"`
+	Public *bool  `json:"public,omitempty" jsonschema:"true makes every object publicly readable, false makes the bucket private"`
+}
+
+func (s *server) configureBucket(ctx context.Context, _ *mcp.CallToolRequest, input configureBucketInput) (*mcp.CallToolResult, any, error) {
+	bucketID, err := s.resourceID(input.Bucket)
+	if err != nil {
+		return nil, nil, err
+	}
+	if input.Public == nil {
+		return nil, nil, fmt.Errorf("nothing to change: pass public")
+	}
+
+	const mutation = `mutation($bucket: BucketID!, $public: Boolean!) { setBucketPublic(bucket: $bucket, public: $public) { id name status public publicEndpoint } }`
+	var out struct {
+		SetBucketPublic map[string]any `json:"setBucketPublic"`
+	}
+	if err := s.query(ctx, "configure_bucket", mutation, map[string]any{"bucket": bucketID, "public": *input.Public}, &out); err != nil {
+		return nil, nil, err
+	}
+	return jsonResult(map[string]any{"bucket": bucketView(out.SetBucketPublic)})
+}
+
+func bucketView(bucket map[string]any) map[string]any {
+	if public, _ := bucket["public"].(bool); !public {
+		delete(bucket, "publicEndpoint")
+	}
+	return bucket
 }
 
 type createVolumeInput struct {

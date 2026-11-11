@@ -41,7 +41,7 @@ func (s *server) registerProject(m *mcp.Server) {
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "get_project",
-		Description: "Get a project with its environments and everything in them: services (status, replicas, endpoints, resources), databases, key-value stores, buckets, and volumes. A service's status describes what serves traffic; latestRelease shows a newer release that is still building or failed.",
+		Description: "Get a project with its environments and everything in them: services (status, replicas, endpoints, resources), databases, key-value stores, buckets (bucketName is the name S3 clients use, publicEndpoint where a public bucket's objects are readable), and volumes. A service's status describes what serves traffic; latestRelease shows a newer release that is still building or failed.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, DestructiveHint: ptr(false)},
 	}, s.getProject)
 
@@ -104,7 +104,7 @@ func (s *server) getProject(ctx context.Context, _ *mcp.CallToolRequest, input g
       services { id name status replicas { desired ready } port command resources { cpu memory } endpoints { host protocol type } lastDeployedAt latestRelease { id status build { status } } }
       databases { id name status statusReason instances version size public }
       keyValueStores { id name status }
-      buckets { id name status public }
+      buckets { id name status public endpoint publicEndpoint }
       volumes { id name size mount { service path } }
     }
   }
@@ -114,12 +114,44 @@ func (s *server) getProject(ctx context.Context, _ *mcp.CallToolRequest, input g
 		Project any `json:"project"`
 	}
 	if err := s.query(ctx, "get_project", query, map[string]any{"id": id}, &out); err != nil {
-		if splitErr := s.getProjectSplit(ctx, id, &out); splitErr == nil {
-			return jsonResult(out.Project)
+		if splitErr := s.getProjectSplit(ctx, id, &out); splitErr != nil {
+			return nil, nil, err
 		}
-		return nil, nil, err
 	}
+	s.addBucketNames(ctx, out.Project)
 	return jsonResult(out.Project)
+}
+
+func (s *server) addBucketNames(ctx context.Context, project any) {
+	const query = `query($bucket: BucketID!) { bucketCredentials(bucket: $bucket) { bucket } }`
+	projectMap, _ := project.(map[string]any)
+	environments, _ := projectMap["environments"].([]any)
+	if environments == nil {
+		if typed, ok := projectMap["environments"].([]map[string]any); ok {
+			for _, environment := range typed {
+				environments = append(environments, environment)
+			}
+		}
+	}
+	for _, entry := range environments {
+		environment, _ := entry.(map[string]any)
+		buckets, _ := environment["buckets"].([]any)
+		for _, item := range buckets {
+			bucket, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			bucketView(bucket)
+			var out struct {
+				BucketCredentials struct {
+					Bucket string `json:"bucket"`
+				} `json:"bucketCredentials"`
+			}
+			if err := s.query(ctx, "get_project (bucket name)", query, map[string]any{"bucket": bucket["id"]}, &out); err == nil {
+				bucket["bucketName"] = out.BucketCredentials.Bucket
+			}
+		}
+	}
 }
 
 func (s *server) getProjectSplit(ctx context.Context, id string, out *struct {
@@ -141,7 +173,7 @@ func (s *server) getProjectSplit(ctx context.Context, id string, out *struct {
       id
       databases { id name status statusReason instances version size public }
       keyValueStores { id name status }
-      buckets { id name status public }
+      buckets { id name status public endpoint publicEndpoint }
       volumes { id name size mount { service path } }
     }
   }

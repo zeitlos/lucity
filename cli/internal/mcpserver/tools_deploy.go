@@ -18,7 +18,7 @@ func (s *server) registerDeploy(m *mcp.Server) {
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "get_deploy_status",
-		Description: "Get the status of a service and one of its releases (build, deploy, security scan, and rollout phases) plus its endpoints. Without release_id the newest release is used, which can be newer than the one serving traffic: liveRelease then names the one that serves. Pass wait to block until the release settles instead of polling. Read get_logs for a failed phase.",
+		Description: "Get the status of a service and one of its releases (build, deploy, security scan, and rollout phases) plus its endpoints, and whether a push to its branch deploys on its own (autoDeploy; branch null means the repository's default branch). When the scan found committed credentials, secretScan lists where. Without release_id the newest release is used, which can be newer than the one serving traffic: liveRelease then names the one that serves. Pass wait to block until the release settles instead of polling. Read get_logs for a failed phase.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, DestructiveHint: ptr(false)},
 	}, s.getDeployStatus)
 
@@ -137,7 +137,7 @@ func releaseRollout(release map[string]any) map[string]any {
 func (s *server) deployStatus(ctx context.Context, serviceID, releaseID string) (map[string]any, bool, error) {
 	const query = `query($id: ServiceID!) {
   service(id: $id) {
-    id status port
+    id status port branch autoDeploy
     endpoints { host protocol type tls redirectTo }
     releases {
       id status createdAt
@@ -153,11 +153,13 @@ func (s *server) deployStatus(ctx context.Context, serviceID, releaseID string) 
 
 	var out struct {
 		Service struct {
-			ID        string           `json:"id"`
-			Status    string           `json:"status"`
-			Port      int              `json:"port"`
-			Endpoints []any            `json:"endpoints"`
-			Releases  []map[string]any `json:"releases"`
+			ID         string           `json:"id"`
+			Status     string           `json:"status"`
+			Port       int              `json:"port"`
+			Branch     *string          `json:"branch"`
+			AutoDeploy bool             `json:"autoDeploy"`
+			Endpoints  []any            `json:"endpoints"`
+			Releases   []map[string]any `json:"releases"`
 		} `json:"service"`
 	}
 	if err := s.query(ctx, "get_deploy_status", query, map[string]any{"id": serviceID}, &out); err != nil {
@@ -171,10 +173,22 @@ func (s *server) deployStatus(ctx context.Context, serviceID, releaseID string) 
 
 	result := map[string]any{
 		"serviceStatus": out.Service.Status,
+		"autoDeploy":    out.Service.AutoDeploy,
+		"branch":        out.Service.Branch,
 		"endpoints":     out.Service.Endpoints,
 		"release":       release,
 	}
 	hints := actionHints(release, out.Service.Port)
+	if scan, _ := release["scan"].(map[string]any); scan["status"] == "FINDINGS" {
+		report, err := s.secretScanReport(ctx, serviceID)
+		if err != nil {
+			return nil, false, err
+		}
+		if report != nil {
+			result["secretScan"] = report
+			hints = append(hints, "the secret scan found credentials committed to the repository, listed under secretScan.findings. Verified ones are live: rotate them, then remove them from the code")
+		}
+	}
 	if live := liveRelease(out.Service.Releases); live != nil && live["id"] != release["id"] {
 		result["liveRelease"] = map[string]any{"id": live["id"], "status": live["status"], "source": live["source"]}
 		if status, _ := release["status"].(string); status == "FAILED" || status == "CANCELLED" {
@@ -185,6 +199,23 @@ func (s *server) deployStatus(ctx context.Context, serviceID, releaseID string) 
 		result["actions"] = hints
 	}
 	return result, releaseSettled(release), nil
+}
+
+func (s *server) secretScanReport(ctx context.Context, serviceID string) (any, error) {
+	const query = `query($id: ServiceID!) {
+  service(id: $id) {
+    secretScanReport { commit scannedAt findings { rule file line commit verified url } }
+  }
+}`
+	var out struct {
+		Service struct {
+			SecretScanReport any `json:"secretScanReport"`
+		} `json:"service"`
+	}
+	if err := s.query(ctx, "get_deploy_status (secret scan)", query, map[string]any{"id": serviceID}, &out); err != nil {
+		return nil, err
+	}
+	return out.Service.SecretScanReport, nil
 }
 
 func liveRelease(releases []map[string]any) map[string]any {
@@ -274,7 +305,7 @@ func rolloutHint(reason, serviceID string, port int) []string {
 	case "CRASH_LOOP":
 		hint := "rollout DEGRADED: the container keeps crashing on startup. rollout.message has the exit code and, when the container could not even start (a missing shell or binary, a permission error), the runtime's reason"
 		if serviceID != "" {
-			hint += fmt.Sprintf("; get_logs with kind=\"runtime\" id=%q shows what the app printed before it exited", serviceID)
+			hint += fmt.Sprintf("; get_logs with kind=\"runtime\" service=%q shows what the app printed before it exited", serviceID)
 		}
 		return []string{hint}
 	case "IMAGE_PULL_FAILED":
@@ -290,7 +321,7 @@ func rolloutHint(reason, serviceID string, port int) []string {
 	case "NOT_READY":
 		hint := fmt.Sprintf("rollout FAILED: the container runs but never became ready. The platform checks port %d and passes it to the app as PORT; an app listening on another port never gets ready, so make it listen on $PORT or set its port with configure_service", port)
 		if serviceID != "" {
-			hint += fmt.Sprintf(". get_logs with kind=\"runtime\" id=%q shows what it listens on", serviceID)
+			hint += fmt.Sprintf(". get_logs with kind=\"runtime\" service=%q shows what it listens on", serviceID)
 		}
 		return []string{hint}
 	default:

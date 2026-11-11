@@ -12,7 +12,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-const serviceSummaryFields = `id name status replicas { desired ready } port command resources { cpu memory } user endpoints { host protocol type tls }`
+const serviceSummaryFields = `id name status replicas { desired ready } port command resources { cpu memory } user autoDeploy ciDeploy endpoints { host protocol type tls }`
 
 func (s *server) registerService(m *mcp.Server) {
 	mcp.AddTool(m, &mcp.Tool{
@@ -23,7 +23,7 @@ func (s *server) registerService(m *mcp.Server) {
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "configure_service",
-		Description: "Change service settings. Only the fields you provide are applied: start_command, port, replicas, cpu, memory, user. cpu and memory are Kubernetes quantities (e.g. cpu '500m', memory '512Mi'). user sets the run-as user id for image-based services only (rejected for source builds); the same id owns mounted volumes.",
+		Description: "Change service settings. Only the fields you provide are applied: start_command, port, replicas, cpu, memory, user, auto_deploy, ci_deploy. start_command \"\" goes back to the detected default. auto_deploy and ci_deploy only decide what starts a build and restart nothing. cpu and memory are Kubernetes quantities (e.g. cpu '500m', memory '512Mi'). user sets the run-as user id for image-based services only (rejected for source builds); the same id owns mounted volumes.",
 		Annotations: &mcp.ToolAnnotations{IdempotentHint: true, DestructiveHint: ptr(false)},
 	}, s.configureService)
 
@@ -167,13 +167,15 @@ func (s *server) createdService(ctx context.Context, serviceID string) (map[stri
 }
 
 type configureServiceInput struct {
-	Service      string `json:"service" jsonschema:"service id (workspace/project/environment/service)"`
-	StartCommand string `json:"start_command,omitempty" jsonschema:"custom start command; overrides the detected default"`
-	Port         *int   `json:"port,omitempty" jsonschema:"container port (1-65535)"`
-	Replicas     *int   `json:"replicas,omitempty" jsonschema:"desired replica count (1-20)"`
-	CPU          string `json:"cpu,omitempty" jsonschema:"CPU request as a Kubernetes quantity (e.g. 500m)"`
-	Memory       string `json:"memory,omitempty" jsonschema:"memory request as a Kubernetes quantity (e.g. 512Mi)"`
-	User         *int   `json:"user,omitempty" jsonschema:"run-as user id (0-65535) for image-based services; the same id owns mounted volumes; -1 clears it back to the image default. Rejected for source builds"`
+	Service      string  `json:"service" jsonschema:"service id (workspace/project/environment/service)"`
+	StartCommand *string `json:"start_command,omitempty" jsonschema:"command the service starts with, run through a shell; overrides the detected default. An empty string goes back to the default"`
+	Port         *int    `json:"port,omitempty" jsonschema:"container port (1-65535)"`
+	Replicas     *int    `json:"replicas,omitempty" jsonschema:"desired replica count (1-20)"`
+	CPU          string  `json:"cpu,omitempty" jsonschema:"CPU request as a Kubernetes quantity (e.g. 500m)"`
+	Memory       string  `json:"memory,omitempty" jsonschema:"memory request as a Kubernetes quantity (e.g. 512Mi)"`
+	User         *int    `json:"user,omitempty" jsonschema:"run-as user id (0-65535) for image-based services; the same id owns mounted volumes; -1 clears it back to the image default. Rejected for source builds"`
+	AutoDeploy   *bool   `json:"auto_deploy,omitempty" jsonschema:"build and deploy on every push to the tracked branch"`
+	CIDeploy     *bool   `json:"ci_deploy,omitempty" jsonschema:"allow keyless deploys from GitHub Actions workflows in the service's repository"`
 }
 
 func (s *server) configureService(ctx context.Context, _ *mcp.CallToolRequest, input configureServiceInput) (*mcp.CallToolResult, any, error) {
@@ -182,9 +184,9 @@ func (s *server) configureService(ctx context.Context, _ *mcp.CallToolRequest, i
 		return nil, nil, err
 	}
 
-	if input.StartCommand != "" {
+	if input.StartCommand != nil {
 		const mutation = `mutation($service: ServiceID!, $command: String!) { setCustomStartCommand(service: $service, command: $command) { id } }`
-		if err := s.query(ctx, "configure_service (start command)", mutation, map[string]any{"service": serviceID, "command": input.StartCommand}, nil); err != nil {
+		if err := s.query(ctx, "configure_service (start command)", mutation, map[string]any{"service": serviceID, "command": *input.StartCommand}, nil); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -232,6 +234,20 @@ func (s *server) configureService(ctx context.Context, _ *mcp.CallToolRequest, i
 			vars["user"] = *input.User
 		}
 		if err := s.query(ctx, "configure_service (user)", mutation, vars, nil); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	if input.AutoDeploy != nil {
+		const mutation = `mutation($service: ServiceID!, $enabled: Boolean!) { setAutoDeploy(service: $service, enabled: $enabled) { id } }`
+		if err := s.query(ctx, "configure_service (auto deploy)", mutation, map[string]any{"service": serviceID, "enabled": *input.AutoDeploy}, nil); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	if input.CIDeploy != nil {
+		const mutation = `mutation($service: ServiceID!, $enabled: Boolean!) { setCIDeploy(service: $service, enabled: $enabled) { id } }`
+		if err := s.query(ctx, "configure_service (ci deploy)", mutation, map[string]any{"service": serviceID, "enabled": *input.CIDeploy}, nil); err != nil {
 			return nil, nil, err
 		}
 	}
