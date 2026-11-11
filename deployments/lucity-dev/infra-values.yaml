@@ -179,6 +179,12 @@ clusterIssuers:
             gatewayHTTPRoute: {}
 
 certificates:
+  - name: db-lucity-io-wildcard-tls
+    secretName: db-lucity-io-wildcard-tls
+    issuerRef:
+      name: letsencrypt-dns01
+    dnsNames:
+      - "*.db.lucity.io"
   - name: lucity-dev-tls
     secretName: lucity-dev-tls
     issuerRef:
@@ -224,6 +230,14 @@ rybbit:
 
 traefik:
   enabled: true
+  tlsStore:
+    default:
+      defaultCertificate:
+        secretName: db-lucity-io-wildcard-tls
+  tlsOptions:
+    default:
+      alpnProtocols:
+        - postgresql
   ports:
     postgres:
       proxyProtocol:

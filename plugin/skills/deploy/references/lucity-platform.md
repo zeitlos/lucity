@@ -81,7 +81,7 @@ with a local `psql`/`pg_restore`) and allows only the address of the machine tha
 their own terminal so the credentials never reach you, and the restore has to run from that same
 machine. Other addresses are added in the dashboard (Connect tab, Allowed addresses). The endpoint requires:
 
-- `sslmode=require` (TLS is mandatory). The `PLATFORM` entry's `uri` already carries it.
+- `sslmode=require` (TLS is mandatory). The `PLATFORM` entry's `uri` already carries it. The hostname has a publicly trusted certificate, so node-postgres, Prisma and `sslmode=verify-full` work without a CA file or `no-verify`.
 - An SNI-capable client — libpq ≥ 14. Older clients that do not send SNI get an "SSL EOF detected" style error because routing is by SNI.
 - An allowed address. A client from any other address gets the same "SSL EOF detected" error.
 

@@ -168,6 +168,14 @@ traefik:
   enabled: true
   nodeSelector: *platform-nodes
   tolerations: *platform-taint
+  tlsStore:
+    default:
+      defaultCertificate:
+        secretName: db-lucity-app-wildcard-tls
+  tlsOptions:
+    default:
+      alpnProtocols:
+        - postgresql
   ports:
     postgres:
       proxyProtocol:
@@ -214,6 +222,12 @@ clusterIssuers:
                       effect: NoSchedule
 
 certificates:
+  - name: db-lucity-app-wildcard-tls
+    secretName: db-lucity-app-wildcard-tls
+    issuerRef:
+      name: letsencrypt-dns01
+    dnsNames:
+      - "*.db.lucity.app"
   - name: lucity-cloud-tls
     secretName: lucity-cloud-tls
     issuerRef:
