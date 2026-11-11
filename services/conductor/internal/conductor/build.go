@@ -167,6 +167,10 @@ func (c *Client) deploy(ctx context.Context, serviceID ServiceID, gitRef string,
 		return nil, err
 	}
 
+	if build.ReleaseID != "" {
+		release.ID = build.ReleaseID
+	}
+
 	deploy, err := c.startDeploy(ctx, service.ID, build.ID.Name, commit.Message, release)
 
 	if err != nil {
