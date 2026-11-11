@@ -3,7 +3,7 @@ package planner
 import "context"
 
 type Interface interface {
-	Plan(ctx context.Context, repoURL, ref, token string) ([]Plan, error)
+	Plan(ctx context.Context, repoURL, ref, token, contextPath string) ([]Plan, error)
 }
 
 type Plan struct {

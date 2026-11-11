@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/railwayapp/railpack/core"
@@ -19,9 +20,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/planner"
 )
 
-var errUndetectable = usererror.New("couldn't detect how to build this repository: no supported language or framework found at its root")
-
-func (c *Client) Plan(ctx context.Context, repoURL, ref, token string) ([]planner.Plan, error) {
+func (c *Client) Plan(ctx context.Context, repoURL, ref, token, contextPath string) ([]planner.Plan, error) {
 	tmpDir, err := os.MkdirTemp("", "plan-*")
 
 	if err != nil {
@@ -38,7 +37,19 @@ func (c *Client) Plan(ctx context.Context, repoURL, ref, token string) ([]planne
 		return nil, fmt.Errorf("hide symlinks: %w", err)
 	}
 
-	a, err := app.NewApp(tmpDir)
+	dir, err := contextDir(tmpDir, contextPath)
+
+	if err != nil {
+		return nil, err
+	}
+
+	errUndetectable := usererror.New("couldn't detect how to build this repository: no supported language or framework found at its root")
+
+	if dir != "." {
+		errUndetectable = usererror.Errorf("couldn't detect how to build %q: no supported language or framework found there", dir)
+	}
+
+	a, err := app.NewApp(filepath.Join(tmpDir, dir))
 
 	if err != nil {
 		return nil, err
@@ -78,6 +89,11 @@ func (c *Client) Plan(ctx context.Context, repoURL, ref, token string) ([]planne
 		Versions:     make(map[string]string, len(generated.ResolvedPackages)),
 	}
 
+	if dir != "." {
+		service.Name = filepath.Base(dir)
+		service.ContextPath = filepath.ToSlash(dir)
+	}
+
 	for name, details := range generated.ResolvedPackages {
 		if details.ResolvedVersion == nil {
 			continue
@@ -87,6 +103,25 @@ func (c *Client) Plan(ctx context.Context, repoURL, ref, token string) ([]planne
 	}
 
 	return []planner.Plan{service}, nil
+}
+
+func contextDir(repoPath, contextPath string) (string, error) {
+	root, err := os.OpenRoot(repoPath)
+
+	if err != nil {
+		return "", err
+	}
+
+	defer root.Close()
+
+	dir := filepath.Join(".", contextPath)
+	info, err := root.Stat(dir)
+
+	if err != nil || !info.IsDir() {
+		return "", usererror.Errorf("%q is not a folder of this repository", contextPath)
+	}
+
+	return dir, nil
 }
 
 func shallowFetch(ctx context.Context, dir, repoURL, ref, token string) error {

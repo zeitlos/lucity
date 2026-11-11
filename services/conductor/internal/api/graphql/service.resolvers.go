@@ -273,8 +273,8 @@ func (r *queryResolver) Service(ctx context.Context, id platform.ServiceID) (*mo
 }
 
 // DetectServices is the resolver for the detectServices field.
-func (r *queryResolver) DetectServices(ctx context.Context, repositoryURL string) ([]model.DetectedService, error) {
-	services, err := r.Conductor.DetectServices(ctx, repositoryURL)
+func (r *queryResolver) DetectServices(ctx context.Context, repositoryURL string, contextPath *string) ([]model.DetectedService, error) {
+	services, err := r.Conductor.DetectServices(ctx, repositoryURL, to.Val(contextPath))
 	if err != nil {
 		return nil, err
 	}

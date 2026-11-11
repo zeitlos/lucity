@@ -14501,8 +14501,20 @@
           },
           {
             "name": "detectServices",
-            "description": "Inspects the default branch of a repository, given as a URL such as `https://github.com/acme/api`, and suggests a service for it with the detected language, framework and start command. The Lucity GitHub App needs access to the repository.",
+            "description": "Inspects the default branch of a repository, given as a URL such as `https://github.com/acme/api`, and suggests a service for it with the detected language, framework and start command. `contextPath` inspects a folder of the repository, such as `apps/web`, instead of its root. The Lucity GitHub App needs access to the repository.",
             "args": [
+              {
+                "name": "contextPath",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
               {
                 "name": "repositoryUrl",
                 "description": null,

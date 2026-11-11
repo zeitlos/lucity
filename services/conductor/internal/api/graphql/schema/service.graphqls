@@ -182,8 +182,8 @@ input AutoscalingInput {
 extend type Query {
   """One service, with its configuration, endpoints and releases."""
   service(id: ServiceID!): Service! @hasRole(role: WORKSPACE_DEPLOYER)
-  """Inspects the default branch of a repository, given as a URL such as `https://github.com/acme/api`, and suggests a service for it with the detected language, framework and start command. The Lucity GitHub App needs access to the repository."""
-  detectServices(repositoryUrl: String! @constraint(constraint: "min=3,max=300")): [DetectedService!]! @hasRole(role: WORKSPACE_MEMBER)
+  """Inspects the default branch of a repository, given as a URL such as `https://github.com/acme/api`, and suggests a service for it with the detected language, framework and start command. `contextPath` inspects a folder of the repository, such as `apps/web`, instead of its root. The Lucity GitHub App needs access to the repository."""
+  detectServices(repositoryUrl: String! @constraint(constraint: "min=3,max=300"), contextPath: String @constraint(constraint: "max=255")): [DetectedService!]! @hasRole(role: WORKSPACE_MEMBER)
   """The branches of a repository, given as a URL such as `https://github.com/acme/api`. The Lucity GitHub App needs access to the repository."""
   repositoryBranches(repositoryUrl: String! @constraint(constraint: "min=3,max=300")): [String!]! @hasRole(role: WORKSPACE_MEMBER)
 }

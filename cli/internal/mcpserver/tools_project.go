@@ -47,7 +47,7 @@ func (s *server) registerProject(m *mcp.Server) {
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "detect_services",
-		Description: "Inspect a source repository and detect deployable services (language, framework, context path, start command, suggested port). repository is owner/repo or a full https URL, as for add_service, e.g. acme/shop; the workspace's GitHub installation must be able to read it.",
+		Description: "Inspect a source repository and detect deployable services (language, framework, context path, start command, suggested port). repository is owner/repo or a full https URL, as for add_service, e.g. acme/shop; the workspace's GitHub installation must be able to read it. Detection looks at the repository root; in a monorepo pass context_path (e.g. apps/web) for each app folder, and pass the same context_path to add_service.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, DestructiveHint: ptr(false)},
 	}, s.detectServices)
 
@@ -225,7 +225,8 @@ func (s *server) getProjectSplit(ctx context.Context, id string, out *struct {
 }
 
 type detectServicesInput struct {
-	Repository string `json:"repository" jsonschema:"owner/repo or a full https URL, e.g. acme/shop or https://github.com/acme/shop"`
+	Repository  string `json:"repository" jsonschema:"owner/repo or a full https URL, e.g. acme/shop or https://github.com/acme/shop"`
+	ContextPath string `json:"context_path,omitempty" jsonschema:"folder of the repository to inspect instead of its root, e.g. apps/web"`
 }
 
 func (s *server) detectServices(ctx context.Context, _ *mcp.CallToolRequest, input detectServicesInput) (*mcp.CallToolResult, any, error) {
@@ -233,14 +234,14 @@ func (s *server) detectServices(ctx context.Context, _ *mcp.CallToolRequest, inp
 		return nil, nil, err
 	}
 
-	const query = `query($url: String!) {
-  detectServices(repositoryUrl: $url) { name language framework contextPath startCommand suggestedPort }
+	const query = `query($url: String!, $contextPath: String) {
+  detectServices(repositoryUrl: $url, contextPath: $contextPath) { name language framework contextPath startCommand suggestedPort }
 }`
 
 	var out struct {
 		DetectServices []any `json:"detectServices"`
 	}
-	if err := s.query(ctx, "detect_services", query, map[string]any{"url": repositoryURL(input.Repository)}, &out); err != nil {
+	if err := s.query(ctx, "detect_services", query, map[string]any{"url": repositoryURL(input.Repository), "contextPath": input.ContextPath}, &out); err != nil {
 		return nil, nil, err
 	}
 	return jsonResult(map[string]any{"services": out.DetectServices})

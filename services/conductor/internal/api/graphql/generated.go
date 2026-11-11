@@ -776,7 +776,7 @@ type ComplexityRoot struct {
 		DatabaseTableData        func(childComplexity int, database platform.DatabaseID, table string, schema *string, limit *int, offset *int) int
 		DatabaseTables           func(childComplexity int, database platform.DatabaseID) int
 		Deployment               func(childComplexity int, id platform.DeploymentID) int
-		DetectServices           func(childComplexity int, repositoryURL string) int
+		DetectServices           func(childComplexity int, repositoryURL string, contextPath *string) int
 		EjectProject             func(childComplexity int, id platform.ProjectID) int
 		Environment              func(childComplexity int, environment platform.EnvironmentID) int
 		Environments             func(childComplexity int, project platform.ProjectID) int
@@ -1220,7 +1220,7 @@ type QueryResolver interface {
 	Build(ctx context.Context, id buildjob.BuildID) (*model.Build, error)
 	Deployment(ctx context.Context, id platform.DeploymentID) (*model.Deployment, error)
 	Service(ctx context.Context, id platform.ServiceID) (*model.Service, error)
-	DetectServices(ctx context.Context, repositoryURL string) ([]model.DetectedService, error)
+	DetectServices(ctx context.Context, repositoryURL string, contextPath *string) ([]model.DetectedService, error)
 	RepositoryBranches(ctx context.Context, repositoryURL string) ([]string, error)
 	AvailableVariables(ctx context.Context, environment platform.EnvironmentID) ([]model.Variable, error)
 	SharedVariables(ctx context.Context, environment platform.EnvironmentID) ([]model.SharedVariable, error)
@@ -4825,7 +4825,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Query.DetectServices(childComplexity, args["repositoryUrl"].(string)), true
+		return e.ComplexityRoot.Query.DetectServices(childComplexity, args["repositoryUrl"].(string), args["contextPath"].(*string)), true
 	case "Query.ejectProject":
 		if e.ComplexityRoot.Query.EjectProject == nil {
 			break
@@ -11964,6 +11964,12 @@ func (ec *executionContext) field_Query_detectServices_args(ctx context.Context,
 		return nil, err
 	}
 	args["repositoryUrl"] = arg0
+
+	arg1, err := ec.field_Query_detectServices_argsContextPath(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["contextPath"] = arg1
 	return args, nil
 }
 
@@ -12004,6 +12010,49 @@ func (ec *executionContext) field_Query_detectServices_argsRepositoryURL(
 	} else {
 		var zeroVal string
 		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
+	}
+}
+
+func (ec *executionContext) field_Query_detectServices_argsContextPath(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("contextPath"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["contextPath"]
+		if !ok {
+			var zeroVal *string
+			return zeroVal, nil
+		}
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "max=255")
+		if err != nil {
+			var zeroVal *string
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal *string
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal *string
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(*string); ok {
+		return data, nil
+	} else if tmp == nil {
+		var zeroVal *string
+		return zeroVal, nil
+	} else {
+		var zeroVal *string
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be *string`, tmp))
 	}
 }
 
@@ -30159,7 +30208,7 @@ func (ec *executionContext) _Query_detectServices(ctx context.Context, field gra
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().DetectServices(ctx, fc.Args["repositoryUrl"].(string))
+			return ec.Resolvers.Query().DetectServices(ctx, fc.Args["repositoryUrl"].(string), fc.Args["contextPath"].(*string))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next

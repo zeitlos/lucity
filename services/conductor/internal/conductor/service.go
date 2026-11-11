@@ -109,7 +109,7 @@ func (c *Client) settleFirstBuildStatus(ctx context.Context, service *Service) {
 	}
 }
 
-func (c *Client) DetectServices(ctx context.Context, repositoryURL string) ([]Plan, error) {
+func (c *Client) DetectServices(ctx context.Context, repositoryURL, contextPath string) ([]Plan, error) {
 	repository, err := repositoryFromURL(repositoryURL)
 
 	if err != nil {
@@ -140,7 +140,7 @@ func (c *Client) DetectServices(ctx context.Context, repositoryURL string) ([]Pl
 		return nil, err
 	}
 
-	return c.planner.Plan(ctx, sourceURL, commit.SHA, token)
+	return c.planner.Plan(ctx, sourceURL, commit.SHA, token, contextPath)
 }
 
 func (c *Client) RepositoryBranches(ctx context.Context, repositoryURL string) ([]string, error) {
