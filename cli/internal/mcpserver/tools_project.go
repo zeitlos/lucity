@@ -2,6 +2,7 @@ package mcpserver
 
 import (
 	"context"
+	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -46,7 +47,7 @@ func (s *server) registerProject(m *mcp.Server) {
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "detect_services",
-		Description: "Inspect a source repository and detect deployable services (language, framework, context path, start command, suggested port). Pass the URL of a GitHub repository accessible to the workspace's GitHub installation, e.g. https://github.com/owner/repo.",
+		Description: "Inspect a source repository and detect deployable services (language, framework, context path, start command, suggested port). repository is owner/repo or a full https URL, as for add_service, e.g. acme/shop; the workspace's GitHub installation must be able to read it.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, DestructiveHint: ptr(false)},
 	}, s.detectServices)
 
@@ -86,7 +87,7 @@ func (s *server) listProjects(ctx context.Context, _ *mcp.CallToolRequest, _ emp
 }
 
 type getProjectInput struct {
-	Project string `json:"project" jsonschema:"project id (workspace/project), or the bare project id resolved against the active workspace"`
+	Project string `json:"project" jsonschema:"project id (workspace/project), or the bare project id resolved against the active workspace, e.g. acme/shop or shop"`
 }
 
 func (s *server) getProject(ctx context.Context, _ *mcp.CallToolRequest, input getProjectInput) (*mcp.CallToolResult, any, error) {
@@ -192,7 +193,7 @@ func (s *server) getProjectSplit(ctx context.Context, id string, out *struct {
 }
 
 type detectServicesInput struct {
-	RepositoryURL string `json:"repository_url" jsonschema:"URL of a GitHub repository accessible to the workspace's GitHub installation, e.g. https://github.com/owner/repo"`
+	Repository string `json:"repository" jsonschema:"owner/repo or a full https URL, e.g. acme/shop or https://github.com/acme/shop"`
 }
 
 func (s *server) detectServices(ctx context.Context, _ *mcp.CallToolRequest, input detectServicesInput) (*mcp.CallToolResult, any, error) {
@@ -207,10 +208,17 @@ func (s *server) detectServices(ctx context.Context, _ *mcp.CallToolRequest, inp
 	var out struct {
 		DetectServices []any `json:"detectServices"`
 	}
-	if err := s.query(ctx, "detect_services", query, map[string]any{"url": input.RepositoryURL}, &out); err != nil {
+	if err := s.query(ctx, "detect_services", query, map[string]any{"url": repositoryURL(input.Repository)}, &out); err != nil {
 		return nil, nil, err
 	}
 	return jsonResult(map[string]any{"services": out.DetectServices})
+}
+
+func repositoryURL(repository string) string {
+	if strings.Contains(repository, "://") {
+		return repository
+	}
+	return "https://github.com/" + strings.Trim(repository, "/")
 }
 
 type listGithubReposInput struct {

@@ -29,7 +29,7 @@ func (s *server) registerService(m *mcp.Server) {
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "set_variables",
-		Description: "Set environment variables for a service or shared across an environment (exactly one of service/environment). set entries apply by key; unset removes keys; other keys are preserved. Each entry is exactly one of: a literal value; a ref to a resource variable from list_variables' available list (service scope only, e.g. workspace/proj/env/lucity-app-pg-maindb-app/fqdn-uri wires a database's connection URI into the service); or generate, which stores a random secret you never see (for app-owned secrets like SECRET_KEY_BASE or a JWT secret; a key that already has a value keeps it). Values are never echoed back: the result lists keys and kinds only.",
+		Description: "Set environment variables for a service or shared across an environment (exactly one of service/environment). variables apply by key; unset removes keys; other keys are preserved. Keys use letters, digits and underscores and don't start with a digit. Example: {\"service\": \"acme/shop/development/web\", \"variables\": [{\"key\": \"DEBUG\", \"value\": \"false\"}, {\"key\": \"SECRET_KEY_BASE\", \"generate\": 64}], \"unset\": [\"OLD_FLAG\"]}. Each entry is exactly one of: a literal value; a ref to a resource variable from list_variables' available list (service scope only, e.g. workspace/proj/env/lucity-app-pg-maindb-app/fqdn-uri wires a database's connection URI into the service); or generate, which stores a random secret you never see (for app-owned secrets like SECRET_KEY_BASE or a JWT secret; a key that already has a value keeps it). Values are never echoed back: the result lists keys and kinds only.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(false)},
 	}, s.setVariables)
 
@@ -41,7 +41,7 @@ func (s *server) registerService(m *mcp.Server) {
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "check_variables",
-		Description: "Check whether variables hold the values you expect without revealing them, e.g. that DEBUG is \"true\". Exactly one of service/environment (shared variables). Each check is an exact, case-sensitive comparison returning match, mismatch, missing (key not set), or ref (the key references a resource or shared variable: its ref id is returned and it is not compared, so check a shared variable with environment scope). A mismatch carries detail empty when the stored value is empty, or whitespace when the two differ only in surrounding whitespace. Each key may appear once per call. HOST and PORT are injected by the platform and are not variables.",
+		Description: "Check whether variables hold the values you expect without revealing them, e.g. that DEBUG is \"true\". Exactly one of service/environment (shared variables). Each check is an exact, case-sensitive comparison returning match, mismatch, missing (key not set), or ref (the key references a resource or shared variable: its ref id is returned and it is not compared, so check a shared variable with environment scope). A mismatch carries detail empty when the stored value is empty, or whitespace when the two differ only in surrounding whitespace. Each key may appear once per call. To check that a value is set at all, expect \"\": match means empty, mismatch means it holds something. HOST and PORT are injected by the platform and are not variables. Example: {\"service\": \"acme/shop/development/web\", \"variables\": [{\"key\": \"DEBUG\", \"expected\": \"false\"}]}.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, DestructiveHint: ptr(false)},
 	}, s.checkVariables)
 }
@@ -363,7 +363,7 @@ func validateVariableEntry(entry setVariableEntry, unset map[string]bool) error 
 type setVariablesInput struct {
 	Service     string             `json:"service,omitempty" jsonschema:"service id to set service-scoped variables; exactly one of service/environment"`
 	Environment string             `json:"environment,omitempty" jsonschema:"environment id to set shared variables; exactly one of service/environment"`
-	Set         []setVariableEntry `json:"set,omitempty" jsonschema:"variables to set or update by key"`
+	Variables   []setVariableEntry `json:"variables,omitempty" jsonschema:"variables to set or update by key"`
 	Unset       []string           `json:"unset,omitempty" jsonschema:"variable keys to remove"`
 }
 
@@ -378,7 +378,7 @@ func (s *server) setVariables(ctx context.Context, _ *mcp.CallToolRequest, input
 	for _, key := range input.Unset {
 		unset[key] = true
 	}
-	for _, entry := range input.Set {
+	for _, entry := range input.Variables {
 		if err := validateVariableEntry(entry, unset); err != nil {
 			return nil, nil, err
 		}
@@ -394,7 +394,7 @@ func (s *server) setSharedVariables(ctx context.Context, input setVariablesInput
 	if err != nil {
 		return nil, nil, err
 	}
-	for _, entry := range input.Set {
+	for _, entry := range input.Variables {
 		if entry.Ref != "" {
 			return nil, nil, fmt.Errorf("shared (environment) variables are literal values only; refs are not allowed — set the ref on a service with service scope instead")
 		}
@@ -410,8 +410,8 @@ func (s *server) setSharedVariables(ctx context.Context, input setVariablesInput
 		merged[v.Key] = v.literal()
 	}
 	var generated, kept []string
-	set := make([]map[string]any, 0, len(input.Set))
-	for _, entry := range input.Set {
+	set := make([]map[string]any, 0, len(input.Variables))
+	for _, entry := range input.Variables {
 		var value string
 		switch {
 		case entry.Generate != 0 && merged[entry.Key] != "":
@@ -479,8 +479,8 @@ func (s *server) setServiceVariables(ctx context.Context, input setVariablesInpu
 	}
 	usedRef := false
 	var generated, kept []string
-	set := make([]map[string]any, 0, len(input.Set))
-	for _, entry := range input.Set {
+	set := make([]map[string]any, 0, len(input.Variables))
+	for _, entry := range input.Variables {
 		existing, exists := merged[entry.Key]
 		var v variable
 		switch {
@@ -584,7 +584,7 @@ type variableCheck struct {
 type checkVariablesInput struct {
 	Service     string          `json:"service,omitempty" jsonschema:"service id to check service-scoped variables; exactly one of service/environment"`
 	Environment string          `json:"environment,omitempty" jsonschema:"environment id to check shared variables; exactly one of service/environment"`
-	Checks      []variableCheck `json:"checks" jsonschema:"variables to compare; each key at most once per call"`
+	Variables   []variableCheck `json:"variables" jsonschema:"variables to compare; each key at most once per call"`
 }
 
 type variableCheckResult struct {
@@ -598,11 +598,11 @@ func (s *server) checkVariables(ctx context.Context, _ *mcp.CallToolRequest, inp
 	if (input.Service == "") == (input.Environment == "") {
 		return nil, nil, fmt.Errorf("provide exactly one of service or environment")
 	}
-	if len(input.Checks) == 0 {
+	if len(input.Variables) == 0 {
 		return nil, nil, fmt.Errorf("provide at least one check")
 	}
-	seen := make(map[string]bool, len(input.Checks))
-	for _, check := range input.Checks {
+	seen := make(map[string]bool, len(input.Variables))
+	for _, check := range input.Variables {
 		if seen[check.Key] {
 			return nil, nil, fmt.Errorf("variable %q appears more than once; check each key at most once per call", check.Key)
 		}
@@ -632,8 +632,8 @@ func (s *server) checkVariables(ctx context.Context, _ *mcp.CallToolRequest, inp
 	for _, v := range variables {
 		byKey[v.Key] = v
 	}
-	results := make([]variableCheckResult, 0, len(input.Checks))
-	for _, check := range input.Checks {
+	results := make([]variableCheckResult, 0, len(input.Variables))
+	for _, check := range input.Variables {
 		results = append(results, compareVariable(byKey[check.Key], check))
 	}
 	return jsonResult(map[string]any{"results": results})

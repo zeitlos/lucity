@@ -16,7 +16,8 @@ import (
 
 type getLogsInput struct {
 	Kind      string `json:"kind" jsonschema:"one of build, deploy, runtime, scan"`
-	ID        string `json:"id" jsonschema:"build/deploy/scan job id for those kinds, or a service id for runtime"`
+	Service   string `json:"service,omitempty" jsonschema:"service id for kind=runtime, e.g. acme/shop/development/web"`
+	ID        string `json:"id,omitempty" jsonschema:"build, deploy or scan id from get_deploy_status for those kinds, e.g. acme/build-x7k2pq"`
 	TailLines int    `json:"tail_lines,omitempty" jsonschema:"maximum number of trailing lines to return (default 200); the result also stops at about 40,000 characters, keeping the newest lines"`
 	Since     string `json:"since,omitempty" jsonschema:"runtime only: how far back to read, as a duration such as 15m or 6h (default 1h, at most 336h)"`
 	Search    string `json:"search,omitempty" jsonschema:"runtime only: only lines containing this text, ignoring case"`
@@ -70,7 +71,11 @@ func (s *server) getLogs(ctx context.Context, _ *mcp.CallToolRequest, input getL
 		selector = scalarLine("scanLogs")
 
 	case "runtime":
-		id, err := s.serviceID(input.ID)
+		service := input.Service
+		if service == "" {
+			service = input.ID
+		}
+		id, err := s.serviceID(service)
 		if err != nil {
 			return nil, nil, err
 		}

@@ -261,7 +261,7 @@ func (s *server) createVolume(ctx context.Context, _ *mcp.CallToolRequest, input
 
 type runSQLInput struct {
 	Database string `json:"database" jsonschema:"database id (workspace/project/environment/name)"`
-	Query    string `json:"query" jsonschema:"SQL statement to execute"`
+	Query    string `json:"query" jsonschema:"SQL statement to execute, e.g. select count(*) from users"`
 }
 
 func (s *server) runSQL(ctx context.Context, _ *mcp.CallToolRequest, input runSQLInput) (*mcp.CallToolResult, any, error) {
