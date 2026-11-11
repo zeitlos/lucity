@@ -142,7 +142,7 @@ func (s *server) addService(ctx context.Context, _ *mcp.CallToolRequest, input a
 		result["releaseId"] = release["id"]
 		result["buildId"] = build["id"]
 		result["buildStatus"] = build["status"]
-		result["note"] = fmt.Sprintf("the first build started with this call and rolls out when it finishes, so do NOT call deploy now (that builds a second time). Poll get_deploy_status with service=%q release_id=%q, because config changes made meanwhile create newer releases that hide this build. Only the variables passed here reach this build, so a RAILPACK_* variable set later needs a deploy. A config change can fail with 'another operation ... is in progress' while this rollout runs; retry it after a few seconds.", serviceID, release["id"])
+		result["note"] = fmt.Sprintf("the first build started with this call and rolls out when it finishes, so do NOT call deploy now (that builds a second time). Poll get_deploy_status with service=%q release_id=%q, because config changes made meanwhile create newer releases that hide this build. Only the variables passed here reach this build, so a variable the app reads during its build (RAILPACK_* builder settings, or values a frontend framework inlines into its bundle) set later needs a deploy. A config change can fail with 'another operation ... is in progress' while this rollout runs; retry it after a few seconds.", serviceID, release["id"])
 	}
 	return jsonResult(result)
 }
@@ -441,7 +441,7 @@ func (s *server) setSharedVariables(ctx context.Context, input setVariablesInput
 		return nil, nil, err
 	}
 
-	return variablesResult("environment", views, generated, kept, "applied immediately: services in this environment roll out with their current images (no rebuild). Do NOT call deploy unless you changed source code.")
+	return variablesResult("environment", views, generated, kept, "applied immediately: services in this environment roll out with their current images (no rebuild). Builds never see shared variables, not even through refs, only literal values set on the service itself. So if the app reads one of these during its build (RAILPACK_* builder settings, or values a frontend framework inlines into its bundle), set it as a literal value on each service that needs it and deploy that service. Otherwise do NOT call deploy.")
 }
 
 func variablesResult(scope string, views []variableView, generated, kept []string, note string) (*mcp.CallToolResult, any, error) {
@@ -529,7 +529,7 @@ func (s *server) setServiceVariables(ctx context.Context, input setVariablesInpu
 		return nil, nil, err
 	}
 
-	return variablesResult("service", views, generated, kept, "applied immediately: the service rolls out with its current image (no rebuild). Poll get_deploy_status to watch the rollout. Do NOT call deploy unless you changed source code — deploy rebuilds from scratch.")
+	return variablesResult("service", views, generated, kept, "applied immediately: the service rolls out with its current image (no rebuild). Poll get_deploy_status to watch the rollout. That covers variables the app reads at runtime. If the app reads a changed variable during its build (RAILPACK_* builder settings, or values a frontend framework inlines into its bundle), the running build does not have it yet, so call deploy once to rebuild. Otherwise do NOT call deploy, it rebuilds from scratch.")
 }
 
 type listVariablesInput struct {
