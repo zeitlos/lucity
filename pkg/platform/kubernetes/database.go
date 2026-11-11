@@ -99,7 +99,7 @@ func toDatabase(cluster cnpgv1.Cluster, environmentID platform.EnvironmentID) pl
 		Name:         readableName(cluster.Annotations, pkglabels.Name, cluster.Labels[databaseLabel]),
 		Instances:    cluster.Spec.Instances,
 		Status:       databaseStatus(cluster),
-		StatusReason: cluster.Status.PhaseReason,
+		StatusReason: databaseStatusReason(cluster),
 		Resources: platform.Resources{
 			CPU:    limits[core.ResourceCPU],
 			Memory: limits[core.ResourceMemory],
@@ -178,6 +178,24 @@ var databaseFailurePhases = map[string]bool{
 	cnpgv1.PhaseUnknownPlugin:              true,
 	cnpgv1.PhaseImageCatalogError:          true,
 	cnpgv1.PhaseArchitectureBinaryMissing:  true,
+}
+
+func databaseStatusReason(cluster cnpgv1.Cluster) string {
+	if cluster.Spec.Instances == 0 || cluster.Status.Phase == cnpgv1.PhaseHealthy {
+		return cluster.Status.PhaseReason
+	}
+
+	reason := cluster.Status.PhaseReason
+
+	if reason == "" {
+		reason = cluster.Status.Phase
+	}
+
+	if reason == "" {
+		return ""
+	}
+
+	return fmt.Sprintf("%s (%d of %d instances ready)", reason, cluster.Status.ReadyInstances, cluster.Spec.Instances)
 }
 
 func databaseStatus(cluster cnpgv1.Cluster) platform.DatabaseStatus {

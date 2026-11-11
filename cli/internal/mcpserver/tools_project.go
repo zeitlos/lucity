@@ -101,7 +101,7 @@ func (s *server) getProject(ctx context.Context, _ *mcp.CallToolRequest, input g
     environments {
       id name
       services { id name status replicas { desired ready } port command resources { cpu memory } endpoints { host protocol type } lastDeployedAt }
-      databases { id name status version size public }
+      databases { id name status statusReason instances version size public }
       keyValueStores { id name status }
       buckets { id name status public }
       volumes { id name size mount { service path } }
@@ -138,7 +138,7 @@ func (s *server) getProjectSplit(ctx context.Context, id string, out *struct {
   project(id: $id) {
     environments {
       id
-      databases { id name status version size public }
+      databases { id name status statusReason instances version size public }
       keyValueStores { id name status }
       buckets { id name status public }
       volumes { id name size mount { service path } }

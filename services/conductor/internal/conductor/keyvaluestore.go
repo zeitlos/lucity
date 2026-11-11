@@ -77,6 +77,7 @@ func (c *Client) CreateKeyValueStore(ctx context.Context, environment platform.E
 		ID:      platform.KeyValueStoreID{Workspace: environment.Workspace, Project: environment.Project, Environment: environment.Name, Name: id},
 		Name:    name,
 		Version: version,
+		Status:  platform.DatabasePending,
 		Size:    parsedSize,
 	}, nil
 }

@@ -239,6 +239,7 @@ func (c *Client) CreateDatabase(ctx context.Context, environment platform.Enviro
 		ID:        platform.DatabaseID{Workspace: environment.Workspace, Project: environment.Project, Environment: environment.Name, Name: id},
 		Name:      name,
 		Version:   version,
+		Status:    platform.DatabasePending,
 		Size:      parsedSize,
 		Resources: platform.Resources{CPU: resources.CPU, Memory: resources.Memory},
 	}, nil
