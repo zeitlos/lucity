@@ -163,10 +163,18 @@ func scalarLine(field string) func(map[string]any) []string {
 			return nil
 		}
 		if text, ok := value.(string); ok {
-			return []string{text}
+			return []string{lastRedraw(text)}
 		}
 		return nil
 	}
+}
+
+func lastRedraw(line string) string {
+	line = strings.TrimRight(line, "\r")
+	if i := strings.LastIndex(line, "\r"); i >= 0 {
+		return line[i+1:]
+	}
+	return line
 }
 
 const minimumRedactedLength = 8
