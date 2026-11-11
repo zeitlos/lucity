@@ -5,9 +5,11 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"net/url"
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -195,7 +197,7 @@ func (s *server) runtimeLogs(ctx context.Context, service string, input getLogsI
 	}
 
 	lines, left, shortened := fitLogLines(lines)
-	note := fmt.Sprintf("at most %d entries from the past %s, oldest first, including instances that crashed or were replaced. Entries starting with \"platform:\" are what the platform did with an instance. Variable values and credentials appear as [redacted:<source>]", tail, since)
+	note := fmt.Sprintf("at most %d entries from the past %s, oldest first, including instances that crashed or were replaced. Entries starting with \"platform:\" are what the platform did with an instance. Credentials and secret-looking variable values appear as [redacted:<source>]", tail, since)
 	if fitted := fitNote(left, shortened, "narrow with since, search or instance, or a smaller tail_lines"); fitted != "" {
 		note += ". " + fitted
 	}
@@ -279,10 +281,14 @@ func (s *server) logRedactor(ctx context.Context, serviceID string) (*strings.Re
 	}
 
 	for _, v := range sources.ServiceVariables {
-		add(v.Key, v.literal())
+		if secretLiteral(v.Key, v.literal()) {
+			add(v.Key, v.literal())
+		}
 	}
 	for _, v := range sources.SharedVariables {
-		add(v.Key, v.literal())
+		if secretLiteral(v.Key, v.literal()) {
+			add(v.Key, v.literal())
+		}
 	}
 
 	for _, database := range sources.Environment.Databases {
@@ -342,6 +348,31 @@ func (s *server) logRedactor(ctx context.Context, serviceID string) (*strings.Re
 		replacements = append(replacements, value, "[redacted:"+secrets[value]+"]")
 	}
 	return strings.NewReplacer(replacements...), nil
+}
+
+var secretKeyWords = []string{"SECRET", "PASS", "TOKEN", "KEY", "PRIVATE", "CREDENTIAL", "AUTH", "SALT", "SIGN", "COOKIE", "SESSION", "DSN"}
+
+func secretLiteral(key, value string) bool {
+	upper := strings.ToUpper(key)
+	for _, word := range secretKeyWords {
+		if strings.Contains(upper, word) {
+			return true
+		}
+	}
+	if strings.Contains(value, "://") {
+		parsed, err := url.Parse(value)
+		return err != nil || parsed.User != nil
+	}
+	return looksRandom(value)
+}
+
+func looksRandom(value string) bool {
+	if len(value) < 16 || strings.ContainsAny(value, " \t\n") {
+		return false
+	}
+	letter := strings.ContainsFunc(value, unicode.IsLetter)
+	digit := strings.ContainsFunc(value, unicode.IsDigit)
+	return letter && digit
 }
 
 func provisioning(err error) bool {
