@@ -15,7 +15,7 @@ import (
 type getLogsInput struct {
 	Kind      string `json:"kind" jsonschema:"one of build, deploy, runtime, scan"`
 	ID        string `json:"id" jsonschema:"build/deploy/scan job id for those kinds, or a service id for runtime"`
-	TailLines int    `json:"tail_lines,omitempty" jsonschema:"maximum number of trailing lines to return (default 200)"`
+	TailLines int    `json:"tail_lines,omitempty" jsonschema:"maximum number of trailing lines to return (default 200); the result also stops at about 40,000 characters, keeping the newest lines"`
 	Since     string `json:"since,omitempty" jsonschema:"runtime only: how far back to read, as a duration such as 15m or 6h (default 1h, at most 336h)"`
 	Search    string `json:"search,omitempty" jsonschema:"runtime only: only lines containing this text, ignoring case"`
 	Instance  string `json:"instance,omitempty" jsonschema:"runtime only: only entries of this instance, the name in brackets in earlier output"`
@@ -83,14 +83,59 @@ func (s *server) getLogs(ctx context.Context, _ *mcp.CallToolRequest, input getL
 		return nil, nil, wrapGraphQL("get_logs", err)
 	}
 
+	lines, left, shortened := fitLogLines(lines)
 	result := map[string]any{
 		"lines":    lines,
 		"complete": complete,
 	}
+	var notes []string
 	if !complete {
-		result["note"] = "stream sampled until an idle pause; call again to continue"
+		notes = append(notes, "stream sampled until an idle pause; call again to continue")
+	}
+	if note := fitNote(left, shortened, "pass a smaller tail_lines to see fewer"); note != "" {
+		notes = append(notes, note)
+	}
+	if len(notes) > 0 {
+		result["note"] = strings.Join(notes, ". ")
 	}
 	return jsonResult(result)
+}
+
+const (
+	maxLogCharacters     = 40000
+	maxLogLineCharacters = 2000
+)
+
+func fitLogLines(lines []string) ([]string, int, int) {
+	kept := make([]string, 0, len(lines))
+	total := 0
+	shortened := 0
+	for i := len(lines) - 1; i >= 0; i-- {
+		line := lines[i]
+		if runes := []rune(line); len(runes) > maxLogLineCharacters {
+			line = string(runes[:maxLogLineCharacters]) + fmt.Sprintf(" … [%d characters cut]", len(runes)-maxLogLineCharacters)
+			shortened++
+		}
+		if total+len(line) > maxLogCharacters && len(kept) > 0 {
+			slices.Reverse(kept)
+			return kept, i + 1, shortened
+		}
+		total += len(line)
+		kept = append(kept, line)
+	}
+	slices.Reverse(kept)
+	return kept, 0, shortened
+}
+
+func fitNote(left, shortened int, narrow string) string {
+	var parts []string
+	if left > 0 {
+		parts = append(parts, fmt.Sprintf("%d older lines left out to keep this result small; %s", left, narrow))
+	}
+	if shortened > 0 {
+		parts = append(parts, fmt.Sprintf("%d long lines cut to %d characters", shortened, maxLogLineCharacters))
+	}
+	return strings.Join(parts, ". ")
 }
 
 func (s *server) runtimeLogs(ctx context.Context, service string, input getLogsInput, tail int) (*mcp.CallToolResult, any, error) {
@@ -149,10 +194,15 @@ func (s *server) runtimeLogs(ctx context.Context, service string, input getLogsI
 		lines = append(lines, entry.Time+" ["+entry.Pod+"] "+redactor.Replace(text))
 	}
 
+	lines, left, shortened := fitLogLines(lines)
+	note := fmt.Sprintf("at most %d entries from the past %s, oldest first, including instances that crashed or were replaced. Entries starting with \"platform:\" are what the platform did with an instance. Variable values and credentials appear as [redacted:<source>]", tail, since)
+	if fitted := fitNote(left, shortened, "narrow with since, search or instance, or a smaller tail_lines"); fitted != "" {
+		note += ". " + fitted
+	}
 	return jsonResult(map[string]any{
 		"lines":    lines,
 		"complete": true,
-		"note":     fmt.Sprintf("at most %d entries from the past %s, oldest first, including instances that crashed or were replaced. Entries starting with \"platform:\" are what the platform did with an instance. Variable values and credentials appear as [redacted:<source>]", tail, since),
+		"note":     note,
 	})
 }
 
