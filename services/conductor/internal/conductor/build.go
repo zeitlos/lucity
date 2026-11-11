@@ -43,6 +43,10 @@ func (c *Client) Build(ctx context.Context, id BuildID) (*Build, error) {
 	return c.buildjob.Get(ctx, id)
 }
 
+func (c *Client) CancelBuild(ctx context.Context, id BuildID) (*Build, error) {
+	return c.buildjob.Cancel(ctx, id)
+}
+
 func (c *Client) BuildLogs(ctx context.Context, id BuildID) (<-chan string, error) {
 	reader, err := c.buildjob.Logs(ctx, id)
 
@@ -134,14 +138,8 @@ func (c *Client) deploy(ctx context.Context, serviceID ServiceID, gitRef string,
 		return nil, err
 	}
 
-	if c.config.MaxQueuedReleases > 0 {
-		queued, err := c.pipeline.QueuedRuns(ctx, service.ID.Workspace)
-
-		if err != nil {
-			slog.WarnContext(ctx, "queued release count failed", "error", err, "workspace", service.ID.Workspace)
-		} else if queued >= c.config.MaxQueuedReleases {
-			return nil, usererror.Errorf("deployment queue is full (%d queued) — wait for queued releases to finish", queued)
-		}
+	if err := c.checkQueue(ctx, service.ID.Workspace); err != nil {
+		return nil, err
 	}
 
 	buildVariables, err := c.platform.BuildVariables(ctx, service.ID)
@@ -194,6 +192,25 @@ func (c *Client) deploy(ctx context.Context, serviceID ServiceID, gitRef string,
 	}
 
 	return &result, nil
+}
+
+func (c *Client) checkQueue(ctx context.Context, workspace string) error {
+	if c.config.MaxQueuedReleases <= 0 {
+		return nil
+	}
+
+	queued, err := c.pipeline.QueuedRuns(ctx, workspace)
+
+	if err != nil {
+		slog.WarnContext(ctx, "queued release count failed", "error", err, "workspace", workspace)
+		return nil
+	}
+
+	if queued >= c.config.MaxQueuedReleases {
+		return usererror.Errorf("deployment queue is full (%d queued) — wait for queued releases to finish", queued)
+	}
+
+	return nil
 }
 
 func (c *Client) startDeploy(ctx context.Context, serviceID platform.ServiceID, buildName, commitMessage string, release deployer.ReleaseMeta) (*Deploy, error) {

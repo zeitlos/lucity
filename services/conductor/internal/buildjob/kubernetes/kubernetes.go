@@ -121,6 +121,10 @@ func buildStatus(job batch.Job) buildjob.Status {
 		}
 	}
 
+	if cancelled && job.Spec.Suspend != nil && *job.Spec.Suspend {
+		return buildjob.StatusCancelled
+	}
+
 	if cancelled {
 		// Cancel issued, deadline patch in flight, controller hasn't transitioned yet
 		return buildjob.StatusCancelling

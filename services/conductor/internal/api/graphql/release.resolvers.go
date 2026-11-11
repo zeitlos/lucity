@@ -30,6 +30,17 @@ func (r *mutationResolver) Deploy(ctx context.Context, service platform.ServiceI
 	return &result, nil
 }
 
+// CancelBuild is the resolver for the cancelBuild field.
+func (r *mutationResolver) CancelBuild(ctx context.Context, build buildjob.BuildID) (*model.Build, error) {
+	result, err := r.Conductor.CancelBuild(ctx, build)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertBuild(*result)), nil
+}
+
 // Build is the resolver for the build field.
 func (r *queryResolver) Build(ctx context.Context, id buildjob.BuildID) (*model.Build, error) {
 	build, err := r.Conductor.Build(ctx, id)

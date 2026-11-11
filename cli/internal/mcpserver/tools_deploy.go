@@ -29,6 +29,12 @@ func (s *server) registerDeploy(m *mcp.Server) {
 	}, s.getLogs)
 
 	mcp.AddTool(m, &mcp.Tool{
+		Name:        "cancel_build",
+		Description: "Cancel a queued or running build, e.g. one started for a bad commit. Its release ends CANCELLED and never rolls out; the service keeps serving its current release. Pass the build id from get_deploy_status or deploy.",
+		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(false)},
+	}, s.cancelBuild)
+
+	mcp.AddTool(m, &mcp.Tool{
 		Name:        "rollback",
 		Description: "Roll a service back to a previous deployment. Pass the deployment id of a previous ACTIVE or SUPERSEDED deployment (from get_deploy_status).",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(false)},
@@ -327,6 +333,29 @@ func rolloutHint(reason, serviceID string, port int) []string {
 	default:
 		return []string{"rollout DEGRADED/FAILED — inspect get_logs (kind=runtime) for the service"}
 	}
+}
+
+type cancelBuildInput struct {
+	Build string `json:"build" jsonschema:"build id (workspace/build-...), from get_deploy_status or deploy"`
+}
+
+func (s *server) cancelBuild(ctx context.Context, _ *mcp.CallToolRequest, input cancelBuildInput) (*mcp.CallToolResult, any, error) {
+	buildID, err := s.scopedID(input.Build, 2)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	const mutation = `mutation($build: BuildID!) { cancelBuild(build: $build) { id status } }`
+	var out struct {
+		CancelBuild any `json:"cancelBuild"`
+	}
+	if err := s.query(ctx, "cancel_build", mutation, map[string]any{"build": buildID}, &out); err != nil {
+		return nil, nil, err
+	}
+	return jsonResult(map[string]any{
+		"build": out.CancelBuild,
+		"note":  "a running build stops within seconds; poll get_deploy_status to see its release end CANCELLED",
+	})
 }
 
 type rollbackInput struct {

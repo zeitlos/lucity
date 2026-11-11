@@ -235,6 +235,10 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 	}
 
 	if repository != "" {
+		if err := c.checkQueue(ctx, workspace); err != nil {
+			return nil, err
+		}
+
 		spec.Port = 8080
 		spec.AutoDeploy = environmentID.Name == defaultAutoDeployEnvironment
 
