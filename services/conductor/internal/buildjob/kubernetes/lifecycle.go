@@ -186,6 +186,10 @@ func (c *Client) newBuildJob(id string, opts buildjob.StartOptions, repoURL url.
 		{Name: "DOCKER_CONFIG", Value: "/etc/registry-auth"},
 	}
 
+	if opts.NoCache {
+		env = append(env, core.EnvVar{Name: "BUILD_NO_CACHE", Value: "true"})
+	}
+
 	volumeMounts := []core.VolumeMount{
 		{Name: "registry-auth", MountPath: "/etc/registry-auth", ReadOnly: true},
 	}

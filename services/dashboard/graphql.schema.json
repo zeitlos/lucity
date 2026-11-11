@@ -10387,7 +10387,7 @@
           },
           {
             "name": "deploy",
-            "description": "Builds a service from source and rolls it out. `gitRef` takes a branch, tag or commit and defaults to the branch the service tracks. A deployer may only deploy services that build from its own repository and have CI deploys turned on.",
+            "description": "Builds a service from source and rolls it out. `gitRef` takes a branch, tag or commit and defaults to the branch the service tracks. `noCache` builds every step from scratch instead of reusing earlier build results, for a build that fetches content which changes without a commit. A deployer may only deploy services that build from its own repository and have CI deploys turned on.",
             "args": [
               {
                 "name": "gitRef",
@@ -10395,6 +10395,18 @@
                 "type": {
                   "kind": "SCALAR",
                   "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "noCache",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
                   "ofType": null
                 },
                 "defaultValue": null,

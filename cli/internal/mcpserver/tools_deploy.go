@@ -50,6 +50,7 @@ func (s *server) registerDeploy(m *mcp.Server) {
 type deployInput struct {
 	Service string `json:"service" jsonschema:"service id (workspace/project/environment/service)"`
 	GitRef  string `json:"git_ref,omitempty" jsonschema:"branch, tag, or commit to build; defaults to the service's default branch"`
+	NoCache bool   `json:"no_cache,omitempty" jsonschema:"build every step from scratch instead of reusing earlier build results; only for a build that fetches content which changes without a commit, such as a static site pulling from a CMS, since it is much slower"`
 }
 
 func (s *server) deploy(ctx context.Context, _ *mcp.CallToolRequest, input deployInput) (*mcp.CallToolResult, any, error) {
@@ -58,13 +59,20 @@ func (s *server) deploy(ctx context.Context, _ *mcp.CallToolRequest, input deplo
 		return nil, nil, err
 	}
 
-	const mutation = `mutation($service: ServiceID!, $gitRef: String) {
-  deploy(service: $service, gitRef: $gitRef) { id status build { id status } createdAt }
-}`
+	parameters := "$service: ServiceID!, $gitRef: String"
+	arguments := "service: $service, gitRef: $gitRef"
 	variables := map[string]any{"service": serviceID}
 	if input.GitRef != "" {
 		variables["gitRef"] = input.GitRef
 	}
+	if input.NoCache {
+		parameters += ", $noCache: Boolean"
+		arguments += ", noCache: $noCache"
+		variables["noCache"] = true
+	}
+	mutation := `mutation(` + parameters + `) {
+  deploy(` + arguments + `) { id status build { id status } createdAt }
+}`
 
 	var out struct {
 		Deploy struct {

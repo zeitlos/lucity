@@ -651,7 +651,7 @@ type ComplexityRoot struct {
 		DeleteProject                 func(childComplexity int, id platform.ProjectID) int
 		DeleteVolume                  func(childComplexity int, volume platform.VolumeID) int
 		DeleteWorkspace               func(childComplexity int) int
-		Deploy                        func(childComplexity int, service platform.ServiceID, gitRef *string) int
+		Deploy                        func(childComplexity int, service platform.ServiceID, gitRef *string, noCache *bool) int
 		ExecuteQuery                  func(childComplexity int, database platform.DatabaseID, query string) int
 		ExpandVolume                  func(childComplexity int, volume platform.VolumeID, size string) int
 		ExposeDatabase                func(childComplexity int, database platform.DatabaseID) int
@@ -1141,7 +1141,7 @@ type MutationResolver interface {
 	CreateProject(ctx context.Context, input model.CreateProjectInput) (*model.Project, error)
 	RenameProject(ctx context.Context, project platform.ProjectID, name string) (*model.Project, error)
 	DeleteProject(ctx context.Context, id platform.ProjectID) (bool, error)
-	Deploy(ctx context.Context, service platform.ServiceID, gitRef *string) (*model.Release, error)
+	Deploy(ctx context.Context, service platform.ServiceID, gitRef *string, noCache *bool) (*model.Release, error)
 	CancelBuild(ctx context.Context, build buildjob.BuildID) (*model.Build, error)
 	AddService(ctx context.Context, environment platform.EnvironmentID, input model.AddServiceInput) (*model.Service, error)
 	RemoveService(ctx context.Context, service platform.ServiceID) (bool, error)
@@ -3811,7 +3811,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.Deploy(childComplexity, args["service"].(platform.ServiceID), args["gitRef"].(*string)), true
+		return e.ComplexityRoot.Mutation.Deploy(childComplexity, args["service"].(platform.ServiceID), args["gitRef"].(*string), args["noCache"].(*bool)), true
 	case "Mutation.executeQuery":
 		if e.ComplexityRoot.Mutation.ExecuteQuery == nil {
 			break
@@ -9383,6 +9383,14 @@ func (ec *executionContext) field_Mutation_deploy_args(ctx context.Context, rawA
 		return nil, err
 	}
 	args["gitRef"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "noCache",
+		func(ctx context.Context, v any) (*bool, error) {
+			return ec.unmarshalOBoolean2ᚖbool(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["noCache"] = arg2
 	return args, nil
 }
 
@@ -25003,7 +25011,7 @@ func (ec *executionContext) _Mutation_deploy(ctx context.Context, field graphql.
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().Deploy(ctx, fc.Args["service"].(platform.ServiceID), fc.Args["gitRef"].(*string))
+			return ec.Resolvers.Mutation().Deploy(ctx, fc.Args["service"].(platform.ServiceID), fc.Args["gitRef"].(*string), fc.Args["noCache"].(*bool))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next

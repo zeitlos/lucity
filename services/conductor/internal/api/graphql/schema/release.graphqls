@@ -161,8 +161,8 @@ extend type Subscription {
 }
 
 extend type Mutation {
-  """Builds a service from source and rolls it out. `gitRef` takes a branch, tag or commit and defaults to the branch the service tracks. A deployer may only deploy services that build from its own repository and have CI deploys turned on."""
-  deploy(service: ServiceID!, gitRef: String): Release! @hasRole(role: WORKSPACE_DEPLOYER)
+  """Builds a service from source and rolls it out. `gitRef` takes a branch, tag or commit and defaults to the branch the service tracks. `noCache` builds every step from scratch instead of reusing earlier build results, for a build that fetches content which changes without a commit. A deployer may only deploy services that build from its own repository and have CI deploys turned on."""
+  deploy(service: ServiceID!, gitRef: String, noCache: Boolean): Release! @hasRole(role: WORKSPACE_DEPLOYER)
   """Cancels a queued or running build. Its release never rolls out."""
   cancelBuild(build: BuildID!): Build! @hasRole(role: WORKSPACE_MEMBER)
 }

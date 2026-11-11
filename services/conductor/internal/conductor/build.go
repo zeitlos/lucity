@@ -101,15 +101,15 @@ func (c *Client) DeployLogs(ctx context.Context, id DeployID) (<-chan string, er
 	return out, nil
 }
 
-func (c *Client) Deploy(ctx context.Context, serviceID ServiceID, gitRef string) (*Release, error) {
-	return c.deploy(ctx, serviceID, gitRef, deployer.TriggerManual)
+func (c *Client) Deploy(ctx context.Context, serviceID ServiceID, gitRef string, noCache bool) (*Release, error) {
+	return c.deploy(ctx, serviceID, gitRef, noCache, deployer.TriggerManual)
 }
 
 func (c *Client) DeployPush(ctx context.Context, serviceID ServiceID, gitRef string) (*Release, error) {
-	return c.deploy(ctx, serviceID, gitRef, deployer.TriggerPush)
+	return c.deploy(ctx, serviceID, gitRef, false, deployer.TriggerPush)
 }
 
-func (c *Client) deploy(ctx context.Context, serviceID ServiceID, gitRef string, trigger deployer.TriggerKind) (*Release, error) {
+func (c *Client) deploy(ctx context.Context, serviceID ServiceID, gitRef string, noCache bool, trigger deployer.TriggerKind) (*Release, error) {
 	service, err := c.platform.Service(ctx, serviceID)
 
 	if err != nil {
@@ -163,6 +163,7 @@ func (c *Client) deploy(ctx context.Context, serviceID ServiceID, gitRef string,
 		Token:            token,
 		BuildVars:        buildVariables,
 		ReleaseID:        release.ID,
+		NoCache:          noCache,
 	})
 
 	if err != nil {

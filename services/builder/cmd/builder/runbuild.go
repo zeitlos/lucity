@@ -396,7 +396,13 @@ func buildWithBuildKit(ctx context.Context, cfg Config, buildDir, imageName, cac
 		return "", fmt.Errorf("failed to marshal image config: %w", err)
 	}
 
-	def, err := llbState.Marshal(ctx, llb.LinuxAmd64)
+	constraints := []llb.ConstraintsOpt{llb.LinuxAmd64}
+
+	if cfg.NoCache {
+		constraints = append(constraints, llb.IgnoreCache)
+	}
+
+	def, err := llbState.Marshal(ctx, constraints...)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal LLB: %w", err)
 	}
@@ -461,12 +467,13 @@ func buildWithBuildKit(ctx context.Context, cfg Config, buildDir, imageName, cac
 				Attrs: exportAttrs,
 			},
 		},
-		CacheImports: []client.CacheOptionsEntry{
-			{Type: "registry", Attrs: importCacheAttrs},
-		},
 		CacheExports: []client.CacheOptionsEntry{
 			{Type: "registry", Attrs: exportCacheAttrs},
 		},
+	}
+
+	if !cfg.NoCache {
+		solveOpts.CacheImports = []client.CacheOptionsEntry{{Type: "registry", Attrs: importCacheAttrs}}
 	}
 
 	// Stream build progress

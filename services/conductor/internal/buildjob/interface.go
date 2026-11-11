@@ -34,6 +34,7 @@ type StartOptions struct {
 	Token            string
 	BuildVars        map[string]string
 	ReleaseID        string
+	NoCache          bool
 }
 
 type Job struct {
