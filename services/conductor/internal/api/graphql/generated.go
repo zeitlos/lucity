@@ -676,6 +676,7 @@ type ComplexityRoot struct {
 		ReplaceChatAppToken           func(childComplexity int, chatApp platform.ChatAppID, token string) int
 		ReplaceConnectorCredential    func(childComplexity int, connector platform.ConnectorID, credential string) int
 		ReplaceModelProviderKey       func(childComplexity int, provider platform.ModelProviderID, apiKey string) int
+		RestartService                func(childComplexity int, service platform.ServiceID) int
 		RestoreDatabase               func(childComplexity int, input model.RestoreDatabaseInput) int
 		RevokeAPIToken                func(childComplexity int, id string) int
 		Rollback                      func(childComplexity int, deployment platform.DeploymentID) int
@@ -692,6 +693,7 @@ type ComplexityRoot struct {
 		SetDatabaseResources          func(childComplexity int, database platform.DatabaseID, resources model.ResourcesInput) int
 		SetDatabaseStorage            func(childComplexity int, database platform.DatabaseID, size string) int
 		SetServiceBranch              func(childComplexity int, service platform.ServiceID, branch *string) int
+		SetServiceContextPath         func(childComplexity int, service platform.ServiceID, contextPath string) int
 		SetServiceHealthCheck         func(childComplexity int, service platform.ServiceID, healthCheck *model.HealthCheckInput) int
 		SetServicePort                func(childComplexity int, service platform.ServiceID, port *int) int
 		SetServiceResources           func(childComplexity int, service platform.ServiceID, resources model.ResourcesInput) int
@@ -1144,6 +1146,8 @@ type MutationResolver interface {
 	RenameService(ctx context.Context, service platform.ServiceID, name string) (*model.Service, error)
 	SetCustomStartCommand(ctx context.Context, service platform.ServiceID, command string) (*model.Service, error)
 	SetServiceBranch(ctx context.Context, service platform.ServiceID, branch *string) (*model.Service, error)
+	SetServiceContextPath(ctx context.Context, service platform.ServiceID, contextPath string) (*model.Service, error)
+	RestartService(ctx context.Context, service platform.ServiceID) (*model.Service, error)
 	SetAutoDeploy(ctx context.Context, service platform.ServiceID, enabled bool) (*model.Service, error)
 	SetCIDeploy(ctx context.Context, service platform.ServiceID, enabled bool) (*model.Service, error)
 	SetServicePort(ctx context.Context, service platform.ServiceID, port *int) (*model.Service, error)
@@ -4070,6 +4074,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.ReplaceModelProviderKey(childComplexity, args["provider"].(platform.ModelProviderID), args["apiKey"].(string)), true
+	case "Mutation.restartService":
+		if e.ComplexityRoot.Mutation.RestartService == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_restartService_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.RestartService(childComplexity, args["service"].(platform.ServiceID)), true
 	case "Mutation.restoreDatabase":
 		if e.ComplexityRoot.Mutation.RestoreDatabase == nil {
 			break
@@ -4246,6 +4261,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetServiceBranch(childComplexity, args["service"].(platform.ServiceID), args["branch"].(*string)), true
+	case "Mutation.setServiceContextPath":
+		if e.ComplexityRoot.Mutation.SetServiceContextPath == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setServiceContextPath_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetServiceContextPath(childComplexity, args["service"].(platform.ServiceID), args["contextPath"].(string)), true
 	case "Mutation.setServiceHealthCheck":
 		if e.ComplexityRoot.Mutation.SetServiceHealthCheck == nil {
 			break
@@ -10278,6 +10304,20 @@ func (ec *executionContext) field_Mutation_replaceModelProviderKey_argsAPIKey(
 	}
 }
 
+func (ec *executionContext) field_Mutation_restartService_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
+		func(ctx context.Context, v any) (platform.ServiceID, error) {
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐServiceID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["service"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_restoreDatabase_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -10813,6 +10853,66 @@ func (ec *executionContext) field_Mutation_setServiceBranch_argsBranch(
 	} else {
 		var zeroVal *string
 		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be *string`, tmp))
+	}
+}
+
+func (ec *executionContext) field_Mutation_setServiceContextPath_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
+		func(ctx context.Context, v any) (platform.ServiceID, error) {
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐServiceID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["service"] = arg0
+
+	arg1, err := ec.field_Mutation_setServiceContextPath_argsContextPath(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["contextPath"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setServiceContextPath_argsContextPath(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("contextPath"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["contextPath"]
+		if !ok {
+			var zeroVal string
+			return zeroVal, nil
+		}
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "max=255")
+		if err != nil {
+			var zeroVal string
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal string
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(string); ok {
+		return data, nil
+	} else {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
 	}
 }
 
@@ -25183,6 +25283,130 @@ func (ec *executionContext) fieldContext_Mutation_setServiceBranch(ctx context.C
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_setServiceBranch_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_setServiceContextPath(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_setServiceContextPath(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SetServiceContextPath(ctx, fc.Args["service"].(platform.ServiceID), fc.Args["contextPath"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.Service
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.Service
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Service) graphql.Marshaler {
+			return ec.marshalNService2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐService(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_setServiceContextPath(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Service(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setServiceContextPath_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_restartService(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_restartService(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().RestartService(ctx, fc.Args["service"].(platform.ServiceID))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.Service
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.Service
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Service) graphql.Marshaler {
+			return ec.marshalNService2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐService(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_restartService(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Service(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_restartService_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -42654,6 +42878,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "setServiceBranch":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_setServiceBranch(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "setServiceContextPath":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setServiceContextPath(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "restartService":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_restartService(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

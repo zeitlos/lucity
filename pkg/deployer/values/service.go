@@ -5,6 +5,7 @@ import (
 	"maps"
 	"slices"
 	"strconv"
+	"time"
 
 	"github.com/zeitlos/lucity/pkg/image"
 	"github.com/zeitlos/lucity/pkg/usererror"
@@ -181,6 +182,7 @@ func DeleteService(env *Env, name string) error {
 type ImageProvenance struct {
 	Commit        string
 	CommitMessage string
+	ContextPath   string
 	BuildID       string
 }
 
@@ -202,6 +204,7 @@ func SetServiceImage(env *Env, name string, ref image.Ref, provenance ImageProve
 
 		setOrDelete(s.PodAnnotations, annotationSourceCommit, provenance.Commit)
 		setOrDelete(s.PodAnnotations, annotationSourceMessage, provenance.CommitMessage)
+		setOrDelete(s.PodAnnotations, annotationSourceContext, provenance.ContextPath)
 		setOrDelete(s.PodAnnotations, annotationBuildID, provenance.BuildID)
 
 		setOrDelete(s.PodAnnotations, annotationRelease, release.ID)
@@ -252,6 +255,26 @@ func SetServiceBranch(env *Env, name, branch string) error {
 		}
 
 		setOrDelete(s.Annotations, annotationSourceBranch, branch)
+	})
+}
+
+func SetServiceContextPath(env *Env, name, contextPath string) error {
+	return mutateService(env, name, func(s *Service) {
+		if s.Annotations == nil {
+			s.Annotations = map[string]string{}
+		}
+
+		setOrDelete(s.Annotations, annotationSourceContext, contextPath)
+	})
+}
+
+func RestartService(env *Env, name string, at time.Time) error {
+	return mutateService(env, name, func(s *Service) {
+		if s.PodAnnotations == nil {
+			s.PodAnnotations = map[string]string{}
+		}
+
+		s.PodAnnotations[annotationRestartedAt] = at.UTC().Format(time.RFC3339)
 	})
 }
 

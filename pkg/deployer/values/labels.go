@@ -21,6 +21,7 @@ const (
 	annotationSourceCommit  = "lucity.dev/source-commit"
 	annotationSourceMessage = "lucity.dev/source-commit-message"
 	annotationBuildID       = "lucity.dev/build-id"
+	annotationRestartedAt   = "lucity.dev/restarted-at"
 
 	annotationName = "lucity.dev/name"
 

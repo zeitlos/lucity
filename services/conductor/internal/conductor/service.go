@@ -374,6 +374,32 @@ func (c *Client) SetServiceBranch(ctx context.Context, svc platform.ServiceID, b
 	return c.Service(ctx, svc)
 }
 
+func (c *Client) SetServiceContextPath(ctx context.Context, svc platform.ServiceID, contextPath string) (*Service, error) {
+	current, err := c.platform.Service(ctx, svc)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if current.SourceURL == "" {
+		return nil, usererror.New("only a service built from a repository has a build directory")
+	}
+
+	if _, err := c.deployer.Services().SetContextPath(ctx, svc, contextPath); err != nil {
+		return nil, fmt.Errorf("set context path: %w", err)
+	}
+
+	return c.Service(ctx, svc)
+}
+
+func (c *Client) RestartService(ctx context.Context, svc platform.ServiceID) (*Service, error) {
+	if _, err := c.deployer.Services().Restart(ctx, svc); err != nil {
+		return nil, fmt.Errorf("restart service: %w", err)
+	}
+
+	return c.Service(ctx, svc)
+}
+
 func (c *Client) SetAutoDeploy(ctx context.Context, svc platform.ServiceID, enabled bool) (*Service, error) {
 	if _, err := c.deployer.Services().SetAutoDeploy(ctx, svc, enabled); err != nil {
 		return nil, fmt.Errorf("set autodeploy: %w", err)
@@ -466,6 +492,7 @@ func (c *Client) Rollback(ctx context.Context, deploymentID DeploymentID) (bool,
 	provenance := deployer.ImageProvenance{
 		Commit:        deployment.Commit,
 		CommitMessage: deployment.CommitMessage,
+		ContextPath:   deployment.ContextPath,
 		BuildID:       deployment.BuildID,
 	}
 

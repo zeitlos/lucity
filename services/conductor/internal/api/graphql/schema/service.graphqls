@@ -198,6 +198,10 @@ extend type Mutation {
   setCustomStartCommand(service: ServiceID!, command: String!): Service! @hasRole(role: WORKSPACE_MEMBER)
   """Sets the branch a service builds from, starting with its next deploy. Leave it out to follow the repository's default branch."""
   setServiceBranch(service: ServiceID!, branch: String @constraint(constraint: "min=1,max=250")): Service! @hasRole(role: WORKSPACE_MEMBER)
+  """Sets the folder of the repository a service builds from, such as `apps/web`, starting with its next deploy. An empty string builds from the repository root. Only services built from a repository have one."""
+  setServiceContextPath(service: ServiceID!, contextPath: String! @constraint(constraint: "max=255")): Service! @hasRole(role: WORKSPACE_MEMBER)
+  """Replaces the instances of a service with fresh ones, on the image and settings it already runs."""
+  restartService(service: ServiceID!): Service! @hasRole(role: WORKSPACE_MEMBER)
   """Turns deploying on every push to the tracked branch on or off."""
   setAutoDeploy(service: ServiceID!, enabled: Boolean!): Service! @hasRole(role: WORKSPACE_MEMBER)
   """Turns keyless deploys from GitHub Actions workflows in the service's repository on or off."""

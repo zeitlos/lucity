@@ -11491,6 +11491,39 @@
             "deprecationReason": null
           },
           {
+            "name": "restartService",
+            "description": "Replaces the instances of a service with fresh ones, on the image and settings it already runs.",
+            "args": [
+              {
+                "name": "service",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "ServiceID",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "Service",
+                "kind": "OBJECT",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "restoreDatabase",
             "description": "Restores the backups of a database into a new database in the same environment, leaving the original untouched. Leave `targetTime` out to restore the latest state.",
             "args": [
@@ -12228,6 +12261,55 @@
                   "kind": "SCALAR",
                   "name": "String",
                   "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "service",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "ServiceID",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "Service",
+                "kind": "OBJECT",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "setServiceContextPath",
+            "description": "Sets the folder of the repository a service builds from, such as `apps/web`, starting with its next deploy. An empty string builds from the repository root. Only services built from a repository have one.",
+            "args": [
+              {
+                "name": "contextPath",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "String",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
                 },
                 "defaultValue": null,
                 "isDeprecated": false,

@@ -12,7 +12,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-const serviceSummaryFields = `id name status replicas { desired ready } port command resources { cpu memory } user autoDeploy ciDeploy endpoints { host protocol type tls }`
+const serviceSummaryFields = `id name status replicas { desired ready } port command resources { cpu memory } user autoDeploy ciDeploy contextPath endpoints { host protocol type tls }`
 
 func (s *server) registerService(m *mcp.Server) {
 	mcp.AddTool(m, &mcp.Tool{
@@ -23,9 +23,15 @@ func (s *server) registerService(m *mcp.Server) {
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "configure_service",
-		Description: "Change service settings. Only the fields you provide are applied: start_command, port, replicas, cpu, memory, user, auto_deploy, ci_deploy. start_command \"\" goes back to the detected default. auto_deploy and ci_deploy only decide what starts a build and restart nothing. cpu and memory are Kubernetes quantities (e.g. cpu '500m', memory '512Mi'). user sets the run-as user id for image-based services only (rejected for source builds); the same id owns mounted volumes.",
+		Description: "Change service settings. Only the fields you provide are applied: start_command, port, replicas, cpu, memory, user, auto_deploy, ci_deploy, context_path. start_command \"\" goes back to the detected default. context_path is the repository folder the service builds from and takes effect with the next deploy. auto_deploy and ci_deploy only decide what starts a build and restart nothing. cpu and memory are Kubernetes quantities (e.g. cpu '500m', memory '512Mi'). user sets the run-as user id for image-based services only (rejected for source builds); the same id owns mounted volumes.",
 		Annotations: &mcp.ToolAnnotations{IdempotentHint: true, DestructiveHint: ptr(false)},
 	}, s.configureService)
+
+	mcp.AddTool(m, &mcp.Tool{
+		Name:        "restart_service",
+		Description: "Replace the instances of a service with fresh ones, on the image and settings it already runs; nothing is built. For an instance that is stuck while the code and config are fine. Poll get_deploy_status to watch it.",
+		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(false)},
+	}, s.restartService)
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "set_variables",
@@ -176,6 +182,7 @@ type configureServiceInput struct {
 	User         *int    `json:"user,omitempty" jsonschema:"run-as user id (0-65535) for image-based services; the same id owns mounted volumes; -1 clears it back to the image default. Rejected for source builds"`
 	AutoDeploy   *bool   `json:"auto_deploy,omitempty" jsonschema:"build and deploy on every push to the tracked branch"`
 	CIDeploy     *bool   `json:"ci_deploy,omitempty" jsonschema:"allow keyless deploys from GitHub Actions workflows in the service's repository"`
+	ContextPath  *string `json:"context_path,omitempty" jsonschema:"repository folder the service builds from, e.g. apps/web; an empty string builds from the repository root. Repository services only; call deploy afterwards to build from it"`
 }
 
 func (s *server) configureService(ctx context.Context, _ *mcp.CallToolRequest, input configureServiceInput) (*mcp.CallToolResult, any, error) {
@@ -252,6 +259,13 @@ func (s *server) configureService(ctx context.Context, _ *mcp.CallToolRequest, i
 		}
 	}
 
+	if input.ContextPath != nil {
+		const mutation = `mutation($service: ServiceID!, $contextPath: String!) { setServiceContextPath(service: $service, contextPath: $contextPath) { id } }`
+		if err := s.query(ctx, "configure_service (context path)", mutation, map[string]any{"service": serviceID, "contextPath": *input.ContextPath}, nil); err != nil {
+			return nil, nil, err
+		}
+	}
+
 	summary, err := s.serviceSummary(ctx, serviceID)
 	if err != nil {
 		return nil, nil, err
@@ -259,6 +273,31 @@ func (s *server) configureService(ctx context.Context, _ *mcp.CallToolRequest, i
 	return jsonResult(map[string]any{
 		"service": summary,
 		"note":    "applied immediately: the service rolls out with its current image (no rebuild). Poll get_deploy_status to watch the rollout. Do NOT call deploy unless you changed source code — deploy rebuilds from scratch.",
+	})
+}
+
+type restartServiceInput struct {
+	Service string `json:"service" jsonschema:"service id (workspace/project/environment/service)"`
+}
+
+func (s *server) restartService(ctx context.Context, _ *mcp.CallToolRequest, input restartServiceInput) (*mcp.CallToolResult, any, error) {
+	serviceID, err := s.serviceID(input.Service)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	const mutation = `mutation($service: ServiceID!) { restartService(service: $service) { id } }`
+	if err := s.query(ctx, "restart_service", mutation, map[string]any{"service": serviceID}, nil); err != nil {
+		return nil, nil, err
+	}
+
+	summary, err := s.serviceSummary(ctx, serviceID)
+	if err != nil {
+		return nil, nil, err
+	}
+	return jsonResult(map[string]any{
+		"service": summary,
+		"note":    "fresh instances are replacing the old ones with the same image; poll get_deploy_status to watch the rollout",
 	})
 }
 

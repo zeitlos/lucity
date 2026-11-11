@@ -52,6 +52,7 @@ Commands:
   workspace [<workspace>]  Show or switch the active workspace
   deploy <service>         Build and roll out a service
   status <service>         Show the latest rollout status of a service
+  restart <service>        Replace the instances of a service with fresh ones
   vars <command>           Manage service variables (list, available, set)
   db <command>             Manage databases (create, list, credentials, expose, unexpose, delete)
   token [--account]        Print a bearer token for scripting
@@ -168,6 +169,7 @@ var commandUsage = map[string]string{
 	"workspace": workspaceUsage,
 	"deploy":    deployUsage,
 	"status":    statusUsage,
+	"restart":   restartUsage,
 	"vars":      varsUsage,
 	"db":        dbUsage,
 	"token":     tokenUsage,
@@ -208,6 +210,8 @@ func main() {
 		err = cmdVars(ctx, args)
 	case "status":
 		err = cmdStatus(ctx, args)
+	case "restart":
+		err = cmdRestart(ctx, args)
 	case "token":
 		err = cmdToken(ctx, args)
 	case "mcp":

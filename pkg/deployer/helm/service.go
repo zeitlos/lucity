@@ -2,6 +2,7 @@ package helm
 
 import (
 	"context"
+	"time"
 
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/deployer/values"
@@ -58,6 +59,7 @@ func (s *serviceClient) SetImage(ctx context.Context, id platform.ServiceID, ref
 		return values.SetServiceImage(e, id.Name, ref, values.ImageProvenance{
 			Commit:        provenance.Commit,
 			CommitMessage: provenance.CommitMessage,
+			ContextPath:   provenance.ContextPath,
 			BuildID:       provenance.BuildID,
 		}, values.ReleaseMeta{
 			ID:      release.ID,
@@ -102,6 +104,18 @@ func (s *serviceClient) SetCommand(ctx context.Context, id platform.ServiceID, c
 func (s *serviceClient) SetBranch(ctx context.Context, id platform.ServiceID, branch string) (deployer.RevisionID, error) {
 	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
 		return values.SetServiceBranch(e, id.Name, branch)
+	})
+}
+
+func (s *serviceClient) SetContextPath(ctx context.Context, id platform.ServiceID, contextPath string) (deployer.RevisionID, error) {
+	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
+		return values.SetServiceContextPath(e, id.Name, contextPath)
+	})
+}
+
+func (s *serviceClient) Restart(ctx context.Context, id platform.ServiceID) (deployer.RevisionID, error) {
+	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
+		return values.RestartService(e, id.Name, time.Now())
 	})
 }
 

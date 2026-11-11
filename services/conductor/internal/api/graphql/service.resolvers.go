@@ -81,6 +81,28 @@ func (r *mutationResolver) SetServiceBranch(ctx context.Context, service platfor
 	return new(convertService(*result)), nil
 }
 
+// SetServiceContextPath is the resolver for the setServiceContextPath field.
+func (r *mutationResolver) SetServiceContextPath(ctx context.Context, service platform.ServiceID, contextPath string) (*model.Service, error) {
+	result, err := r.Conductor.SetServiceContextPath(ctx, service, contextPath)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertService(*result)), nil
+}
+
+// RestartService is the resolver for the restartService field.
+func (r *mutationResolver) RestartService(ctx context.Context, service platform.ServiceID) (*model.Service, error) {
+	result, err := r.Conductor.RestartService(ctx, service)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertService(*result)), nil
+}
+
 // SetAutoDeploy is the resolver for the setAutoDeploy field.
 func (r *mutationResolver) SetAutoDeploy(ctx context.Context, service platform.ServiceID, enabled bool) (*model.Service, error) {
 	result, err := r.Conductor.SetAutoDeploy(ctx, service, enabled)

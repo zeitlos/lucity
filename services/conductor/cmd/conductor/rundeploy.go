@@ -147,6 +147,7 @@ func runDeploy() {
 	provenance := deployer.ImageProvenance{
 		Commit:        build.Commit,
 		CommitMessage: config.CommitMessage,
+		ContextPath:   build.ContextPath,
 		BuildID:       buildID.String(),
 	}
 
