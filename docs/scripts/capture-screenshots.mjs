@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * Captures the documentation screenshots from the live platform.
+ * Captures the documentation and landing page screenshots from a live dashboard.
  *
- * Auth uses the CLI session: `lucity token` provides the workspace bearer that
- * the browser sends on every request, and `lucity token --account` provides the
- * account token the conductor needs for GitHub-backed calls (the repo picker).
+ * Auth uses the CLI session: `lucity token` provides the workspace bearer and
+ * `lucity token --account` the account token the conductor needs for
+ * GitHub-backed calls (the repo picker). Both are only sent to the platform.
  *
  * Usage:
  *   node scripts/capture-screenshots.mjs                 # capture everything
@@ -14,48 +14,38 @@
  *
  * Configuration (env, all optional):
  *   LUCITY_CLI        path to the lucity binary (default: lucity on PATH)
- *   LUCITY_URL        platform URL              (default https://lucity.cloud)
+ *   LUCITY_URL        platform URL              (default https://lucity.dev)
  *   LUCITY_APP_PATH   dashboard path on it      (default /app, empty for a local dashboard)
- *   LUCITY_WORKSPACE  workspace slug            (default: `lucity workspace`)
- *   SHOTS_PROJECT     demo project              (default vouch)
- *   SHOTS_ENV         demo environment          (default development)
- *   SHOTS_PROD_ENV    second demo environment     (default production)
+ *   LUCITY_WORKSPACE  workspace id              (default: `lucity workspace`)
+ *   SHOTS_PROJECT     demo project id           (default vouch)
+ *   SHOTS_ENV         demo environment id       (default development)
  *   SHOTS_SERVICE     demo service              (default vouch)
- *   SHOTS_DATABASE    demo database             (default feedback)
- *   SHOTS_BUCKET      demo bucket               (default attachments)
+ *   SHOTS_DATABASE    demo database             (default feedbacks)
+ *   SHOTS_BUCKET      demo bucket               (default vouch-uploads)
  *   SHOTS_TABLE       table to open in the database (default posts)
  *   SHOTS_BUCKET_PREFIX folder to open in the bucket (default uploads)
- *   SHOTS_VARIABLE_KEY key typed into the demo variable row (default DATABASE_URL)
+ *   SHOTS_VARIABLE_KEY key whose reference picker is shown (default DATABASE_URL)
+ *   SHOTS_HIDE_HOSTS  custom domains left out of the shots (default cf-strict.lucity.ch,lucity.ch)
+ *   SHOTS_HIDE_VARIABLES variables left out of every shot (default sali,SPASS)
  *   SHOTS_APP_URL     public URL of the demo app (default: discovered)
  *   SHOTS_REPO_URL    repo used for the fork shot (default zeitlos/vouch)
  *   SHOTS_REPO_OWNER  GitHub account to pick in the palette (default zeitlos)
  *   SHOTS_REPO        repository to filter for (default vouch)
- *   SHOTS_USER_NAME   display name to show in the dashboard header
- *   SHOTS_USER_EMAIL  email to show in the dashboard header
  *   SHOTS_THEME       light | dark              (default light)
  *   SHOTS_BROWSER     installed browser channel, such as chrome (default: Playwright's Chromium)
+ *   SHOTS_CHROMIUM    path to a Chromium executable, in place of Playwright's own
  *   SHOTS_METRICS_WINDOW range shown on the database metrics shot (default 24h)
  */
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const imagesDir = join(root, 'public/img/docs');
-const outputDir = join(imagesDir, 'quickstart');
-
-/** Shots default to the quickstart folder; `dir` puts them somewhere else. */
-function shotDir(shot) {
-  return join(imagesDir, shot.dir ?? 'quickstart');
-}
-
-function shotPath(shot) {
-  return `img/docs/${shot.dir ?? 'quickstart'}/${shot.name}.png`;
-}
-const quickstartPage = join(root, 'content/01.quickstart.md');
+const publicDir = join(root, 'public');
 
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(`--${name}`);
@@ -64,32 +54,34 @@ const option = (name, fallback) => {
   return index !== -1 && args[index + 1] ? args[index + 1] : fallback;
 };
 
+const list = (value) => value.split(',').map((s) => s.trim()).filter(Boolean);
+
 const config = {
-  base: (process.env.LUCITY_URL || 'https://lucity.cloud').replace(/\/$/, ''),
+  base: (process.env.LUCITY_URL || 'https://lucity.dev').replace(/\/$/, ''),
   appPath: (process.env.LUCITY_APP_PATH ?? '/app').replace(/\/$/, ''),
   workspace: process.env.LUCITY_WORKSPACE || '',
   project: process.env.SHOTS_PROJECT || 'vouch',
   environment: process.env.SHOTS_ENV || 'development',
-  productionEnvironment: process.env.SHOTS_PROD_ENV || 'production',
   service: process.env.SHOTS_SERVICE || 'vouch',
-  database: process.env.SHOTS_DATABASE || 'feedback',
-  bucket: process.env.SHOTS_BUCKET || 'attachments',
+  database: process.env.SHOTS_DATABASE || 'feedbacks',
+  bucket: process.env.SHOTS_BUCKET || 'vouch-uploads',
   table: process.env.SHOTS_TABLE || 'posts',
-  workspaceNames: (process.env.SHOTS_WORKSPACE_NAMES || 'acme,acme-labs,personal').split(','),
+  workspaceNames: list(process.env.SHOTS_WORKSPACE_NAMES || 'Acme,Acme Labs,Side projects'),
   query: process.env.SHOTS_QUERY || 'SELECT title, votes, status FROM posts ORDER BY votes DESC;',
   bucketPrefix: process.env.SHOTS_BUCKET_PREFIX || 'uploads',
   variableKey: process.env.SHOTS_VARIABLE_KEY || 'DATABASE_URL',
+  hiddenHosts: list(process.env.SHOTS_HIDE_HOSTS ?? 'cf-strict.lucity.ch,lucity.ch'),
+  hiddenVariables: list(process.env.SHOTS_HIDE_VARIABLES ?? 'sali,SPASS'),
   appURL: process.env.SHOTS_APP_URL || '',
   repoURL: process.env.SHOTS_REPO_URL || 'https://github.com/zeitlos/vouch',
   repoOwner: process.env.SHOTS_REPO_OWNER || 'zeitlos',
   repo: process.env.SHOTS_REPO || 'vouch',
   theme: process.env.SHOTS_THEME || option('theme', 'light'),
   browserChannel: process.env.SHOTS_BROWSER || undefined,
+  executablePath: process.env.SHOTS_CHROMIUM || undefined,
   metricsWindow: process.env.SHOTS_METRICS_WINDOW || '24h',
   headed: flag('headed'),
   slowMo: Number(option('slow', '0')),
-  updateDocs: !flag('no-update-docs'),
-  prunePlaceholders: flag('prune-placeholders'),
 };
 
 // Deliberately small: the dashboard uses fixed pixel type, so a narrow
@@ -97,6 +89,10 @@ const config = {
 // scale factor keeps it sharp.
 const viewport = { width: 1120, height: 760 };
 const deviceScaleFactor = 2;
+
+// Landing shots are crops of a panel, shown at most 776 css px wide.
+const landingViewport = { width: 1600, height: 1000 };
+const landingWidth = 776;
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -107,14 +103,9 @@ function cli(cliArgs) {
   }).trim();
 }
 
-function environmentID() {
-  return `${config.workspace}/${config.project}/${config.environment}`;
-}
-
-function environmentURL() {
-  const project = encodeURIComponent(`${config.workspace}/${config.project}`);
-  return `${config.base}${config.appPath}/projects/${project}/environments/${encodeURIComponent(environmentID())}`;
-}
+const app = (path = '') => `${config.base}${config.appPath}${path}`;
+const environmentID = () => `${config.workspace}/${config.project}/${config.environment}`;
+const environmentURL = () => app(`/${environmentID()}`);
 
 async function graphql(query, variables = {}) {
   const response = await fetch(`${config.base}/graphql`, {
@@ -131,51 +122,20 @@ async function graphql(query, variables = {}) {
   return payload.data;
 }
 
+const node = (page, name) => page.locator(`.vue-flow__node[data-id$="/${name}"]`).first();
+
 /** Opens the environment canvas and waits for its nodes to settle. */
 async function openCanvas(page) {
-  if (!page.url().startsWith(environmentURL())) {
-    await page.goto(environmentURL(), { waitUntil: 'domcontentloaded' });
-  }
+  await page.goto(environmentURL(), { waitUntil: 'load' });
   await page.locator('.vue-flow__node').first().waitFor({ timeout: 30_000 });
   await page.waitForTimeout(1_500);
-
-}
-
-/** Drags a canvas node until its top-left sits on the given viewport point. */
-async function placeNode(page, name, to) {
-  const node = page.locator(`.vue-flow__node[data-id$="/${name}"]`).first();
-
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const box = await node.boundingBox();
-    if (!box) return;
-
-    const dx = to.x - box.x;
-    const dy = to.y - box.y;
-    if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
-
-    // Grab low on the card: the title row selects instead of dragging.
-    const { width, height } = page.viewportSize();
-    const grabX = Math.min(Math.max(box.x + 40, 48), box.x + box.width - 12, width - 48);
-    const grabY = Math.min(box.y + box.height - 20, height - 48);
-    await page.mouse.move(grabX, grabY);
-    await page.mouse.down();
-    await page.mouse.move(grabX + dx, grabY + dy, { steps: 12 });
-    await page.mouse.up();
-    await page.waitForTimeout(400);
-  }
-}
-
-/** Trims the outer edges of the viewport, keeping the frame's shape. */
-function viewportRect(page, { left = 0, top = 0, right = 0, bottom = 0 } = {}) {
-  const { width, height } = page.viewportSize();
-  return { x: left, y: top, width: width - left - right, height: height - top - bottom };
 }
 
 /** Union of every canvas node, padded, for a tight canvas crop. */
-async function nodesRect(page, padding = 56) {
+async function nodesRect(page, padding = 48) {
   const boxes = await page.locator('.vue-flow__node').evaluateAll((nodes) =>
-    nodes.map((node) => {
-      const rect = node.getBoundingClientRect();
+    nodes.map((element) => {
+      const rect = element.getBoundingClientRect();
       return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom };
     }),
   );
@@ -196,21 +156,44 @@ async function nodesRect(page, padding = 56) {
 /** Opens the detail panel for a canvas node by resource name. */
 async function openPanel(page, name) {
   await openCanvas(page);
-  const node = page.locator(`.vue-flow__node[data-id$="/${name}"]`).first();
-  await node.waitFor({ timeout: 30_000 });
-  await node.click();
+  const target = node(page, name);
+  await target.waitFor({ timeout: 30_000 });
+  await target.click();
   await page.locator('[role="tablist"]').first().waitFor({ timeout: 15_000 });
   await page.waitForTimeout(1_000);
+  if (page.landing) await fitPanel(page);
+}
+
+/** Resizes the viewport until the panel is as wide as the landing page shows it. */
+async function fitPanel(page) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const box = await panel(page).boundingBox();
+    if (Math.abs(box.width - landingWidth) < 2) return;
+    const size = page.viewportSize();
+    await page.setViewportSize({ width: Math.round(size.width + landingWidth - box.width), height: size.height });
+    await page.waitForTimeout(600);
+  }
+}
+
+/** Scrolls an element to the top of its scroll container, leaving some room above it. */
+async function scrollToTop(locator, room = 24) {
+  await locator.evaluate((element, room) => {
+    element.scrollIntoView({ block: 'start' });
+    let parent = element.parentElement;
+    while (parent && parent.scrollHeight <= parent.clientHeight) parent = parent.parentElement;
+    if (parent) parent.scrollTop -= room;
+  }, room);
+  await locator.page().waitForTimeout(600);
 }
 
 async function openTab(page, name) {
   await page.getByRole('tab', { name, exact: true }).click();
-  await page.waitForTimeout(1_500);
+  await page.waitForTimeout(2_000);
 }
 
-/** The detail panel, used as the clip region for panel shots. */
+/** The detail panel or drawer: the card holding the open title. */
 function panel(page) {
-  return page.locator('div.rounded-lg.border.bg-card:has(h2):has([role="tablist"])').last();
+  return page.locator('.rounded-lg.border.bg-card:has(> header h2)').last();
 }
 
 /** A clip rect around an element, padded and clamped to the viewport. */
@@ -230,52 +213,64 @@ async function paddedRect(page, locator, padding = { x: 48, y: 48 }) {
   };
 }
 
-/**
- * A clip rect covering an element down to where its content actually ends.
- * Panels are full height, so a plain element screenshot leaves dead space
- * under short tabs. Leaf elements approximate the real content bottom.
- */
-async function contentRect(page, locator, padding = 24) {
-  const box = await locator.boundingBox();
-  if (!box) throw new Error('element has no box to clip');
-
-  const contentBottom = await locator.evaluate((element) => {
-    let bottom = 0;
-    for (const node of element.querySelectorAll('*')) {
-      if (node.children.length > 0) continue;
-
-      // Only things that actually draw: text, icons, images, form controls.
-      // Empty layout fillers stretch to the panel bottom and would defeat this.
-      const paints =
-        node.textContent.trim().length > 0 ||
-        ['IMG', 'SVG', 'INPUT', 'TEXTAREA'].includes(node.tagName.toUpperCase());
-      if (!paints) continue;
-
-      const rect = node.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) continue;
-      bottom = Math.max(bottom, rect.bottom);
-    }
-    return bottom;
-  });
-
-  const viewportHeight = page.viewportSize().height;
-  const height = Math.min(box.height, Math.max(contentBottom + padding - box.y, 240));
-
+/** The union of two boxes, padded. */
+function unionRect(a, b, padding) {
+  const left = Math.max(0, Math.min(a.x, b.x) - padding.left);
+  const top = Math.max(0, Math.min(a.y, b.y) - padding.top);
   return {
-    x: Math.max(0, box.x),
-    y: Math.max(0, box.y),
-    width: box.width,
-    height: Math.min(height, viewportHeight - box.y),
+    x: left,
+    y: top,
+    width: Math.max(a.x + a.width, b.x + b.width) + padding.right - left,
+    height: Math.max(a.y + a.height, b.y + b.height) + padding.bottom - top,
   };
 }
 
-// ── Shots ─────────────────────────────────────────────────────────────────
+/**
+ * A landing crop: the panel from its tabs down, or from `from` down, at most
+ * `height` css px tall.
+ */
+async function landingRect(page, { from, height }) {
+  const box = await panel(page).boundingBox();
+  const start = from ? await from.boundingBox() : await panel(page).locator('[role="tablist"]').first().boundingBox();
+  const top = from ? start.y - 6 : start.y;
+  return {
+    x: box.x + 1,
+    y: top,
+    width: box.width - 2,
+    height: Math.min(height, box.y + box.height - 1 - top),
+  };
+}
 
-// Panel shots keep the whole dashboard in frame at the default viewport, trimming
-// the empty canvas on the left and the strip below the panel: the panel on its own
-// reads as a floating card, and a tall crop eats vertical space in the docs.
-const dashboardCrop = { left: 110, top: 8, right: 10, bottom: 70 };
-const dashboardRect = (page) => viewportRect(page, dashboardCrop);
+/** Expands the active deployment on the Deployments tab. */
+async function expandActiveDeployment(page) {
+  await openTab(page, 'Deployments');
+  await panel(page).getByText(/^active$/i).first().click();
+  await page.waitForTimeout(1_500);
+}
+
+/** The Logs buttons of the deployment steps, not the panel's Logs tab. */
+function stepLogs(page) {
+  return panel(page).locator('[role="tabpanel"]').getByRole('button', { name: 'Logs', exact: true });
+}
+
+/** Opens a service Settings section by its heading and scrolls it to the top. */
+async function settingsSection(page, title, open = true) {
+  await openTab(page, 'Settings');
+  const heading = panel(page).getByText(title, { exact: true }).first();
+  await heading.waitFor({ timeout: 15_000 });
+  if (open) {
+    const row = panel(page).locator('button[aria-expanded]').filter({ hasText: title }).first();
+    if ((await row.count()) > 0 && (await row.getAttribute('aria-expanded')) === 'false') {
+      await row.click();
+      await page.waitForTimeout(600);
+    }
+  }
+  await heading.evaluate((element) => element.scrollIntoView({ block: 'start' }));
+  await page.waitForTimeout(800);
+  return heading;
+}
+
+// ── Shots ─────────────────────────────────────────────────────────────────
 
 const shots = [
   {
@@ -298,9 +293,9 @@ const shots = [
     description: 'Create palette with the GitHub repository picker',
     needsAccountToken: true,
     async capture(page) {
-      await page.goto(`${config.base}/app/`, { waitUntil: 'domcontentloaded' });
-      await page.getByRole('button', { name: 'New', exact: true }).click();
-      await page.getByText('GitHub Repository', { exact: true }).click();
+      await page.goto(app(`/${config.workspace}`), { waitUntil: 'load' });
+      await page.getByRole('button', { name: 'New project' }).click();
+      await page.getByText('GitHub repository', { exact: true }).click();
       await page.waitForTimeout(2_500);
       for (const [text, reason] of [
         ['Connect your GitHub account', 'the account token was rejected — is the CLI session current?'],
@@ -308,83 +303,66 @@ const shots = [
       ]) {
         if (await page.getByText(text).isVisible().catch(() => false)) throw new Error(reason);
       }
-      // Switch to the account that owns the demo repo, then filter for it.
-      // The account row is the avatar button inside the palette; the only other
-      // avatar button on the page is the header's single-letter user menu.
-      const accountPicker = page
-        .locator('button:visible:has(img)')
-        .filter({ hasNotText: /^\s*\S\s*$/ })
-        .first();
 
+      const palette = page.locator('[role="dialog"]').last();
+      const accountPicker = palette.locator('button:visible:has(img)').first();
       if (await accountPicker.isVisible().catch(() => false)) {
         const current = (await accountPicker.innerText()).trim();
         if (!current.startsWith(config.repoOwner)) {
           await accountPicker.click();
           await page.waitForTimeout(750);
-          await page.getByRole('button', { name: new RegExp(`^${config.repoOwner}\\b`) }).last().click();
+          await page.getByRole('menuitem', { name: new RegExp(`^${config.repoOwner}\\b`) }).first().click();
           await page.waitForTimeout(2_000);
         }
       }
 
-      const search = page.getByPlaceholder(/search/i).first();
-      if (await search.isVisible().catch(() => false)) {
-        await search.fill(config.repo);
-        await page.waitForTimeout(1_500);
-      }
+      const search = palette.locator('input').first();
+      await search.fill(config.repo);
+      await page.waitForTimeout(1_500);
 
       if (await page.getByText('No repositories found.').isVisible().catch(() => false)) {
         throw new Error(`no repository matching "${config.repo}" under ${config.repoOwner}`);
       }
-
-      const palette = page.locator('div.rounded-xl.border.bg-popover').first();
-      return { rect: await paddedRect(page, palette, { x: 40, y: 40 }) };
+      return { rect: await paddedRect(page, palette.locator('.rounded-xl.border').first(), { x: 40, y: 40 }) };
     },
   },
   {
     name: 'first-build',
-    description: 'Build logs streaming from the active deployment',
+    description: 'Build logs of the active deployment',
     async capture(page) {
       await openPanel(page, config.service);
-      await openTab(page, 'Deployments');
-
-      // Expand the active deployment, then open the logs of its build step.
-      await page.getByText('ACTIVE').first().click();
-      await page.waitForTimeout(1_000);
-
-      // Steps are Build, Secrets, Deploy, Rollout; the guide is about the build.
-      const buildStep = page
-        .locator('div')
-        .filter({ hasText: /^Build/ })
-        .filter({ has: page.getByRole('button', { name: 'Logs', exact: true }) })
-        .last();
-      const logs = buildStep.getByRole('button', { name: 'Logs', exact: true }).first();
-      await logs.waitFor({ timeout: 15_000 });
+      await expandActiveDeployment(page);
+      const logs = stepLogs(page).first();
+      await logs.waitFor({ timeout: 15_000 }).catch(() => {
+        throw new Error('the active deployment is over a week old and its build logs are gone, deploy it again');
+      });
       await logs.click();
       await page.waitForTimeout(5_000);
 
       // The tail of a finished build is layer digests. Scroll back to the part
       // that reads like a build: dependency install and framework output.
-      const interesting = page
-        .getByText(/Creating an optimized production build|Compiled successfully|Route \(app\)|added \d+ packages/)
-        .first();
-      if (await interesting.isVisible().catch(() => false)) {
-        await interesting.scrollIntoViewIfNeeded();
-        await page.waitForTimeout(1_500);
+      for (const pattern of [/Creating an optimized production build/, /Compiled successfully/, /Route \(app\)/]) {
+        const line = page.getByText(pattern).first();
+        if ((await line.count()) > 0) {
+          await line.evaluate((element) => element.scrollIntoView({ block: 'center' }));
+          await page.waitForTimeout(1_500);
+          break;
+        }
       }
-      return { rect: dashboardRect(page) };
+      return {};
     },
   },
   {
     name: 'generate-domain',
-    description: 'Platform Domain section of the service settings',
+    description: 'Platform domain in the service settings',
     async capture(page) {
       await openPanel(page, config.service);
-      await openTab(page, 'Settings');
-      const heading = page.getByText('Platform Domain', { exact: true }).first();
-      await heading.waitFor({ timeout: 15_000 });
-      await heading.scrollIntoViewIfNeeded();
+      await settingsSection(page, 'Networking');
+      const domain = panel(page).locator('button[aria-expanded]').filter({ hasText: 'Platform domain' }).first();
+      if ((await domain.getAttribute('aria-expanded')) === 'false') await domain.click();
+      await domain.evaluate((element) => element.scrollIntoView({ block: 'center' }));
       await page.waitForTimeout(800);
-      return { rect: dashboardRect(page) };
+      return {};
     },
   },
   {
@@ -408,44 +386,31 @@ const shots = [
       // Detach the row the guide walks through so its picker can be shown,
       // rather than adding a second row with the same key. Nothing is saved:
       // the change lives in the browser until Save, which is never clicked.
-      const rows = page.locator('div.flex.items-center.gap-2:has(input[placeholder="KEY"])');
-      let row = null;
+      const rows = panel(page).locator('fieldset > div').filter({ has: page.locator('input[placeholder="KEY"]') });
+      let target = null;
       for (let index = 0; index < (await rows.count()); index++) {
         const candidate = rows.nth(index);
-        const key = await candidate.locator('input[placeholder="KEY"]').inputValue();
-        if (key === config.variableKey) {
-          row = candidate;
-          break;
-        }
+        if ((await candidate.locator('input[placeholder="KEY"]').inputValue()) === config.variableKey) target = candidate;
       }
-      if (!row) throw new Error(`no ${config.variableKey} variable on ${config.service}`);
+      if (!target) throw new Error(`no ${config.variableKey} variable on ${config.service}`);
 
-      const detach = row.locator('button[title="Detach from dynamic value"]');
+      const detach = target.locator('[aria-label="Detach from dynamic value"]');
       if (await detach.isVisible().catch(() => false)) {
         await detach.click();
         await page.waitForTimeout(500);
       }
-
-      const link = row.locator('button[title="Link to a dynamic value"]');
-      await link.waitFor({ timeout: 15_000 });
-      await link.click();
-      await page.getByPlaceholder('Search references...').waitFor({ timeout: 10_000 });
+      await target.locator('[aria-label="Link to a dynamic value"]').click();
+      await page.getByPlaceholder(/search/i).last().waitFor({ timeout: 10_000 });
       await page.waitForTimeout(800);
-      return { rect: dashboardRect(page) };
+      return {};
     },
   },
   {
     name: 'database-tables',
     description: 'Database panel on the Tables tab',
     async capture(page) {
-      await openPanel(page, config.database);
-      await openTab(page, 'Tables');
-      const table = page.getByText(config.table, { exact: true }).last();
-      if (await table.isVisible().catch(() => false)) {
-        await table.click();
-        await page.waitForTimeout(2_000);
-      }
-      return { rect: dashboardRect(page) };
+      await openTable(page);
+      return {};
     },
   },
   {
@@ -453,14 +418,8 @@ const shots = [
     dir: 'postgres',
     description: 'Database explorer on the Tables tab',
     async capture(page) {
-      await openPanel(page, config.database);
-      await openTab(page, 'Tables');
-      const table = page.getByText(config.table, { exact: true }).last();
-      if (await table.isVisible().catch(() => false)) {
-        await table.click();
-        await page.waitForTimeout(2_000);
-      }
-      return { rect: dashboardRect(page) };
+      await openTable(page);
+      return {};
     },
   },
   {
@@ -473,9 +432,9 @@ const shots = [
       const editor = panel(page).locator('textarea').first();
       await editor.waitFor({ timeout: 15_000 });
       await editor.fill(config.query);
-      await panel(page).getByRole('button', { name: 'Run Query' }).click();
+      await panel(page).getByRole('button', { name: /run query/i }).click();
       await page.waitForTimeout(3_000);
-      return { rect: dashboardRect(page) };
+      return {};
     },
   },
   {
@@ -485,7 +444,7 @@ const shots = [
     async capture(page) {
       await openPanel(page, config.database);
       await openTab(page, 'Metrics');
-      const table = panel(page).locator('table').filter({ hasText: 'Top queries' }).first();
+      const table = panel(page).locator('table').filter({ hasText: 'Query' }).last();
       await table.waitFor({ timeout: 20_000 });
       await table.getByRole('button', { name: 'Show details' }).first().click();
       await page.waitForTimeout(800);
@@ -495,10 +454,10 @@ const shots = [
           if (row.querySelector('button[aria-expanded]')) statements++;
           if (statements > keep) row.remove();
         }
-        element.scrollIntoView({ block: 'start' });
       }, 6);
+      await panel(page).getByText('Top queries').first().evaluate((element) => element.scrollIntoView({ block: 'start' }));
       await page.waitForTimeout(1_000);
-      return { rect: dashboardRect(page) };
+      return {};
     },
   },
   {
@@ -524,7 +483,7 @@ const shots = [
       await openTab(page, 'Connect');
       await panel(page).getByText('Office').waitFor({ timeout: 15_000 });
       await page.waitForTimeout(800);
-      return { rect: dashboardRect(page) };
+      return {};
     },
   },
   {
@@ -532,51 +491,12 @@ const shots = [
     dir: 'postgres',
     description: 'Backups tab with the restore window and recent base backups',
     async capture(page) {
-      const backup = (started, trigger) => ({
-        __typename: 'DatabaseBackup',
-        id: `${config.database}-${started.toISOString().slice(0, 16)}`,
-        status: 'COMPLETED',
-        trigger,
-        createdAt: started.toISOString(),
-        startedAt: started.toISOString(),
-        finishedAt: new Date(started.getTime() + 47_000).toISOString(),
-        error: null,
-      });
-      const sunday = (weeksAgo) => {
-        const day = new Date();
-        day.setUTCDate(day.getUTCDate() - day.getUTCDay() - 7 * weeksAgo);
-        day.setUTCHours(2, 0, 0, 0);
-        return day;
-      };
-      const backups = [
-        backup(new Date(Date.now() - 3 * 3_600_000), 'MANUAL'),
-        backup(sunday(0), 'SCHEDULED'),
-        backup(sunday(1), 'SCHEDULED'),
-        backup(sunday(2), 'SCHEDULED'),
-      ];
-      await answerGraphQL(page, {
-        DatabaseBackups: {
-          database: {
-            __typename: 'Database',
-            id: `${environmentID()}/${config.database}`,
-            name: config.database,
-            backups: {
-              __typename: 'DatabaseBackups',
-              enabled: true,
-              retentionDays: 30,
-              earliestRestorePoint: daysFromNow(-18),
-              latestRestorePoint: new Date(Date.now() - 120_000).toISOString(),
-              lastBackupAt: backups[0].finishedAt,
-              backups,
-            },
-          },
-        },
-      });
+      await answerBackups(page);
       await openPanel(page, config.database);
       await openTab(page, 'Backups');
-      await panel(page).getByText('Base backups').waitFor({ timeout: 15_000 });
+      await panel(page).getByText(/base backups/i).first().waitFor({ timeout: 15_000 });
       await page.waitForTimeout(1_000);
-      return { rect: dashboardRect(page) };
+      return {};
     },
   },
   {
@@ -584,17 +504,16 @@ const shots = [
     dir: 'object-storage',
     description: 'Bucket file explorer on the Files tab',
     async capture(page) {
-      await openPanel(page, config.bucket);
-      await openTab(page, 'Files');
-      const prefix = panel(page)
-        .locator('button')
-        .filter({ hasText: new RegExp(`^${config.bucketPrefix}$`) })
-        .first();
-      if (await prefix.isVisible().catch(() => false)) {
-        await prefix.click();
-        await page.waitForTimeout(2_000);
-      }
-      return { rect: dashboardRect(page) };
+      await openBucketFolder(page);
+      return {};
+    },
+  },
+  {
+    name: 'bucket-files',
+    description: 'Bucket panel on the Files tab',
+    async capture(page) {
+      await openBucketFolder(page);
+      return {};
     },
   },
   {
@@ -603,62 +522,39 @@ const shots = [
     description: 'Workspace switcher open in the header',
     async capture(page) {
       await openCanvas(page);
-      const trigger = page.locator('nav button').first();
-      const active = (await trigger.innerText()).trim();
+      const trigger = page.locator('header [aria-label="Switch workspace"]:visible').first();
       await trigger.click();
-      await page.waitForTimeout(800);
+      const menu = page.locator('[role="menu"]').first();
+      await menu.waitFor({ timeout: 10_000 });
+      await page.waitForTimeout(600);
 
       // The dropdown lists every workspace the account belongs to, which on a
       // real account means other people's names. Swap them for placeholders.
-      await page.evaluate(({ active, placeholders }) => {
+      await menu.evaluate((element, placeholders) => {
         let next = 0;
-        for (const item of document.querySelectorAll('[role="menuitem"]')) {
-          const label = item.querySelector('span');
-          if (!label || label.textContent.trim() === active) continue;
+        for (const item of element.querySelectorAll('[role="menuitem"], [role="menuitemradio"]')) {
+          if (item.getAttribute('aria-checked') === 'true' || item.querySelector('svg.lucide-check')) continue;
+          const spans = [...item.querySelectorAll('span')].filter((span) => span.children.length === 0);
+          const label = spans.find((span) => span.textContent.trim().length > 1);
+          if (!label || /new workspace/i.test(item.textContent)) continue;
           if (next >= placeholders.length) { item.remove(); continue; }
-          label.textContent = placeholders[next++];
+          label.textContent = placeholders[next];
+          const letter = spans.find((span) => span.textContent.trim().length === 1);
+          if (letter) letter.textContent = placeholders[next][0];
+          next++;
         }
-      }, { active, placeholders: config.workspaceNames });
-
+      }, config.workspaceNames);
       await page.waitForTimeout(200);
-      return { rect: viewportRect(page, { left: 6, top: 6, right: 300, bottom: 430 }) };
-    },
-  },
-  {
-    name: 'bucket-files',
-    description: 'Bucket panel on the Files tab',
-    async capture(page) {
-      await openPanel(page, config.bucket);
-      await openTab(page, 'Files');
-      const prefix = panel(page)
-        .locator('button')
-        .filter({ hasText: new RegExp(`^${config.bucketPrefix}$`) })
-        .first();
-      if (await prefix.isVisible().catch(() => false)) {
-        await prefix.click();
-        await page.waitForTimeout(2_000);
-      }
-      return { rect: dashboardRect(page) };
+
+      const brand = await page.locator('header').first().boundingBox();
+      return { rect: unionRect(brand, await menu.boundingBox(), { left: 0, top: 0, right: 200, bottom: 32 }) };
     },
   },
   {
     name: 'canvas-complete',
     description: 'Project canvas with service, database and bucket',
-    viewport: { width: 1280, height: 900 },
     async capture(page) {
       await openCanvas(page);
-
-      // The default layout spreads the resources wider than a documentation
-      // image wants, and the dashboard's own fit-view control does not move
-      // the pane, so lay them out in two columns by hand.
-      await placeNode(page, config.service, { x: 120, y: 250 });
-      await placeNode(page, config.database, { x: 560, y: 200 });
-      await placeNode(page, config.bucket, { x: 560, y: 440 });
-
-      // Dragging leaves the last node selected; click empty canvas to clear it.
-      await page.mouse.click(1_180, 820);
-      await page.waitForTimeout(800);
-
       return { rect: await nodesRect(page) };
     },
   },
@@ -667,14 +563,11 @@ const shots = [
     dir: 'projects',
     description: 'Create palette with the three ways to start a project',
     async capture(page) {
-      await page.goto(`${config.base}/app/`, { waitUntil: 'domcontentloaded' });
-      await page.getByRole('button', { name: 'New', exact: true }).click();
-      await page.getByText('Empty Project', { exact: true }).waitFor({ timeout: 15_000 });
-      await page.evaluate(() => {
-        document.querySelector('main')?.style.setProperty('visibility', 'hidden');
-      });
+      await page.goto(app(`/${config.workspace}`), { waitUntil: 'load' });
+      await page.getByRole('button', { name: 'New project' }).click();
+      await page.getByText('Empty project', { exact: true }).waitFor({ timeout: 15_000 });
       await page.waitForTimeout(800);
-      const palette = page.locator('div.rounded-xl.border.bg-popover').first();
+      const palette = page.locator('[role="dialog"]').last().locator('.rounded-xl.border').first();
       return { rect: await paddedRect(page, palette, { x: 40, y: 40 }) };
     },
   },
@@ -684,73 +577,56 @@ const shots = [
     description: 'Environment canvas in the full dashboard',
     async capture(page) {
       await openCanvas(page);
-      for (let pass = 0; pass < 2; pass++) {
-        await placeNode(page, config.service, { x: 200, y: 315 });
-        await placeNode(page, config.database, { x: 637, y: 218 });
-        await placeNode(page, config.bucket, { x: 637, y: 458 });
-      }
-      await page.mouse.click(1_000, 700);
-      await page.waitForTimeout(800);
       return {};
     },
   },
   {
     name: 'project-settings',
     dir: 'projects',
-    description: 'Project settings on the General section',
-    viewport: { width: 1120, height: 560 },
+    description: 'Project settings drawer',
     async capture(page) {
-      const project = encodeURIComponent(`${config.workspace}/${config.project}`);
-      await page.goto(`${config.base}/app/projects/${project}/settings`, { waitUntil: 'domcontentloaded' });
-      await page.getByText('Danger Zone', { exact: true }).waitFor({ timeout: 30_000 });
+      await page.goto(app(`/${config.workspace}/${config.project}/~/settings`), { waitUntil: 'load' });
+      await page.getByText('Delete project', { exact: true }).waitFor({ timeout: 30_000 });
       await page.waitForTimeout(800);
-      const card = page.locator('div.max-w-4xl.rounded-lg.border').first();
-      return { rect: await paddedRect(page, card, { x: 24, y: 24 }) };
+      return {};
     },
   },
   {
     name: 'eject-dialog',
     dir: 'eject',
-    description: 'Eject dialog opened from the project header',
+    description: 'Eject dialog opened from the project rail',
     async capture(page) {
       await openCanvas(page);
-      await page.locator('header').getByRole('button', { name: 'Eject', exact: true }).click();
+      await page.locator('nav svg.lucide-download, aside svg.lucide-download').first().click();
       const dialog = page.getByRole('dialog').filter({ hasText: 'Eject project' }).first();
       await dialog.waitFor({ timeout: 10_000 });
-      await page.evaluate(() => {
-        for (const element of document.querySelectorAll('.bg-black\\/80, .vue-flow__node, .vue-flow__edge')) {
-          element.style.setProperty('visibility', 'hidden');
-        }
-      });
       await page.waitForTimeout(800);
-      const box = await dialog.boundingBox();
-      return { rect: { x: 0, y: 0, width: page.viewportSize().width, height: Math.ceil(box.y + box.height + 40) } };
+      return {};
     },
   },
   {
     name: 'environment-switcher',
     dir: 'environments',
-    description: 'Environment switcher open in the header',
+    description: 'Environment switcher open in the header, with example environments',
+    rewrite(operation, data) {
+      const projects = operation === 'ProjectEnvironments' ? [data?.project] : operation === 'ProjectsForNav' ? data?.projects : [];
+      const projectID = `${config.workspace}/${config.project}`;
+      for (const project of projects ?? []) {
+        if (project?.id !== projectID) continue;
+        for (const name of ['staging', 'production']) {
+          if (project.environments.some((e) => e.name === name)) continue;
+          project.environments.push({ __typename: 'Environment', id: `${projectID}/${name}`, name });
+        }
+      }
+    },
     async capture(page) {
       await openCanvas(page);
-      const trigger = page.locator('nav button').filter({ hasText: new RegExp(`^\\s*${config.environment}\\s*$`) }).first();
-      await trigger.click();
+      await page.locator('header [aria-label="Switch environment"]:visible').first().click();
       const menu = page.locator('[role="menu"]').first();
-      await menu.getByText('New Environment').waitFor({ timeout: 10_000 });
+      await menu.getByText(/new environment/i).waitFor({ timeout: 10_000 });
       await page.waitForTimeout(600);
-
-      const project = page.locator('nav button').filter({ hasText: new RegExp(`^\\s*${config.project}\\s*$`) }).first();
-      const [a, b] = [await trigger.boundingBox(), await menu.boundingBox()];
-      const left = Math.max(0, (await project.boundingBox()).x - 24);
-      const top = Math.max(0, Math.min(a.y, b.y) - 24);
-      return {
-        rect: {
-          x: left,
-          y: top,
-          width: Math.max(a.x + a.width, b.x + b.width) + 160 - left,
-          height: Math.max(a.y + a.height, b.y + b.height) + 32 - top,
-        },
-      };
+      const brand = await page.locator('header').first().boundingBox();
+      return { rect: unionRect(brand, await menu.boundingBox(), { left: 0, top: 0, right: 0, bottom: 32 }) };
     },
   },
   {
@@ -760,10 +636,10 @@ const shots = [
     async capture(page) {
       await openPanel(page, config.service);
       await openTab(page, 'Metrics');
-      await panel(page).getByRole('button', { name: '30d', exact: true }).click();
-      await panel(page).locator('section').filter({ hasText: 'Memory' }).first().waitFor({ timeout: 20_000 });
+      await panel(page).getByRole('button', { name: '7d', exact: true }).click();
+      await panel(page).getByText('Memory').first().waitFor({ timeout: 20_000 });
       await page.waitForTimeout(2_500);
-      return { rect: dashboardRect(page) };
+      return {};
     },
   },
   {
@@ -771,24 +647,26 @@ const shots = [
     dir: 'metrics',
     description: 'Database panel on the Metrics tab',
     async capture(page) {
-      await openPanel(page, config.database);
-      await openTab(page, 'Metrics');
-      await panel(page).getByRole('button', { name: config.metricsWindow, exact: true }).click();
-      await panel(page).locator('section').filter({ hasText: 'Connections' }).first().waitFor({ timeout: 20_000 });
-      await page.waitForTimeout(2_500);
-      return { rect: dashboardRect(page) };
+      await openDatabaseMetrics(page);
+      return {};
     },
   },
   {
     name: 'runtime-logs',
     dir: 'logs',
-    description: 'Runtime logs streaming next to the service panel',
-    viewport: { width: 1120, height: 580 },
+    description: 'Runtime logs of one running instance next to the service panel',
     async capture(page) {
-      await openPanel(page, config.service);
-      await page.locator('[role="tablist"]').getByRole('button', { name: 'Logs' }).click();
-      await page.locator('div.bg-zinc-950 div.font-mono > div').nth(3).waitFor({ timeout: 20_000 });
-      await page.waitForTimeout(2_000);
+      await openRuntimeLogs(page);
+      const lanes = page.locator('[aria-label^="Show only "]');
+      const running = await lanes.evaluateAll((buttons) =>
+        buttons.findIndex((button) => {
+          let row = button;
+          while (row.parentElement && !/Running|Stopped/.test(row.textContent)) row = row.parentElement;
+          return /Running/.test(row.textContent) && !/Stopped/.test(row.textContent);
+        }),
+      );
+      await lanes.nth(Math.max(running, 0)).click();
+      await page.waitForTimeout(3_000);
       return {};
     },
   },
@@ -797,32 +675,23 @@ const shots = [
     dir: 'logs',
     description: 'Active deployment expanded, with a Logs button per step',
     async capture(page) {
-      const project = encodeURIComponent(`${config.workspace}/${config.project}`);
-      const environment = encodeURIComponent(`${config.workspace}/${config.project}/${config.productionEnvironment}`);
-      await page.goto(`${config.base}/app/projects/${project}/environments/${environment}`, { waitUntil: 'domcontentloaded' });
-      const node = page.locator(`.vue-flow__node[data-id$="/${config.service}"]`).first();
-      await node.waitFor({ timeout: 30_000 });
-      await page.waitForTimeout(1_500);
-      await node.click();
-      await page.locator('[role="tablist"]').first().waitFor({ timeout: 15_000 });
-      await openTab(page, 'Deployments');
-      await page.getByText('ACTIVE').first().click();
-      await panel(page)
-        .getByRole('button', { name: 'Logs', exact: true })
+      await openPanel(page, config.service);
+      await expandActiveDeployment(page);
+      await stepLogs(page)
         .first()
         .waitFor({ timeout: 15_000 })
         .catch(() => {
-          throw new Error(`the active deployment in ${config.productionEnvironment} is over a week old and its step logs are gone, deploy it again`);
+          throw new Error('the active deployment is over a week old and its step logs are gone, deploy it again');
         });
       await page.waitForTimeout(800);
-      return { rect: dashboardRect(page) };
+      return {};
     },
   },
   {
     name: 'billing-settings',
     dir: 'billing',
-    description: 'Billing section of the workspace settings, with example figures',
-    viewport: { width: 1120, height: 1400 },
+    description: 'Billing drawer of the workspace, with example figures',
+    viewport: { width: 1120, height: 1000 },
     async capture(page) {
       await answerBilling(page, {
         subscription: {
@@ -835,15 +704,10 @@ const shots = [
         },
         usageSummary: { resourceCostCents: 312, creditsCents: 312, estimatedTotalCents: 500 },
       });
-      await page.goto(`${config.base}/app/workspace/settings?tab=billing`, { waitUntil: 'domcontentloaded' });
-      await page.getByText('Current Period Usage', { exact: true }).waitFor({ timeout: 30_000 });
-      await page.waitForTimeout(800);
-
-      const card = page.locator('div.max-w-4xl.rounded-lg.border').first();
-      const content = await contentRect(page, card, 32);
-      await page.setViewportSize({ width: 1120, height: Math.ceil(content.y + content.height + 24) });
-      await page.waitForTimeout(500);
-      return { rect: await paddedRect(page, card, { x: 24, y: 24 }) };
+      await page.goto(app(`/${config.workspace}/~/billing`), { waitUntil: 'load' });
+      await page.getByText('Estimated total', { exact: true }).waitFor({ timeout: 30_000 });
+      await page.waitForTimeout(1_000);
+      return {};
     },
   },
   {
@@ -863,14 +727,9 @@ const shots = [
         usageSummary: { resourceCostCents: 184, creditsCents: 184, estimatedTotalCents: 0 },
       });
       await openCanvas(page);
-      await page.evaluate(() => {
-        for (const element of document.querySelectorAll('.vue-flow__node, .vue-flow__edge')) {
-          element.style.setProperty('visibility', 'hidden');
-        }
-      });
-      const badge = page.locator('header button').filter({ hasText: /\d+d or / }).first();
+      const badge = page.locator('header button:visible').filter({ hasText: /\d+d\b/ }).first();
       await badge.click();
-      const popover = page.getByRole('dialog').filter({ hasText: 'Free Credits' }).first();
+      const popover = page.getByRole('dialog').last();
       await popover.waitFor({ timeout: 10_000 });
       await page.waitForTimeout(600);
 
@@ -881,12 +740,188 @@ const shots = [
           x: left,
           y: 0,
           width: page.viewportSize().width - left,
-          height: b.y + b.height + 28,
+          height: Math.max(a.y + a.height, b.y + b.height) + 28,
         },
       };
     },
   },
+
+  // ── Landing page (webp, panel crops) ─────────────────────────────────────
+
+  {
+    name: 'database-metrics',
+    landing: true,
+    description: 'Landing: database metrics',
+    async capture(page) {
+      await openDatabaseMetrics(page);
+      return { rect: await landingRect(page, { height: 690 }) };
+    },
+  },
+  {
+    name: 'variables',
+    landing: true,
+    description: 'Landing: variables linked to the database and bucket',
+    async capture(page) {
+      await openPanel(page, config.service);
+      await openTab(page, 'Variables');
+      const footer = panel(page).getByText(/Available at build time and runtime/).first();
+      await footer.waitFor({ timeout: 15_000 });
+      const box = await footer.boundingBox();
+      const tabs = await panel(page).locator('[role="tablist"]').first().boundingBox();
+      return { rect: await landingRect(page, { height: box.y + box.height + 18 - tabs.y }) };
+    },
+  },
+  {
+    name: 'scaling',
+    landing: true,
+    description: 'Landing: scaling and compute settings',
+    async capture(page) {
+      await openPanel(page, config.service);
+      const heading = await settingsSection(page, 'Scaling');
+      const replicas = panel(page).locator('button[aria-expanded]').filter({ hasText: 'Replicas' }).first();
+      if ((await replicas.getAttribute('aria-expanded')) === 'false') await replicas.click();
+      await page.waitForTimeout(600);
+      await scrollToTop(heading, 16);
+      return { rect: await landingRect(page, { from: heading, height: 545 }) };
+    },
+  },
+  {
+    name: 'deployments',
+    landing: true,
+    description: 'Landing: the Deployments tab',
+    async capture(page) {
+      await openPanel(page, config.service);
+      await openTab(page, 'Deployments');
+      return { rect: await landingRect(page, { height: 380 }) };
+    },
+  },
+  {
+    name: 'domains',
+    landing: true,
+    keepHosts: ['lucity.ch'],
+    description: 'Landing: platform and custom domains',
+    async capture(page) {
+      await openPanel(page, config.service);
+      await settingsSection(page, 'Networking');
+      const platform = panel(page).locator('button[aria-expanded]').filter({ hasText: 'Platform domain' }).first();
+      const custom = panel(page).locator('button[aria-expanded]').filter({ hasText: 'Custom domains' }).first();
+      for (const row of [platform, custom]) {
+        if ((await row.getAttribute('aria-expanded')) === 'false') await row.click();
+      }
+      await page.waitForTimeout(600);
+      const card = platform.locator('xpath=..');
+      await scrollToTop(card, 24);
+      return { rect: await landingRect(page, { from: card, height: 325 }) };
+    },
+  },
+  {
+    name: 'logs',
+    landing: true,
+    description: 'Landing: the log explorer (dark)',
+    async capture(page) {
+      await openRuntimeLogs(page);
+      await page.getByRole('button', { name: '24h', exact: true }).click();
+      await page.waitForTimeout(4_000);
+      const box = await page.getByText('Runtime logs', { exact: true }).first().evaluate((element) => {
+        let node = element;
+        while (node.parentElement && node.getBoundingClientRect().height < 400) node = node.parentElement;
+        const rect = node.getBoundingClientRect();
+        return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+      });
+      return { rect: { x: box.x, y: box.y, width: Math.min(box.width, 734), height: Math.min(box.height, 660) } };
+    },
+  },
+  {
+    name: 'security',
+    landing: true,
+    theme: 'dark',
+    description: 'Landing: the Security tab (dark)',
+    async capture(page) {
+      await openPanel(page, config.service);
+      await openTab(page, 'Security');
+      await panel(page).getByText(/leaked credentials|leaked secrets/i).first().waitFor({ timeout: 20_000 });
+      await page.waitForTimeout(800);
+      return { rect: await landingRect(page, { height: 575 }) };
+    },
+  },
 ];
+
+async function openTable(page) {
+  await openPanel(page, config.database);
+  await openTab(page, 'Tables');
+  const table = panel(page).getByText(config.table, { exact: true }).first();
+  await table.waitFor({ timeout: 20_000 });
+  await table.click();
+  await page.waitForTimeout(2_500);
+}
+
+async function openBucketFolder(page) {
+  await openPanel(page, config.bucket);
+  await openTab(page, 'Files');
+  const prefix = panel(page).getByText(config.bucketPrefix, { exact: true }).first();
+  if (await prefix.isVisible().catch(() => false)) {
+    await prefix.click();
+    await page.waitForTimeout(2_000);
+  }
+}
+
+async function openDatabaseMetrics(page) {
+  await openPanel(page, config.database);
+  await openTab(page, 'Metrics');
+  await panel(page).getByRole('button', { name: config.metricsWindow, exact: true }).click();
+  await panel(page).getByText('Connections').first().waitFor({ timeout: 20_000 });
+  await page.waitForTimeout(2_500);
+}
+
+async function openRuntimeLogs(page) {
+  await openPanel(page, config.service);
+  await page.locator('[role="tablist"]').getByRole('button', { name: /Logs/ }).click();
+  await page.getByText('Runtime logs').first().waitFor({ timeout: 15_000 });
+  await page.waitForTimeout(5_000);
+}
+
+async function answerBackups(page) {
+  const backup = (started, trigger) => ({
+    __typename: 'DatabaseBackup',
+    id: `${config.database}-${started.toISOString().slice(0, 16)}`,
+    status: 'COMPLETED',
+    trigger,
+    createdAt: started.toISOString(),
+    startedAt: started.toISOString(),
+    finishedAt: new Date(started.getTime() + 47_000).toISOString(),
+    error: null,
+  });
+  const sunday = (weeksAgo) => {
+    const day = new Date();
+    day.setUTCDate(day.getUTCDate() - day.getUTCDay() - 7 * weeksAgo);
+    day.setUTCHours(2, 0, 0, 0);
+    return day;
+  };
+  const backups = [
+    backup(new Date(Date.now() - 3 * 3_600_000), 'MANUAL'),
+    backup(sunday(0), 'SCHEDULED'),
+    backup(sunday(1), 'SCHEDULED'),
+    backup(sunday(2), 'SCHEDULED'),
+  ];
+  await answerGraphQL(page, {
+    DatabaseBackups: {
+      database: {
+        __typename: 'Database',
+        id: `${environmentID()}/${config.database}`,
+        name: config.database,
+        backups: {
+          __typename: 'DatabaseBackups',
+          enabled: true,
+          retentionDays: 30,
+          earliestRestorePoint: daysFromNow(-18),
+          latestRestorePoint: new Date(Date.now() - 120_000).toISOString(),
+          lastBackupAt: backups[0].finishedAt,
+          backups,
+        },
+      },
+    },
+  });
+}
 
 async function answerBilling(page, { subscription, usageSummary }) {
   await answerGraphQL(page, {
@@ -895,17 +930,9 @@ async function answerBilling(page, { subscription, usageSummary }) {
   });
 }
 
-/** Answers the named GraphQL operations with fixed data and passes everything else through. */
+/** Per-page answers for named GraphQL operations, checked before the context's rewrites. */
 async function answerGraphQL(page, answers) {
-  await page.route('**/graphql', async (route) => {
-    let operation;
-    try {
-      operation = route.request().postDataJSON()?.operationName;
-    } catch {}
-    const data = answers[operation];
-    if (!data) return route.continue();
-    return route.fulfill({ json: { data } });
-  });
+  page.answers = { ...(page.answers ?? {}), ...answers };
 }
 
 function daysFromNow(days) {
@@ -914,51 +941,133 @@ function daysFromNow(days) {
 
 async function discoverAppURL() {
   const data = await graphql(
-    'query($e: EnvironmentID!) { environment(environment: $e) { services { name endpoints { host } } } }',
+    'query($e: EnvironmentID!) { environment(environment: $e) { services { name endpoints { host type } } } }',
     { e: environmentID() },
   );
   const service = data.environment.services.find((s) => s.name === config.service);
-  const host = service?.endpoints.map((e) => e.host).find((h) => !h.endsWith('.svc.cluster.local'));
-  if (!host) throw new Error(`service ${config.service} has no public domain — set SHOTS_APP_URL`);
+  const host = service?.endpoints.find((e) => e.type === 'PLATFORM')?.host;
+  if (!host) throw new Error(`service ${config.service} has no platform domain — set SHOTS_APP_URL`);
   return `https://${host}`;
 }
 
-// ── Doc references ────────────────────────────────────────────────────────
+// ── Response rewrites ─────────────────────────────────────────────────────
 
-function pointDocsAt(names) {
-  if (!existsSync(quickstartPage)) return [];
-  let markdown = readFileSync(quickstartPage, 'utf8');
-  const switched = [];
+const demoPosts = [
+  ['Dark mode for the board', 'Half the team reads this at night and the white background is rough. A dark theme would help.', 48, 'planned', 6],
+  ['Keyboard shortcuts for voting', 'Let me arrow through the list and hit V to vote instead of reaching for the mouse.', 31, 'open', 4],
+  ['Filter requests by status', 'Past twenty requests it gets hard to see what is actually planned versus still open.', 24, 'in-progress', 3],
+  ['Attach images to a request', 'A screenshot explains a layout bug faster than three paragraphs of description.', 21, 'done', 8],
+  ['Weekly digest email', 'A Monday summary of new requests and status changes, so nobody has to check the board.', 17, 'open', 2],
+  ['Chart tooltips overlap on narrow screens', 'On a 380px viewport the tooltip covers the bar it describes.', 9, 'open', 1],
+].map(([title, description, votes, status, daysAgo], index) => ({
+  id: String(index + 1),
+  title,
+  description,
+  votes: String(votes),
+  status,
+  created_at: new Date(Date.now() - daysAgo * 86_400_000).toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' +0000 UTC'),
+  image_key: null,
+}));
 
-  for (const name of names) {
-    const placeholder = `/img/docs/quickstart/${name}.svg`;
-    if (!markdown.includes(placeholder)) continue;
-    markdown = markdown.split(placeholder).join(`/img/docs/quickstart/${name}.png`);
-    switched.push(name);
-  }
-
-  if (switched.length > 0) writeFileSync(quickstartPage, markdown);
-  return switched;
+/** Replaces rows of the demo table with the demo posts, keeping the columns the platform returned. */
+function demoTable(result) {
+  if (!result?.columns?.every((column) => column in demoPosts[0])) return;
+  result.rows = demoPosts.map((post) => result.columns.map((column) => post[column]));
+  if ('totalEstimatedRows' in result) result.totalEstimatedRows = demoPosts.length;
+  if ('affectedRows' in result) result.affectedRows = demoPosts.length;
 }
 
-function prunePlaceholder(shot) {
-  const placeholder = join(shotDir(shot), `${shot.name}.svg`);
-  if (existsSync(placeholder)) unlinkSync(placeholder);
+/**
+ * Walks a response and tidies what should not be in a public screenshot:
+ * test domains, scratch variables, agents on the canvas, and release actors
+ * that only resolved to an account id.
+ */
+function tidy(operation, data, shot) {
+  const hiddenHosts = config.hiddenHosts.filter((host) => !(shot.keepHosts ?? []).includes(host));
+  if (operation === 'EnvironmentAgents' && data?.environment) data.environment.agents = [];
+  if (operation === 'DatabaseTableData') demoTable(data?.databaseTableData);
+  if (operation === 'ExecuteQuery') demoTable(data?.executeQuery);
+  if (operation === 'DatabaseTables') {
+    for (const table of data?.databaseTables ?? []) {
+      if (table.name === config.table) table.estimatedRows = demoPosts.length;
+    }
+  }
+
+  const actors = [];
+  const visit = (value) => {
+    if (Array.isArray(value)) {
+      for (let index = value.length - 1; index >= 0; index--) {
+        const item = value[index];
+        if (item && typeof item === 'object') {
+          if (typeof item.host === 'string' && hiddenHosts.includes(item.host)) { value.splice(index, 1); continue; }
+          if (typeof item.key === 'string' && config.hiddenVariables.includes(item.key)) { value.splice(index, 1); continue; }
+        }
+        visit(item);
+      }
+      return;
+    }
+    if (!value || typeof value !== 'object') return;
+    if (typeof value.actor === 'string') actors.push(value);
+    for (const key of Object.keys(value)) visit(value[key]);
+  };
+  visit(data);
+
+  const named = actors.map((a) => a.actor).find((actor) => /\s/.test(actor));
+  if (named) {
+    for (const trigger of actors) {
+      if (/^[a-z0-9]{10,}$/.test(trigger.actor)) trigger.actor = named;
+    }
+  }
+  return shot.rewrite ? shot.rewrite(operation, data) ?? data : data;
+}
+
+async function handleGraphQL(route, page, shot) {
+  const request = route.request();
+  const headers = {
+    ...request.headers(),
+    authorization: `Bearer ${tokens.bearer}`,
+    'x-lucity-workspace': config.workspace,
+    ...(tokens.account ? { 'x-lucity-account-token': tokens.account } : {}),
+  };
+  if (request.method() !== 'POST') return route.continue({ headers });
+
+  let body;
+  try {
+    body = request.postDataJSON();
+  } catch {
+    return route.continue({ headers });
+  }
+  const operation = body?.operationName;
+  const answer = page?.answers?.[operation];
+  if (answer) return route.fulfill({ json: { data: answer } });
+
+  // Only the read-only query runner may write; nothing else reaches the platform.
+  if (/^\s*mutation\b/.test(body?.query ?? '') && operation !== 'ExecuteQuery') {
+    return route.fulfill({ json: { data: null, errors: [{ message: 'blocked while taking screenshots' }] } });
+  }
+
+  const response = await route.fetch({ headers });
+  let json;
+  try {
+    json = await response.json();
+  } catch {
+    return route.fulfill({ response });
+  }
+  if (json?.data) json.data = tidy(operation, json.data, shot);
+  return route.fulfill({ response, json });
 }
 
 // ── Run ───────────────────────────────────────────────────────────────────
 
+const shotKey = (shot) => (shot.landing ? `landing/${shot.name}` : shot.name);
+
 if (flag('list')) {
-  for (const shot of shots) console.log(`${shot.name.padEnd(20)} ${shot.description}`);
+  for (const shot of shots) console.log(`${shotKey(shot).padEnd(28)} ${shot.description}`);
   process.exit(0);
 }
 
-const only = option('only', '')
-  .split(',')
-  .map((s) => s.trim())
-  .filter(Boolean);
-
-const selected = only.length > 0 ? shots.filter((s) => only.includes(s.name)) : shots;
+const only = list(option('only', ''));
+const selected = only.length > 0 ? shots.filter((s) => only.includes(shotKey(s))) : shots;
 if (selected.length === 0) {
   console.error(`no shots match --only ${only.join(',')} (try --list)`);
   process.exit(2);
@@ -978,22 +1087,11 @@ try {
 } catch {
   console.warn('note: `lucity token --account` failed, GitHub-backed shots will be skipped');
 }
+if (tokens.account === tokens.bearer) tokens.account = '';
 
-if (tokens.account === tokens.bearer) {
-  // A CLI without `token --account` ignores the flag and prints the workspace
-  // bearer instead, which the Account API rejects.
-  tokens.account = '';
-  console.warn('note: this lucity build has no `token --account`, GitHub-backed shots will be skipped');
-  console.warn('      build a current one and point LUCITY_CLI at it');
-}
+if (!config.workspace) config.workspace = cli(['workspace']);
 
-if (!config.workspace) {
-  config.workspace = cli(['workspace']);
-}
-
-mkdirSync(outputDir, { recursive: true });
-
-console.log(`platform:  ${config.base}`);
+console.log(`platform:  ${app()}`);
 console.log(`workspace: ${config.workspace}`);
 console.log(`demo:      ${config.project}/${config.environment} (${config.service}, ${config.database}, ${config.bucket})`);
 console.log('');
@@ -1002,48 +1100,50 @@ const browser = await chromium.launch({
   headless: !config.headed,
   slowMo: config.slowMo,
   channel: config.browserChannel,
+  executablePath: config.executablePath,
   args: ['--lang=en-US'],
 });
 
-const authedContext = await browser.newContext({
-  viewport,
-  deviceScaleFactor,
-  locale: 'en-US',
-  colorScheme: config.theme === 'dark' ? 'dark' : 'light',
-  extraHTTPHeaders: {
-    Authorization: `Bearer ${tokens.bearer}`,
-    'X-Lucity-Workspace': config.workspace,
-    ...(tokens.account ? { 'X-Lucity-Account-Token': tokens.account } : {}),
-  },
-});
+const platformPattern = new RegExp(`^${config.base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/(graphql|auth|api|version)`);
+const contexts = {};
 
-await authedContext.addInitScript(
-  ({ workspace, theme }) => {
-    localStorage.setItem('lucity_workspace', workspace);
-    localStorage.setItem('lucity-theme', theme);
-    localStorage.setItem(`lucity_onboarding_${workspace}_dismissed`, 'true');
-    document.addEventListener('DOMContentLoaded', () => {
-      const style = document.createElement('style');
-      style.textContent = 'div.banner[role="status"] { display: none !important; }';
-      document.head.appendChild(style);
-    });
-  },
-  { workspace: config.workspace, theme: config.theme },
-);
-
-if (process.env.SHOTS_USER_NAME || process.env.SHOTS_USER_EMAIL) {
-  await authedContext.route('**/auth/me', async (route) => {
-    const response = await route.fetch();
-    const me = await response.json();
-    route.fulfill({
-      response,
-      json: {
-        ...me,
-        name: process.env.SHOTS_USER_NAME || me.name,
-        email: process.env.SHOTS_USER_EMAIL || me.email,
-      },
-    });
+async function authedContext(theme) {
+  if (contexts[theme]) return contexts[theme];
+  const context = await browser.newContext({
+    viewport,
+    deviceScaleFactor,
+    locale: 'en-US',
+    colorScheme: theme === 'dark' ? 'dark' : 'light',
   });
+  await context.addInitScript(
+    ({ workspace, theme }) => {
+      localStorage.setItem('lucity_workspace', workspace);
+      localStorage.setItem('lucity-theme', theme);
+      localStorage.setItem(`lucity_onboarding_${workspace}_dismissed`, 'true');
+      document.addEventListener('DOMContentLoaded', () => {
+        const style = document.createElement('style');
+        style.textContent = 'div.banner[role="status"] { display: none !important; }';
+        document.head.appendChild(style);
+      });
+    },
+    { workspace: config.workspace, theme },
+  );
+  await context.routeWebSocket(new RegExp(`${config.base.replace(/^http/, 'ws').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/graphql`), (socket) => {
+    const server = socket.connectToServer();
+    socket.onMessage((message) => {
+      try {
+        const frame = JSON.parse(message);
+        if (frame.type === 'connection_init') {
+          frame.payload = { ...(frame.payload ?? {}), Authorization: `Bearer ${tokens.bearer}`, 'X-Lucity-Workspace': config.workspace };
+          return server.send(JSON.stringify(frame));
+        }
+      } catch {}
+      server.send(message);
+    });
+    server.onMessage((message) => socket.send(message));
+  });
+  contexts[theme] = context;
+  return context;
 }
 
 const plainContext = await browser.newContext({
@@ -1053,58 +1153,49 @@ const plainContext = await browser.newContext({
   colorScheme: config.theme === 'dark' ? 'dark' : 'light',
 });
 
+const scratch = mkdtempSync(join(tmpdir(), 'lucity-shots-'));
 const captured = [];
 const failed = [];
 
 for (const shot of selected) {
   if (shot.needsAccountToken && !tokens.account) {
-    failed.push([shot.name, 'needs an account token']);
-    console.log(`skip  ${shot.name} (needs an account token)`);
+    failed.push([shotKey(shot), 'needs an account token']);
+    console.log(`skip  ${shotKey(shot)} (needs an account token)`);
     continue;
   }
 
-  const context = shot.auth === false ? plainContext : authedContext;
+  const context = shot.auth === false ? plainContext : await authedContext(shot.theme ?? config.theme);
   const page = await context.newPage();
-  const dir = shotDir(shot);
-  mkdirSync(dir, { recursive: true });
-  const target = join(dir, `${shot.name}.png`);
+  page.landing = Boolean(shot.landing);
+  if (shot.auth !== false) await page.route(platformPattern, (route) => handleGraphQL(route, page, shot));
 
-  if (shot.viewport) await page.setViewportSize(shot.viewport);
+  const relative = shot.landing ? `img/landing/${shot.name}.webp` : `img/docs/${shot.dir ?? 'quickstart'}/${shot.name}.png`;
+  const target = join(publicDir, relative);
+  mkdirSync(dirname(target), { recursive: true });
+  const png = shot.landing ? join(scratch, `${shot.name}.png`) : target;
+
+  await page.setViewportSize(shot.viewport ?? (shot.landing ? landingViewport : viewport));
 
   try {
-    const { clip, rect } = (await shot.capture(page)) ?? {};
-    if (clip) {
-      await clip.screenshot({ path: target, animations: 'disabled' });
-    } else {
-      await page.screenshot({ path: target, animations: 'disabled', ...(rect ? { clip: rect } : {}) });
-    }
-    captured.push(shot.name);
-    console.log(`ok    ${shot.name} -> public/${shotPath(shot)}`);
+    const { rect } = (await shot.capture(page)) ?? {};
+    await page.screenshot({ path: png, animations: 'disabled', ...(rect ? { clip: rect } : {}) });
+    if (shot.landing) execFileSync('cwebp', ['-quiet', '-q', '88', png, '-o', target]);
+    captured.push(shotKey(shot));
+    console.log(`ok    ${shotKey(shot)} -> public/${relative}`);
   } catch (error) {
-    failed.push([shot.name, error.message.split('\n')[0]]);
-    console.log(`fail  ${shot.name}: ${error.message.split('\n')[0]}`);
+    failed.push([shotKey(shot), error.message.split('\n')[0]]);
+    console.log(`fail  ${shotKey(shot)}: ${error.message.split('\n')[0]}`);
   } finally {
     await page.close();
   }
 }
 
 await browser.close();
-
-if (config.updateDocs && captured.length > 0) {
-  const switched = pointDocsAt(captured);
-  if (switched.length > 0) {
-    console.log(`\nquickstart now points at: ${switched.join(', ')}`);
-  }
-  if (config.prunePlaceholders) {
-    for (const shot of selected) {
-      if (captured.includes(shot.name)) prunePlaceholder(shot);
-    }
-  }
-}
+rmSync(scratch, { recursive: true, force: true });
 
 console.log(`\ncaptured ${captured.length}/${selected.length}`);
 if (failed.length > 0) {
-  console.log('still placeholders:');
+  console.log('failed:');
   for (const [name, reason] of failed) console.log(`  ${name}: ${reason}`);
   process.exit(1);
 }
