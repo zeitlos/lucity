@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"text/tabwriter"
@@ -18,7 +19,7 @@ const varsUsage = `lucity vars — manage service variables
 Usage:
   lucity vars list <service> [--json]
   lucity vars available <env> [--json]
-  lucity vars set <service> KEY=VALUE... [--ref KEY=<variableID>]... [--json]
+  lucity vars set <service> KEY=VALUE... [--from-file KEY=<path>]... [--ref KEY=<variableID>]... [--json]
 
 Commands:
   list        Show the variables set on a service
@@ -31,8 +32,14 @@ Arguments:
   <env>      Environment id (workspace/project/environment) or its relative form.
 
 Flags:
+  --from-file KEY=<path>   Set KEY to the contents of a file, line breaks included, such as a
+                           PEM key or certificate. Use - as the path to read stdin
   --ref KEY=<variableID>   Bind KEY to an available variable (list them with 'lucity vars available')
   --json                   Emit the result as JSON on stdout
+
+Examples:
+  lucity vars set shop/production/web --from-file JWT_PRIVATE_KEY=./jwt.pem
+  op read op://vault/web/key | lucity vars set shop/production/web --from-file SIGNING_KEY=-
 
 'lucity vars set' merges your changes into the existing variables, so variables
 you do not name are kept. The service then rolls out again on its current image,
@@ -189,6 +196,7 @@ func varsSet(ctx context.Context, args []string) error {
 	asJSON := false
 	literals := map[string]string{}
 	refs := map[string]string{}
+	stdinUsed := false
 	var order []string
 	seen := map[string]bool{}
 	appendKey := func(key string) {
@@ -223,6 +231,24 @@ func varsSet(ctx context.Context, args []string) error {
 				return err
 			}
 			refs[key] = value
+			appendKey(key)
+		case token == "--from-file" || token == "-from-file":
+			if index+1 >= len(rest) {
+				return errors.New("--from-file requires KEY=<path>")
+			}
+			index++
+			key, value, err := fileAssignment(rest[index], &stdinUsed)
+			if err != nil {
+				return err
+			}
+			literals[key] = value
+			appendKey(key)
+		case strings.HasPrefix(token, "--from-file="):
+			key, value, err := fileAssignment(strings.TrimPrefix(token, "--from-file="), &stdinUsed)
+			if err != nil {
+				return err
+			}
+			literals[key] = value
 			appendKey(key)
 		case strings.HasPrefix(token, "-"):
 			fmt.Fprint(os.Stderr, varsUsage)
@@ -322,7 +348,7 @@ func variableDisplay(variable serviceVariableView) string {
 		return "→ " + *variable.Ref
 	}
 	if variable.Value != nil {
-		return *variable.Value
+		return strings.ReplaceAll(*variable.Value, "\n", `\n`)
 	}
 	return ""
 }
@@ -333,6 +359,29 @@ func sourceLabel(typename, name string) string {
 		return kind
 	}
 	return kind + " " + name
+}
+
+func fileAssignment(token string, stdinUsed *bool) (string, string, error) {
+	key, path, err := splitAssignment(token, "--from-file")
+	if err != nil {
+		return "", "", err
+	}
+	if path == "-" {
+		if *stdinUsed {
+			return "", "", errors.New("--from-file can read stdin (-) only once")
+		}
+		*stdinUsed = true
+		content, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return "", "", fmt.Errorf("--from-file %s: read stdin: %w", key, err)
+		}
+		return key, string(content), nil
+	}
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return "", "", fmt.Errorf("--from-file %s: %w", key, err)
+	}
+	return key, string(content), nil
 }
 
 func splitAssignment(token, context string) (string, string, error) {

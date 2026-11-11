@@ -198,7 +198,7 @@ function referenceInfo(row: VariableRow) {
     <div
       v-for="(row, index) in rows"
       :key="index"
-      class="flex flex-wrap items-center gap-x-2 gap-y-1.5"
+      class="flex flex-wrap items-start gap-x-2 gap-y-1.5"
     >
       <Input
         v-model="row.key"
