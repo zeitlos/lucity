@@ -36553,7 +36553,7 @@ func (ec *executionContext) unmarshalInputCreateEnvironmentInput(ctx context.Con
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"project", "name", "id", "fromEnvironment", "tier"}
+	fieldsInOrder := [...]string{"project", "name", "id", "tier"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -36623,13 +36623,6 @@ func (ec *executionContext) unmarshalInputCreateEnvironmentInput(ctx context.Con
 				err := fmt.Errorf(`unexpected type %T from directive, should be *string`, tmp)
 				return it, graphql.ErrorOnPath(ctx, err)
 			}
-		case "fromEnvironment":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("fromEnvironment"))
-			data, err := ec.unmarshalOEnvironmentID2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐEnvironmentID(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.FromEnvironment = data
 		case "tier":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tier"))
 			data, err := ec.unmarshalOResourceTier2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceTier(ctx, v)
@@ -50240,22 +50233,6 @@ func (ec *executionContext) unmarshalOEffort2ᚖgithubᚗcomᚋzeitlosᚋlucity�
 }
 
 func (ec *executionContext) marshalOEffort2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐEffort(ctx context.Context, sel ast.SelectionSet, v *model.Effort) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return v
-}
-
-func (ec *executionContext) unmarshalOEnvironmentID2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐEnvironmentID(ctx context.Context, v any) (*platform.EnvironmentID, error) {
-	if v == nil {
-		return nil, nil
-	}
-	var res = new(platform.EnvironmentID)
-	err := res.UnmarshalGQL(v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalOEnvironmentID2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋpkgᚋplatformᚐEnvironmentID(ctx context.Context, sel ast.SelectionSet, v *platform.EnvironmentID) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}

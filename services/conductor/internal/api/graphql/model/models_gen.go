@@ -474,10 +474,8 @@ type CreateEnvironmentInput struct {
 	// What people read, such as `Staging`. Any text, and it can be changed later.
 	Name string `json:"name"`
 	// The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused.
-	ID *string `json:"id,omitempty"`
-	// Not supported yet. Leave it unset, because new environments always start empty.
-	FromEnvironment *platform.EnvironmentID `json:"fromEnvironment,omitempty"`
-	Tier            *ResourceTier           `json:"tier,omitempty"`
+	ID   *string       `json:"id,omitempty"`
+	Tier *ResourceTier `json:"tier,omitempty"`
 }
 
 type CreateKeyValueStoreInput struct {

@@ -4292,18 +4292,6 @@
         "fields": null,
         "inputFields": [
           {
-            "name": "fromEnvironment",
-            "description": "Not supported yet. Leave it unset, because new environments always start empty.",
-            "type": {
-              "kind": "SCALAR",
-              "name": "EnvironmentID",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "id",
             "description": "The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused.",
             "type": {

@@ -186,8 +186,6 @@ export type CreateDatabaseInput = {
 };
 
 export type CreateEnvironmentInput = {
-  /** Not supported yet. Leave it unset, because new environments always start empty. */
-  fromEnvironment?: string | null | undefined;
   /** The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused. */
   id?: string | null | undefined;
   /** What people read, such as `Staging`. Any text, and it can be changed later. */

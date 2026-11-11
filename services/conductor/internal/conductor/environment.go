@@ -80,18 +80,7 @@ const defaultEnvironment = "development"
 // CreateEnvironment provisions a new env namespace.
 // The helm release materializes lazily on the first service/db/volume/
 // variable write — no explicit install is needed here.
-//
-// fromEnvironment duplication is NOT yet supported on the helm-only path:
-// it requires walking the source env's services/databases/volumes via
-// platform.* and re-creating each via the deployer, but platform.Service
-// doesn't yet expose Image and Port fields. Variables are also deferred
-// (see variable.go TODO). Until those land, callers must omit
-// fromEnvironment.
-func (c *Client) CreateEnvironment(ctx context.Context, project ProjectID, id, name string, fromEnvironment *EnvironmentID) (*Environment, error) {
-	if fromEnvironment != nil {
-		return nil, usererror.New("creating an environment from a source is not yet supported")
-	}
-
+func (c *Client) CreateEnvironment(ctx context.Context, project ProjectID, id, name string) (*Environment, error) {
 	existing, err := c.platform.Project(ctx, project)
 
 	if err != nil {
