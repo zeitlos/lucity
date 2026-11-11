@@ -322,14 +322,16 @@ func diagnosePods(pods []core.Pod) (platform.RolloutReason, string) {
 			switch waiting.Reason {
 			case "CrashLoopBackOff":
 				if terminated := container.LastTerminationState.Terminated; terminated != nil {
-					return platform.RolloutReasonCrashLoop, fmt.Sprintf("container exited with code %d", terminated.ExitCode)
+					return platform.RolloutReasonCrashLoop, terminationMessage(terminated)
 				}
 
 				return platform.RolloutReasonCrashLoop, "container is restarting repeatedly"
+			case "RunContainerError":
+				return platform.RolloutReasonCrashLoop, withDetail("container could not be started", waiting.Message)
 			case "ImagePullBackOff", "ErrImagePull", "InvalidImageName":
 				return platform.RolloutReasonImagePullFailed, "image could not be pulled"
 			case "CreateContainerConfigError", "CreateContainerError":
-				return platform.RolloutReasonConfigError, "container could not be created from its configuration"
+				return platform.RolloutReasonConfigError, withDetail("container could not be created from its configuration", waiting.Message)
 			}
 		}
 
@@ -341,6 +343,46 @@ func diagnosePods(pods []core.Pod) (platform.RolloutReason, string) {
 	}
 
 	return platform.RolloutReasonNone, ""
+}
+
+const maxRolloutDetail = 300
+
+func terminationMessage(terminated *core.ContainerStateTerminated) string {
+	message := fmt.Sprintf("container exited with code %d", terminated.ExitCode)
+
+	if terminated.Reason != "" && terminated.Reason != "Error" && terminated.Reason != "Completed" {
+		message += " (" + terminated.Reason + ")"
+	}
+
+	return withDetail(message, terminated.Message)
+}
+
+var runtimeErrorPrefixes = []string{
+	"error during container init: ",
+	"unable to start container process: ",
+}
+
+func withDetail(message, detail string) string {
+	detail = strings.Join(strings.Fields(detail), " ")
+
+	for _, prefix := range runtimeErrorPrefixes {
+		if i := strings.LastIndex(detail, prefix); i >= 0 {
+			detail = detail[i+len(prefix):]
+			break
+		}
+	}
+
+	detail = strings.TrimSuffix(detail, ": unknown")
+
+	if detail == "" {
+		return message
+	}
+
+	if runes := []rune(detail); len(runes) > maxRolloutDetail {
+		detail = string(runes[:maxRolloutDetail]) + "…"
+	}
+
+	return message + ": " + detail
 }
 
 func podReady(pod core.Pod) bool {

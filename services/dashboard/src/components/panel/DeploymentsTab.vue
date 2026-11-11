@@ -472,7 +472,7 @@ watch(
               />
               {{ stepLabels[step.status] }}
             </span>
-            <span class="flex-1 truncate text-sm text-muted-foreground">{{ step.detail }}</span>
+            <span class="min-w-0 flex-1 text-sm break-words text-muted-foreground">{{ step.detail }}</span>
             <Button
               v-if="step.logId && step.logKind"
               variant="outline"
@@ -588,7 +588,7 @@ watch(
                   />
                   {{ stepLabels[step.status] }}
                 </span>
-                <span class="flex-1 truncate text-sm text-muted-foreground">{{ step.detail }}</span>
+                <span class="min-w-0 flex-1 text-sm break-words text-muted-foreground">{{ step.detail }}</span>
                 <Button
                   v-if="step.logId && step.logKind"
                   variant="outline"

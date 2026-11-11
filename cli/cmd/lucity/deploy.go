@@ -334,7 +334,7 @@ func rolloutReasonHint(reason string) string {
 	case "DEADLINE_EXCEEDED":
 		return "the rollout timed out becoming ready — check the service's runtime logs and readiness"
 	case "NOT_READY":
-		return "not ready yet"
+		return "the container runs but never became ready — make the app listen on the port in PORT, or change the service's port"
 	default:
 		return "check the service's runtime logs in the dashboard"
 	}

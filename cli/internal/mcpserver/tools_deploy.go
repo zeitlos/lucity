@@ -101,7 +101,7 @@ func (s *server) getDeployStatus(ctx context.Context, _ *mcp.CallToolRequest, in
 
 	const query = `query($id: ServiceID!) {
   service(id: $id) {
-    id status
+    id status port
     endpoints { host protocol type tls redirectTo }
     releases {
       id status createdAt
@@ -119,6 +119,7 @@ func (s *server) getDeployStatus(ctx context.Context, _ *mcp.CallToolRequest, in
 		Service struct {
 			ID        string           `json:"id"`
 			Status    string           `json:"status"`
+			Port      int              `json:"port"`
 			Endpoints []any            `json:"endpoints"`
 			Releases  []map[string]any `json:"releases"`
 		} `json:"service"`
@@ -137,7 +138,7 @@ func (s *server) getDeployStatus(ctx context.Context, _ *mcp.CallToolRequest, in
 		"endpoints":     out.Service.Endpoints,
 		"release":       release,
 	}
-	hints := actionHints(release)
+	hints := actionHints(release, out.Service.Port)
 	if live := liveRelease(out.Service.Releases); live != nil && live["id"] != release["id"] {
 		result["liveRelease"] = map[string]any{"id": live["id"], "status": live["status"], "source": live["source"]}
 		if status, _ := release["status"].(string); status == "FAILED" || status == "CANCELLED" {
@@ -188,7 +189,7 @@ func pickRelease(releases []map[string]any, releaseID string) map[string]any {
 	return sorted[0]
 }
 
-func actionHints(release map[string]any) []string {
+func actionHints(release map[string]any, port int) []string {
 	var hints []string
 
 	if build, ok := release["build"].(map[string]any); ok {
@@ -213,7 +214,7 @@ func actionHints(release map[string]any) []string {
 			status, _ := rollout["status"].(string)
 			reason, _ := rollout["reason"].(string)
 			if status == "DEGRADED" || status == "FAILED" {
-				hints = append(hints, rolloutHint(reason, serviceID)...)
+				hints = append(hints, rolloutHint(reason, serviceID, port)...)
 			}
 		}
 	}
@@ -230,14 +231,14 @@ func deploymentServiceID(deployment map[string]any) string {
 	return strings.Join(parts[:4], "/")
 }
 
-func rolloutHint(reason, serviceID string) []string {
+func rolloutHint(reason, serviceID string, port int) []string {
 	switch reason {
 	case "OOM_KILLED":
 		return []string{"rollout DEGRADED: the container was killed for exceeding its memory limit — raise memory via configure_service, which rolls the service out automatically with its current image (no rebuild); then poll get_deploy_status"}
 	case "CRASH_LOOP":
-		hint := "rollout DEGRADED: the container keeps crashing on startup"
+		hint := "rollout DEGRADED: the container keeps crashing on startup. rollout.message has the exit code and, when the container could not even start (a missing shell or binary, a permission error), the runtime's reason"
 		if serviceID != "" {
-			hint += fmt.Sprintf(" — call get_logs with kind=\"runtime\" id=%q to see why", serviceID)
+			hint += fmt.Sprintf("; get_logs with kind=\"runtime\" id=%q shows what the app printed before it exited", serviceID)
 		}
 		return []string{hint}
 	case "IMAGE_PULL_FAILED":
@@ -251,7 +252,11 @@ func rolloutHint(reason, serviceID string) []string {
 	case "DEADLINE_EXCEEDED":
 		return []string{"rollout DEGRADED: the rollout timed out becoming ready — check get_logs (kind=runtime) and readiness of the service"}
 	case "NOT_READY":
-		return []string{"rollout not ready yet — poll get_deploy_status again shortly"}
+		hint := fmt.Sprintf("rollout FAILED: the container runs but never became ready. The platform checks port %d and passes it to the app as PORT; an app listening on another port never gets ready, so make it listen on $PORT or set its port with configure_service", port)
+		if serviceID != "" {
+			hint += fmt.Sprintf(". get_logs with kind=\"runtime\" id=%q shows what it listens on", serviceID)
+		}
+		return []string{hint}
 	default:
 		return []string{"rollout DEGRADED/FAILED — inspect get_logs (kind=runtime) for the service"}
 	}
