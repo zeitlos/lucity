@@ -18,7 +18,7 @@ func (s *server) registerDeploy(m *mcp.Server) {
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "get_deploy_status",
-		Description: "Get the status of a service and one of its releases (build, deploy, security scan, and rollout phases) plus its endpoints. Without release_id the newest release is used, which can be newer than the one serving traffic: liveRelease then names the one that serves. Read get_logs for a failed phase.",
+		Description: "Get the status of a service and one of its releases (build, deploy, security scan, and rollout phases) plus its endpoints. Without release_id the newest release is used, which can be newer than the one serving traffic: liveRelease then names the one that serves. Pass wait to block until the release settles instead of polling. Read get_logs for a failed phase.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, DestructiveHint: ptr(false)},
 	}, s.getDeployStatus)
 
@@ -91,6 +91,7 @@ func (s *server) deploy(ctx context.Context, _ *mcp.CallToolRequest, input deplo
 type getDeployStatusInput struct {
 	Service   string `json:"service" jsonschema:"service id (workspace/project/environment/service)"`
 	ReleaseID string `json:"release_id,omitempty" jsonschema:"release id to inspect; defaults to the newest release"`
+	Wait      int    `json:"wait,omitempty" jsonschema:"optional: seconds (1-300) to wait until the release is live, failed, cancelled or superseded, or its rollout reports a failure, instead of polling; 120 suits most builds"`
 }
 
 func (s *server) getDeployStatus(ctx context.Context, _ *mcp.CallToolRequest, input getDeployStatusInput) (*mcp.CallToolResult, any, error) {
@@ -98,7 +99,42 @@ func (s *server) getDeployStatus(ctx context.Context, _ *mcp.CallToolRequest, in
 	if err != nil {
 		return nil, nil, err
 	}
+	if err := validateWait(input.Wait); err != nil {
+		return nil, nil, err
+	}
 
+	result, settled, err := pollUntil(ctx, input.Wait, func() (map[string]any, bool, error) {
+		return s.deployStatus(ctx, serviceID, input.ReleaseID)
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	release, _ := result["release"].(map[string]any)
+	if note := waitNote(input.Wait, settled, release["status"]); note != "" {
+		result["note"] = note
+	}
+	return jsonResult(result)
+}
+
+func releaseSettled(release map[string]any) bool {
+	switch status, _ := release["status"].(string); status {
+	case "FAILED", "CANCELLED", "SUPERSEDED":
+		return true
+	case "LIVE":
+		rollout := releaseRollout(release)
+		return rollout == nil || rollout["status"] != "PROGRESSING"
+	}
+	rollout := releaseRollout(release)
+	return rollout != nil && (rollout["status"] == "DEGRADED" || rollout["status"] == "FAILED")
+}
+
+func releaseRollout(release map[string]any) map[string]any {
+	deployment, _ := release["deployment"].(map[string]any)
+	rollout, _ := deployment["rollout"].(map[string]any)
+	return rollout
+}
+
+func (s *server) deployStatus(ctx context.Context, serviceID, releaseID string) (map[string]any, bool, error) {
 	const query = `query($id: ServiceID!) {
   service(id: $id) {
     id status port
@@ -125,12 +161,12 @@ func (s *server) getDeployStatus(ctx context.Context, _ *mcp.CallToolRequest, in
 		} `json:"service"`
 	}
 	if err := s.query(ctx, "get_deploy_status", query, map[string]any{"id": serviceID}, &out); err != nil {
-		return nil, nil, err
+		return nil, false, err
 	}
 
-	release := pickRelease(out.Service.Releases, input.ReleaseID)
+	release := pickRelease(out.Service.Releases, releaseID)
 	if release == nil {
-		return nil, nil, fmt.Errorf("no release found for service %q%s — call deploy first", serviceID, releaseIDSuffix(input.ReleaseID))
+		return nil, false, fmt.Errorf("no release found for service %q%s — call deploy first", serviceID, releaseIDSuffix(releaseID))
 	}
 
 	result := map[string]any{
@@ -148,7 +184,7 @@ func (s *server) getDeployStatus(ctx context.Context, _ *mcp.CallToolRequest, in
 	if len(hints) > 0 {
 		result["actions"] = hints
 	}
-	return jsonResult(result)
+	return result, releaseSettled(release), nil
 }
 
 func liveRelease(releases []map[string]any) map[string]any {

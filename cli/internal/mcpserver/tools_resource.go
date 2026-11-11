@@ -10,13 +10,13 @@ import (
 func (s *server) registerResource(m *mcp.Server) {
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "create_database",
-		Description: "Provision a managed PostgreSQL database in an environment. size is the storage size as a Kubernetes quantity (e.g. 10Gi). cpu and memory (e.g. '500m'/'512Mi') size the database; pass both or omit both for platform defaults. Provisioning takes ~1-2 min; poll get_project for status. Wire its credentials into a service with set_variables refs from list_variables' available list; credential values are never returned.",
+		Description: "Provision a managed PostgreSQL database in an environment. size is the storage size as a Kubernetes quantity (e.g. 10Gi). cpu and memory (e.g. '500m'/'512Mi') size the database; pass both or omit both for platform defaults. It accepts connections about a minute after creation, once its status leaves PENDING; pass wait to get the result at that point instead of polling get_project. UPDATING then means it serves while a standby instance catches up. Wire its credentials into a service with set_variables refs from list_variables' available list; credential values are never returned.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(false)},
 	}, s.createDatabase)
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "create_kv_store",
-		Description: "Provision a Redis-compatible key-value store in an environment.",
+		Description: "Provision a Redis-compatible key-value store in an environment. Pass wait to get the result once it accepts connections (status no longer PENDING).",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(false)},
 	}, s.createKeyValueStore)
 
@@ -45,6 +45,7 @@ type createDatabaseInput struct {
 	Size        string `json:"size,omitempty" jsonschema:"storage size as a Kubernetes quantity (e.g. 10Gi)"`
 	CPU         string `json:"cpu,omitempty" jsonschema:"CPU limit as a Kubernetes quantity (e.g. 500m); provide together with memory, or omit both for platform defaults"`
 	Memory      string `json:"memory,omitempty" jsonschema:"memory limit as a Kubernetes quantity (e.g. 512Mi); provide together with cpu, or omit both for platform defaults"`
+	Wait        int    `json:"wait,omitempty" jsonschema:"optional: seconds (1-300) to wait until it accepts connections (status no longer PENDING) before answering, instead of polling get_project"`
 }
 
 func (s *server) createDatabase(ctx context.Context, _ *mcp.CallToolRequest, input createDatabaseInput) (*mcp.CallToolResult, any, error) {
@@ -54,6 +55,9 @@ func (s *server) createDatabase(ctx context.Context, _ *mcp.CallToolRequest, inp
 	}
 	if (input.CPU == "") != (input.Memory == "") {
 		return nil, nil, fmt.Errorf("cpu and memory must be provided together")
+	}
+	if err := validateWait(input.Wait); err != nil {
+		return nil, nil, err
 	}
 
 	dbInput := map[string]any{"environment": environmentID, "name": input.Name}
@@ -71,21 +75,48 @@ func (s *server) createDatabase(ctx context.Context, _ *mcp.CallToolRequest, inp
   createDatabase(input: $input) { id name status version size public resources { cpu memory } }
 }`
 	var out struct {
-		CreateDatabase any `json:"createDatabase"`
+		CreateDatabase map[string]any `json:"createDatabase"`
 	}
 	if err := s.query(ctx, "create_database", mutation, map[string]any{"input": dbInput}, &out); err != nil {
 		return nil, nil, err
 	}
-	return jsonResult(map[string]any{
-		"database": out.CreateDatabase,
-		"note":     "PostgreSQL provisioning takes ~1-2 min; poll get_project until status is HEALTHY, then wire its credentials into a service via set_variables refs from list_variables' available list",
+
+	database, settled, err := pollUntil(ctx, input.Wait, func() (map[string]any, bool, error) {
+		if input.Wait == 0 {
+			return out.CreateDatabase, false, nil
+		}
+		const query = `query($id: DatabaseID!) { database(id: $id) { id name status statusReason version size public resources { cpu memory } } }`
+		var current struct {
+			Database map[string]any `json:"database"`
+		}
+		if err := s.query(ctx, "create_database (status)", query, map[string]any{"id": out.CreateDatabase["id"]}, &current); err != nil {
+			return nil, false, err
+		}
+		return current.Database, resourceSettled(current.Database), nil
 	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	note := "PostgreSQL accepts connections about a minute after creation, once its status leaves PENDING (call get_project, or pass wait next time); wire its credentials into a service via set_variables refs from list_variables' available list right away"
+	if settled {
+		note = "wire its credentials into a service via set_variables refs from list_variables' available list"
+	} else if pending := waitNote(input.Wait, settled, database["status"]); pending != "" {
+		note = pending
+	}
+	return jsonResult(map[string]any{"database": database, "note": note})
+}
+
+func resourceSettled(resource map[string]any) bool {
+	status, _ := resource["status"].(string)
+	return status != "" && status != "PENDING"
 }
 
 type createKeyValueStoreInput struct {
 	Environment string `json:"environment" jsonschema:"environment id (workspace/project/environment)"`
 	Name        string `json:"name" jsonschema:"what people read, any text up to 128 chars (e.g. 'Sessions'); it can be renamed later"`
 	ID          string `json:"id,omitempty" jsonschema:"optional id (2-16 chars: lowercase letters, digits and hyphens, starting and ending with a letter or digit); derived from name when omitted, with a counter added if taken. Fixed once created. Use the id this tool returns, never the name, to refer to it later"`
+	Wait        int    `json:"wait,omitempty" jsonschema:"optional: seconds (1-300) to wait until it accepts connections (status no longer PENDING) before answering, instead of polling get_project"`
 }
 
 func (s *server) createKeyValueStore(ctx context.Context, _ *mcp.CallToolRequest, input createKeyValueStoreInput) (*mcp.CallToolResult, any, error) {
@@ -93,12 +124,15 @@ func (s *server) createKeyValueStore(ctx context.Context, _ *mcp.CallToolRequest
 	if err != nil {
 		return nil, nil, err
 	}
+	if err := validateWait(input.Wait); err != nil {
+		return nil, nil, err
+	}
 
 	const mutation = `mutation($input: CreateKeyValueStoreInput!) {
   createKeyValueStore(input: $input) { id name status version size }
 }`
 	var out struct {
-		CreateKeyValueStore any `json:"createKeyValueStore"`
+		CreateKeyValueStore map[string]any `json:"createKeyValueStore"`
 	}
 	kvInput := map[string]any{"environment": environmentID, "name": input.Name}
 	if input.ID != "" {
@@ -107,10 +141,29 @@ func (s *server) createKeyValueStore(ctx context.Context, _ *mcp.CallToolRequest
 	if err := s.query(ctx, "create_kv_store", mutation, map[string]any{"input": kvInput}, &out); err != nil {
 		return nil, nil, err
 	}
-	return jsonResult(map[string]any{
-		"keyValueStore": out.CreateKeyValueStore,
-		"note":          "Redis-compatible; wire its credentials into a service via set_variables refs from list_variables' available list",
+
+	store, settled, err := pollUntil(ctx, input.Wait, func() (map[string]any, bool, error) {
+		if input.Wait == 0 {
+			return out.CreateKeyValueStore, false, nil
+		}
+		const query = `query($id: KeyValueStoreID!) { keyValueStore(id: $id) { id name status version size } }`
+		var current struct {
+			KeyValueStore map[string]any `json:"keyValueStore"`
+		}
+		if err := s.query(ctx, "create_kv_store (status)", query, map[string]any{"id": out.CreateKeyValueStore["id"]}, &current); err != nil {
+			return nil, false, err
+		}
+		return current.KeyValueStore, resourceSettled(current.KeyValueStore), nil
 	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	note := "Redis-compatible; wire its credentials into a service via set_variables refs from list_variables' available list"
+	if pending := waitNote(input.Wait, settled, store["status"]); pending != "" {
+		note = pending + ". " + note
+	}
+	return jsonResult(map[string]any{"keyValueStore": store, "note": note})
 }
 
 type createBucketInput struct {

@@ -41,7 +41,7 @@ const instance: Record<ServiceInstanceState, StatusView> = {
 
 const database: Record<DatabaseStatus, StatusView> = {
   [DatabaseStatus.Healthy]: { tone: 'ok', label: 'Online' },
-  [DatabaseStatus.Pending]: { tone: 'progress', label: 'Provisioning' },
+  [DatabaseStatus.Pending]: { tone: 'progress', label: 'Starting' },
   [DatabaseStatus.Updating]: { tone: 'progress', label: 'Updating' },
   [DatabaseStatus.Degraded]: { tone: 'warn', label: 'Degraded' },
   [DatabaseStatus.Failed]: { tone: 'danger', label: 'Failed' },

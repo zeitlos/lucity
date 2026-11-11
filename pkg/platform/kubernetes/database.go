@@ -212,11 +212,7 @@ func databaseStatus(cluster cnpgv1.Cluster) platform.DatabaseStatus {
 	ready := cluster.Status.ReadyInstances
 
 	if ready == 0 {
-		if cluster.Status.CurrentPrimary == "" {
-			return platform.DatabasePending
-		}
-
-		return platform.DatabaseUpdating
+		return platform.DatabasePending
 	}
 
 	if ready >= desired && cluster.Status.Phase == cnpgv1.PhaseHealthy {
