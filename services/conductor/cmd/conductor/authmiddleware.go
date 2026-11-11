@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -34,7 +35,15 @@ func sessionAuth(store *sessionStore, codec *session.Codec, verifier *auth.Verif
 			ctx := r.Context()
 
 			if bearer := bearerToken(r); bearer != "" {
-				if claims, err := verifier.ValidateToken(ctx, bearer); err == nil {
+				claims, err := verifier.ValidateToken(ctx, bearer)
+				if errors.Is(err, auth.ErrOrganizationLookup) {
+					slog.WarnContext(ctx, "bearer token could not be checked", "error", err)
+					writeGraphQLError(w, http.StatusServiceUnavailable, "could not verify your sign-in right now, retry in a moment; if it keeps failing, sign in again")
+					return
+				}
+				if err != nil {
+					slog.WarnContext(ctx, "bearer token rejected", "error", err)
+				} else {
 					ctx = auth.NewContext(ctx, claims)
 					if account := r.Header.Get(accountTokenHeader); account != "" {
 						ctx = auth.WithToken(ctx, account)
@@ -94,6 +103,12 @@ func sessionAuth(store *sessionStore, codec *session.Codec, verifier *auth.Verif
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+func writeGraphQLError(w http.ResponseWriter, status int, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(map[string]any{"errors": []map[string]string{{"message": message}}})
 }
 
 func bearerToken(r *http.Request) string {

@@ -52,7 +52,7 @@ func (s *server) instructions() string {
 	if workspace == "" {
 		b.WriteString("WARNING: no active workspace is set. Tool calls will fail until one is selected. Run 'lucity workspace <id>' (list memberships with 'lucity account').\n\n")
 	} else {
-		b.WriteString("Active workspace: " + workspace + "\n")
+		b.WriteString("Active workspace: " + workspace + " (it follows 'lucity workspace <id>' from the next call on; get_account shows the current one)\n")
 	}
 	b.WriteString("Platform URL: " + s.manager.APIURL() + "\n\n")
 
@@ -122,7 +122,10 @@ func wrapGraphQL(operation string, err error) error {
 	if errors.As(err, &requestErr) {
 		message := requestErr.Error()
 		lower := strings.ToLower(message)
-		if strings.Contains(lower, "logto access token") || strings.Contains(lower, "github token") || strings.Contains(lower, "invalid_grant") {
+		if lower == "unauthenticated" {
+			return fmt.Errorf("%s failed: the platform did not accept your Lucity sign-in — run `lucity login` in a terminal, then retry", operation)
+		}
+		if strings.Contains(lower, "github token") {
 			return fmt.Errorf("%s failed: your GitHub session for Lucity has expired — run `lucity login` in a terminal, then retry. (This is separate from get_account, which stays valid.)", operation)
 		}
 		if strings.Contains(lower, "another operation (install/upgrade/rollback) is in progress") {

@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -31,6 +32,10 @@ func NewVerifier(ctx context.Context, issuerURL, audience string) (*Verifier, er
 		verifier: verifier,
 	}, nil
 }
+
+// ErrOrganizationLookup marks a token that could not be checked because its
+// organization could not be looked up, as opposed to a token that is invalid.
+var ErrOrganizationLookup = errors.New("organization lookup failed")
 
 // OrgResolver maps the organization_id and organization scopes of a verified
 // Logto organization access token to a workspace ID and role.

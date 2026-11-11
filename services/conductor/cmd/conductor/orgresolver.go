@@ -26,7 +26,7 @@ func newOrgResolver(client *logto.Client) auth.OrgResolver {
 		if !ok {
 			org, err := client.Organization(ctx, organizationID)
 			if err != nil {
-				return "", "", err
+				return "", "", fmt.Errorf("%w: %w", auth.ErrOrganizationLookup, err)
 			}
 			name = org.Name
 			mu.Lock()

@@ -265,6 +265,10 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 				callerWorkspace, err := tenant.FromContext(ctx)
 
 				if err != nil {
+					if _, err := auth.FromContext(ctx); err != nil {
+						return usererror.New("unauthenticated")
+					}
+
 					return usererror.New("workspace not specified")
 				}
 
