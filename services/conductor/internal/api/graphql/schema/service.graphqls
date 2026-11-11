@@ -29,6 +29,8 @@ type Service
   builds: [Build!]! @goField(forceResolver: true)
 
   releases: [Release!]! @goField(forceResolver: true)
+  """The newest release, which can be newer than the one serving traffic, for example while it builds or after its build failed."""
+  latestRelease: Release @goField(forceResolver: true)
 
   metrics(metrics: [ResourceMetric!]!, range: MetricsRange!, grouping: MetricGrouping! = TOTAL): [MetricSeries!]! @goField(forceResolver: true)
 

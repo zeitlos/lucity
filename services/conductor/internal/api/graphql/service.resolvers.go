@@ -335,6 +335,23 @@ func (r *serviceResolver) Releases(ctx context.Context, obj *model.Service) ([]m
 	return result, nil
 }
 
+// LatestRelease is the resolver for the latestRelease field.
+func (r *serviceResolver) LatestRelease(ctx context.Context, obj *model.Service) (*model.Release, error) {
+	releases, err := r.Conductor.Releases(ctx, obj.PlatformService)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(releases) == 0 {
+		return nil, nil
+	}
+
+	release := convertRelease(releases[0])
+
+	return &release, nil
+}
+
 // Metrics is the resolver for the metrics field.
 func (r *serviceResolver) Metrics(ctx context.Context, obj *model.Service, metrics []model.ResourceMetric, rangeArg model.MetricsRange, grouping model.MetricGrouping) ([]model.MetricSeries, error) {
 	window, err := convertMetricWindow(rangeArg.Window)

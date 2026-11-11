@@ -1013,11 +1013,13 @@ type Service struct {
 	DefaultCommand string               `json:"defaultCommand"`
 	HealthCheck    *HealthCheck         `json:"healthCheck,omitempty"`
 	// The user id an image-based service runs as, which also owns its mounted volumes. Null means the image's default.
-	User                *int                 `json:"user,omitempty"`
-	ActiveDeployment    *Deployment          `json:"activeDeployment,omitempty"`
-	Deployments         []Deployment         `json:"deployments"`
-	Builds              []Build              `json:"builds"`
-	Releases            []Release            `json:"releases"`
+	User             *int         `json:"user,omitempty"`
+	ActiveDeployment *Deployment  `json:"activeDeployment,omitempty"`
+	Deployments      []Deployment `json:"deployments"`
+	Builds           []Build      `json:"builds"`
+	Releases         []Release    `json:"releases"`
+	// The newest release, which can be newer than the one serving traffic, for example while it builds or after its build failed.
+	LatestRelease       *Release             `json:"latestRelease,omitempty"`
 	Metrics             []MetricSeries       `json:"metrics"`
 	LastDeployedAt      *time.Time           `json:"lastDeployedAt,omitempty"`
 	CreatedAt           time.Time            `json:"createdAt"`

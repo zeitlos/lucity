@@ -18,7 +18,7 @@ func (s *server) registerDeploy(m *mcp.Server) {
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "get_deploy_status",
-		Description: "Get the status of a service and one of its releases (build, deploy, security scan, and rollout phases) plus its endpoints. Without release_id the newest release is used. Read get_logs for a failed phase.",
+		Description: "Get the status of a service and one of its releases (build, deploy, security scan, and rollout phases) plus its endpoints. Without release_id the newest release is used, which can be newer than the one serving traffic: liveRelease then names the one that serves. Read get_logs for a failed phase.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, DestructiveHint: ptr(false)},
 	}, s.getDeployStatus)
 
@@ -137,10 +137,26 @@ func (s *server) getDeployStatus(ctx context.Context, _ *mcp.CallToolRequest, in
 		"endpoints":     out.Service.Endpoints,
 		"release":       release,
 	}
-	if hints := actionHints(release); len(hints) > 0 {
+	hints := actionHints(release)
+	if live := liveRelease(out.Service.Releases); live != nil && live["id"] != release["id"] {
+		result["liveRelease"] = map[string]any{"id": live["id"], "status": live["status"], "source": live["source"]}
+		if status, _ := release["status"].(string); status == "FAILED" || status == "CANCELLED" {
+			hints = append(hints, fmt.Sprintf("this release did not go live; the service still serves release %v, so serviceStatus describes that one", live["id"]))
+		}
+	}
+	if len(hints) > 0 {
 		result["actions"] = hints
 	}
 	return jsonResult(result)
+}
+
+func liveRelease(releases []map[string]any) map[string]any {
+	for _, r := range releases {
+		if status, _ := r["status"].(string); status == "LIVE" {
+			return r
+		}
+	}
+	return nil
 }
 
 func releaseIDSuffix(releaseID string) string {

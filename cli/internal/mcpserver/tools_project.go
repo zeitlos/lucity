@@ -40,7 +40,7 @@ func (s *server) registerProject(m *mcp.Server) {
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "get_project",
-		Description: "Get a project with its environments and everything in them: services (status, replicas, endpoints, resources), databases, key-value stores, buckets, and volumes.",
+		Description: "Get a project with its environments and everything in them: services (status, replicas, endpoints, resources), databases, key-value stores, buckets, and volumes. A service's status describes what serves traffic; latestRelease shows a newer release that is still building or failed.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, DestructiveHint: ptr(false)},
 	}, s.getProject)
 
@@ -100,7 +100,7 @@ func (s *server) getProject(ctx context.Context, _ *mcp.CallToolRequest, input g
     id name
     environments {
       id name
-      services { id name status replicas { desired ready } port command resources { cpu memory } endpoints { host protocol type } lastDeployedAt }
+      services { id name status replicas { desired ready } port command resources { cpu memory } endpoints { host protocol type } lastDeployedAt latestRelease { id status build { status } } }
       databases { id name status statusReason instances version size public }
       keyValueStores { id name status }
       buckets { id name status public }

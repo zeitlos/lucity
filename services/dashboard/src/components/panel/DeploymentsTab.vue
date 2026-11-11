@@ -490,7 +490,7 @@ watch(
 
     <!-- Release history -->
     <div v-if="historyReleases.length > 0" class="space-y-2">
-      <h3 class="text-sm font-medium text-muted-foreground">
+      <h3 v-if="activeDeployment" class="text-sm font-medium text-muted-foreground">
         History
       </h3>
 

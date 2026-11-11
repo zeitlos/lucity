@@ -23,7 +23,7 @@ Arguments:
               project/environment/service form relative to the active workspace.
 
 Flags:
-  --json   Emit the service and its active deployment as JSON on stdout
+  --json   Emit the service, its active deployment and its latest release as JSON on stdout
 
 Exit status is non-zero when the active rollout is FAILED or DEGRADED, so CI can
 gate on it.
@@ -44,10 +44,23 @@ const statusQuery = `query($id: ServiceID!) {
   }
 }`
 
+const latestReleaseQuery = `query($id: ServiceID!) {
+  service(id: $id) {
+    latestRelease {
+      id status
+      source { ref commit { sha message } }
+      build { id status }
+      deploy { id status }
+      deployment { id status rollout { status reason message restarts } }
+    }
+  }
+}`
+
 type statusView struct {
 	ID               string          `json:"id"`
 	Status           string          `json:"status"`
 	ActiveDeployment *deploymentView `json:"activeDeployment"`
+	LatestRelease    *releaseView    `json:"latestRelease,omitempty"`
 }
 
 type deploymentView struct {
@@ -129,6 +142,15 @@ func cmdStatus(ctx context.Context, args []string) error {
 	}
 	service := out.Service
 
+	var latest struct {
+		Service struct {
+			LatestRelease *releaseView `json:"latestRelease"`
+		} `json:"service"`
+	}
+	if err := client.GraphQL(ctx, latestReleaseQuery, map[string]any{"id": serviceID}, &latest); err == nil {
+		service.LatestRelease = latest.Service.LatestRelease
+	}
+
 	if *asJSON {
 		if err := printJSON(service); err != nil {
 			return err
@@ -148,6 +170,13 @@ func cmdStatus(ctx context.Context, args []string) error {
 
 func printStatus(service statusView) {
 	fmt.Printf("Service %s: %s\n", service.ID, service.Status)
+	if release := service.LatestRelease; release != nil && release.Status != "LIVE" {
+		fmt.Printf("Latest release %s: %s", release.ID, release.Status)
+		if release.Source != nil && release.Source.Commit.SHA != "" {
+			fmt.Printf(" (%s)", shortSHA(release.Source.Commit.SHA))
+		}
+		fmt.Println()
+	}
 	deployment := service.ActiveDeployment
 	if deployment == nil {
 		fmt.Println("No active deployment yet.")

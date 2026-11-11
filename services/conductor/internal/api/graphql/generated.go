@@ -892,6 +892,7 @@ type ComplexityRoot struct {
 		HealthCheck         func(childComplexity int) int
 		ID                  func(childComplexity int) int
 		LastDeployedAt      func(childComplexity int) int
+		LatestRelease       func(childComplexity int) int
 		Metrics             func(childComplexity int, metrics []model.ResourceMetric, rangeArg model.MetricsRange, grouping model.MetricGrouping) int
 		Name                func(childComplexity int) int
 		Port                func(childComplexity int) int
@@ -1232,6 +1233,7 @@ type ServiceResolver interface {
 	Deployments(ctx context.Context, obj *model.Service) ([]model.Deployment, error)
 	Builds(ctx context.Context, obj *model.Service) ([]model.Build, error)
 	Releases(ctx context.Context, obj *model.Service) ([]model.Release, error)
+	LatestRelease(ctx context.Context, obj *model.Service) (*model.Release, error)
 	Metrics(ctx context.Context, obj *model.Service, metrics []model.ResourceMetric, rangeArg model.MetricsRange, grouping model.MetricGrouping) ([]model.MetricSeries, error)
 
 	SecretScanReport(ctx context.Context, obj *model.Service) (*model.SecretScanReport, error)
@@ -5399,6 +5401,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Service.LastDeployedAt(childComplexity), true
+	case "Service.latestRelease":
+		if e.ComplexityRoot.Service.LatestRelease == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Service.LatestRelease(childComplexity), true
 	case "Service.metrics":
 		if e.ComplexityRoot.Service.Metrics == nil {
 			break
@@ -7409,6 +7417,8 @@ func (ec *executionContext) childFields_Service(ctx context.Context, field graph
 		return ec.fieldContext_Service_builds(ctx, field)
 	case "releases":
 		return ec.fieldContext_Service_releases(ctx, field)
+	case "latestRelease":
+		return ec.fieldContext_Service_latestRelease(ctx, field)
 	case "metrics":
 		return ec.fieldContext_Service_metrics(ctx, field)
 	case "lastDeployedAt":
@@ -32065,6 +32075,38 @@ func (ec *executionContext) fieldContext_Service_releases(_ context.Context, fie
 	return fc, nil
 }
 
+func (ec *executionContext) _Service_latestRelease(ctx context.Context, field graphql.CollectedField, obj *model.Service) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Service_latestRelease(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Service().LatestRelease(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Release) graphql.Marshaler {
+			return ec.marshalORelease2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRelease(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Service_latestRelease(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Service",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Release(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Service_metrics(ctx context.Context, field graphql.CollectedField, obj *model.Service) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -45123,6 +45165,44 @@ func (ec *executionContext) _Service(ctx context.Context, sel ast.SelectionSet, 
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "latestRelease":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Service_latestRelease(ctx, field, obj)
+				if res == graphql.RequiredNull {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.IsDeferred() {
+				deferredFieldSet.AddField(field)
+				fieldIndex := len(deferredFieldSet.Values) - 1
+				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, deferredFieldSet)
+				})
+
+				for _, deferrable := range field.Deferrables {
+					view, ok := deferLabelToView[deferrable.Label]
+					if !ok {
+						view = deferredFieldSet.NewView()
+						deferLabelToView[deferrable.Label] = view
+					}
+					view.AddIndices(fieldIndex)
+				}
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "metrics":
 			field := field
 
@@ -49919,6 +49999,13 @@ func (ec *executionContext) marshalOPlan2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋse
 		return graphql.Null
 	}
 	return v
+}
+
+func (ec *executionContext) marshalORelease2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRelease(ctx context.Context, sel ast.SelectionSet, v *model.Release) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Release(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOResourceTier2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceTier(ctx context.Context, v any) (*model.ResourceTier, error) {

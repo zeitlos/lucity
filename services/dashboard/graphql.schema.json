@@ -16922,6 +16922,18 @@
             "deprecationReason": null
           },
           {
+            "name": "latestRelease",
+            "description": "The newest release, which can be newer than the one serving traffic, for example while it builds or after its build failed.",
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "Release",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "metrics",
             "description": null,
             "args": [

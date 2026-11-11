@@ -57,11 +57,56 @@ type Plan = planner.Plan
 const defaultAutoDeployEnvironment = "development"
 
 func (c *Client) Services(ctx context.Context, environmentID EnvironmentID) ([]Service, error) {
-	return c.cachedPlatform.Services(ctx, environmentID)
+	cached, err := c.cachedPlatform.Services(ctx, environmentID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	services := slices.Clone(cached)
+
+	for i := range services {
+		c.settleFirstBuildStatus(ctx, &services[i])
+	}
+
+	return services, nil
 }
 
 func (c *Client) Service(ctx context.Context, id ServiceID) (*Service, error) {
-	return c.platform.Service(ctx, id)
+	service, err := c.platform.Service(ctx, id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	c.settleFirstBuildStatus(ctx, service)
+
+	return service, nil
+}
+
+func (c *Client) settleFirstBuildStatus(ctx context.Context, service *Service) {
+	if service.Status != platform.ServiceBuilding || service.SourceURL == "" {
+		return
+	}
+
+	builds, err := c.buildjob.List(ctx, service.ID)
+
+	if err != nil {
+		slog.WarnContext(ctx, "first build lookup failed", "service", service.ID, "error", err)
+		return
+	}
+
+	var newest *Build
+
+	for i := range builds {
+		if newest == nil || builds[i].CreatedAt.After(newest.CreatedAt) {
+			newest = &builds[i]
+		}
+	}
+
+	if newest != nil && (newest.Status == buildjob.StatusFailed || newest.Status == buildjob.StatusCancelled) {
+		service.Status = platform.ServiceFailed
+	}
 }
 
 func (c *Client) DetectServices(ctx context.Context, repositoryURL string) ([]Plan, error) {
