@@ -106,7 +106,7 @@
           },
           {
             "name": "variables",
-            "description": null,
+            "description": "Variables the service starts with: literal values, or refs to `availableVariables` in the same environment. The first build gets the literal values only.",
             "type": {
               "kind": "LIST",
               "name": null,
@@ -114,7 +114,7 @@
                 "name": null,
                 "kind": "NON_NULL",
                 "ofType": {
-                  "name": "VariableInput",
+                  "name": "ServiceVariableInput",
                   "kind": "INPUT_OBJECT",
                   "ofType": null
                 }

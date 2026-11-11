@@ -153,6 +153,7 @@ type ServiceSpec struct {
 	Port                 int
 	Resources            Resources
 	Env                  map[string]string
+	Refs                 map[string]VariableRef
 	SecurityContext      SecurityContext
 }
 

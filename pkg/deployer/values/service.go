@@ -107,6 +107,7 @@ type ServiceSpec struct {
 	Port                 int
 	Resources            Resources
 	Env                  map[string]string
+	Refs                 map[string]SecretRef
 	RunAsUser            *int64
 	RunAsGroup           *int64
 	FsGroup              *int64
@@ -161,6 +162,7 @@ func CreateService(env *Env, name string, spec ServiceSpec) error {
 		PodAnnotations: podAnnotations,
 		Resources:      spec.Resources,
 		Env:            maps.Clone(spec.Env),
+		Refs:           maps.Clone(spec.Refs),
 		RunAsUser:      spec.RunAsUser,
 		RunAsGroup:     spec.RunAsGroup,
 		FsGroup:        spec.FsGroup,

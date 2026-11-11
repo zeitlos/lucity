@@ -167,7 +167,7 @@ func repositoryFromURL(repositoryURL string) (string, error) {
 	return strings.TrimSuffix(strings.Trim(parsed.Path, "/"), ".git"), nil
 }
 
-func (c *Client) AddService(ctx context.Context, environmentID platform.EnvironmentID, id, name, repository, contextPath string, externalImage string, variables map[string]string, cpu, memory string, user *int64) (*Service, error) {
+func (c *Client) AddService(ctx context.Context, environmentID platform.EnvironmentID, id, name, repository, contextPath string, externalImage string, variables map[string]string, refs map[string]platform.VariableID, cpu, memory string, user *int64) (*Service, error) {
 	if cpu == "" {
 		cpu = defaultServiceCPU.String()
 	}
@@ -220,10 +220,17 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 		Name:        id,
 	}
 
+	specRefs, err := c.variableRefs(ctx, serviceID, refs)
+
+	if err != nil {
+		return nil, err
+	}
+
 	spec := deployer.ServiceSpec{
 		DisplayName: name,
 		ContextPath: contextPath,
 		Env:         variables,
+		Refs:        specRefs,
 		Resources:   resources,
 	}
 

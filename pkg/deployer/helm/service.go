@@ -20,6 +20,12 @@ func (s *serviceClient) Create(ctx context.Context, env platform.EnvironmentID, 
 		return "", err
 	}
 
+	refs := make(map[string]values.SecretRef, len(spec.Refs))
+
+	for key, ref := range spec.Refs {
+		refs[key] = values.SecretRef{Secret: ref.Secret, Key: ref.Key}
+	}
+
 	return s.client.applyEnv(ctx, env, func(e *values.Env) error {
 		spec := values.ServiceSpec{
 			DisplayName:          spec.DisplayName,
@@ -31,6 +37,7 @@ func (s *serviceClient) Create(ctx context.Context, env platform.EnvironmentID, 
 			Port:                 spec.Port,
 			Resources:            deriveRequestsAndLimtis(spec.Resources),
 			Env:                  spec.Env,
+			Refs:                 refs,
 			RunAsUser:            spec.SecurityContext.RunAsUser,
 			RunAsGroup:           spec.SecurityContext.RunAsGroup,
 			FsGroup:              spec.SecurityContext.FsGroup,

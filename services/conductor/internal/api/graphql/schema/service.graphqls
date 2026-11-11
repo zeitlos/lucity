@@ -144,7 +144,8 @@ input AddServiceInput {
   repository: String @constraint(constraint: "min=3,max=200")
   contextPath: String @constraint(constraint: "max=255")
   image: String @constraint(constraint: "max=512")
-  variables: [VariableInput!]
+  """Variables the service starts with: literal values, or refs to `availableVariables` in the same environment. The first build gets the literal values only."""
+  variables: [ServiceVariableInput!]
   resources: ResourcesInput
   """The user id an image-based service runs as, which also owns its mounted volumes."""
   user: Int @constraint(constraint: "min=0,max=65535")

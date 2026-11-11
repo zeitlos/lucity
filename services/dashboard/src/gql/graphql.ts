@@ -15,7 +15,8 @@ export type AddServiceInput = {
   resources?: ResourcesInput | null | undefined;
   /** The user id an image-based service runs as, which also owns its mounted volumes. */
   user?: number | null | undefined;
-  variables?: Array<VariableInput> | null | undefined;
+  /** Variables the service starts with: literal values, or refs to `availableVariables` in the same environment. The first build gets the literal values only. */
+  variables?: Array<ServiceVariableInput> | null | undefined;
 };
 
 export enum AgentApprovalDecision {

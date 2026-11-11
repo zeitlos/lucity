@@ -17,7 +17,7 @@ const serviceSummaryFields = `id name status replicas { desired ready } port com
 func (s *server) registerService(m *mcp.Server) {
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "add_service",
-		Description: "Add a service to an environment. repository = owner/repo or a full https URL for source builds (mutually exclusive with image, which deploys a prebuilt image). The service starts on its own: a repository service's first build begins immediately and an image rolls out immediately, so do not call deploy afterwards. variables set initial env vars as literals only (refs go through set_variables once the service exists); build-time pins like RAILPACK_PYTHON_VERSION must be passed here because the first build starts before any later set_variables call. cpu and memory (Kubernetes quantities, e.g. '500m'/'512Mi') size the service at creation; pass both or omit both for platform defaults. user is the run-as user id for an image-based service (999 for mysql/postgres/redis, 1000 for node-based images like ghost): it makes stock images whose entrypoint would otherwise chown a data dir as root start cleanly under the hardened default, and the same id owns mounted volumes.",
+		Description: "Add a service to an environment. repository = owner/repo or a full https URL for source builds (mutually exclusive with image, which deploys a prebuilt image). The service starts on its own: a repository service's first build begins immediately and an image rolls out immediately, so do not call deploy afterwards. variables set initial env vars, each a literal value, a ref (ids from list_variables with environment) or a generated app secret, like set_variables; passing them here saves a second rollout. Build-time settings like RAILPACK_PYTHON_VERSION must be passed here as literal values, because the first build starts with this call and builds only see literal values. cpu and memory (Kubernetes quantities, e.g. '500m'/'512Mi') size the service at creation; pass both or omit both for platform defaults. user is the run-as user id for an image-based service (999 for mysql/postgres/redis, 1000 for node-based images like ghost): it makes stock images whose entrypoint would otherwise chown a data dir as root start cleanly under the hardened default, and the same id owns mounted volumes.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(false)},
 	}, s.addService)
 
@@ -41,7 +41,7 @@ func (s *server) registerService(m *mcp.Server) {
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "list_variables",
-		Description: "List a service's environment variables as keys, each a literal or a ref (with its ref id), plus the variables available to reference in that environment (database/kv-store/bucket/shared sources). Values are never returned; confirm one with check_variables. HOST and PORT are injected by the platform for services with a port and are not listed.",
+		Description: "List a service's environment variables as keys, each a literal or a ref (with its ref id), plus the variables available to reference in that environment (database/kv-store/bucket/shared sources). Pass environment instead of service to list only what is available, e.g. to pass refs to add_service. Values are never returned; confirm one with check_variables. HOST and PORT are injected by the platform for services with a port and are not listed.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, DestructiveHint: ptr(false)},
 	}, s.listVariables)
 
@@ -52,22 +52,17 @@ func (s *server) registerService(m *mcp.Server) {
 	}, s.checkVariables)
 }
 
-type literalVariable struct {
-	Key   string `json:"key" jsonschema:"variable name"`
-	Value string `json:"value" jsonschema:"literal value, may be empty"`
-}
-
 type addServiceInput struct {
-	Environment string            `json:"environment" jsonschema:"environment id (workspace/project/environment)"`
-	Name        string            `json:"name,omitempty" jsonschema:"what people read, any text up to 128 chars; defaults to the repository or image name and can be renamed later"`
-	ID          string            `json:"id,omitempty" jsonschema:"optional id (2-16 chars: lowercase letters, digits and hyphens, starting and ending with a letter or digit); derived from name when omitted, with a counter added if taken. Fixed once created. Use the id this tool returns, never the name, to refer to it later"`
-	Repository  string            `json:"repository,omitempty" jsonschema:"owner/repo or full https URL for a source build; mutually exclusive with image"`
-	ContextPath string            `json:"context_path,omitempty" jsonschema:"subdirectory within the repository to build from"`
-	Image       string            `json:"image,omitempty" jsonschema:"prebuilt image reference (e.g. docker.io/library/nginx:latest); mutually exclusive with repository"`
-	Variables   []literalVariable `json:"variables,omitempty" jsonschema:"initial environment variables as literal values; wire database, key-value store and bucket credentials with set_variables refs once the service exists"`
-	CPU         string            `json:"cpu,omitempty" jsonschema:"CPU limit as a Kubernetes quantity (e.g. 500m); provide together with memory, or omit both for platform defaults"`
-	Memory      string            `json:"memory,omitempty" jsonschema:"memory limit as a Kubernetes quantity (e.g. 512Mi); provide together with cpu, or omit both for platform defaults"`
-	User        *int              `json:"user,omitempty" jsonschema:"run-as user id (0-65535) for image-based services, e.g. 999 for mysql/postgres/redis or 1000 for node-based images; the same id owns mounted volumes; rejected for source builds"`
+	Environment string             `json:"environment" jsonschema:"environment id (workspace/project/environment)"`
+	Name        string             `json:"name,omitempty" jsonschema:"what people read, any text up to 128 chars; defaults to the repository or image name and can be renamed later"`
+	ID          string             `json:"id,omitempty" jsonschema:"optional id (2-16 chars: lowercase letters, digits and hyphens, starting and ending with a letter or digit); derived from name when omitted, with a counter added if taken. Fixed once created. Use the id this tool returns, never the name, to refer to it later"`
+	Repository  string             `json:"repository,omitempty" jsonschema:"owner/repo or full https URL for a source build; mutually exclusive with image"`
+	ContextPath string             `json:"context_path,omitempty" jsonschema:"subdirectory within the repository to build from"`
+	Image       string             `json:"image,omitempty" jsonschema:"prebuilt image reference (e.g. docker.io/library/nginx:latest); mutually exclusive with repository"`
+	Variables   []setVariableEntry `json:"variables,omitempty" jsonschema:"initial environment variables, each a literal value, a ref from list_variables (pass environment) or a generated secret. Only literal values reach the first build"`
+	CPU         string             `json:"cpu,omitempty" jsonschema:"CPU limit as a Kubernetes quantity (e.g. 500m); provide together with memory, or omit both for platform defaults"`
+	Memory      string             `json:"memory,omitempty" jsonschema:"memory limit as a Kubernetes quantity (e.g. 512Mi); provide together with cpu, or omit both for platform defaults"`
+	User        *int               `json:"user,omitempty" jsonschema:"run-as user id (0-65535) for image-based services, e.g. 999 for mysql/postgres/redis or 1000 for node-based images; the same id owns mounted volumes; rejected for source builds"`
 }
 
 func (s *server) addService(ctx context.Context, _ *mcp.CallToolRequest, input addServiceInput) (*mcp.CallToolResult, any, error) {
@@ -101,10 +96,22 @@ func (s *server) addService(ctx context.Context, _ *mcp.CallToolRequest, input a
 	if input.Image != "" {
 		serviceInput["image"] = input.Image
 	}
+	var generated []string
 	if len(input.Variables) > 0 {
 		vars := make([]map[string]any, 0, len(input.Variables))
-		for _, v := range input.Variables {
-			vars = append(vars, map[string]any{"key": v.Key, "value": v.Value})
+		for _, entry := range input.Variables {
+			if err := validateVariableEntry(entry, nil); err != nil {
+				return nil, nil, err
+			}
+			switch {
+			case entry.Generate != 0:
+				vars = append(vars, map[string]any{"key": entry.Key, "value": randomSecret(entry.Generate)})
+				generated = append(generated, entry.Key)
+			case entry.Ref != "":
+				vars = append(vars, map[string]any{"key": entry.Key, "ref": entry.Ref})
+			default:
+				vars = append(vars, map[string]any{"key": entry.Key, "value": *entry.Value})
+			}
 		}
 		serviceInput["variables"] = vars
 	}
@@ -137,6 +144,9 @@ func (s *server) addService(ctx context.Context, _ *mcp.CallToolRequest, input a
 		})
 	}
 	result := map[string]any{"service": service}
+	if len(generated) > 0 {
+		result["generated"] = generated
+	}
 
 	switch {
 	case input.Image != "":
@@ -588,19 +598,11 @@ func (s *server) setServiceVariables(ctx context.Context, input setVariablesInpu
 }
 
 type listVariablesInput struct {
-	Service string `json:"service" jsonschema:"service id (workspace/project/environment/service)"`
+	Service     string `json:"service,omitempty" jsonschema:"service id (workspace/project/environment/service); exactly one of service/environment"`
+	Environment string `json:"environment,omitempty" jsonschema:"environment id (workspace/project/environment) to list only the available variables; exactly one of service/environment"`
 }
 
-func (s *server) listVariables(ctx context.Context, _ *mcp.CallToolRequest, input listVariablesInput) (*mcp.CallToolResult, any, error) {
-	serviceID, err := s.serviceID(input.Service)
-	if err != nil {
-		return nil, nil, err
-	}
-	environmentID := environmentOfService(serviceID)
-
-	const query = `query($service: ServiceID!, $environment: EnvironmentID!) {
-  serviceVariables(service: $service) { key ref }
-  availableVariables(environment: $environment) {
+const availableVariablesFields = `availableVariables(environment: $environment) {
     id key
     source {
       __typename
@@ -609,7 +611,27 @@ func (s *server) listVariables(ctx context.Context, _ *mcp.CallToolRequest, inpu
       ... on BucketSource { name }
       ... on SharedSource { name }
     }
-  }
+  }`
+
+const availableVariablesNote = "values are never returned: confirm one with check_variables, and wire an available entry into a service with set_variables or add_service using its id as a ref"
+
+func (s *server) listVariables(ctx context.Context, _ *mcp.CallToolRequest, input listVariablesInput) (*mcp.CallToolResult, any, error) {
+	if (input.Service == "") == (input.Environment == "") {
+		return nil, nil, fmt.Errorf("provide exactly one of service or environment")
+	}
+	if input.Environment != "" {
+		return s.listAvailableVariables(ctx, input.Environment)
+	}
+
+	serviceID, err := s.serviceID(input.Service)
+	if err != nil {
+		return nil, nil, err
+	}
+	environmentID := environmentOfService(serviceID)
+
+	const query = `query($service: ServiceID!, $environment: EnvironmentID!) {
+  serviceVariables(service: $service) { key ref }
+  ` + availableVariablesFields + `
 }`
 
 	var out struct {
@@ -627,7 +649,29 @@ func (s *server) listVariables(ctx context.Context, _ *mcp.CallToolRequest, inpu
 	return jsonResult(map[string]any{
 		"variables": views,
 		"available": out.AvailableVariables,
-		"note":      "values are never returned: confirm one with check_variables, and wire an available entry into the service with set_variables using its id as a ref",
+		"note":      availableVariablesNote,
+	})
+}
+
+func (s *server) listAvailableVariables(ctx context.Context, environment string) (*mcp.CallToolResult, any, error) {
+	environmentID, err := s.environmentID(environment)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	const query = `query($environment: EnvironmentID!) {
+  ` + availableVariablesFields + `
+}`
+
+	var out struct {
+		AvailableVariables any `json:"availableVariables"`
+	}
+	if err := s.query(ctx, "list_variables", query, map[string]any{"environment": environmentID}, &out); err != nil {
+		return nil, nil, err
+	}
+	return jsonResult(map[string]any{
+		"available": out.AvailableVariables,
+		"note":      availableVariablesNote,
 	})
 }
 

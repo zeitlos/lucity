@@ -37,12 +37,13 @@ type AddServiceInput struct {
 	// What people read. Any text, and it can be changed later. Defaults to the repository or image name.
 	Name *string `json:"name,omitempty"`
 	// The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused.
-	ID          *string         `json:"id,omitempty"`
-	Repository  *string         `json:"repository,omitempty"`
-	ContextPath *string         `json:"contextPath,omitempty"`
-	Image       *string         `json:"image,omitempty"`
-	Variables   []VariableInput `json:"variables,omitempty"`
-	Resources   *ResourcesInput `json:"resources,omitempty"`
+	ID          *string `json:"id,omitempty"`
+	Repository  *string `json:"repository,omitempty"`
+	ContextPath *string `json:"contextPath,omitempty"`
+	Image       *string `json:"image,omitempty"`
+	// Variables the service starts with: literal values, or refs to `availableVariables` in the same environment. The first build gets the literal values only.
+	Variables []ServiceVariableInput `json:"variables,omitempty"`
+	Resources *ResourcesInput        `json:"resources,omitempty"`
 	// The user id an image-based service runs as, which also owns its mounted volumes.
 	User *int `json:"user,omitempty"`
 }
