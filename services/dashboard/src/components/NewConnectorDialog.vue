@@ -8,6 +8,7 @@ import { connectorPresets, resourceName, type ConnectorPreset } from '@/lib/agen
 import { mobileSheetClass } from '@/lib/dialog';
 import BrandTile from '@/components/BrandTile.vue';
 import DialogIcon from '@/components/DialogIcon.vue';
+import SecretInput from '@/components/SecretInput.vue';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -124,7 +125,7 @@ async function create() {
 
           <div class="space-y-2">
             <Label for="connector-token">Token</Label>
-            <Input id="connector-token" v-model="token" type="password" class="font-mono text-sm" autocomplete="off" data-1p-ignore />
+            <SecretInput id="connector-token" v-model="token" />
             <p class="text-xs text-muted-foreground">Sent as a bearer token. Leave it empty for a server without sign-in.</p>
           </div>
         </fieldset>

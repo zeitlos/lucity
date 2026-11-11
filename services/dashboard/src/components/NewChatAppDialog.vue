@@ -8,6 +8,7 @@ import { ChatAppKind } from '@/gql/graphql';
 import { chatAppKinds, resourceName } from '@/lib/agents';
 import { mobileSheetClass } from '@/lib/dialog';
 import DialogIcon from '@/components/DialogIcon.vue';
+import SecretInput from '@/components/SecretInput.vue';
 import SegmentedControl from '@/components/SegmentedControl.vue';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -115,7 +116,7 @@ async function create() {
 
           <div class="space-y-2">
             <Label for="chat-app-token">Bot token</Label>
-            <Input id="chat-app-token" v-model="token" type="password" class="font-mono text-sm" autocomplete="off" data-1p-ignore />
+            <SecretInput id="chat-app-token" v-model="token" />
             <p class="text-xs text-muted-foreground">
               <template v-if="isMattermost">From a bot account under Integrations. Checked by asking the server who the bot is.</template>
               <template v-else>From @BotFather. Checked by asking Telegram who the bot is.</template>

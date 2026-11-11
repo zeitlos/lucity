@@ -3,6 +3,7 @@ import { mobileSheetClass } from '@/lib/dialog';
 import { ref, watch } from 'vue';
 import { KeyRound } from '@lucide/vue';
 import DialogIcon from '@/components/DialogIcon.vue';
+import SecretInput from '@/components/SecretInput.vue';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -12,7 +13,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 const open = defineModel<boolean>('open', { default: false });
@@ -48,15 +48,7 @@ watch(open, (isOpen) => {
 
         <div class="space-y-2">
           <Label for="replace-secret">{{ label }}</Label>
-          <Input
-            id="replace-secret"
-            v-model="value"
-            type="password"
-            class="font-mono text-sm"
-            autocomplete="off"
-            data-1p-ignore
-            :disabled="pending"
-          />
+          <SecretInput id="replace-secret" v-model="value" :disabled="pending" />
         </div>
 
         <DialogFooter>

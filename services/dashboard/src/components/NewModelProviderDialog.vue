@@ -9,6 +9,7 @@ import { modelProviderPresets, resourceName, type ModelProviderPreset } from '@/
 import { mobileSheetClass } from '@/lib/dialog';
 import BrandTile from '@/components/BrandTile.vue';
 import DialogIcon from '@/components/DialogIcon.vue';
+import SecretInput from '@/components/SecretInput.vue';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -127,7 +128,7 @@ async function create() {
 
           <div class="space-y-2">
             <Label for="model-provider-key">{{ preset.keyLabel }}</Label>
-            <Input id="model-provider-key" v-model="key" type="password" class="font-mono text-sm" autocomplete="off" data-1p-ignore />
+            <SecretInput id="model-provider-key" v-model="key" />
             <p class="text-xs text-muted-foreground">Checked by listing the models. Agents never see it.</p>
           </div>
         </fieldset>

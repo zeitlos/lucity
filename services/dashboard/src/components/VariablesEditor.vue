@@ -4,6 +4,7 @@ import { Eye, EyeOff, Link, Plus, Trash2, Undo2, Unlink, Braces } from '@lucide/
 import CopyButton from '@/components/CopyButton.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import IconButton from '@/components/IconButton.vue';
+import SecretInput from '@/components/SecretInput.vue';
 import SourceIcon from '@/components/SourceIcon.vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -312,28 +313,14 @@ function referenceInfo(row: VariableRow) {
           </IconButton>
         </div>
 
-        <div v-else class="relative min-w-0 flex-1">
-          <Input
+        <div v-else class="min-w-0 flex-1">
+          <SecretInput
             v-model="row.value"
-            :type="row.revealed ? 'text' : 'password'"
+            v-model:revealed="row.revealed"
             placeholder="value"
             :aria-label="`Value of ${row.key || 'new variable'}`"
-            autocomplete="off"
-            data-1p-ignore="true"
-            class="w-full pr-9 font-mono text-sm"
             :class="{ 'rounded-l-none': linkable }"
           />
-          <IconButton
-            :label="row.revealed ? 'Hide value' : 'Show value'"
-            :aria-pressed="row.revealed"
-            size="icon"
-            tabindex="-1"
-            class="absolute right-0 top-0 text-muted-foreground hover:bg-transparent"
-            @click="row.revealed = !row.revealed"
-          >
-            <EyeOff v-if="row.revealed" />
-            <Eye v-else />
-          </IconButton>
         </div>
       </div>
 
