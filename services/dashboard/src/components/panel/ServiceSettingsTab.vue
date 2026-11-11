@@ -1165,7 +1165,8 @@ async function handleRemoveService() {
             <fieldset :disabled="commandSaving" class="min-w-0">
               <div class="space-y-3 border-t px-4 py-3">
                 <p class="text-xs text-muted-foreground">
-                  Command that will be run to start new deployments. Overrides the default command.
+                  Command that will be run to start new deployments. Overrides the default command. It runs
+                  without a shell, so write variables as $(NAME) and use sh -c '…' for shell features.
                 </p>
                 <Input
                   v-model="customStartCommand"

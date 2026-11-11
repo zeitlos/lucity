@@ -12150,7 +12150,7 @@
           },
           {
             "name": "setCustomStartCommand",
-            "description": "Sets the command a service starts with, run through a shell. An empty string goes back to the image's default.",
+            "description": "Sets the command a service starts with, in place of the image's entrypoint and command. It is split into words like a shell would, quotes included, and runs without one: write variables as `$(NAME)`, and use `sh -c '…'` for shell features such as `&&`. An empty string goes back to the image's default.",
             "args": [
               {
                 "name": "command",

@@ -223,7 +223,7 @@ func Validate(env *Env, workspace, registry string) error {
 			}
 		}
 
-		if err := validateStartCommand(svc.Command); err != nil {
+		if err := validateStartCommand(strings.Join(svc.Command, " ")); err != nil {
 			return usererror.Errorf("service %q: %v", svcName, err)
 		}
 

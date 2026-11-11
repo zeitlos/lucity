@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/zeitlos/lucity/pkg/image"
+	"github.com/zeitlos/lucity/pkg/shellwords"
 	"github.com/zeitlos/lucity/pkg/usererror"
 )
 
@@ -18,7 +19,7 @@ type Service struct {
 	Autoscaling    *Autoscaling         `yaml:"autoscaling,omitempty"`
 	Resources      Resources            `yaml:"resources,omitempty"`
 	Domains        []Domain             `yaml:"domains,omitempty"`
-	Command        string               `yaml:"command,omitempty"`
+	Command        StartCommand         `yaml:"command,omitempty"`
 	HealthCheck    *HealthCheck         `yaml:"healthCheck,omitempty"`
 	RunAsUser      *int64               `yaml:"runAsUser,omitempty"`
 	RunAsGroup     *int64               `yaml:"runAsGroup,omitempty"`
@@ -245,8 +246,14 @@ func SetServiceResources(env *Env, name string, resources Resources) error {
 }
 
 func SetServiceCommand(env *Env, name, command string) error {
+	words, err := shellwords.Split(command)
+
+	if err != nil {
+		return usererror.Errorf("start command: %v", err)
+	}
+
 	return mutateService(env, name, func(s *Service) {
-		s.Command = command
+		s.Command = words
 	})
 }
 

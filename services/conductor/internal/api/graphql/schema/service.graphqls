@@ -195,7 +195,7 @@ extend type Mutation {
   removeService(service: ServiceID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
   """Changes the name of a service. Its id stays the same, and nothing restarts."""
   renameService(service: ServiceID!, name: String! @constraint(constraint: "min=1,max=128")): Service! @hasRole(role: WORKSPACE_MEMBER)
-  """Sets the command a service starts with, run through a shell. An empty string goes back to the image's default."""
+  """Sets the command a service starts with, in place of the image's entrypoint and command. It is split into words like a shell would, quotes included, and runs without one: write variables as `$(NAME)`, and use `sh -c '…'` for shell features such as `&&`. An empty string goes back to the image's default."""
   setCustomStartCommand(service: ServiceID!, command: String!): Service! @hasRole(role: WORKSPACE_MEMBER)
   """Sets the branch a service builds from, starting with its next deploy. Leave it out to follow the repository's default branch."""
   setServiceBranch(service: ServiceID!, branch: String @constraint(constraint: "min=1,max=250")): Service! @hasRole(role: WORKSPACE_MEMBER)

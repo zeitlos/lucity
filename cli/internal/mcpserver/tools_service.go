@@ -184,7 +184,7 @@ func (s *server) createdService(ctx context.Context, serviceID string) (map[stri
 
 type configureServiceInput struct {
 	Service      string  `json:"service" jsonschema:"service id (workspace/project/environment/service)"`
-	StartCommand *string `json:"start_command,omitempty" jsonschema:"command the service starts with, run through a shell; overrides the detected default. An empty string goes back to the default"`
+	StartCommand *string `json:"start_command,omitempty" jsonschema:"command the service starts with, replacing the image's entrypoint and command. Split into words like a shell would but run without one, so it works on images without a shell: write variables as $(PORT), not $PORT, and wrap shell features in sh -c '...', e.g. sh -c 'npm run migrate && exec npm start'. An empty string goes back to the default"`
 	Port         *int    `json:"port,omitempty" jsonschema:"container port (1-65535)"`
 	Replicas     *int    `json:"replicas,omitempty" jsonschema:"desired replica count (1-20)"`
 	CPU          string  `json:"cpu,omitempty" jsonschema:"CPU request as a Kubernetes quantity (e.g. 500m)"`

@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/image"
 	pkglabels "github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/pkg/platform"
+	"github.com/zeitlos/lucity/pkg/shellwords"
 	"github.com/zeitlos/lucity/pkg/to"
 	"github.com/zeitlos/lucity/pkg/usererror"
 
@@ -651,13 +653,11 @@ func containerCommand(containers []core.Container) string {
 		return ""
 	}
 
-	command := containers[0].Command
-
-	if len(command) == 2 && command[0] == "/bin/sh" && command[1] == "-c" {
-		return strings.Join(containers[0].Args, " ")
+	if len(containers[0].Command) == 0 {
+		return ""
 	}
 
-	return ""
+	return shellwords.Join(append(slices.Clone(containers[0].Command), containers[0].Args...))
 }
 
 // containerHealthCheck reconstructs the health-check config from the rendered

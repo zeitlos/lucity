@@ -54,7 +54,7 @@ On disagreement, or when detection is missing something, configure via the **thr
 
 1. **Version pins** — `RAILPACK_<PROVIDER>_VERSION` style variables (exact spellings in `references/<provider>.md`).
 2. **Custom install/build** — `RAILPACK_INSTALL_CMD` and `RAILPACK_BUILD_CMD` (set as variables; they override provider defaults).
-3. **Custom start** — the service start command via `configure_service`.
+3. **Custom start** — the service start command via `configure_service`. It runs without a shell, replacing the image's entrypoint: write variables as `$(PORT)`, and wrap `&&`, pipes or `${VAR:-default}` in `sh -c '…'`.
 
 These are set as service variables. Build-time `RAILPACK_*` variables must exist **before the first
 build**, and `add_service` starts that build the moment it creates a repository service, so pass them

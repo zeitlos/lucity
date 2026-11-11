@@ -101,9 +101,10 @@ spec:
         - name: {{ $name }}
           image: {{ include "lucity-app.image" $svc.image | quote }}
           imagePullPolicy: {{ $svc.image.pullPolicy | default "IfNotPresent" }}
-          {{- with $svc.command }}
-          command: ["/bin/sh", "-c"]
-          args: [{{ . | quote }}]
+          {{- if and (kindIs "string" $svc.command) $svc.command }}
+          command: ["/bin/sh", "-c", {{ $svc.command | quote }}]
+          {{- else if $svc.command }}
+          command: {{ toJson $svc.command }}
           {{- end }}
           {{- if $svc.port }}
           ports:
