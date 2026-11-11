@@ -9,8 +9,9 @@ description: >-
   (the maintainer writes the opening in their own voice) followed by grouped,
   user-facing, use-case-oriented bullets, with the social-preview image header,
   then writes the result straight into a draft GitHub release for the next
-  CalVer tag. Internal-only changes are omitted unless they change day-to-day
-  platform usage.
+  CalVer tag, and adds the release's headline features to the "Recently
+  shipped" log on the landing page. Internal-only changes are omitted unless
+  they change day-to-day platform usage.
 ---
 
 # Lucity release notes
@@ -174,6 +175,54 @@ gh release edit <typo-tag> --tag <correct-tag> --draft=true --title "<correct-ta
 
 After writing, print the release URL (`gh release view <tag> --json url -q .url`) and remind
 the maintainer of the two manual steps left: the social image and the intro paragraph.
+
+### 6. Update "Recently shipped" on the site
+
+The landing page, the Resources menu in the site header and the blog all show a short
+"Recently shipped" log. Add this release to it in the same pass, as uncommitted edits to two
+files:
+
+- [docs/app/assets/landing/releases.json](docs/app/assets/landing/releases.json): the newest
+  releases, newest first. The landing page renders every entry, so keep it at **three**.
+- [docs/app/components/blog/releases.ts](docs/app/components/blog/releases.ts): the `tags` map
+  (date to tag for each entry in the JSON) and `earlier`, the older releases the blog keeps
+  listing.
+
+Steps:
+
+1. Prepend an entry to `releases.json`:
+   ```json
+   {
+     "date": "11 Nov",
+     "items": [
+       { "name": "A log explorer", "text": "Search by keyword, go back up to 14 days and filter by instance, including ones that already crashed." }
+     ]
+   }
+   ```
+   `date` is the day the maintainer publishes, as `D Mon` (no leading zero, three-letter
+   month). Use today unless they say otherwise. Two releases on the same day share one entry.
+2. Add `'<date>': '<tag>'` to `tags` in `releases.ts`.
+3. If the JSON now holds four entries, move the oldest into `earlier` (at the top, with its
+   `tag` from the map) and drop its line from `tags`.
+
+Writing the items, which is a much harder cut than the release notes:
+
+- **One to three items**, the biggest of the intro highlights. Bug fixes, polish and ops work
+  never make it here. If nothing in the release would make a visitor stop scrolling, say so
+  and ask whether to skip the entry.
+- **`name`**: a short noun phrase naming the capability, sentence case, no period ("A log
+  explorer", "Allowed addresses for public databases", "Jump anywhere with ⌘K").
+- **`text`**: one sentence of about 8 to 16 words on what you can now do, ending in a period.
+  A second, very short sentence is fine ("No reload.").
+- This is landing copy for visitors who may never have heard of Kubernetes: no PR numbers,
+  links, version numbers or engine names. The release notes credit
+  [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/); the site just says "a log
+  explorer". Standard interfaces users pick (PostgreSQL, Redis, S3-compatible) are fine. No em
+  dashes, no infra vendor names.
+- Match the tone and length of the entries already in the file.
+
+Show the maintainer the new entry next to the release-notes handoff. Don't commit; they
+commit the site change with the release.
 
 ## The social-preview image
 
