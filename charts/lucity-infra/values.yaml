@@ -793,6 +793,11 @@ victoria-metrics-alert:
                 labels: { severity: critical }
                 annotations:
                   summary: "Zot registry is down"
+              - alert: BuildkitRestarted
+                expr: increase_prometheus(kube_pod_container_status_restarts_total{namespace="lucity-builds", container="buildkitd"}[15m]) >= 1
+                labels: { severity: warning }
+                annotations:
+                  summary: "buildkitd {{ $labels.pod }} restarted {{ $value | humanize }} times in the last 15m, running builds failed"
               - alert: VPAComponentDown
                 expr: kube_deployment_status_replicas_available{namespace="lucity-system", deployment=~"vpa-(admission-controller|recommender|updater)"} == 0
                 for: 10m
