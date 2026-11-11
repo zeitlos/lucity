@@ -65,10 +65,10 @@ const folderPath = 'M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-
     </LandingStage>
 
     <div class="mt-10 grid grid-cols-[repeat(auto-fit,minmax(min(300px,100%),1fr))] gap-x-12 border-b border-stone-300 dark:border-stone-800">
-      <div v-for="promise in promises" :key="promise.name" class="border-t border-stone-300 py-5.5 dark:border-stone-800">
+      <div v-for="promise in promises" :key="promise.name" class="flex flex-col border-t border-stone-300 py-5.5 dark:border-stone-800">
         <b class="block text-lg font-semibold text-stone-900 dark:text-stone-100">{{ promise.name }}</b>
-        <span class="mt-1 block text-base text-stone-700 dark:text-stone-400">{{ promise.text }}</span>
-        <NuxtLink :to="promise.link.to" class="mt-3 inline-block text-base font-semibold text-stone-900 underline decoration-1 underline-offset-4 dark:text-stone-100">{{ promise.link.label }}</NuxtLink>
+        <span class="mt-1 mb-3 block text-base text-stone-700 dark:text-stone-400">{{ promise.text }}</span>
+        <NuxtLink :to="promise.link.to" class="mt-auto self-start text-base font-semibold text-stone-900 underline decoration-1 underline-offset-4 dark:text-stone-100">{{ promise.link.label }}</NuxtLink>
       </div>
     </div>
   </section>

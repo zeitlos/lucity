@@ -115,24 +115,28 @@ const current = computed(() => parts[open.value]!);
             <button
               :id="`agent-part-${index}`"
               type="button"
-              class="row-button flex min-h-11 w-full cursor-pointer items-center justify-between gap-6 py-4.75 text-left text-xl font-semibold"
+              class="row-button flex min-h-11 w-full cursor-pointer items-center justify-between gap-6 py-4.75 text-left text-xl font-semibold transition-colors hover:text-stone-900 dark:hover:text-stone-100"
               :class="open === index ? 'text-stone-900 dark:text-stone-100' : 'text-stone-700 dark:text-stone-400'"
               :aria-expanded="open === index"
               :aria-controls="`agent-part-panel-${index}`"
               @click="open = index"
             >
               <span>{{ part.name }}</span>
-              <UIcon name="i-lucide-chevron-down" class="size-5 shrink-0 transition-transform duration-200" :class="{ 'rotate-180': open === index }" />
+              <UIcon name="i-lucide-chevron-down" class="size-5 shrink-0 transition-transform duration-300 ease-out motion-reduce:transition-none" :class="{ 'rotate-180': open === index }" />
             </button>
           </h3>
-          <div v-if="open === index" :id="`agent-part-panel-${index}`" role="region" :aria-labelledby="`agent-part-${index}`" class="pb-6 sm:pr-10">
-            <p class="text-lg/relaxed text-stone-700 dark:text-stone-400">{{ part.text }}</p>
-            <ul class="ticks mt-3.5 flex flex-col gap-1.75 text-base text-stone-800 dark:text-stone-300">
-              <li v-for="tick in part.ticks" :key="tick" class="flex items-baseline gap-2.5">{{ tick }}</li>
-            </ul>
-            <p class="mt-4 text-base">
-              <NuxtLink :to="part.link.to" class="font-semibold text-stone-900 underline decoration-1 underline-offset-4 dark:text-stone-100">{{ part.link.label }}</NuxtLink>
-            </p>
+          <div :id="`agent-part-panel-${index}`" role="region" :aria-labelledby="`agent-part-${index}`" :inert="open !== index" class="part-panel" :class="{ 'is-open': open === index }">
+            <div class="min-h-0 overflow-hidden">
+              <div class="part-body pb-6 sm:pr-10">
+                <p class="text-lg/relaxed text-stone-700 dark:text-stone-400">{{ part.text }}</p>
+                <ul class="ticks mt-3.5 flex flex-col gap-1.75 text-base text-stone-800 dark:text-stone-300">
+                  <li v-for="tick in part.ticks" :key="tick" class="flex items-baseline gap-2.5">{{ tick }}</li>
+                </ul>
+                <p class="mt-4 text-base">
+                  <NuxtLink :to="part.link.to" class="font-semibold text-stone-900 underline decoration-1 underline-offset-4 dark:text-stone-100">{{ part.link.label }}</NuxtLink>
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -160,6 +164,40 @@ const current = computed(() => parts[open.value]!);
 </template>
 
 <style scoped>
+.part-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.part-panel.is-open {
+  grid-template-rows: 1fr;
+}
+
+.part-body {
+  opacity: 0;
+  translate: 0 -0.375rem;
+  transition:
+    opacity 0.2s ease,
+    translate 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.is-open .part-body {
+  opacity: 1;
+  translate: none;
+  transition:
+    opacity 0.3s ease 0.08s,
+    translate 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .part-panel,
+  .part-body,
+  .is-open .part-body {
+    transition: none;
+  }
+}
+
 .row-button:focus-visible {
   outline: 2px solid oklch(0.55 0.15 300);
   outline-offset: 2px;

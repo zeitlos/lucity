@@ -247,7 +247,7 @@ const lit = 'text-stone-900 dark:text-stone-100';
       <div class="nav-band__tint" />
     </div>
 
-    <div class="nav-bar relative isolate z-10 mx-auto grid min-h-13 grid-cols-[minmax(0,1fr)_auto] items-center gap-4 lg:grid-cols-[auto_minmax(0,1fr)_auto] xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+    <div class="nav-bar relative isolate z-10 grid min-h-13 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 lg:gap-4 lg:grid-cols-[auto_minmax(0,1fr)_auto] xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
       <div class="nav-bar__surface" aria-hidden="true" />
 
       <div class="flex justify-start">
@@ -310,7 +310,7 @@ const lit = 'text-stone-900 dark:text-stone-100';
         </NuxtLink>
       </nav>
 
-      <div class="flex items-center justify-end gap-1.5">
+      <div class="flex items-center justify-end gap-1 lg:gap-1.5">
         <a
           :href="githubUrl"
           target="_blank"
@@ -328,7 +328,7 @@ const lit = 'text-stone-900 dark:text-stone-100';
         </a>
         <a
           :href="signUpUrl"
-          class="inline-flex min-h-11 items-center rounded-lg bg-primary px-3.5 text-base font-semibold whitespace-nowrap text-white max-[349px]:hidden min-[390px]:px-4.5 min-[390px]:text-lg transition-colors hover:bg-primary-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--nav-accent)"
+          class="inline-flex min-h-11 items-center rounded-lg bg-primary px-3 text-base font-semibold whitespace-nowrap text-white max-[349px]:hidden min-[390px]:px-4.5 min-[390px]:text-lg transition-colors hover:bg-primary-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--nav-accent)"
         >
           Get started
         </a>
@@ -381,15 +381,30 @@ const lit = 'text-stone-900 dark:text-stone-100';
 
 .nav-bar {
   max-width: 100%;
+  margin-inline: auto;
   padding-inline: 0;
   transition:
     max-width 0.5s var(--nav-ease),
+    margin 0.5s var(--nav-ease),
     padding 0.5s var(--nav-ease);
 }
 
 .is-floating .nav-bar {
   max-width: 1120px;
   padding-inline: 20px 10px;
+}
+
+@media (max-width: 1023px) {
+  .nav-bar,
+  .is-floating .nav-bar {
+    max-width: none;
+    margin-inline: 0;
+  }
+
+  .is-floating .nav-bar {
+    margin-inline: -14px;
+    padding-inline: 14px;
+  }
 }
 
 .nav-bar__surface {

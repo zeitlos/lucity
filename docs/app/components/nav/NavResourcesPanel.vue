@@ -58,7 +58,7 @@ const postDate = computed(() =>
     <template #foot>
       <button
         type="button"
-        class="-my-1.5 -ml-2.5 inline-flex min-h-10 cursor-pointer items-center gap-2.5 rounded-[10px] pr-3 pl-2.5 text-stone-700 transition-colors hover:bg-stone-900/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--nav-accent) dark:text-stone-400 dark:hover:bg-white/6"
+        class="-my-2.5 -ml-2.5 inline-flex min-h-10 cursor-pointer items-center gap-2.5 rounded-[10px] pr-3 pl-2.5 text-stone-700 transition-colors hover:bg-stone-900/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--nav-accent) dark:text-stone-400 dark:hover:bg-white/6"
         @click="emit('search')"
       >
         <UIcon name="i-lucide-search" class="size-4.5" />

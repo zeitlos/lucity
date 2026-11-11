@@ -239,12 +239,10 @@ onBeforeUnmount(() => cancelAnimationFrame(frame));
     translate 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.is-tucked:hover .word,
 :focus-visible > .is-tucked .word {
   grid-template-columns: 1fr;
 }
 
-.is-tucked:hover .word-text,
 :focus-visible > .is-tucked .word-text {
   opacity: 1;
   translate: none;
@@ -260,6 +258,20 @@ onBeforeUnmount(() => cancelAnimationFrame(frame));
 .is-settled .mark-final,
 .is-settled .word-clip {
   animation: none;
+}
+
+@media (hover: hover) {
+  .is-tucked:hover .word {
+    grid-template-columns: 1fr;
+  }
+
+  .is-tucked:hover .word-text {
+    opacity: 1;
+    translate: none;
+    transition:
+      opacity 0.3s ease 0.08s,
+      translate 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
 }
 
 @keyframes draw {

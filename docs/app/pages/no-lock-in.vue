@@ -231,7 +231,8 @@ const linkClass = 'font-semibold text-stone-900 underline decoration-1 underline
       </div>
     </section>
 
-    <NolockinFaq
+    <FaqSection
+      id="faq"
       class="mt-20 sm:mt-34"
       title="Questions about leaving"
       :items="questions"
