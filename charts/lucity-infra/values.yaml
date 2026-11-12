@@ -848,6 +848,44 @@ victoria-metrics-alert:
                 annotations:
                   summary: "Database volume {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} >95% full — primary will go read-only"
                   redacted: "A tenant database volume is more than 95% full, the primary will go read-only"
+              - alert: PostgresWALArchivingFailing
+                expr: |-
+                  max by (namespace, pod) (
+                    label_replace(label_replace(
+                      (cnpg_pg_stat_archiver_last_failed_time > cnpg_pg_stat_archiver_last_archived_time)
+                        and on (k8s_namespace_name, k8s_pod_name) (cnpg_pg_replication_in_recovery == 0),
+                      "namespace", "$1", "k8s_namespace_name", "(.*)"),
+                      "pod", "$1", "k8s_pod_name", "(.*)")
+                  )
+                for: 15m
+                labels: { severity: critical }
+                annotations:
+                  summary: "Database primary {{ $labels.namespace }}/{{ $labels.pod }} cannot archive WAL: backups and point-in-time recovery are stale, WAL piles up on its volume"
+                  redacted: "A tenant database cannot archive WAL, its backups are stale and WAL piles up on its volume"
+          - name: postgres-replication
+            rules:
+              - alert: PostgresStandbyNotStreaming
+                expr: |-
+                  max by (namespace, cluster, pod) (
+                    label_replace(label_replace(label_replace(
+                      cnpg_pg_replication_streaming_replicas
+                        and on (k8s_namespace_name, k8s_pod_name) (cnpg_pg_replication_in_recovery == 0),
+                      "namespace", "$1", "k8s_namespace_name", "(.*)"),
+                      "pod", "$1", "k8s_pod_name", "(.*)"),
+                      "cluster", "$1", "k8s_pod_name", "(.*)-[0-9]+")
+                  )
+                  < on (namespace, cluster) group_left
+                  count by (namespace, cluster) (
+                    label_replace(label_replace(
+                      cnpg_pg_replication_in_recovery == 1,
+                      "namespace", "$1", "k8s_namespace_name", "(.*)"),
+                      "cluster", "$1", "k8s_pod_name", "(.*)-[0-9]+")
+                  )
+                for: 5m
+                labels: { severity: warning }
+                annotations:
+                  summary: "Database {{ $labels.namespace }}/{{ $labels.cluster }} has a standby that is not streaming from primary {{ $labels.pod }}, failover would land on a stale or hung instance"
+                  redacted: "A tenant database has a standby that is not streaming from its primary"
           - name: edge-gateway
             rules:
               # 503s the gateway synthesized because a route points at an
