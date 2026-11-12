@@ -32,6 +32,7 @@ const columns = [
       { label: 'vs Vercel', to: '/comparisons/vs-vercel' },
       { label: 'vs Fly.io', to: '/comparisons/vs-fly-io' },
       { label: 'vs Coolify', to: '/comparisons/vs-coolify' },
+      { label: 'vs Deploio', to: '/comparisons/vs-deploio' },
     ],
   },
   {

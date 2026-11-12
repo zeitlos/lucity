@@ -12,6 +12,7 @@ const platforms = [
   { to: '/comparisons/vs-vercel', icon: 'i-simple-icons-vercel', label: 'Vercel' },
   { to: '/comparisons/vs-fly-io', icon: 'i-simple-icons-flydotio', label: 'Fly.io' },
   { to: '/comparisons/vs-coolify', icon: 'i-simple-icons-coolify', label: 'Coolify' },
+  { to: '/comparisons/vs-deploio', path: 'M5 2h14a3 3 0 0 1 3 3v14a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V5a3 3 0 0 1 3-3ZM8 7v10h3.5a5 5 0 0 0 0-10Z', label: 'Deploio' },
 ];
 </script>
 

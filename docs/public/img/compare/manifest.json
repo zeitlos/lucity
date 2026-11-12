@@ -1,0 +1,18 @@
+{
+  "railway": {
+    "deploy": {
+      "kind": "video",
+      "title": "From repository to running app",
+      "file": "/img/compare/railway/deploy.mp4",
+      "poster": "/img/compare/railway/deploy.webp",
+      "seconds": 106,
+      "trimmed": 0,
+      "capturedAt": "2026-11-12T09:24:09.182Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    }
+  }
+}

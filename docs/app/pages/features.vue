@@ -209,6 +209,7 @@ const comparisons = [
   { label: 'vs Render', to: '/comparisons/vs-render' },
   { label: 'vs Fly.io', to: '/comparisons/vs-fly-io' },
   { label: 'vs Coolify', to: '/comparisons/vs-coolify' },
+  { label: 'vs Deploio', to: '/comparisons/vs-deploio' },
 ];
 </script>
 
@@ -331,7 +332,7 @@ const comparisons = [
         The same list, side by side with what you use today.
       </p>
 
-      <div class="mt-7 grid grid-cols-2 gap-3.5 sm:grid-cols-3 xl:grid-cols-6">
+      <div class="mt-7 grid grid-cols-2 gap-3.5 sm:grid-cols-4 xl:grid-cols-7">
         <NuxtLink
           v-for="comparison in comparisons"
           :key="comparison.to"

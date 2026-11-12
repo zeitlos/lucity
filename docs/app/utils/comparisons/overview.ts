@@ -1,0 +1,381 @@
+import type { MatrixGroup, Fit } from './types';
+
+export const matrixGroups: MatrixGroup[] = [
+  {
+    title: 'How you pay',
+    rows: [
+      {
+        name: 'Billing',
+        cells: {
+          lucity: { mark: 'yes', text: 'On use: CPU and memory as used' },
+          railway: { mark: 'yes', text: 'On use: CPU and memory as used' },
+          heroku: { mark: 'info', text: 'Fixed dyno and plan sizes' },
+          vercel: { mark: 'info', text: 'Per seat, plus metered usage' },
+          render: { mark: 'info', text: 'Fixed sizes, plus a plan fee' },
+          coolify: { mark: 'info', text: 'Free, or per server; servers extra' },
+          fly: { mark: 'info', text: 'Per machine size, per second' },
+          deploio: { mark: 'info', text: 'Fixed sizes, by the minute' },
+        },
+      },
+      {
+        name: 'Free tier or trial',
+        cells: {
+          lucity: { mark: 'partly', text: '14-day trial, €5 of usage' },
+          railway: { mark: 'yes', text: '$5 trial, then $1 a month free' },
+          heroku: { mark: 'no', text: 'None since 2022' },
+          vercel: { mark: 'yes', text: 'Hobby, non-commercial only' },
+          render: { mark: 'yes', text: 'Free instances that sleep' },
+          coolify: { mark: 'yes', text: 'Self-hosting is free' },
+          fly: { mark: 'partly', text: '$1 of credit for 7 days' },
+          deploio: { mark: 'no', text: 'None' },
+        },
+      },
+      {
+        name: 'Cheapest always-on app',
+        cells: {
+          lucity: { mark: 'info', text: '€5 a month' },
+          railway: { mark: 'info', text: '$5 a month' },
+          heroku: { mark: 'info', text: '$7 a month' },
+          vercel: { mark: 'info', text: '$20 a seat a month' },
+          render: { mark: 'info', text: '$7 a month' },
+          coolify: { mark: 'info', text: '$5 a month, plus servers' },
+          fly: { mark: 'info', text: '$2.53 in Frankfurt, 256 MB' },
+          deploio: { mark: 'info', text: 'CHF 8.75 a month' },
+        },
+      },
+    ],
+  },
+  {
+    title: 'Where it runs',
+    rows: [
+      {
+        name: 'Regions',
+        cells: {
+          lucity: { mark: 'partly', text: 'One: Germany' },
+          railway: { mark: 'yes', text: 'Four, incl. Amsterdam' },
+          heroku: { mark: 'yes', text: 'US and Ireland; ten in Private Spaces' },
+          vercel: { mark: 'yes', text: '19, four in the EU' },
+          render: { mark: 'yes', text: 'Five, incl. Frankfurt' },
+          coolify: { mark: 'info', text: 'Wherever your servers are' },
+          fly: { mark: 'yes', text: '17, four in the EU' },
+          deploio: { mark: 'partly', text: 'One: Zürich' },
+        },
+      },
+      {
+        name: 'Company based in',
+        cells: {
+          lucity: { mark: 'info', text: 'Switzerland' },
+          railway: { mark: 'info', text: 'United States' },
+          heroku: { mark: 'info', text: 'United States' },
+          vercel: { mark: 'info', text: 'United States' },
+          render: { mark: 'info', text: 'United States' },
+          coolify: { mark: 'info', text: 'Hungary' },
+          fly: { mark: 'info', text: 'United States' },
+          deploio: { mark: 'info', text: 'Switzerland' },
+        },
+      },
+    ],
+  },
+  {
+    title: 'Building and shipping',
+    rows: [
+      {
+        name: 'Builds without a Dockerfile',
+        cells: {
+          lucity: { mark: 'yes', text: 'Yes' },
+          railway: { mark: 'yes', text: 'Yes' },
+          heroku: { mark: 'yes', text: 'Yes, buildpacks' },
+          vercel: { mark: 'yes', text: 'Yes, frameworks detected' },
+          render: { mark: 'yes', text: 'Six languages' },
+          coolify: { mark: 'yes', text: 'Nixpacks, Railpack in beta' },
+          fly: { mark: 'yes', text: 'Writes a Dockerfile for you' },
+          deploio: { mark: 'yes', text: 'Buildpacks' },
+        },
+      },
+      {
+        name: 'Dockerfile builds',
+        cells: {
+          lucity: { mark: 'no', text: 'No, prebuilt images only' },
+          railway: { mark: 'yes', text: 'Yes' },
+          heroku: { mark: 'partly', text: 'Cedar only' },
+          vercel: { mark: 'partly', text: 'Beta, request-driven only' },
+          render: { mark: 'yes', text: 'Yes' },
+          coolify: { mark: 'yes', text: 'Dockerfile and Compose' },
+          fly: { mark: 'yes', text: 'Yes, the default' },
+          deploio: { mark: 'yes', text: 'Yes' },
+        },
+      },
+      {
+        name: 'Previews per pull request',
+        cells: {
+          lucity: { mark: 'no', text: 'No' },
+          railway: { mark: 'yes', text: 'Yes' },
+          heroku: { mark: 'yes', text: 'Review apps' },
+          vercel: { mark: 'yes', text: 'Every push, every plan' },
+          render: { mark: 'partly', text: 'Full stack on Pro and up' },
+          coolify: { mark: 'yes', text: 'Yes' },
+          fly: { mark: 'partly', text: 'Through a GitHub Action' },
+          deploio: { mark: 'partly', text: 'Your own CI scripts' },
+        },
+      },
+      {
+        name: 'Cron jobs',
+        cells: {
+          lucity: { mark: 'no', text: 'No' },
+          railway: { mark: 'yes', text: 'Yes' },
+          heroku: { mark: 'partly', text: 'Scheduler add-on' },
+          vercel: { mark: 'yes', text: 'Once a day on Hobby' },
+          render: { mark: 'yes', text: 'Yes' },
+          coolify: { mark: 'yes', text: 'Inside running containers' },
+          fly: { mark: 'partly', text: 'Coarse schedules, or your own' },
+          deploio: { mark: 'yes', text: 'Scheduled jobs' },
+        },
+      },
+    ],
+  },
+  {
+    title: 'Data',
+    rows: [
+      {
+        name: 'Managed Postgres',
+        cells: {
+          lucity: { mark: 'yes', text: 'Yes' },
+          railway: { mark: 'yes', text: 'Yes' },
+          heroku: { mark: 'yes', text: 'Yes' },
+          vercel: { mark: 'partly', text: 'From partners, billed by Vercel' },
+          render: { mark: 'yes', text: 'Yes' },
+          coolify: { mark: 'partly', text: 'One-click, run by you' },
+          fly: { mark: 'yes', text: 'From $38 a month' },
+          deploio: { mark: 'yes', text: 'Postgres and MySQL' },
+        },
+      },
+      {
+        name: 'Database standby',
+        cells: {
+          lucity: { mark: 'yes', text: 'Always on, every plan' },
+          railway: { mark: 'partly', text: 'Opt-in, each node billed' },
+          heroku: { mark: 'partly', text: 'Premium, from $200' },
+          vercel: { mark: 'partly', text: 'Depends on the partner' },
+          render: { mark: 'partly', text: 'Opt-in, billed as a second copy' },
+          coolify: { mark: 'no', text: 'No, yours to set up' },
+          fly: { mark: 'yes', text: 'Included on every plan' },
+          deploio: { mark: 'no', text: 'Not self-service' },
+        },
+      },
+      {
+        name: 'Point-in-time recovery',
+        cells: {
+          lucity: { mark: 'yes', text: '30 days, every plan' },
+          railway: { mark: 'partly', text: 'About 4 weeks, opt-in' },
+          heroku: { mark: 'partly', text: '4 to 7 days, not Essential' },
+          vercel: { mark: 'partly', text: 'Depends on the partner' },
+          render: { mark: 'partly', text: '3 days, 7 on Pro, paid only' },
+          coolify: { mark: 'no', text: 'No, scheduled dumps' },
+          fly: { mark: 'yes', text: 'Yes, 10 days of backups' },
+          deploio: { mark: 'no', text: 'No, daily backups' },
+        },
+      },
+      {
+        name: 'Volumes',
+        cells: {
+          lucity: { mark: 'yes', text: 'Yes' },
+          railway: { mark: 'yes', text: 'Yes, with backups' },
+          heroku: { mark: 'no', text: 'No, filesystem is wiped' },
+          vercel: { mark: 'no', text: 'No' },
+          render: { mark: 'partly', text: 'One instance per disk' },
+          coolify: { mark: 'yes', text: 'Docker volumes' },
+          fly: { mark: 'partly', text: 'One per machine, not replicated' },
+          deploio: { mark: 'no', text: 'No' },
+        },
+      },
+      {
+        name: 'S3-compatible buckets',
+        cells: {
+          lucity: { mark: 'yes', text: 'Yes, public ones too' },
+          railway: { mark: 'yes', text: 'Yes, private only' },
+          heroku: { mark: 'partly', text: 'Add-ons' },
+          vercel: { mark: 'partly', text: 'Blob, not S3-compatible' },
+          render: { mark: 'no', text: 'No' },
+          coolify: { mark: 'partly', text: 'One-click services you run' },
+          fly: { mark: 'yes', text: 'Tigris, billed through Fly' },
+          deploio: { mark: 'yes', text: 'Yes' },
+        },
+      },
+    ],
+  },
+  {
+    title: 'Running it',
+    rows: [
+      {
+        name: 'Private networking',
+        cells: {
+          lucity: { mark: 'yes', text: 'Yes' },
+          railway: { mark: 'yes', text: 'Yes' },
+          heroku: { mark: 'partly', text: 'Private Spaces only' },
+          vercel: { mark: 'partly', text: 'Beta; PrivateLink on Pro' },
+          render: { mark: 'yes', text: 'Yes' },
+          coolify: { mark: 'partly', text: 'Within one server' },
+          fly: { mark: 'yes', text: 'Yes' },
+          deploio: { mark: 'partly', text: 'Apps to databases only' },
+        },
+      },
+      {
+        name: 'Autoscaling',
+        cells: {
+          lucity: { mark: 'yes', text: 'On CPU' },
+          railway: { mark: 'partly', text: 'Vertical only' },
+          heroku: { mark: 'partly', text: 'Performance dynos' },
+          vercel: { mark: 'yes', text: 'Automatic, down to zero' },
+          render: { mark: 'partly', text: 'CPU or memory, Pro and up' },
+          coolify: { mark: 'no', text: 'No' },
+          fly: { mark: 'partly', text: 'Start and stop; metrics DIY' },
+          deploio: { mark: 'no', text: 'No' },
+        },
+      },
+      {
+        name: 'Alerts',
+        cells: {
+          lucity: { mark: 'no', text: 'No' },
+          railway: { mark: 'yes', text: 'Yes' },
+          heroku: { mark: 'partly', text: 'Standard dynos and up' },
+          vercel: { mark: 'yes', text: 'Yes; anomaly alerts extra' },
+          render: { mark: 'partly', text: 'Failures, plus disk over 80%' },
+          coolify: { mark: 'yes', text: 'Email, Slack and more' },
+          fly: { mark: 'partly', text: 'Build your own in Grafana' },
+          deploio: { mark: 'no', text: 'No' },
+        },
+      },
+      {
+        name: 'Secret scanning',
+        cells: {
+          lucity: { mark: 'yes', text: 'Every deploy' },
+          railway: { mark: 'no', text: 'No' },
+          heroku: { mark: 'no', text: 'No' },
+          vercel: { mark: 'partly', text: 'AI review of changes, beta' },
+          render: { mark: 'no', text: 'No' },
+          coolify: { mark: 'no', text: 'No' },
+          fly: { mark: 'no', text: 'No' },
+          deploio: { mark: 'no', text: 'No' },
+        },
+      },
+      {
+        name: 'Vulnerability checks',
+        cells: {
+          lucity: { mark: 'yes', text: 'Every two hours' },
+          railway: { mark: 'partly', text: 'Patched for you, no list' },
+          heroku: { mark: 'no', text: 'No' },
+          vercel: { mark: 'partly', text: 'Known issues in dependencies' },
+          render: { mark: 'no', text: 'No' },
+          coolify: { mark: 'yes', text: 'Opt-in image scanning' },
+          fly: { mark: 'partly', text: 'Experimental CLI command' },
+          deploio: { mark: 'no', text: 'No' },
+        },
+      },
+    ],
+  },
+  {
+    title: 'Ownership',
+    rows: [
+      {
+        name: 'Open source',
+        cells: {
+          lucity: { mark: 'yes', text: 'AGPL-3.0' },
+          railway: { mark: 'partly', text: 'CLI and builder only' },
+          heroku: { mark: 'partly', text: 'CLI and buildpacks only' },
+          vercel: { mark: 'partly', text: 'Next.js and the CLI' },
+          render: { mark: 'partly', text: 'CLI and tooling only' },
+          coolify: { mark: 'yes', text: 'Apache-2.0' },
+          fly: { mark: 'partly', text: 'CLI only' },
+          deploio: { mark: 'partly', text: 'CLI only' },
+        },
+      },
+      {
+        name: 'Self-hosting',
+        cells: {
+          lucity: { mark: 'yes', text: 'Yes' },
+          railway: { mark: 'no', text: 'No' },
+          heroku: { mark: 'no', text: 'No' },
+          vercel: { mark: 'no', text: 'No' },
+          render: { mark: 'no', text: 'No' },
+          coolify: { mark: 'yes', text: 'Yes' },
+          fly: { mark: 'no', text: 'No' },
+          deploio: { mark: 'no', text: 'No' },
+        },
+      },
+      {
+        name: 'Export to run elsewhere',
+        cells: {
+          lucity: { mark: 'yes', text: 'Standard Helm chart' },
+          railway: { mark: 'partly', text: "Railway's own format" },
+          heroku: { mark: 'partly', text: 'Procfile and app.json' },
+          vercel: { mark: 'partly', text: 'Next.js runs anywhere' },
+          render: { mark: 'partly', text: "Render's own format" },
+          coolify: { mark: 'partly', text: 'Plain Docker, no export' },
+          fly: { mark: 'partly', text: 'Dockerfile yes, fly.toml no' },
+          deploio: { mark: 'partly', text: 'Standard builds, no export' },
+        },
+      },
+      {
+        name: 'SOC 2 report',
+        cells: {
+          lucity: { mark: 'no', text: 'No' },
+          railway: { mark: 'yes', text: 'Yes' },
+          heroku: { mark: 'yes', text: 'Yes, HIPAA with Shield' },
+          vercel: { mark: 'yes', text: 'Yes, HIPAA as an add-on' },
+          render: { mark: 'yes', text: 'Yes, HIPAA on Scale' },
+          coolify: { mark: 'no', text: 'No' },
+          fly: { mark: 'yes', text: 'Yes, HIPAA for $99 a month' },
+          deploio: { mark: 'partly', text: 'ISO 27001, no SOC 2' },
+        },
+      },
+    ],
+  },
+];
+
+export const fits: Fit[] = [
+  {
+    need: 'Your users are all over the world',
+    platforms: ['fly', 'railway'],
+    why: 'Fly.io runs in 17 regions on six continents; Railway runs in four and spreads replicas across them.',
+  },
+  {
+    need: 'A frontend framework, served from the edge',
+    platforms: ['vercel'],
+    why: 'A preview for every push, a global edge in front, and framework features from the people who make Next.js.',
+  },
+  {
+    need: 'Pipelines, review apps or Salesforce',
+    platforms: ['heroku'],
+    why: 'Mature pipelines and review apps, plus Heroku Connect and AppLink for Salesforce.',
+  },
+  {
+    need: 'The most features in one managed place',
+    platforms: ['railway', 'render'],
+    why: 'Cron jobs, previews, more database engines, alerts and compliance reports, without running anything yourself.',
+  },
+  {
+    need: 'Data that has to stay in Switzerland',
+    platforms: ['deploio'],
+    why: 'Apps, databases and buckets in Zürich, run by a Swiss company with ISO 27001.',
+  },
+  {
+    need: 'Servers you already run, at no license cost',
+    platforms: ['coolify'],
+    why: 'Free to self-host, with hundreds of one-click services, as long as you look after the servers, backups and failover.',
+  },
+  {
+    need: 'A European provider with safe defaults and a way out',
+    platforms: ['lucity'],
+    why: 'Databases with a standby and 30 days of recovery, leaked keys and vulnerabilities flagged on every deploy, billing on use, and a standard Helm export when you want to leave.',
+  },
+];
+
+export const summaries: Record<string, string> = {
+  railway: 'The closest relative: a canvas of services, billing on use, the same builder. Railway has more of everything; Lucity sets up safe defaults and is European and open source.',
+  heroku: 'The original platform, with pipelines, review apps and Salesforce. It sells fixed sizes and keeps storage and networking to add-ons and Private Spaces.',
+  render: 'Git-push deploys at fixed instance prices, with a Postgres that grows large, autoscaling and US compliance paperwork. No buckets, and a disk pins a service to one instance.',
+  fly: 'Containers close to your users in 17 regions, billed per second while machines run, with Postgres failover on every plan. Alerts, cron and metric-based autoscaling are yours to set up.',
+  vercel: 'Built for frontend frameworks and request-driven functions, with a global edge and a preview for every push. Databases and storage come from partners, and there are no volumes.',
+  deploio: 'Hosting in Zürich from a Swiss company, with Heroku-style buildpacks, scheduled jobs, buckets and ISO 27001. Fixed sizes, and no volumes, database failover or autoscaling.',
+  coolify: 'Open source and free to run on servers you bring, with hundreds of one-click services. You patch the servers and set up backups, failover and load balancing yourself.',
+};
