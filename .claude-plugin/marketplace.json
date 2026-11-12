@@ -9,7 +9,10 @@
     {
       "name": "lucity",
       "description": "Deploy software to Lucity with one prompt: zero-config builds, PostgreSQL, Redis, S3-compatible storage.",
-      "source": "./cli/plugin"
+      "source": {
+        "source": "command",
+        "command": "lucity claude plugin"
+      }
     }
   ]
 }
