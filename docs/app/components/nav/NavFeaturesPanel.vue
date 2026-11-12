@@ -17,7 +17,7 @@ const groups = [
 const depth = [
   { to: '/security', icon: 'i-lucide-shield-check', title: 'Security', text: 'Guard rails, on by default.' },
   { to: '/no-lock-in', icon: 'i-lucide-door-open', title: 'No lock-in', text: 'How leaving works.' },
-  { to: '/agents', icon: 'i-lucide-bot', title: 'Agent hosting', text: 'Agents, next to your app.' },
+  { to: '/agents', icon: 'i-lucide-bot', title: 'Agent hosting', text: 'Agents, next to your app.', soon: true },
 ];
 </script>
 

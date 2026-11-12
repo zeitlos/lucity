@@ -22,7 +22,7 @@ const groups = [
       { to: '/use-cases/startups', label: 'Startups and small teams' },
       { to: '/use-cases/agencies', label: 'Agencies' },
       { to: '/use-cases/platform-teams', label: 'Platform teams' },
-      { to: '/agents', label: 'Agent hosting' },
+      { to: '/agents', label: 'Agent hosting', soon: true },
       { to: '/comparisons', label: 'Switching from another platform' },
     ],
   },
@@ -74,7 +74,7 @@ const row = 'flex min-h-15.5 items-center justify-between border-b border-stone-
                 :to="link.to"
                 class="flex min-h-11.5 items-center text-[17px] text-stone-800 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-(--nav-accent) dark:text-stone-300"
               >
-                {{ link.label }}
+                <span>{{ link.label }}<em v-if="link.soon" class="ml-2 text-[19px] font-display font-normal italic text-[oklch(0.58_0.20_0)] dark:text-[oklch(0.76_0.13_0)]">soon</em></span>
               </NuxtLink>
             </div>
           </div>

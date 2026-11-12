@@ -1,23 +1,27 @@
 <script setup lang="ts">
+import { agentSheets } from '~/utils/agentSheets';
+
 definePageMeta({
   layout: 'landing',
   header: false,
   footer: false,
+  key: 'agents',
+  scrollToTop: (to, from) => !(to.path.startsWith('/agents') && from.path.startsWith('/agents')),
+  validate: route => !route.params.sheet || agentSheets.some(sheet => sheet.slug === route.params.sheet),
 });
 
+const route = useRoute();
+const sheetSlug = computed(() => (route.params.sheet as string | undefined) || undefined);
+const sheet = computed(() => agentSheets.find(item => item.slug === sheetSlug.value));
+
 useSeo({
-  title: 'Agent hosting',
-  description: 'Host the agents you already run, right next to your app. Lucity runs the agent from your terminal around the clock: it wakes on the events you choose, reaches only what you allow and keeps a record of every call.',
+  title: () => sheet.value ? `${sheet.value.title} · Agent hosting` : 'Agent hosting',
+  description: () => sheet.value?.intro ?? 'Host the agents you already run, right next to your app. Lucity runs the agent from your terminal around the clock: it wakes on the events you choose, reaches only what you allow and keeps a record of every call.',
   type: 'website',
 });
 
 const appUrl = '/app';
-
-const checks = [
-  'No SDK, nothing to rewrite',
-  'Your models, on your own keys',
-  'No lock-in, leave anytime',
-];
+const previewUrl = 'mailto:christian@zeitlos.software?subject=Agent%20hosting%20preview';
 
 const beats = ['joy', 'grow', 'keep'] as const;
 
@@ -50,39 +54,41 @@ const steps = [
 <template>
   <div class="agents-page">
     <section class="mx-auto max-w-content px-6 pt-12 sm:pt-22" aria-labelledby="agents-title">
-      <h1 id="agents-title" class="load-in font-display text-4xl/[1.15] text-stone-900 max-sm:text-balance md:text-5xl/[1.1] lg:text-6xl/[1.1] xl:text-7xl/[1.1] dark:text-stone-100" style="--load-order: 0">
+      <p class="load-in mb-5.5 flex items-center gap-2.5 text-lg font-semibold text-[oklch(0.45_0.15_300)] dark:text-[oklch(0.80_0.10_300)]" style="--load-order: 0">
+        <span aria-hidden="true" class="size-2.25 flex-none rounded-full bg-[oklch(0.55_0.15_300)] shadow-[0_0_0_5px_oklch(0.55_0.15_300/.16)]" />
+        In private preview
+      </p>
+
+      <h1 id="agents-title" class="load-in font-display text-4xl/[1.15] text-stone-900 max-sm:text-balance md:text-5xl/[1.1] lg:text-6xl/[1.1] xl:text-7xl/[1.1] dark:text-stone-100" style="--load-order: 1">
         Host the agents you <span class="squiggle">already run</span>, <br class="max-sm:hidden">
         right next to your app.
       </h1>
 
-      <p class="load-in mt-8 max-w-[800px] text-xl leading-relaxed text-stone-700 sm:text-[23px] sm:leading-relaxed dark:text-stone-300" style="--load-order: 1">
+      <p class="load-in mt-8 max-w-[800px] text-xl leading-relaxed text-stone-700 sm:text-[23px] sm:leading-relaxed dark:text-stone-300" style="--load-order: 2">
         Lucity runs the agent from your terminal as it is, around the clock. It wakes on the events you choose, reaches only what you allow and keeps a record of every call. A cloud platform made in Switzerland and hosted in the EU.
       </p>
 
-      <div class="load-in mt-8 flex flex-col gap-3 sm:mt-11 sm:flex-row sm:items-center sm:gap-4" style="--load-order: 2">
+      <div class="load-in mt-8 flex flex-col gap-3 sm:mt-11 sm:flex-row sm:items-center sm:gap-4" style="--load-order: 3">
         <a
           :href="`${appUrl}/login`"
           class="flex items-center justify-center gap-3 rounded-lg border border-transparent bg-primary px-7 py-3.5 text-lg font-semibold text-white shadow-sm transition-colors hover:bg-primary-600 sm:py-4 sm:text-xl"
         >
-          Host your first agent
+          Start with your app
           <UIcon name="i-lucide-arrow-right" class="size-5.5 shrink-0" />
         </a>
-        <NuxtLink
-          to="/docs/agents"
+        <a
+          :href="previewUrl"
           class="flex items-center justify-center rounded-lg border border-stone-300 bg-white/50 px-7 py-3.5 text-lg font-semibold text-neutral-800 transition-colors hover:bg-white sm:py-4 sm:text-xl dark:border-stone-700 dark:bg-white/5 dark:text-neutral-100 dark:hover:bg-white/10"
         >
-          Read the docs
-        </NuxtLink>
+          Ask to join the preview
+        </a>
       </div>
 
-      <ul class="load-in mt-5 flex flex-wrap gap-x-7 gap-y-1.5 text-base text-stone-600 sm:mt-6 dark:text-stone-400" style="--load-order: 3">
-        <li v-for="check in checks" :key="check" class="flex items-center gap-2">
-          <UIcon name="i-lucide-check" class="size-4.5 shrink-0 text-primary-700 dark:text-primary" />
-          {{ check }}
-        </li>
-      </ul>
+      <p class="load-in mt-5 max-w-[760px] text-base/relaxed text-stone-600 sm:mt-6 sm:text-[17px]/relaxed dark:text-stone-400" style="--load-order: 4">
+        Your apps can move in today. Agents arrive in your workspace the day they open, nothing to sign up for twice.
+      </p>
 
-      <AgentsHeroStage class="load-in mt-12 sm:mt-14" style="--load-order: 4; --load-blur: 0px" />
+      <AgentsHeroStage class="load-in mt-12 sm:mt-14" style="--load-order: 5; --load-blur: 0px" />
 
       <div class="mt-12 grid gap-x-14 sm:mt-18 lg:grid-cols-3">
         <div v-for="promise in promises" :key="promise.name" class="border-t border-stone-300 pt-5.5 max-lg:pb-5.5 dark:border-stone-800">
@@ -120,7 +126,7 @@ const steps = [
     <AgentsFaq class="mt-20 sm:mt-28" />
 
     <section class="mx-auto mt-24 max-w-content px-6 pb-14 sm:mt-30" aria-labelledby="end">
-      <h2 id="end" class="max-w-[900px] font-display text-4xl/11 text-balance text-stone-900 md:text-5xl/14 lg:text-6xl/17 dark:text-stone-100">Move one agent off your laptop tonight.</h2>
+      <h2 id="end" class="max-w-[900px] font-display text-4xl/11 text-balance text-stone-900 md:text-5xl/14 lg:text-6xl/17 dark:text-stone-100">Move one agent off your laptop.</h2>
       <div class="mt-10 grid gap-x-12 gap-y-8 sm:mt-14 lg:grid-cols-3">
         <div v-for="(step, index) in steps" :key="step.name" class="grid grid-cols-[48px_minmax(0,1fr)] items-baseline gap-x-4">
           <span class="font-display text-4xl/none text-(--brand-mark)">{{ index + 1 }}</span>
@@ -132,15 +138,17 @@ const steps = [
       </div>
       <div class="mt-10 flex flex-col gap-x-5 gap-y-4 sm:mt-14 sm:flex-row sm:items-center">
         <a
-          :href="`${appUrl}/login`"
+          :href="previewUrl"
           class="flex items-center justify-center gap-3 rounded-lg border border-transparent bg-primary px-7 py-3.5 text-lg font-semibold text-white shadow-sm transition-colors hover:bg-primary-600 sm:py-4 sm:text-xl"
         >
-          Host your first agent
+          Ask to join the preview
           <UIcon name="i-lucide-arrow-right" class="size-5.5 shrink-0" />
         </a>
-        <span class="text-lg text-stone-700 max-sm:text-center dark:text-stone-400">Then close the lid.</span>
+        <a :href="`${appUrl}/login`" class="text-lg font-semibold text-stone-900 underline decoration-1 underline-offset-4 max-sm:text-center dark:text-stone-100">Or start with your app today</a>
       </div>
     </section>
+
+    <AgentsSheet :slug="sheetSlug" />
   </div>
 </template>
 

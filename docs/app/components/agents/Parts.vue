@@ -3,7 +3,7 @@ interface Part {
   name: string;
   text: string;
   ticks: string[];
-  link: { to: string; label: string };
+  link?: { to: string; label: string };
   tiles: { icon: string; label: string }[];
   lines: number[];
 }
@@ -13,7 +13,6 @@ const parts: Part[] = [
     name: 'Harness and instructions',
     text: 'Pick the agent you already run in your terminal and paste its instructions file. That is the whole move.',
     ticks: ['Open harnesses, pinned and kept up to date for you', 'One plain text file of instructions, the one you already have', 'Skills and subagents come along', 'Export an agent and run it anywhere a container runs'],
-    link: { to: '/docs/agents', label: 'How an agent is put together' },
     tiles: [
       { icon: 'claudecode', label: 'Claude Code' },
       { icon: 'openai', label: 'Codex' },
@@ -27,7 +26,7 @@ const parts: Part[] = [
     name: 'Triggers',
     text: 'An event, a schedule or a message starts a conversation. Events about the same thing land in the same one, so a flapping service is one thread, not forty.',
     ticks: ['From Lucity: failed deploys, crash loops, full disks, new vulnerabilities', 'From your tools: alerts, new issues, new errors', 'Any schedule, in your time zone', "A signed webhook, or an email to the agent's own address"],
-    link: { to: '/docs/agents/triggers', label: 'Every trigger' },
+    link: { to: '/agents/triggers', label: 'Every trigger' },
     tiles: [
       { icon: 'lucity', label: 'Lucity events' },
       { icon: 'clock', label: 'Schedules' },
@@ -43,7 +42,7 @@ const parts: Part[] = [
     name: 'Connectors',
     text: 'Any remote MCP server becomes a connector, and so does your own API. The agent calls a tool, and Lucity adds the key on the way out.',
     ticks: ['Lucity itself: logs, metrics, deploys, rollbacks, variables', 'GitHub, Linear, Jira, Sentry, Grafana and Notion in one click', 'Your own API, from its OpenAPI file', 'Allowed, asks first or hidden, tool by tool'],
-    link: { to: '/docs/agents/connectors', label: 'Every connector' },
+    link: { to: '/agents/connectors', label: 'Every connector' },
     tiles: [
       { icon: 'lucity', label: 'Lucity' },
       { icon: 'github', label: 'GitHub' },
@@ -60,7 +59,7 @@ const parts: Part[] = [
     name: 'Model providers',
     text: 'Connect the providers you already pay for. Each conversation picks its model and how hard it thinks, and the bill stays with your provider.',
     ticks: ['No markup on tokens, ever', 'European providers for work that has to stay in Europe', 'Any OpenAI-compatible API, including models you host yourself', 'A daily spend limit per agent'],
-    link: { to: '/docs/agents/models', label: 'Every model provider' },
+    link: { to: '/agents/models', label: 'Every model provider' },
     tiles: [
       { icon: 'anthropic', label: 'Anthropic' },
       { icon: 'openai', label: 'OpenAI' },
@@ -75,7 +74,7 @@ const parts: Part[] = [
     name: 'Channels',
     text: 'An agent answers in the chats you add it to. Teammates link their account once, so it knows who is asking, and who said yes.',
     ticks: ['A thread or topic per conversation', 'Approvals as buttons, right in the chat', 'The dashboard and the API for everything else'],
-    link: { to: '/docs/agents/channels', label: 'Every channel' },
+    link: { to: '/agents/channels', label: 'Every channel' },
     tiles: [
       { icon: 'telegram', label: 'Telegram' },
       { icon: 'mattermost', label: 'Mattermost' },
@@ -132,8 +131,11 @@ const current = computed(() => parts[open.value]!);
                 <ul class="ticks mt-3.5 flex flex-col gap-1.75 text-base text-stone-800 dark:text-stone-300">
                   <li v-for="tick in part.ticks" :key="tick" class="flex items-baseline gap-2.5">{{ tick }}</li>
                 </ul>
-                <p class="mt-4 text-base">
-                  <NuxtLink :to="part.link.to" class="font-semibold text-stone-900 underline decoration-1 underline-offset-4 dark:text-stone-100">{{ part.link.label }}</NuxtLink>
+                <p v-if="part.link" class="mt-4 text-base">
+                  <NuxtLink :to="part.link.to" class="inline-flex items-center gap-1.5 font-semibold text-stone-900 underline decoration-1 underline-offset-4 dark:text-stone-100">
+                    {{ part.link.label }}
+                    <UIcon name="i-lucide-plus" class="size-4 shrink-0" />
+                  </NuxtLink>
                 </p>
               </div>
             </div>

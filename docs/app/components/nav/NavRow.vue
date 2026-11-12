@@ -5,6 +5,7 @@ defineProps<{
   title: string;
   text: string;
   tint: 'violet' | 'orange' | 'rose';
+  soon?: boolean;
 }>();
 
 const tints = {
@@ -26,7 +27,7 @@ const tints = {
       <UIcon :name="icon" class="size-5" />
     </span>
     <span>
-      <b class="block text-[16.5px]/[1.3] font-semibold">{{ title }}</b>
+      <b class="block text-[16.5px]/[1.3] font-semibold"><span class="whitespace-nowrap">{{ title }}</span> <em v-if="soon" class="text-[18px] font-display font-normal italic text-[oklch(0.58_0.20_0)] dark:text-[oklch(0.76_0.13_0)]">soon</em></b>
       <span class="mt-0.5 block text-[14.5px]/[1.4] text-stone-700 dark:text-stone-400">{{ text }}</span>
     </span>
   </NuxtLink>

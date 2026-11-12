@@ -93,7 +93,10 @@ const scene = computed(() => scenes[way.value]!);
           <h3 class="font-display text-2xl/tight text-stone-900 dark:text-stone-100">{{ scene.heading }}</h3>
           <p class="mt-2.5 text-base text-[oklch(0.36_0.04_300)] dark:text-stone-300">{{ scene.text }}</p>
           <p class="mt-3 text-base">
-            <NuxtLink to="/docs/agents/triggers" class="font-semibold text-stone-900 underline decoration-1 underline-offset-4 dark:text-stone-100">Every trigger</NuxtLink>
+            <NuxtLink to="/agents/triggers" class="inline-flex items-center gap-1.5 font-semibold text-stone-900 underline decoration-1 underline-offset-4 dark:text-stone-100">
+              Every trigger
+              <UIcon name="i-lucide-plus" class="size-4 shrink-0" />
+            </NuxtLink>
           </p>
         </div>
 
