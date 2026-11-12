@@ -33,7 +33,7 @@ The result is Lucity. You can [try it for free](https://lucity.cloud/app/login).
 - Logs, metrics, and observability built in
 - Custom domains, private networking, and much more
 
-And naturally, that headline feature is what makes "no lock-in" more than a slogan. When you want out, `lucity eject` hands you the full configuration as standard Helm charts, ready to run on any Kubernetes cluster with Lucity out of the picture. It works because Lucity keeps no database of its own: it derives all of its state from Kubernetes and the systems around it. Your infrastructure stays yours.
+And naturally, that headline feature is what makes "no lock-in" more than a slogan. When you want out, the [Eject](/docs/eject) button downloads your project as a standard Helm chart, ready to run on any Kubernetes cluster with Lucity out of the picture. It works because Lucity keeps no database of its own: it derives all of its state from Kubernetes and the systems around it. Your infrastructure stays yours.
 
 Lucity is under active development. Reach out at christian@zeitlos.software or open an issue at [github.com/zeitlos/lucity](https://github.com/zeitlos/lucity) for feature requests and bug reports.
 
