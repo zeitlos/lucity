@@ -88,7 +88,7 @@ const linkClass = 'font-semibold text-stone-900 underline decoration-1 underline
           The short version for whoever reviews your vendors. Where we do not have something yet, it says so.
         </p>
       </div>
-      <p class="text-[15px] text-stone-600 dark:text-stone-400">Last reviewed [DATE]</p>
+      <p class="text-[15px] text-stone-600 dark:text-stone-400">Last reviewed 12 November 2026</p>
     </div>
 
     <div class="review mt-10 border-b border-stone-300 dark:border-stone-800" role="table" aria-labelledby="review-title">
