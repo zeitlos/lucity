@@ -48,11 +48,15 @@ import { cursorScript, sameTabScript } from './drive.mjs';
 import { fingerprint, publish } from './publish.mjs';
 import { encodeVideo, finishVideo, startRecording } from './recorder.mjs';
 
+import deploio from './platforms/deploio.mjs';
+import fly from './platforms/fly.mjs';
 import heroku from './platforms/heroku.mjs';
 import lucity from './platforms/lucity.mjs';
 import railway from './platforms/railway.mjs';
+import render from './platforms/render.mjs';
+import vercel from './platforms/vercel.mjs';
 
-const platforms = { railway, heroku, lucity };
+const platforms = { railway, heroku, render, deploio, fly, vercel, lucity };
 
 const docs = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const outputRoot = join(docs, 'public', 'img', 'compare');
@@ -142,8 +146,8 @@ async function waitForSignIn(page) {
   await page.waitForTimeout(3_000);
   await declineCookies(page);
   if (await platform.signedIn(page)) return saveSession(page.context());
-  console.log(`Sign in to ${platform.title} in the browser window. Waiting up to 10 minutes...`);
-  const deadline = Date.now() + 10 * 60_000;
+  console.log(`Sign in to ${platform.title} in the browser window. Waiting up to 30 minutes...`);
+  const deadline = Date.now() + 30 * 60_000;
   while (Date.now() < deadline) {
     await page.waitForTimeout(2_000);
     if (page.isClosed()) throw new Error('the browser window was closed before signing in');
@@ -154,7 +158,7 @@ async function waitForSignIn(page) {
       return saveSession(page.context());
     }
   }
-  throw new Error(`still not signed in to ${platform.title} after 10 minutes`);
+  throw new Error(`still not signed in to ${platform.title} after 30 minutes`);
 }
 
 function missingTargets(shot) {

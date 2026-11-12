@@ -80,5 +80,87 @@
       },
       "deviceScaleFactor": 2
     }
+  },
+  "render": {
+    "deploy": {
+      "kind": "video",
+      "title": "From repository to running app",
+      "file": "https://media-zh4abnj42cx3.storage.lucity.app/compare/render/deploy-2026-11-12-0cf5c4bb6f.mp4",
+      "poster": "https://media-zh4abnj42cx3.storage.lucity.app/compare/render/deploy-2026-11-12-c82e46cbb6.webp",
+      "seconds": 193,
+      "trimmed": 0,
+      "capturedAt": "2026-11-12T15:45:36.459Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "overview": {
+      "kind": "still",
+      "title": "The project",
+      "file": "/img/compare/render/overview.webp",
+      "capturedAt": "2026-11-12T15:50:03.625Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "build-logs": {
+      "kind": "still",
+      "title": "Build logs",
+      "file": "/img/compare/render/build-logs.webp",
+      "capturedAt": "2026-11-12T15:47:46.913Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "runtime-logs": {
+      "kind": "still",
+      "title": "Runtime logs",
+      "file": "/img/compare/render/runtime-logs.webp",
+      "capturedAt": "2026-11-12T15:47:52.599Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "database": {
+      "kind": "still",
+      "title": "Browsing the database",
+      "file": "/img/compare/render/database.webp",
+      "capturedAt": "2026-11-12T15:48:18.608Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "database-backups": {
+      "kind": "still",
+      "title": "Database backups",
+      "file": "/img/compare/render/database-backups.webp",
+      "capturedAt": "2026-11-12T15:48:23.459Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "variables": {
+      "kind": "still",
+      "title": "Variables",
+      "file": "/img/compare/render/variables.webp",
+      "capturedAt": "2026-11-12T15:48:56.368Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    }
   }
 }
