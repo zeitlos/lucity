@@ -57,6 +57,7 @@ Commands:
   db <command>             Manage databases (create, list, credentials, expose, unexpose, delete)
   token [--account]        Print a bearer token for scripting
   mcp                      Serve the Lucity MCP server on stdio
+  claude plugin            Write the plugin for Claude Code and print its path
   version                  Print the CLI version
 
 Run 'lucity help <command>' for the details of a command.
@@ -174,6 +175,7 @@ var commandUsage = map[string]string{
 	"db":        dbUsage,
 	"token":     tokenUsage,
 	"mcp":       mcpUsage,
+	"claude":    claudeUsage,
 	"version":   versionUsage,
 }
 
@@ -216,6 +218,8 @@ func main() {
 		err = cmdToken(ctx, args)
 	case "mcp":
 		err = cmdMCP(ctx)
+	case "claude":
+		err = cmdClaude(args)
 	case "version", "--version", "-v":
 		fmt.Println("lucity " + version)
 	case "help", "--help", "-h":
