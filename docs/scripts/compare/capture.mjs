@@ -25,8 +25,10 @@
  * Targets (project ids, app names) are saved to docs/.shots/compare/<platform>.json,
  * which the setup scripts write. --target key=value overrides and saves one.
  *
- * Output: docs/public/img/compare/<platform>/<shot>.webp, videos as .mp4 with a
- * .webp poster, and docs/public/img/compare/manifest.json with the capture dates.
+ * Output: stills in docs/public/img/compare/<platform>/<shot>.webp, and
+ * docs/public/img/compare/manifest.json with the capture dates. Videos and their
+ * posters go to the public media bucket on Lucity (COMPARE_BUCKET, uploaded with
+ * the CLI's session) under content-hashed names, and the manifest holds their URLs.
  * Raw takes without the clock stay in docs/.shots/compare/raw/, so the start
  * can be trimmed later. Only the start: a take is never cut in the middle.
  *
@@ -43,6 +45,7 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
 import { cursorScript, sameTabScript } from './drive.mjs';
+import { fingerprint, publish } from './publish.mjs';
 import { encodeVideo, finishVideo, startRecording } from './recorder.mjs';
 
 import heroku from './platforms/heroku.mjs';
@@ -131,6 +134,7 @@ async function declineCookies(page) {
     await button.click().catch(() => {});
     await page.waitForTimeout(500);
   }
+  await platform.tidy?.(page);
 }
 
 async function waitForSignIn(page) {
@@ -199,28 +203,31 @@ const rawPath = (shot) => join(stateRoot, 'raw', `${platformName}-${shot.name}.m
 async function finish(shot, trim) {
   const raw = rawPath(shot);
   if (!existsSync(raw)) throw new Error(`no raw take at ${raw}, record it first`);
-  const directory = join(outputRoot, platformName);
-  mkdirSync(directory, { recursive: true });
-  const seconds = await finishVideo({
-    raw,
-    mp4: join(directory, `${shot.name}.mp4`),
-    poster: join(directory, `${shot.name}.webp`),
-    trim,
-    scale: deviceScaleFactor,
-  });
+  const out = join(stateRoot, 'out');
+  mkdirSync(out, { recursive: true });
+  const mp4 = join(out, `${platformName}-${shot.name}.mp4`);
+  const poster = join(out, `${platformName}-${shot.name}.webp`);
+  const seconds = await finishVideo({ raw, mp4, poster, trim, scale: deviceScaleFactor });
+
   const previous = readManifest()[platformName]?.[shot.name];
+  const capturedAt = previous?.capturedAt ?? new Date().toISOString();
+  const stem = `compare/${platformName}/${shot.name}-${capturedAt.slice(0, 10)}`;
+  const file = await publish(mp4, `${stem}-${fingerprint(mp4)}.mp4`, 'video/mp4');
+  const posterURL = await publish(poster, `${stem}-${fingerprint(poster)}.webp`, 'image/webp');
+
+  for (const extension of ['mp4', 'webp']) rmSync(join(outputRoot, platformName, `${shot.name}.${extension}`), { force: true });
   record(shot.name, {
     kind: 'video',
     title: shot.title,
-    file: `/img/compare/${platformName}/${shot.name}.mp4`,
-    poster: `/img/compare/${platformName}/${shot.name}.webp`,
+    file,
+    poster: posterURL,
     seconds,
     trimmed: trim,
-    capturedAt: previous?.capturedAt ?? new Date().toISOString(),
+    capturedAt,
     viewport,
     deviceScaleFactor,
   });
-  console.log(`ok    ${shot.name} -> public/img/compare/${platformName}/${shot.name}.mp4 (${seconds}s${trim ? `, first ${trim}s trimmed` : ''})`);
+  console.log(`ok    ${shot.name} -> ${file} (${seconds}s${trim ? `, first ${trim}s trimmed` : ''})`);
 }
 
 async function captureVideo(shot) {
@@ -232,9 +239,10 @@ async function captureVideo(shot) {
   const page = context.pages()[0] ?? (await context.newPage());
   const began = Date.now();
   const since = () => `${Math.round((Date.now() - began) / 1000)}s in`;
+  let finished = false;
   page.on('crash', () => console.log(`      the page crashed, ${since()}`));
-  page.on('close', () => console.log(`      the page closed, ${since()}`));
-  context.browser()?.on('disconnected', () => console.log(`      the browser disconnected, ${since()}`));
+  page.on('close', () => finished || console.log(`      the page closed, ${since()}`));
+  context.browser()?.on('disconnected', () => finished || console.log(`      the browser disconnected, ${since()}`));
   try {
     await waitForSignIn(page);
     if (shot.prepare) await shot.prepare(page);
@@ -272,6 +280,7 @@ async function captureVideo(shot) {
     stop.abort();
     const recorded = await recording.stop();
     await saveSession(context);
+    finished = true;
     await context.close();
 
     mkdirSync(dirname(rawPath(shot)), { recursive: true });

@@ -23,7 +23,7 @@ export const railway: Comparison = {
     'You want leaked keys and vulnerable dependencies flagged on every deploy.',
     'You want a way out: run the platform yourself, or take a project to any Kubernetes cluster.',
   ],
-  shotsIntro: 'The same small app on both: a web service, a Postgres database and a bucket. Captured from our own accounts at the same window size, and not edited. Videos play in real time.',
+  shotsIntro: 'The same small app on both: a web service and a Postgres database. Captured from our own accounts at the same window size, and not edited. Videos play in real time.',
   shots: [
     {
       name: 'deploy',
@@ -58,7 +58,7 @@ export const railway: Comparison = {
     {
       name: 'database-backups',
       title: 'Database backups',
-      note: 'Both restore Postgres to a moment in the last few weeks, into a new database next to the old one. On Railway you switch point-in-time recovery on first; on Lucity it is on from the start.',
+      note: 'Both restore Postgres to a moment in the last few weeks, into a new database next to the old one. On Railway you switch point-in-time recovery on first, and creating backups needs the Pro plan, which is why the trial account here has none. On Lucity it is on from the start.',
     },
   ],
   tableIntro: "Every row of Lucity's feature list, plus Railway's own headline features, so the table isn't only about what Lucity happens to do. Each Railway entry links to the page we checked.",

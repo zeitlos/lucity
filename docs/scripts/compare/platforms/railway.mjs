@@ -129,6 +129,12 @@ export default {
   title: 'Railway',
   home: `${base}/dashboard`,
   targets: ['project', 'environment', 'service', 'database', 'deployment'],
+  async tidy(page) {
+    const banner = page.getByText(/Dashboard Maintenance/).first();
+    if (!(await banner.isVisible().catch(() => false))) return;
+    await banner.locator('xpath=ancestor::*[.//button][1]').getByRole('button').last().click().catch(() => {});
+    await page.waitForTimeout(400);
+  },
   async signedIn(page) {
     const url = new URL(page.url());
     if (url.hostname !== 'railway.com' || /^\/(login|signup)/.test(url.pathname)) return false;
@@ -161,7 +167,7 @@ export default {
       name: 'runtime-logs',
       title: 'Runtime logs',
       needs: ['project', 'environment', 'service', 'deployment'],
-      open: (page, target) => open(page, deployment(target, 'deploy'), /deploy logs/i),
+      open: (page, target) => open(page, deployment(target, 'deploy'), 'Starting Container'),
     },
     {
       name: 'variables',
@@ -173,7 +179,12 @@ export default {
       name: 'database',
       title: 'Browsing the database',
       needs: ['project', 'environment', 'database'],
-      open: (page, target) => open(page, service(target, target.database, '/data'), 'posts'),
+      open: async (page, target) => {
+        await open(page, service(target, target.database, '/data'), 'posts');
+        await page.getByText('posts', { exact: true }).last().click();
+        await page.getByText('Dark mode for the board').first().waitFor({ timeout: 20_000 });
+        await page.waitForTimeout(1_500);
+      },
     },
     {
       name: 'database-backups',

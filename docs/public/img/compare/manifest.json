@@ -3,11 +3,77 @@
     "deploy": {
       "kind": "video",
       "title": "From repository to running app",
-      "file": "/img/compare/railway/deploy.mp4",
-      "poster": "/img/compare/railway/deploy.webp",
-      "seconds": 106,
+      "file": "https://media-zh4abnj42cx3.storage.lucity.app/compare/railway/deploy-2026-11-12-cb2f819bdd.mp4",
+      "poster": "https://media-zh4abnj42cx3.storage.lucity.app/compare/railway/deploy-2026-11-12-1dcddfd0e6.webp",
+      "seconds": 85,
       "trimmed": 0,
-      "capturedAt": "2026-11-12T09:24:09.182Z",
+      "capturedAt": "2026-11-12T09:45:52.799Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "overview": {
+      "kind": "still",
+      "title": "The project",
+      "file": "/img/compare/railway/overview.webp",
+      "capturedAt": "2026-11-12T09:52:11.056Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "build-logs": {
+      "kind": "still",
+      "title": "Build logs",
+      "file": "/img/compare/railway/build-logs.webp",
+      "capturedAt": "2026-11-12T09:52:15.960Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "variables": {
+      "kind": "still",
+      "title": "Variables",
+      "file": "/img/compare/railway/variables.webp",
+      "capturedAt": "2026-11-12T09:52:25.565Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "database": {
+      "kind": "still",
+      "title": "Browsing the database",
+      "file": "/img/compare/railway/database.webp",
+      "capturedAt": "2026-11-12T09:52:36.444Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "database-backups": {
+      "kind": "still",
+      "title": "Database backups",
+      "file": "/img/compare/railway/database-backups.webp",
+      "capturedAt": "2026-11-12T09:52:41.282Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "runtime-logs": {
+      "kind": "still",
+      "title": "Runtime logs",
+      "file": "/img/compare/railway/runtime-logs.webp",
+      "capturedAt": "2026-11-12T09:52:20.660Z",
       "viewport": {
         "width": 1280,
         "height": 800
