@@ -63,11 +63,12 @@ Commands:
 Run 'lucity help <command>' for the details of a command.
 
 Environment:
-  LUCITY_API_URL     Platform URL, in place of the one you signed in to
-  LUCITY_WORKSPACE   Workspace to use, in place of the active one
-  LUCITY_API_TOKEN   Workspace API token, used in place of the stored session
-  LUCITY_CONFIG_DIR  Directory holding the session (default: '$XDG_CONFIG_HOME/lucity'
-                     or '~/.config/lucity')
+  LUCITY_API_URL          Platform URL, in place of the one you signed in to
+  LUCITY_WORKSPACE        Workspace to use, in place of the active one
+  LUCITY_API_TOKEN        Workspace API token, used in place of the stored session
+  LUCITY_CONFIG_DIR       Directory holding the session (default: '$XDG_CONFIG_HOME/lucity'
+                          or '~/.config/lucity')
+  LUCITY_NO_UPDATE_CHECK  Set to 1 to stop checking once a day for a newer CLI release
 `
 
 const loginUsage = `lucity login — sign in through your browser
@@ -194,6 +195,8 @@ func main() {
 		return
 	}
 
+	updateCheck := startUpdateCheck(ctx, command)
+
 	var err error
 	switch command {
 	case "login":
@@ -233,6 +236,9 @@ func main() {
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
+	}
+	printUpdateNotice(updateCheck)
+	if err != nil {
 		os.Exit(1)
 	}
 }
