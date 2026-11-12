@@ -20,7 +20,8 @@ interface Setup {
   deploioText: string;
 }
 
-const usdToChf = 0.82;
+const usdToEur = 0.89;
+const chfToEur = 1.09;
 
 const setups: Setup[] = [
   {
@@ -99,15 +100,15 @@ const month = computed(() => {
   const lucity = cpuUsed * 20 + memoryUsed * 10 + 2 * s.disk * 0.1;
 
   const others = [
-    { name: 'Fly.io', detail: s.flyText, chf: sum(s.fly) * usdToChf, own: false },
-    { name: 'Heroku', detail: s.herokuText, chf: sum(s.heroku) * usdToChf, own: false },
-    { name: 'Deploio', detail: s.deploioText, chf: sum(s.deploio), own: false },
-  ].sort((a, b) => a.chf - b.chf);
+    { name: 'Fly.io', detail: s.flyText, eur: sum(s.fly) * usdToEur, own: false },
+    { name: 'Heroku', detail: s.herokuText, eur: sum(s.heroku) * usdToEur, own: false },
+    { name: 'Deploio', detail: s.deploioText, eur: sum(s.deploio) * chfToEur, own: false },
+  ].sort((a, b) => a.eur - b.eur);
   const rows = [
-    { name: 'Lucity', detail: `${s.plan} plan, billed by usage, standby database included`, chf: Math.max(s.fee, lucity), own: true },
+    { name: 'Lucity', detail: `${s.plan} plan, billed by usage, standby database included`, eur: Math.max(s.fee, lucity), own: true },
     ...others,
   ];
-  const highest = Math.max(...rows.map(row => row.chf));
+  const highest = Math.max(...rows.map(row => row.eur));
 
   const cpuLine = trace(usage.cpu, cpuUsed / cpuSize);
   const memoryLine = trace(usage.memory, memoryUsed / memorySize);
@@ -124,8 +125,8 @@ const month = computed(() => {
     cpuShare: `${Math.round((cpuUsed / cpuSize) * 100)}%`,
     bars: rows.map(row => ({
       ...row,
-      amount: `CHF ${row.chf < 100 ? row.chf.toFixed(2) : Math.round(row.chf).toLocaleString('en-US')}`,
-      width: `${Math.max(1, (row.chf / highest) * 100).toFixed(1)}%`,
+      amount: `€${row.eur < 100 ? row.eur.toFixed(2) : Math.round(row.eur).toLocaleString('en-US')}`,
+      width: `${Math.max(1, (row.eur / highest) * 100).toFixed(1)}%`,
     })),
   };
 });
@@ -148,7 +149,7 @@ const comparisons = [
           <h2 id="price" class="max-w-[720px] font-display text-3xl/tight text-stone-900 lg:text-4xl/tight dark:text-stone-100">You pay for what your app uses, not for the size you picked.</h2>
         </div>
         <p class="max-w-[540px] flex-[1_1_380px] text-lg text-stone-700 dark:text-stone-400">
-          Plans start at CHF 5 a month, and the fee comes back as usage credit. Pick a setup to see one month of it: what it used, what a fixed plan bills for, and what each comes to.
+          Plans start at €5 a month, and the fee comes back as usage credit. Pick a setup to see one month of it: what it used, what a fixed plan bills for, and what each comes to.
         </p>
       </div>
 

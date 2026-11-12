@@ -1,10 +1,10 @@
 <script setup lang="ts">
 const rates = [
-  { name: 'CPU', counted: 'What your services, databases and stores actually use, not what they could use', rate: 'CHF 20', unit: 'per vCPU, per month' },
-  { name: 'Memory', counted: 'What they actually use, so a service that sits idle costs very little', rate: 'CHF 10', unit: 'per GB, per month' },
-  { name: 'Disk', counted: 'Volumes and database storage, at their full size', rate: 'CHF 0.10', unit: 'per GB, per month' },
-  { name: 'Object storage', counted: 'The data your buckets hold', rate: 'CHF 0.03', unit: 'per GB, per month' },
-  { name: 'Egress', counted: 'Traffic your services send out through their domains', rate: 'CHF 0.02', unit: 'per GB' },
+  { name: 'CPU', counted: 'What your services, databases and stores actually use, not what they could use', rate: '€20', unit: 'per vCPU, per month' },
+  { name: 'Memory', counted: 'What they actually use, so a service that sits idle costs very little', rate: '€10', unit: 'per GB, per month' },
+  { name: 'Disk', counted: 'Volumes and database storage, at their full size', rate: '€0.10', unit: 'per GB, per month' },
+  { name: 'Object storage', counted: 'The data your buckets hold', rate: '€0.03', unit: 'per GB, per month' },
+  { name: 'Egress', counted: 'Traffic your services send out through their domains', rate: '€0.02', unit: 'per GB' },
 ];
 </script>
 

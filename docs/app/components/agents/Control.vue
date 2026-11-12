@@ -8,7 +8,7 @@ const access = [
   { what: 'Linear: create issues', tone: 'ask', state: 'asks first' },
   { what: 'Internet: status.mistral.ai', tone: 'ok', state: 'allowed' },
   { what: 'Network: other services in production', tone: 'off', state: 'off' },
-  { what: 'Model spend per day', tone: 'ink', state: 'CHF 20, then it stops' },
+  { what: 'Model spend per day', tone: 'ink', state: '€20, then it stops' },
 ];
 
 const record = [

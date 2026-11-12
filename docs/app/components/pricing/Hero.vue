@@ -2,7 +2,7 @@
 const appUrl = '/app';
 
 const checks = [
-  '14 days free, up to CHF 5 of usage',
+  '14 days free, up to €5 of usage',
   'No credit card to start',
   'Monthly, no contract',
 ];
@@ -73,7 +73,7 @@ const creditMark = `${((25 / 124) * 100).toFixed(2)}%`;
     </h1>
 
     <p class="load-in mt-8 max-w-[800px] text-xl leading-relaxed text-stone-700 sm:text-2xl sm:leading-relaxed dark:text-stone-300" style="--load-order: 1">
-      CPU and memory are billed as your services actually use them, so an app that sits idle costs very little. Plans start at CHF 5 a month, and the fee comes back as credit for that usage.
+      CPU and memory are billed as your services actually use them, so an app that sits idle costs very little. Plans start at €5 a month, and the fee comes back as credit for that usage.
     </p>
 
     <div class="load-in mt-8 flex flex-col gap-3 sm:mt-11 sm:flex-row sm:items-center sm:gap-4" style="--load-order: 2">
@@ -103,7 +103,7 @@ const creditMark = `${((25 / 124) * 100).toFixed(2)}%`;
       class="load-in month mt-12 px-4 py-6 sm:mt-14 sm:p-9"
       style="--load-order: 4"
       role="group"
-      aria-label="One month of a production app: two instances with 1 GB each and a 2 GB PostgreSQL database with a standby. Billed by use it comes to CHF 42. The same sizes billed in full at the same rates would come to CHF 124."
+      aria-label="One month of a production app: two instances with 1 GB each and a 2 GB PostgreSQL database with a standby. Billed by use it comes to €42. The same sizes billed in full at the same rates would come to €124."
     >
       <p class="setup"><b>One month of a production app.</b> Two instances with 1 GB each, and a 2 GB PostgreSQL database with a standby and 20 GB of disk.</p>
 
@@ -139,14 +139,14 @@ const creditMark = `${((25 / 124) * 100).toFixed(2)}%`;
         <div class="bill min-w-0 flex-[1_1_340px]">
           <p class="bill-day">Day <span class="pm-d" aria-hidden="true" /><span class="sr-only">30</span> of 30</p>
           <p class="bill-cap">Billed by use</p>
-          <p class="bill-amount">CHF <span class="pm-n" aria-hidden="true" /><span class="sr-only">42</span></p>
+          <p class="bill-amount">€<span class="pm-n" aria-hidden="true" /><span class="sr-only">42</span></p>
           <div class="bill-track">
             <i :style="{ left: creditMark }" />
             <div class="pm-ubar" />
           </div>
           <div class="bill-caps">
-            <span class="pm-cap1" aria-hidden="true">So far inside the CHF 25 that Pro includes.</span>
-            <span class="pm-cap2">Past the CHF 25 that Pro includes. Only the rest is added to the invoice.</span>
+            <span class="pm-cap1" aria-hidden="true">So far inside the €25 that Pro includes.</span>
+            <span class="pm-cap2">Past the €25 that Pro includes. Only the rest is added to the invoice.</span>
           </div>
           <ul class="bill-lines">
             <li v-for="line in lines" :key="line.name"><span>{{ line.name }}</span><em>{{ line.amount }}</em></li>
@@ -154,7 +154,7 @@ const creditMark = `${((25 / 124) * 100).toFixed(2)}%`;
           <div class="mt-2">
             <p class="bill-cap flex items-baseline justify-between gap-4">
               <span>The same sizes, billed in full</span>
-              <b>CHF <span class="pm-f" aria-hidden="true" /><span class="sr-only">124</span></b>
+              <b>€<span class="pm-f" aria-hidden="true" /><span class="sr-only">124</span></b>
             </p>
             <div class="bill-track bill-track-fixed">
               <div class="pm-fbar" />

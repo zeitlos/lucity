@@ -124,7 +124,7 @@ export default defineNuxtConfig({
             publisher: { '@id': 'https://lucity.cloud/#organization' },
             offers: {
               '@type': 'AggregateOffer',
-              priceCurrency: 'CHF',
+              priceCurrency: 'EUR',
               lowPrice: '0',
               highPrice: '25',
               offerCount: '3'

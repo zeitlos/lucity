@@ -123,7 +123,7 @@ export function usePricingEstimate() {
     const credit = Math.min(usage, plan.fee);
     const total = Math.max(usage, plan.fee);
 
-    let note = 'The usage goes past the CHF 5 that Hobby includes, so the bill is the usage.';
+    let note = 'The usage goes past the €5 that Hobby includes, so the bill is the usage.';
 
     if (isTeam) {
       note = 'Pro, because Hobby is for one person.';
@@ -132,7 +132,7 @@ export function usePricingEstimate() {
     } else if (tooMuchStorage) {
       note = 'Pro, because Hobby databases go up to 32 GB of storage.';
     } else if (plan === PRO) {
-      note = 'From CHF 25 of usage, Pro costs the same as Hobby and gives you more room.';
+      note = 'From €25 of usage, Pro costs the same as Hobby and gives you more room.';
     } else if (usage <= plan.fee) {
       note = 'The usage stays inside what Hobby includes, so the plan is the whole bill.';
     }
@@ -143,7 +143,7 @@ export function usePricingEstimate() {
       usage: money(usage),
       fee: money(plan.fee),
       credit: `−${money(credit)}`,
-      total: `CHF ${money(total)}`,
+      total: `€${money(total)}`,
       note,
       memoryShare: `${Math.round(use.memory * 100)}%`,
       cpuShare: `${Math.round(use.cpu * 100)}%`,

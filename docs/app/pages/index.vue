@@ -14,7 +14,7 @@ useSeo({
 const appUrl = '/app';
 
 const trialPoints = [
-  '14 days free, up to CHF 5 of usage',
+  '14 days free, up to €5 of usage',
   'No lock-in, leave anytime',
 ];
 </script>

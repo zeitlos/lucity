@@ -105,7 +105,7 @@ const row = 'flex min-h-15.5 items-center justify-between border-b border-stone-
         Get started
       </a>
       <p class="mt-1 text-center text-base text-stone-700 dark:text-stone-400">
-        14 days free, up to CHF 5 of usage
+        14 days free, up to €5 of usage
       </p>
     </div>
   </div>

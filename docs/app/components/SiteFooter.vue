@@ -142,7 +142,7 @@ onBeforeUnmount(() => {
           Don’t <span class="whitespace-nowrap">half-ass</span> your DevOps.
         </p>
         <p class="mx-auto mt-6 max-w-2xl text-xl leading-normal text-balance text-stone-200">
-          Get a <span class="whitespace-nowrap">whole-ass</span> platform that does it for you. The first 14 days are free, up to CHF 5 of usage.
+          Get a <span class="whitespace-nowrap">whole-ass</span> platform that does it for you. The first 14 days are free, up to €5 of usage.
         </p>
         <div class="mt-9 flex flex-col justify-center gap-3 sm:flex-row sm:gap-4">
           <a

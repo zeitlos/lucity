@@ -3,10 +3,10 @@ const receipts = [
   {
     title: 'A side project on Hobby',
     rows: [
-      { text: '0.25 vCPU in use, at CHF 20', amount: '5.00' },
-      { text: '256 MB in use, at CHF 10 per GB', amount: '2.56' },
-      { text: '1 GB of disk, at CHF 0.10', amount: '0.10' },
-      { text: '0.5 GB of egress, at CHF 0.02', amount: '0.01' },
+      { text: '0.25 vCPU in use, at €20', amount: '5.00' },
+      { text: '256 MB in use, at €10 per GB', amount: '2.56' },
+      { text: '1 GB of disk, at €0.10', amount: '0.10' },
+      { text: '0.5 GB of egress, at €0.02', amount: '0.01' },
     ],
     usage: '7.67',
     plan: 'Hobby',
@@ -18,10 +18,10 @@ const receipts = [
   {
     title: 'A small app on Pro',
     rows: [
-      { text: '0.15 vCPU in use, at CHF 20', amount: '3.00' },
-      { text: '1.25 GB in use, at CHF 10', amount: '12.50' },
-      { text: '20 GB of disk, at CHF 0.10', amount: '2.00' },
-      { text: '10 GB of egress, at CHF 0.02', amount: '0.20' },
+      { text: '0.15 vCPU in use, at €20', amount: '3.00' },
+      { text: '1.25 GB in use, at €10', amount: '12.50' },
+      { text: '20 GB of disk, at €0.10', amount: '2.00' },
+      { text: '10 GB of egress, at €0.02', amount: '0.20' },
     ],
     usage: '17.70',
     plan: 'Pro',
@@ -54,7 +54,7 @@ const notes = [
           <div class="row sum"><span>Usage</span><span>{{ receipt.usage }}</span></div>
           <div class="row"><span>{{ receipt.plan }} plan</span><span>{{ receipt.fee }}</span></div>
           <div class="row included"><span>Usage included</span><span>{{ receipt.credit }}</span></div>
-          <div class="row total"><span>Total</span><span>CHF {{ receipt.total }}</span></div>
+          <div class="row total"><span>Total</span><span>€{{ receipt.total }}</span></div>
           <p class="verdict">{{ receipt.verdict }}</p>
         </div>
       </div>

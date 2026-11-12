@@ -2,7 +2,7 @@
 const appUrl = '/app';
 
 const terms = [
-  { name: '14 days or CHF 5 of usage', text: 'Whichever runs out first. A badge in the dashboard counts down both.' },
+  { name: '14 days or €5 of usage', text: 'Whichever runs out first. A badge in the dashboard counts down both.' },
   { name: 'No credit card', text: 'You add a payment method when you choose Hobby or Pro.' },
   { name: 'Nothing is lost at the end', text: 'If the trial runs out first, the workspace pauses until you pick a plan. Your data stays put.' },
 ];
