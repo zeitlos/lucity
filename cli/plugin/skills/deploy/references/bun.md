@@ -45,7 +45,7 @@ Plus all Node config variables (`RAILPACK_NO_SPA`, `RAILPACK_SPA_OUTPUT_DIR`, ..
 ## Common failure modes
 
 - **Native module build fails** → Node is auto-installed for `node-gyp`; pin `RAILPACK_NODE_VERSION` if the wrong Node version is picked.
-- **No start command** → add a `start` script or set the start command via `configure_service`.
+- **No start command** → add a `start` script or set the start command in the service settings.
 - **Bun version too new (blocked by Mise 14-day rule)** → pin an older `RAILPACK_BUN_VERSION` or adjust `minimum_release_age` in `mise.toml`.
 
 Docs: https://railpack.com/languages/node

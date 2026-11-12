@@ -39,8 +39,8 @@ and Playwright pull in their system dependencies automatically.
 2. `main` field in `package.json`
 3. `index.js` or `index.ts` in the root
 
-What breaks it: no `start` script, no `main`, and no root `index.*` → no start command. Set one via
-`configure_service` (or `RAILPACK_START_CMD`). Nuxt defaults to `node .output/server/index.mjs`.
+What breaks it: no `start` script, no `main`, and no root `index.*` → no start command. Set one in
+the service settings (or `RAILPACK_START_CMD`). Nuxt defaults to `node .output/server/index.mjs`.
 
 ## Static sites (SPA mode)
 
@@ -71,13 +71,13 @@ flags.
 
 ## Common failure modes
 
-- **No start command found** → add a `start` script, or set the start command via `configure_service`.
+- **No start command found** → add a `start` script, or set the start command in the service settings.
 - **SPA served instead of the API server (or vice versa)** → `RAILPACK_NO_SPA=1` to force a server, or `RAILPACK_SPA_OUTPUT_DIR` to force static.
 - **Wrong static output directory (blank page / 404)** → set `RAILPACK_SPA_OUTPUT_DIR` to the real build output.
 - **Wrong package-manager version** → set `packageManager` in `package.json` or the matching `engines` field.
 - **npm and Node don't match** (`npm ci` refuses the lockfile, or `engines.npm` fails) → npm comes bundled with the Node version (Node 22 ships npm 10). Pin `RAILPACK_NODE_VERSION` to a Node release whose npm fits, or set `packageManager: "npm@<version>"` so Corepack installs that npm.
 - **Version file ignored in a subfolder service** (root `.nvmrc` / `.node-version` / `.tool-versions` outside the build directory) → pin `RAILPACK_NODE_VERSION`.
-- **Start script is a dev command** (`nodemon`, `next dev`, `vite`, `tsc --watch`) → `OOM_KILLED` at the 512Mi default, and not meant for production. Set the production start command via `configure_service` (e.g. `node dist/server.js`, `next start`), or propose a proper `start` script.
-- **Nuxt 4.5+ fails at runtime with `NUXT_B7021` (client manifest missing)** → Nuxt builds into `node_modules/.cache`, which Railpack mounts as a build cache (key `node-modules`), so the output never lands in the image. Set `RAILPACK_DISABLE_CACHES=node-modules` and `deploy`.
+- **Start script is a dev command** (`nodemon`, `next dev`, `vite`, `tsc --watch`) → `OOM_KILLED` at the 512Mi default, and not meant for production. Set the production start command in the service settings (e.g. `node dist/server.js`, `next start`), or propose a proper `start` script.
+- **Nuxt 4.5+ fails at runtime with `NUXT_B7021` (client manifest missing)** → Nuxt builds into `node_modules/.cache`, which Railpack mounts as a build cache (key `node-modules`), so the output never lands in the image. Set `RAILPACK_DISABLE_CACHES=node-modules` and deploy again.
 
 Docs: https://railpack.com/languages/node

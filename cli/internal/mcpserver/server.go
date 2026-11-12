@@ -13,6 +13,7 @@ import (
 
 	"github.com/zeitlos/lucity/cli/internal/api"
 	"github.com/zeitlos/lucity/cli/internal/ids"
+	"github.com/zeitlos/lucity/cli/internal/selfupdate"
 	"github.com/zeitlos/lucity/cli/internal/session"
 )
 
@@ -25,12 +26,21 @@ func Serve(ctx context.Context, manager *session.Manager, version string) error 
 
 	s := &server{manager: manager}
 
+	var latest string
+	if !selfupdate.Disabled() {
+		cached, stale := selfupdate.Cached()
+		latest = cached
+		if stale && !selfupdate.AutoUpdates(version) {
+			go selfupdate.Refresh(ctx)
+		}
+	}
+
 	mcpServer := mcp.NewServer(&mcp.Implementation{
 		Name:    "lucity",
 		Title:   "Lucity",
 		Version: version,
 	}, &mcp.ServerOptions{
-		Instructions: s.instructions(),
+		Instructions: s.instructions(version, latest),
 		Logger:       logger,
 	})
 
@@ -40,10 +50,14 @@ func Serve(ctx context.Context, manager *session.Manager, version string) error 
 	s.registerResource(mcpServer)
 	s.registerDeploy(mcpServer)
 
-	return mcpServer.Run(ctx, &mcp.StdioTransport{})
+	err := mcpServer.Run(ctx, &mcp.StdioTransport{})
+	if _, stale := selfupdate.Cached(); stale && selfupdate.AutoUpdates(version) {
+		selfupdate.StartBackground()
+	}
+	return err
 }
 
-func (s *server) instructions() string {
+func (s *server) instructions(version, latest string) string {
 	workspace := s.manager.Workspace()
 	var b strings.Builder
 
@@ -55,6 +69,10 @@ func (s *server) instructions() string {
 		b.WriteString("Active workspace: " + workspace + " (it follows 'lucity workspace <id>' from the next call on; get_account shows the current one)\n")
 	}
 	b.WriteString("Platform URL: " + s.manager.APIURL() + "\n\n")
+
+	if notice := selfupdate.Notice(version, latest); notice != "" {
+		fmt.Fprintf(&b, "UPDATE AVAILABLE: %s. Tell the user once, early on, and that a new session picks up the new version, since tools may have changed.\n\n", notice)
+	}
 
 	b.WriteString("All IDs are '/'-separated composite strings whose first segment is the workspace: project=workspace/project, environment=workspace/project/environment, service=workspace/project/environment/service. Pass these IDs verbatim. The workspace segment may be left out (project/environment/service), and a project may be given as its bare id. Every resource also has a name, which is what people read: it can contain spaces and can be renamed, so never pass a name where an id is expected. Create tools take a name and an optional id; leave the id out to derive it from the name, and use the id the tool returns.\n\n")
 

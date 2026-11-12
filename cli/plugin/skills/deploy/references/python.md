@@ -22,7 +22,7 @@ Only non-EOL Python versions (3.10+) are officially supported.
 
 Version files are only read from the service's build directory. A backend built from `backend/` with
 `.python-version` at the repo root silently gets the default 3.13; pin `RAILPACK_PYTHON_VERSION` in
-`add_service`'s initial variables instead.
+the service's initial variables instead.
 
 ## Precompiled vs. compiled
 
@@ -51,7 +51,7 @@ sets `PORT`, `8080` by default):
 - **Django** (`manage.py` or `django` dep): `python manage.py migrate && gunicorn {appName}:application`, where `appName` comes from `RAILPACK_DJANGO_APP_NAME`, else the `WSGI_APPLICATION` setting.
 
 What breaks it: a non-standard entry module (app object not named `app`, or file not one of the six
-detected names) → set `RAILPACK_START_CMD` / `configure_service`, or add a `Procfile`.
+detected names) → set `RAILPACK_START_CMD` / the start command in the service settings, or add a `Procfile`.
 
 ## Config variables
 
@@ -73,7 +73,7 @@ runtime), MySQL (`default-libmysqlclient-dev` / `default-mysql-client`).
 
 - **Wrong Python version in a subfolder service** (root `.python-version` ignored) → pin `RAILPACK_PYTHON_VERSION`.
 - **Build fails: no precompiled binary for the Python version** → pin `RAILPACK_PYTHON_VERSION` to a version with a prebuilt binary, or opt into `MISE_PYTHON_COMPILE=1`.
-- **Wrong start command (app object not `app`)** → set the start command via `configure_service` or a `Procfile`.
+- **Wrong start command (app object not `app`)** → set the start command in the service settings or a `Procfile`.
 - **Django app name misdetected** → set `RAILPACK_DJANGO_APP_NAME`.
 - **Missing system library at build (e.g. a C extension)** → add `RAILPACK_BUILD_APT_PACKAGES`.
 

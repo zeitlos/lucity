@@ -22,7 +22,7 @@ Builds with the detected tool (Gradle via the wrapper, or Maven). Caches build a
 ## Start command
 
 Runs the built application (the Spring Boot / executable jar produced by the build). If the entry point
-is ambiguous or you need custom flags, set the start command via `configure_service` or a `Procfile`.
+is ambiguous or you need custom flags, set the start command in the service settings or a `Procfile`.
 
 ## Config variables
 

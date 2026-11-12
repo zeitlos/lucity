@@ -32,6 +32,21 @@ archives:
 checksum:
   name_template: checksums.txt
 
+signs:
+  - id: checksums
+    artifacts: checksum
+    cmd: openssl
+    args:
+      - pkeyutl
+      - -sign
+      - -rawin
+      - -inkey
+      - "{{ .Env.CLI_SIGNING_KEY_FILE }}"
+      - -in
+      - "${artifact}"
+      - -out
+      - "${signature}"
+
 changelog:
   disable: true
 
@@ -51,6 +66,8 @@ homebrew_casks:
     homepage: "https://lucity.cloud"
     description: "Deploy software on Lucity from the command line"
     skip_upload: auto
+    custom_block: |
+      auto_updates true
     commit_author:
       name: lucity-release
       email: noreply@lucity.cloud
