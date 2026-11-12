@@ -13,8 +13,8 @@ import (
 
 	"github.com/zeitlos/lucity/cli/internal/api"
 	"github.com/zeitlos/lucity/cli/internal/ids"
+	"github.com/zeitlos/lucity/cli/internal/selfupdate"
 	"github.com/zeitlos/lucity/cli/internal/session"
-	"github.com/zeitlos/lucity/cli/internal/updatecheck"
 )
 
 type server struct {
@@ -27,11 +27,11 @@ func Serve(ctx context.Context, manager *session.Manager, version string) error 
 	s := &server{manager: manager}
 
 	var latest string
-	if !updatecheck.Disabled() {
-		cached, stale := updatecheck.Cached()
+	if !selfupdate.Disabled() {
+		cached, stale := selfupdate.Cached()
 		latest = cached
-		if stale {
-			go updatecheck.Refresh(ctx)
+		if stale && !selfupdate.AutoUpdates(version) {
+			go selfupdate.Refresh(ctx)
 		}
 	}
 
@@ -50,7 +50,11 @@ func Serve(ctx context.Context, manager *session.Manager, version string) error 
 	s.registerResource(mcpServer)
 	s.registerDeploy(mcpServer)
 
-	return mcpServer.Run(ctx, &mcp.StdioTransport{})
+	err := mcpServer.Run(ctx, &mcp.StdioTransport{})
+	if _, stale := selfupdate.Cached(); stale && selfupdate.AutoUpdates(version) {
+		selfupdate.StartBackground()
+	}
+	return err
 }
 
 func (s *server) instructions(version, latest string) string {
@@ -66,8 +70,8 @@ func (s *server) instructions(version, latest string) string {
 	}
 	b.WriteString("Platform URL: " + s.manager.APIURL() + "\n\n")
 
-	if updatecheck.Newer(version, latest) {
-		fmt.Fprintf(&b, "UPDATE AVAILABLE: this Lucity CLI is %s and %s is out. Tell the user once, early on, to update it (%s) and to start a new session afterwards, since tools may have changed.\n\n", version, latest, updatecheck.UpgradeHint())
+	if notice := selfupdate.Notice(version, latest); notice != "" {
+		fmt.Fprintf(&b, "UPDATE AVAILABLE: %s. Tell the user once, early on, and that a new session picks up the new version, since tools may have changed.\n\n", notice)
 	}
 
 	b.WriteString("All IDs are '/'-separated composite strings whose first segment is the workspace: project=workspace/project, environment=workspace/project/environment, service=workspace/project/environment/service. Pass these IDs verbatim. The workspace segment may be left out (project/environment/service), and a project may be given as its bare id. Every resource also has a name, which is what people read: it can contain spaces and can be renamed, so never pass a name where an id is expected. Create tools take a name and an optional id; leave the id out to derive it from the name, and use the id the tool returns.\n\n")

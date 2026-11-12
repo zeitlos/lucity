@@ -18,7 +18,7 @@ func (s *server) registerDeploy(m *mcp.Server) {
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "get_deploy_status",
-		Description: "Get the status of a service and one of its releases (build, deploy, security scan, and rollout phases) plus its endpoints, and whether a push to its branch deploys on its own (autoDeploy; branch null means the repository's default branch). When the scan found committed credentials, secretScan lists where. Without release_id the newest release is used, which can be newer than the one serving traffic: liveRelease then names the one that serves. Pass wait to block until the release settles instead of polling. Read get_logs for a failed phase.",
+		Description: "Get the status of a service and one of its releases (build, deploy, security scan, and rollout phases) plus its endpoints, and whether a push to its branch deploys on its own (autoDeploy; branch null means the repository's default branch). When the scan found committed credentials, secretScan lists where. Without release_id the newest release is used, which can be newer than the one serving traffic: liveRelease then names the one that serves. After a config change the newest release is a settings-only one that can read SUPERSEDED with no build info while the service is healthy, which is not a failure, so pass the release_id you are tracking (add_service and deploy return it). Releases run one at a time per environment, so a queued build is waiting its turn. Pass wait to block until the release settles instead of polling. Read get_logs for a failed phase. A config change made while a rollout runs can fail with 'another operation ... is in progress'; retry it after a few seconds.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, DestructiveHint: ptr(false)},
 	}, s.getDeployStatus)
 
@@ -42,7 +42,7 @@ func (s *server) registerDeploy(m *mcp.Server) {
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "add_domain",
-		Description: "Add a domain to a service. Without hostname a platform subdomain is generated. With hostname a custom domain is added; the response includes the DNS records to create and the TLS provisioning status. An apex domain (example.com) either redirects to a subdomain via redirect_to (usually www.example.com, which must be added first) or is served directly, which needs an ALIAS record and therefore a DNS provider with ALIAS, ANAME or CNAME flattening support.",
+		Description: "Add a domain to a service. Without hostname a platform subdomain is generated; until the service's first rollout has succeeded the reply lists only the internal endpoint, and the public domain then appears in get_deploy_status's endpoints. With hostname a custom domain is added; the response includes the DNS records to create and the TLS provisioning status. An apex domain (example.com) either redirects to a subdomain via redirect_to (usually www.example.com, which must be added first) or is served directly, which needs an ALIAS record and therefore a DNS provider with ALIAS, ANAME or CNAME flattening support.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(false)},
 	}, s.addDomain)
 }

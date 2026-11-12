@@ -58,6 +58,7 @@ Commands:
   token [--account]        Print a bearer token for scripting
   mcp                      Serve the Lucity MCP server on stdio
   claude plugin            Write the plugin for Claude Code and print its path
+  update                   Update the CLI to the latest release
   version                  Print the CLI version
 
 Run 'lucity help <command>' for the details of a command.
@@ -68,7 +69,8 @@ Environment:
   LUCITY_API_TOKEN        Workspace API token, used in place of the stored session
   LUCITY_CONFIG_DIR       Directory holding the session (default: '$XDG_CONFIG_HOME/lucity'
                           or '~/.config/lucity')
-  LUCITY_NO_UPDATE_CHECK  Set to 1 to stop checking once a day for a newer CLI release
+  LUCITY_NO_AUTO_UPDATE   Set to 1 to only be told about new releases, not install them
+  LUCITY_NO_UPDATE_CHECK  Set to 1 to stop looking for new releases, and updating to them
 `
 
 const loginUsage = `lucity login — sign in through your browser
@@ -176,6 +178,7 @@ var commandUsage = map[string]string{
 	"db":        dbUsage,
 	"token":     tokenUsage,
 	"mcp":       mcpUsage,
+	"update":    updateUsage,
 	"claude":    claudeUsage,
 	"version":   versionUsage,
 }
@@ -219,6 +222,8 @@ func main() {
 		err = cmdRestart(ctx, args)
 	case "token":
 		err = cmdToken(ctx, args)
+	case "update":
+		err = cmdUpdate(ctx, args)
 	case "mcp":
 		err = cmdMCP(ctx)
 	case "claude":

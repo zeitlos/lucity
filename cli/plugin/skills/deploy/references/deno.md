@@ -23,8 +23,8 @@ Installs Deno and caches dependencies with `deno cache`.
 
 The selected file runs with `deno run --allow-all`.
 
-What breaks it: no main file and an ambiguous set of scripts → set the start command explicitly via
-`configure_service` (e.g. `deno run --allow-net --allow-env server.ts`).
+What breaks it: no main file and an ambiguous set of scripts → set the start command explicitly in
+the service settings (e.g. `deno run --allow-net --allow-env server.ts`).
 
 ## Config variables
 
@@ -34,7 +34,7 @@ What breaks it: no main file and an ambiguous set of scripts → set the start c
 
 ## Common failure modes
 
-- **Wrong entry file selected** → set the start command via `configure_service`.
+- **Wrong entry file selected** → set the start command in the service settings.
 - **Permission errors at runtime** → tighten/loosen the `--allow-*` flags in a custom start command (the default is `--allow-all`).
 - **App doesn't bind the injected port** → read `Deno.env.get("PORT")` and bind `0.0.0.0` (code fix; propose it).
 

@@ -32,8 +32,8 @@ preloaded (`LD_PRELOAD`); Ruby 3.2+ gets YJIT (`rustc`/`cargo` installed). If a 
 3. `config.ru`
 4. `Rakefile`
 
-What breaks it: none of these present, or a non-standard server → set the start command via
-`configure_service` or a `Procfile`.
+What breaks it: none of these present, or a non-standard server → set the start command in
+the service settings or a `Procfile`.
 
 ## Config variables
 
@@ -53,7 +53,7 @@ PostgreSQL (`libpq-dev`), MySQL (`default-libmysqlclient-dev`), Magick (`libmagi
 
 - **Wrong Ruby version / source build too slow** → pin `RAILPACK_RUBY_VERSION`, optionally enable precompiled binaries in `mise.toml`.
 - **Asset precompile fails** → confirm the pipeline gem and that `RAILS_ENV=production` assets build; check runtime logs.
-- **No start command derived** → set it via `configure_service` or add a `Procfile` (`web: bundle exec rails server -b 0.0.0.0 -p $PORT`).
+- **No start command derived** → set it in the service settings or add a `Procfile` (`web: bundle exec rails server -b 0.0.0.0 -p $PORT`).
 - **Rails doesn't bind the injected port** → bind `-b 0.0.0.0 -p $PORT` in the start command.
 
 Docs: https://railpack.com/languages/ruby

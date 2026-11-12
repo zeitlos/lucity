@@ -2,8 +2,8 @@
 
 Lucity builds with [Railpack](https://railpack.com). Railpack is zero-config: it analyzes the source,
 picks a provider, resolves tool versions, builds with BuildKit, and produces a runtime image. When the
-defaults are wrong, override them. On Lucity you set these as **service variables** (via `add_service`
-initial variables, or `set_variables`); build-time `RAILPACK_*` variables reach the Railpack build as
+defaults are wrong, override them. On Lucity you set these as **service variables** (in the initial
+variables when adding the service, or set later); build-time `RAILPACK_*` variables reach the Railpack build as
 environment variables, so pin them **before the first build**.
 
 Railpack ignores Dockerfiles entirely — it does not read or generate them. Treat a Dockerfile as
@@ -31,7 +31,7 @@ system libraries Mise cannot provide (e.g. `libpq-dev`, `ffmpeg`).
 3. `Procfile` process type (`web` → `worker` → first other)
 4. Provider default
 
-On Lucity, `configure_service` sets the service start command; prefer it over asking the user to add
+On Lucity, the service settings hold the start command; prefer them over asking the user to add
 `RAILPACK_START_CMD` when you just need to change the start command.
 
 ## Procfile

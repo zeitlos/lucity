@@ -24,7 +24,7 @@ Installs Rust + system deps, installs crates, compiles to a binary. Caches `~/.c
 ## Start command
 
 Runs `./bin/<project-name>` (the compiled binary). No shell command to derive. For a workspace with
-multiple binaries or a non-default name, set the start command via `configure_service`.
+multiple binaries or a non-default name, set the start command in the service settings.
 
 ## Config variables
 

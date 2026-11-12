@@ -20,7 +20,7 @@ build directory.
 ## Start command
 
 The matching executable in `/build`. If your binary's name differs from the root directory name, or you
-have multiple targets, set the start command via `configure_service` to point at the correct binary.
+have multiple targets, set the start command in the service settings to point at the correct binary.
 
 ## Config
 
