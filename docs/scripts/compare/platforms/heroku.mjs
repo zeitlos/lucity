@@ -66,18 +66,25 @@ async function addPostgres(page) {
   await act.pause(2_000);
 }
 
-async function sslMode(page) {
+async function addConfigVar(page, key, value) {
+  const act = driver(page);
+  await act.click(page.getByRole('textbox', { name: 'KEY' }));
+  await act.type(key);
+  await act.click(page.getByRole('textbox', { name: 'VALUE' }));
+  await act.type(value);
+  await act.click(page.getByRole('table', { name: 'Config Vars' }).getByRole('button', { name: 'Add', exact: true }));
+  await inputHolds(page, key, 30_000);
+  await act.pause(1_000);
+}
+
+async function configVars(page) {
   const act = driver(page);
   await tab(page, 'Settings');
   await act.click(page.getByRole('button', { name: 'Reveal Config Vars' }));
   await inputHolds(page, 'DATABASE_URL', 30_000);
-  await act.click(page.getByRole('textbox', { name: 'KEY' }));
-  await act.type('PGSSLMODE');
-  await act.click(page.getByRole('textbox', { name: 'VALUE' }));
-  await act.type('no-verify');
-  await act.click(page.getByRole('table', { name: 'Config Vars' }).getByRole('button', { name: 'Add', exact: true }));
-  await inputHolds(page, 'PGSSLMODE', 30_000);
-  await act.pause(1_500);
+  await addConfigVar(page, 'PGSSLMODE', 'no-verify');
+  await addConfigVar(page, 'NPM_CONFIG_PRODUCTION', 'false');
+  await act.pause(500);
 }
 
 async function deployBranch(page) {
@@ -93,7 +100,7 @@ async function deploy(page) {
   const name = await createApp(page);
   await connectRepository(page);
   await addPostgres(page);
-  await sslMode(page);
+  await configVars(page);
   await deployBranch(page);
   const view = page.getByRole('link', { name: 'View', exact: true }).last();
   const appURL = (await view.getAttribute('href')).replace(/\/$/, '');
@@ -111,7 +118,9 @@ async function open(page, url, text) {
 async function datastore(page, target) {
   await open(page, app(target, '/resources'), 'Heroku Postgres');
   const href = await page.getByRole('link', { name: /Heroku Postgres/ }).first().getAttribute('href');
-  return href.match(/addons\/([0-9a-f-]{36})/)?.[1] ?? href;
+  const id = href.match(/datastores\/([0-9a-f-]{36})/)?.[1];
+  if (!id) throw new Error(`no datastore id in ${href}`);
+  return id;
 }
 
 export default {
@@ -131,7 +140,7 @@ export default {
       title: 'From repository to running app',
       video: true,
       needs: [],
-      hint: `Create an app, connect GitHub (${repo}) on the Deploy tab, add Heroku Postgres, set PGSSLMODE, deploy the branch.`,
+      hint: `Create an app, connect GitHub (${repo}) on the Deploy tab, add Heroku Postgres, set PGSSLMODE and NPM_CONFIG_PRODUCTION=false, deploy the branch.`,
       open: (page) => open(page, `${dashboard}/apps`),
       drive: deploy,
     },
@@ -144,10 +153,10 @@ export default {
       name: 'build-logs',
       title: 'Build logs',
       open: async (page, target) => {
-        await open(page, app(target, '/activity'), /Build succeeded|Deployed/);
-        await page.getByRole('link', { name: 'View build log' }).first().click();
-        await page.getByText(/Build succeeded|Launching/).first().waitFor({ timeout: 20_000 });
-        await page.waitForTimeout(3_000);
+        await open(page, app(target, '/activity'));
+        const log = page.getByRole('link', { name: 'View build log' }).first();
+        await log.waitFor({ timeout: 20_000 });
+        await open(page, `${dashboard}${await log.getAttribute('href')}`, 'Building on the');
       },
     },
     {
@@ -175,7 +184,7 @@ export default {
       title: 'Browsing the database',
       open: async (page, target) => {
         const addon = await datastore(page, target);
-        await open(page, `https://data.heroku.com/datastores/${addon}#dataclips`);
+        await open(page, app(target, `/datastores/${addon}/dataclips`), /dataclip/i);
       },
     },
     {
@@ -183,7 +192,7 @@ export default {
       title: 'Database backups',
       open: async (page, target) => {
         const addon = await datastore(page, target);
-        await open(page, `https://data.heroku.com/datastores/${addon}#durability`, /rollback|backup/i);
+        await open(page, app(target, `/datastores/${addon}/durability`), /rollback|backup/i);
       },
     },
   ],

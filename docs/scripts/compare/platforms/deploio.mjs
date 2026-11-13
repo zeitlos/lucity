@@ -81,9 +81,12 @@ async function connectionString(page, project) {
     const user = (await cell('Database Name / Username').innerText()).trim();
     const host = (await cell('FQDN').innerText()).trim();
     await cell('Credentials').getByRole('button', { name: /Show/ }).click();
-    await side.waitForTimeout(1_500);
-    const password = (await cell('Credentials').innerText()).replace(/Show|Hide/g, '').trim();
-    if (!user || !host || !password) throw new Error('could not read the database access details');
+    const modal = side.getByRole('dialog').last();
+    await modal.waitFor({ timeout: 10_000 });
+    await modal.getByText('Loading secret').waitFor({ state: 'hidden', timeout: 30_000 });
+    const lines = (await modal.innerText()).split('\n').map((line) => line.trim()).filter(Boolean);
+    const password = lines[lines.indexOf(user) + 1];
+    if (!user || !host || !password || /\s/.test(password) || password === 'Close') throw new Error('could not read the database access details');
     return `postgresql://${user}:${encodeURIComponent(password)}@${host}:5432/${user}?sslmode=no-verify`;
   } finally {
     await side.close();
@@ -167,13 +170,22 @@ export default {
       name: 'overview',
       title: 'The project',
       needs: ['project'],
-      open: (page, target) => open(page, projectPage(target), 'vouch-db'),
+      open: async (page, target) => {
+        await open(page, projectPage(target), 'PostgreSQL Databases');
+        await page.getByText('Loading...').first().waitFor({ state: 'hidden', timeout: 30_000 }).catch(() => {});
+        await page.getByRole('button', { name: /New Resource/ }).evaluate((button) => button.scrollIntoView({ block: 'start' }));
+        await page.mouse.wheel(0, -60);
+        await page.waitForTimeout(2_000);
+      },
     },
     {
       name: 'build-logs',
       title: 'Build logs',
       needs: ['project', 'build'],
-      open: (page, target) => open(page, `${base}/deploio/apps/builds/${target.build}?namespace=${target.project}`),
+      open: async (page, target) => {
+        await open(page, `${base}/deploio/apps/builds/${target.build}?namespace=${target.project}&tab=logs`);
+        await page.waitForTimeout(5_000);
+      },
     },
     {
       name: 'runtime-logs',
@@ -188,7 +200,11 @@ export default {
       name: 'variables',
       title: 'Variables',
       needs: ['project', 'app'],
-      open: (page, target) => open(page, appPage(target, 'variables'), 'DATABASE_URL'),
+      open: async (page, target) => {
+        await open(page, appPage(target, 'variables'));
+        await page.getByRole('cell', { name: /^DATABASE_URL/ }).first().waitFor({ timeout: 20_000 });
+        await page.waitForTimeout(1_000);
+      },
     },
     {
       name: 'database',

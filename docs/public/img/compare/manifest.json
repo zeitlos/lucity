@@ -162,5 +162,333 @@
       },
       "deviceScaleFactor": 2
     }
+  },
+  "heroku": {
+    "deploy": {
+      "kind": "video",
+      "title": "From repository to running app",
+      "file": "https://media-zh4abnj42cx3.storage.lucity.app/compare/heroku/deploy-2026-11-12-0496f4167a.mp4",
+      "poster": "https://media-zh4abnj42cx3.storage.lucity.app/compare/heroku/deploy-2026-11-12-e4f38bc60b.webp",
+      "seconds": 131,
+      "trimmed": 0,
+      "capturedAt": "2026-11-12T16:33:52.033Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "overview": {
+      "kind": "still",
+      "title": "The app",
+      "file": "/img/compare/heroku/overview.webp",
+      "capturedAt": "2026-11-12T16:35:27.091Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "runtime-logs": {
+      "kind": "still",
+      "title": "Runtime logs",
+      "file": "/img/compare/heroku/runtime-logs.webp",
+      "capturedAt": "2026-11-12T16:36:06.277Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "variables": {
+      "kind": "still",
+      "title": "Variables",
+      "file": "/img/compare/heroku/variables.webp",
+      "capturedAt": "2026-11-12T16:36:15.388Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "database": {
+      "kind": "still",
+      "title": "Browsing the database",
+      "file": "/img/compare/heroku/database.webp",
+      "capturedAt": "2026-11-12T16:38:59.946Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "database-backups": {
+      "kind": "still",
+      "title": "Database backups",
+      "file": "/img/compare/heroku/database-backups.webp",
+      "capturedAt": "2026-11-12T16:39:14.619Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "build-logs": {
+      "kind": "still",
+      "title": "Build logs",
+      "file": "/img/compare/heroku/build-logs.webp",
+      "capturedAt": "2026-11-12T16:39:40.240Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    }
+  },
+  "deploio": {
+    "deploy": {
+      "kind": "video",
+      "title": "From repository to running app",
+      "file": "https://media-zh4abnj42cx3.storage.lucity.app/compare/deploio/deploy-2026-11-12-16bd942094.mp4",
+      "poster": "https://media-zh4abnj42cx3.storage.lucity.app/compare/deploio/deploy-2026-11-12-9565b39178.webp",
+      "seconds": 227,
+      "trimmed": 0,
+      "capturedAt": "2026-11-12T16:37:09.868Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "build-logs": {
+      "kind": "still",
+      "title": "Build logs",
+      "file": "/img/compare/deploio/build-logs.webp",
+      "capturedAt": "2026-11-12T16:44:03.041Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "runtime-logs": {
+      "kind": "still",
+      "title": "Runtime logs",
+      "file": "/img/compare/deploio/runtime-logs.webp",
+      "capturedAt": "2026-11-12T16:40:50.649Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "database": {
+      "kind": "still",
+      "title": "Browsing the database",
+      "file": "/img/compare/deploio/database.webp",
+      "capturedAt": "2026-11-12T16:41:15.550Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "database-backups": {
+      "kind": "still",
+      "title": "Database backups",
+      "file": "/img/compare/deploio/database-backups.webp",
+      "capturedAt": "2026-11-12T16:41:19.946Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "overview": {
+      "kind": "still",
+      "title": "The project",
+      "file": "/img/compare/deploio/overview.webp",
+      "capturedAt": "2026-11-12T16:43:53.613Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "variables": {
+      "kind": "still",
+      "title": "Variables",
+      "file": "/img/compare/deploio/variables.webp",
+      "capturedAt": "2026-11-12T16:42:37.919Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    }
+  },
+  "vercel": {
+    "deploy": {
+      "kind": "video",
+      "title": "From repository to running app",
+      "file": "https://media-zh4abnj42cx3.storage.lucity.app/compare/vercel/deploy-2026-11-13-8500614077.mp4",
+      "poster": "https://media-zh4abnj42cx3.storage.lucity.app/compare/vercel/deploy-2026-11-13-04ec7fd8e3.webp",
+      "seconds": 182,
+      "trimmed": 0,
+      "capturedAt": "2026-11-13T07:32:33.040Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "overview": {
+      "kind": "still",
+      "title": "The project",
+      "file": "/img/compare/vercel/overview.webp",
+      "capturedAt": "2026-11-13T07:35:37.555Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "build-logs": {
+      "kind": "still",
+      "title": "Build logs",
+      "file": "/img/compare/vercel/build-logs.webp",
+      "capturedAt": "2026-11-13T07:35:46.444Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "runtime-logs": {
+      "kind": "still",
+      "title": "Runtime logs",
+      "file": "/img/compare/vercel/runtime-logs.webp",
+      "capturedAt": "2026-11-13T07:35:59.568Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "variables": {
+      "kind": "still",
+      "title": "Variables",
+      "file": "/img/compare/vercel/variables.webp",
+      "capturedAt": "2026-11-13T07:36:06.615Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "database": {
+      "kind": "still",
+      "title": "Browsing the database",
+      "file": "/img/compare/vercel/database.webp",
+      "capturedAt": "2026-11-13T07:36:46.683Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "database-backups": {
+      "kind": "still",
+      "title": "Database backups",
+      "file": "/img/compare/vercel/database-backups.webp",
+      "capturedAt": "2026-11-13T07:36:53.246Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    }
+  },
+  "lucity": {
+    "deploy": {
+      "kind": "video",
+      "title": "From repository to running app",
+      "file": "https://media-zh4abnj42cx3.storage.lucity.app/compare/lucity/deploy-2026-11-13-718e67636a.mp4",
+      "poster": "https://media-zh4abnj42cx3.storage.lucity.app/compare/lucity/deploy-2026-11-13-557d41fe3a.webp",
+      "seconds": 105,
+      "trimmed": 0,
+      "capturedAt": "2026-11-13T08:27:48.141Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "overview": {
+      "kind": "still",
+      "title": "The project",
+      "file": "/img/compare/lucity/overview.webp",
+      "capturedAt": "2026-11-13T08:29:16.287Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "build-logs": {
+      "kind": "still",
+      "title": "Build logs",
+      "file": "/img/compare/lucity/build-logs.webp",
+      "capturedAt": "2026-11-13T08:29:27.233Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "runtime-logs": {
+      "kind": "still",
+      "title": "Runtime logs",
+      "file": "/img/compare/lucity/runtime-logs.webp",
+      "capturedAt": "2026-11-13T08:29:37.555Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "variables": {
+      "kind": "still",
+      "title": "Variables",
+      "file": "/img/compare/lucity/variables.webp",
+      "capturedAt": "2026-11-13T08:29:44.308Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "database": {
+      "kind": "still",
+      "title": "Browsing the database",
+      "file": "/img/compare/lucity/database.webp",
+      "capturedAt": "2026-11-13T08:30:26.599Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    },
+    "database-backups": {
+      "kind": "still",
+      "title": "Database backups",
+      "file": "/img/compare/lucity/database-backups.webp",
+      "capturedAt": "2026-11-13T08:29:58.831Z",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "deviceScaleFactor": 2
+    }
   }
 }
