@@ -297,10 +297,21 @@ func actionHints(release map[string]any, port int) []string {
 			if status == "DEGRADED" || status == "FAILED" {
 				hints = append(hints, rolloutHint(reason, serviceID, port)...)
 			}
+			if status == "PROGRESSING" && reason == "NOT_READY" {
+				hints = append(hints, notReadyYetHint(serviceID))
+			}
 		}
 	}
 
 	return hints
+}
+
+func notReadyYetHint(serviceID string) string {
+	hint := "rollout still PROGRESSING but not ready yet, rollout.message says what the readiness check sees. A slow-booting app looks the same, so read the runtime logs first"
+	if serviceID != "" {
+		hint += fmt.Sprintf(" (get_logs with kind=\"runtime\" service=%q)", serviceID)
+	}
+	return hint + ": if the app listens on a port other than the one in rollout.message, make it listen on $PORT or set its port with configure_service; if it is still starting, poll get_deploy_status again"
 }
 
 func deploymentServiceID(deployment map[string]any) string {
@@ -333,7 +344,7 @@ func rolloutHint(reason, serviceID string, port int) []string {
 	case "DEADLINE_EXCEEDED":
 		return []string{"rollout DEGRADED: the rollout timed out becoming ready — check get_logs (kind=runtime) and readiness of the service"}
 	case "NOT_READY":
-		hint := fmt.Sprintf("rollout FAILED: the container runs but never became ready. The platform checks port %d and passes it to the app as PORT; an app listening on another port never gets ready, so make it listen on $PORT or set its port with configure_service", port)
+		hint := fmt.Sprintf("rollout FAILED: the container runs but never became ready, rollout.message says what the readiness check saw. The platform checks port %d and passes it to the app as PORT; an app listening on another port never gets ready, so make it listen on $PORT or set its port with configure_service", port)
 		if serviceID != "" {
 			hint += fmt.Sprintf(". get_logs with kind=\"runtime\" service=%q shows what it listens on", serviceID)
 		}

@@ -297,6 +297,9 @@ func rolloutProgress(release releaseView) string {
 	rollout := release.Deployment.Rollout
 	switch rollout.Status {
 	case "PROGRESSING":
+		if rollout.Reason == "NOT_READY" && rollout.Message != "" {
+			return "rollout progressing, not ready yet: " + rollout.Message
+		}
 		if rollout.Restarts > 0 {
 			return fmt.Sprintf("rollout progressing (restarts: %d)", rollout.Restarts)
 		}
@@ -317,6 +320,9 @@ func failureReason(release releaseView) string {
 	if release.Deployment != nil && release.Deployment.Rollout != nil {
 		rollout := release.Deployment.Rollout
 		if rollout.Status == "DEGRADED" || rollout.Status == "FAILED" {
+			if rollout.Message != "" {
+				return "rollout " + strings.ToLower(rollout.Status) + ": " + rollout.Message + " — " + rolloutReasonHint(rollout.Reason)
+			}
 			return "rollout " + strings.ToLower(rollout.Status) + ": " + rolloutReasonHint(rollout.Reason)
 		}
 	}

@@ -16275,7 +16275,7 @@
         "fields": [
           {
             "name": "message",
-            "description": null,
+            "description": "What the platform observed, in words, such as the port nothing listens on.",
             "args": [],
             "type": {
               "kind": "SCALAR",
@@ -16287,7 +16287,7 @@
           },
           {
             "name": "reason",
-            "description": null,
+            "description": "Why the rollout is not ready. Also set while it is still progressing, as an early sign of what keeps it from becoming ready.",
             "args": [],
             "type": {
               "kind": "ENUM",

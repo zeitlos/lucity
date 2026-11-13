@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"strconv"
@@ -15,6 +16,7 @@ import (
 	core "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 func (c *Client) Deployments(ctx context.Context, serviceID platform.ServiceID) ([]platform.Deployment, error) {
@@ -36,10 +38,11 @@ func (c *Client) Deployments(ctx context.Context, serviceID platform.ServiceID) 
 		return nil, err
 	}
 
+	failures := c.probeFailures(ctx, serviceID.Namespace(), pods)
 	result := make([]platform.Deployment, 0, len(replicaSets))
 
 	for _, replicaSet := range replicaSets {
-		result = append(result, toDeployment(replicaSet, *deployment, pods, serviceID))
+		result = append(result, toDeployment(replicaSet, *deployment, pods, failures, serviceID))
 	}
 
 	return result, nil
@@ -78,7 +81,9 @@ func (c *Client) Deployment(ctx context.Context, id platform.DeploymentID) (*pla
 		return nil, err
 	}
 
-	return new(toDeployment(replicaSets.Items[0], *deployment, pods, id.ServiceID())), nil
+	failures := c.probeFailures(ctx, namespace, pods)
+
+	return new(toDeployment(replicaSets.Items[0], *deployment, pods, failures, id.ServiceID())), nil
 }
 
 func (c *Client) replicaSetsFor(ctx context.Context, serviceID platform.ServiceID) ([]apps.ReplicaSet, error) {
@@ -113,10 +118,10 @@ func (c *Client) podsFor(ctx context.Context, serviceID platform.ServiceID) ([]c
 	return pods.Items, nil
 }
 
-func toDeployment(replicaSet apps.ReplicaSet, deployment apps.Deployment, pods []core.Pod, serviceID platform.ServiceID) platform.Deployment {
+func toDeployment(replicaSet apps.ReplicaSet, deployment apps.Deployment, pods []core.Pod, failures map[types.UID]string, serviceID platform.ServiceID) platform.Deployment {
 	containers := replicaSet.Spec.Template.Spec.Containers
 	annotations := replicaSet.Spec.Template.Annotations
-	rollout := rolloutFor(replicaSet, deployment, pods)
+	rollout := rolloutFor(replicaSet, deployment, pods, failures)
 
 	result := platform.Deployment{
 		ID:      deploymentID(replicaSet, serviceID),
@@ -195,7 +200,7 @@ func deploymentStatus(replicaSet apps.ReplicaSet, deployment apps.Deployment, ro
 	return platform.DeploymentDeploying
 }
 
-func rolloutFor(replicaSet apps.ReplicaSet, deployment apps.Deployment, pods []core.Pod) *platform.Rollout {
+func rolloutFor(replicaSet apps.ReplicaSet, deployment apps.Deployment, pods []core.Pod, failures map[types.UID]string) *platform.Rollout {
 	containers := replicaSet.Spec.Template.Spec.Containers
 
 	if len(containers) == 0 {
@@ -255,12 +260,17 @@ func rolloutFor(replicaSet apps.ReplicaSet, deployment apps.Deployment, pods []c
 
 			if anyContainerRunning(revisionPods) {
 				rollout.Reason = platform.RolloutReasonNotReady
-				rollout.Message = "container is running but never became ready"
+				rollout.Message = cmp.Or(probeDiagnosis(revisionPods, failures), neverReady)
 			}
 		}
 
 	default:
 		rollout.Status = platform.RolloutProgressing
+
+		if message := probeDiagnosis(revisionPods, failures); message != "" {
+			rollout.Reason = platform.RolloutReasonNotReady
+			rollout.Message = message
+		}
 	}
 
 	return &rollout

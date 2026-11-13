@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 const portName = "http"
@@ -104,6 +105,7 @@ func (c *Client) Services(ctx context.Context, environmentID platform.Environmen
 		hpasByService[hpa.Labels[serviceLabel]] = hpa
 	}
 
+	failures := c.probeFailures(ctx, namespace, pods.Items)
 	services := make([]platform.Service, 0, len(deployments.Items))
 
 	for _, deployment := range deployments.Items {
@@ -114,6 +116,7 @@ func (c *Client) Services(ctx context.Context, environmentID platform.Environmen
 			podsByService[name],
 			routesByService[name],
 			hpasByService[name],
+			failures,
 			environmentID,
 		)
 
@@ -271,7 +274,9 @@ func (c *Client) Service(ctx context.Context, id platform.ServiceID) (*platform.
 		hpa = hpas.Items[0]
 	}
 
-	return new(toService(*deployment, replicaSets, pods, routes.Items, hpa, id.EnvironmentID())), nil
+	failures := c.probeFailures(ctx, id.Namespace(), pods)
+
+	return new(toService(*deployment, replicaSets, pods, routes.Items, hpa, failures, id.EnvironmentID())), nil
 }
 
 func (c *Client) BuildVariables(ctx context.Context, id platform.ServiceID) (map[string]string, error) {
@@ -330,7 +335,7 @@ func (c *Client) secretFor(ctx context.Context, serviceID platform.ServiceID) (*
 	return &secrets.Items[0], nil
 }
 
-func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, pods []core.Pod, routes []unstructured.Unstructured, hpa autoscaling.HorizontalPodAutoscaler, environmentID platform.EnvironmentID) platform.Service {
+func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, pods []core.Pod, routes []unstructured.Unstructured, hpa autoscaling.HorizontalPodAutoscaler, failures map[types.UID]string, environmentID platform.EnvironmentID) platform.Service {
 	annotations := deployment.Annotations
 	containers := deployment.Spec.Template.Spec.Containers
 
@@ -342,7 +347,7 @@ func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, pods [
 	active := -1
 
 	for _, replicaSet := range replicaSets {
-		candidate := toDeployment(replicaSet, deployment, pods, id)
+		candidate := toDeployment(replicaSet, deployment, pods, failures, id)
 
 		if !candidate.Image.Built() {
 			continue

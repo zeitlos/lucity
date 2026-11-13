@@ -960,11 +960,13 @@ type RestoreDatabaseResult struct {
 }
 
 type Rollout struct {
-	Status    RolloutStatus  `json:"status"`
-	Reason    *RolloutReason `json:"reason,omitempty"`
-	Message   *string        `json:"message,omitempty"`
-	Restarts  int            `json:"restarts"`
-	StartedAt time.Time      `json:"startedAt"`
+	Status RolloutStatus `json:"status"`
+	// Why the rollout is not ready. Also set while it is still progressing, as an early sign of what keeps it from becoming ready.
+	Reason *RolloutReason `json:"reason,omitempty"`
+	// What the platform observed, in words, such as the port nothing listens on.
+	Message   *string   `json:"message,omitempty"`
+	Restarts  int       `json:"restarts"`
+	StartedAt time.Time `json:"startedAt"`
 }
 
 type Scan struct {

@@ -78,7 +78,9 @@ enum DeploymentStatus {
 
 type Rollout {
   status: RolloutStatus!
+  """Why the rollout is not ready. Also set while it is still progressing, as an early sign of what keeps it from becoming ready."""
   reason: RolloutReason
+  """What the platform observed, in words, such as the port nothing listens on."""
   message: String
   restarts: Int!
   startedAt: Time!
