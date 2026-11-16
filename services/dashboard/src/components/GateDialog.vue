@@ -12,7 +12,6 @@ import DialogIcon from '@/components/DialogIcon.vue';
 import { failureToast } from '@/components/ui/sonner';
 import { useAuth } from '@/composables/useAuth';
 import { rememberPendingCreate, useGate } from '@/composables/useGate';
-import { CapabilitiesDocument } from '@/composables/useCapabilities';
 import { apolloClient } from '@/lib/apollo';
 import { formatCpuQuantity, formatMoney, formatStorage } from '@/lib/format';
 import { planTitle } from '@/lib/capabilities';
@@ -141,6 +140,12 @@ const admins = computed(() => (membersResult.value?.workspace.members ?? []).fil
 const { mutate: selectPlanMutate, loading: upgrading } = useMutation(GateSelectPlanDocument);
 const { mutate: addCardMutate, loading: addingCard } = useMutation(AddPaymentMethodDocument);
 
+const upgradingPlan = computed(() => {
+  const current = offers.value.find(offer => offer.plan === currentPlan.value);
+  const selected = offers.value.find(offer => offer.plan === selectedPlan.value);
+  return !current || !selected || selected.priceCents > current.priceCents;
+});
+
 function price(offer: { priceCents: number; currency: string }) {
   return formatMoney(offer.priceCents / 100, offer.currency);
 }
@@ -166,7 +171,7 @@ async function upgrade() {
       return;
     }
 
-    await apolloClient.refetchQueries({ include: [CapabilitiesDocument] });
+    await apolloClient.refetchQueries({ include: 'active' });
     close();
   } catch (e: unknown) {
     failureToast('Failed to change the plan', e);
@@ -263,7 +268,7 @@ function choosePlan() {
         </p>
         <div class="flex shrink-0 gap-2">
           <Button variant="outline" @click="close">Cancel</Button>
-          <Button :pending="upgrading" @click="upgrade">Upgrade to {{ planTitle(selectedPlan) }}</Button>
+          <Button :pending="upgrading" @click="upgrade">{{ upgradingPlan ? 'Upgrade' : 'Switch' }} to {{ planTitle(selectedPlan) }}</Button>
         </div>
       </DialogFooter>
     </DialogContent>

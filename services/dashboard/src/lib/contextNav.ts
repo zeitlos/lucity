@@ -1,9 +1,10 @@
 import { environmentRoute, projectRoute } from '@/lib/routes';
-import { Braces, Cable, CreditCard, KeyRound, Layers, LayoutGrid, SlidersHorizontal, Users, Workflow } from '@lucide/vue';
+import { Braces, Cable, ChartColumn, CreditCard, KeyRound, Layers, LayoutGrid, SlidersHorizontal, Users, Workflow } from '@lucide/vue';
 
 export function workspaceNavItems(isAdmin: boolean, agents: boolean) {
   const items = [
     { key: 'projects', label: 'Projects', icon: LayoutGrid, to: { name: 'projects' } },
+    { key: 'usage', label: 'Usage', icon: ChartColumn, to: { name: 'usage' } },
     { key: 'members', label: 'Members', icon: Users, to: { name: 'workspace', params: { drawer: 'members' } } },
     { key: 'connections', label: 'Connections', icon: Cable, to: { name: 'workspace', params: { drawer: 'connections' } } },
     { key: 'api-tokens', label: 'API tokens', icon: KeyRound, to: { name: 'workspace', params: { drawer: 'api-tokens' } } },

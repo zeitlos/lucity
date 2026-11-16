@@ -2,10 +2,9 @@
 import { subscriptionStatus } from '@/lib/status';
 import { formatDate, formatMoney } from '@/lib/format';
 import QueryError from '@/components/QueryError.vue';
-import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { ref, computed } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
-import { CreditCard, ExternalLink } from '@lucide/vue';
+import { ArrowRight, CreditCard, ExternalLink } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { Plan, SubscriptionStatus } from '@/gql/graphql';
 
@@ -48,6 +47,16 @@ const SelectPlanDocument = graphql(`
   }
 `);
 
+const BillingPlansDocument = graphql(`
+  query BillingPlans {
+    plans {
+      plan
+      priceCents
+      currency
+    }
+  }
+`);
+
 const BillingPortalUrlDocument = graphql(`
   mutation BillingPortalUrl {
     billingPortalUrl {
@@ -81,17 +90,17 @@ const subscription = computed(() => subResult.value?.subscription);
 const { result: usageResult, loading: usageLoading, error: usageError, refetch: refetchUsage } = useQuery(UsageSummaryDocument);
 const usage = computed(() => usageResult.value?.usageSummary);
 
-const subscriptionSkeleton = [
-  { label: 'Status', width: 'w-12' },
-  { label: 'Current plan', width: 'w-10' },
-  { label: 'Current period ends', width: 'w-24' },
-  { label: 'Credit balance', width: 'w-14' },
-];
-const usageSkeleton = [
-  { label: 'Resources', width: 'w-14', total: false },
-  { label: 'Credits', width: 'w-14', total: false },
-  { label: 'Estimated total', width: 'w-16', total: true },
-];
+const { result: plansResult } = useQuery(BillingPlansDocument);
+
+function planName(plan: Plan | null | undefined): string {
+  return plan === Plan.Pro ? 'Pro' : 'Hobby';
+}
+
+function planPrice(plan: Plan | null | undefined): string {
+  const offer = plansResult.value?.plans.find(candidate => candidate.plan === plan);
+  return offer ? `${formatMoney(offer.priceCents / 100, offer.currency)} per month` : '';
+}
+
 
 const billingNotConfigured = computed(() => !!subError.value?.message.includes('not configured'));
 const billingAvailable = computed(() => !subError.value);
@@ -100,7 +109,6 @@ const { mutate: selectPlanMutate, loading: selectingPlan } = useMutation(SelectP
   refetchQueries: () => [{ query: SubscriptionDocument }, { query: UsageSummaryDocument }],
 });
 const { mutate: portalMutate, loading: openingPortal } = useMutation(BillingPortalUrlDocument);
-const confirmPlan = ref<Plan | null>(null);
 const trialSelectedPlan = ref<Plan>(Plan.Hobby);
 const subscriptionEnded = computed(() => subscription.value?.status === SubscriptionStatus.Canceled);
 const hasPlan = computed(() => billingAvailable.value && !!subscription.value?.plan && !subscriptionEnded.value);
@@ -125,13 +133,9 @@ async function selectPlan(plan: Plan): Promise<boolean> {
   }
 }
 
-async function handleChangePlan() {
-  if (!confirmPlan.value) return;
-  try {
-    await selectPlan(confirmPlan.value);
-  } finally {
-    confirmPlan.value = null;
-  }
+function changePlan() {
+  const plan = subscription.value?.plan === Plan.Pro ? Plan.Hobby : Plan.Pro;
+  openGate({ kind: 'plan', plan, title: 'Change plan' });
 }
 
 async function handleOpenPortal() {
@@ -152,28 +156,17 @@ async function handleOpenPortal() {
     title="Billing"
     @close="emit('close')"
   >
-    <div v-if="subLoading" class="space-y-6">
-      <section class="space-y-2.5">
-        <h3 class="text-sm font-medium text-muted-foreground">Subscription</h3>
-        <div class="space-y-2.5 rounded-lg border p-3">
-          <div v-for="row in subscriptionSkeleton" :key="row.label" class="flex h-5 items-center justify-between text-sm">
-            <span class="text-muted-foreground">{{ row.label }}</span>
-            <Skeleton :class="['h-3', row.width]" />
-          </div>
-        </div>
-      </section>
-      <section class="space-y-2.5">
-        <h3 class="text-sm font-medium text-muted-foreground">This period</h3>
-        <div class="space-y-2.5 rounded-lg border p-3">
-          <template v-for="row in usageSkeleton" :key="row.label">
-            <div v-if="row.total" class="h-px bg-border/60" />
-            <div class="flex h-5 items-center justify-between text-sm" :class="{ 'font-semibold': row.total }">
-              <span :class="{ 'text-muted-foreground': !row.total }">{{ row.label }}</span>
-              <Skeleton :class="['h-3', row.width]" />
-            </div>
-          </template>
-        </div>
-      </section>
+    <div v-if="subLoading" class="space-y-5">
+      <div class="flex flex-col gap-0.5">
+        <span class="text-sm text-muted-foreground">Plan</span>
+        <Skeleton class="my-1.5 h-5 w-32" />
+        <Skeleton class="my-0.5 h-3 w-40" />
+      </div>
+      <div class="-mx-4 border-t" />
+      <div class="flex flex-col gap-0.5">
+        <span class="text-sm text-muted-foreground">Total so far</span>
+        <Skeleton class="my-1.5 h-5 w-20" />
+      </div>
     </div>
 
     <QueryError
@@ -193,7 +186,7 @@ async function handleOpenPortal() {
       </div>
     </div>
 
-    <div v-else class="space-y-6">
+    <div v-else class="space-y-5">
       <section v-if="cardRequired && isAdmin" class="space-y-2.5">
         <h3 class="text-sm font-medium text-muted-foreground">Payment method</h3>
         <div class="flex items-center gap-3 rounded-lg border p-3">
@@ -228,27 +221,22 @@ async function handleOpenPortal() {
         </Button>
       </section>
 
-      <section v-if="hasPlan" class="space-y-2.5">
-        <h3 class="text-sm font-medium text-muted-foreground">Subscription</h3>
-        <div class="space-y-2.5 rounded-lg border p-3">
-          <div class="flex items-center justify-between text-sm">
-            <span class="text-muted-foreground">Status</span>
-            <Status :tone="subscriptionStatus(subscription!.status).tone" variant="text">
-              {{ subscriptionStatus(subscription!.status).label }}
-            </Status>
+      <section v-if="hasPlan" aria-label="Plan">
+        <div class="flex items-start justify-between gap-4">
+          <div class="flex flex-col gap-0.5">
+            <span class="text-sm text-muted-foreground">Plan</span>
+            <span class="text-xl font-semibold">
+              {{ planName(subscription!.plan) }}
+              <span class="text-sm font-normal text-muted-foreground">{{ planPrice(subscription!.plan) }}</span>
+            </span>
+            <span class="text-xs text-muted-foreground">
+              <Status :tone="subscriptionStatus(subscription!.status).tone" variant="text">{{ subscriptionStatus(subscription!.status).label }}</Status>
+              · {{ isTrialing ? 'ends' : 'renews' }} on {{ formatDate(subscription!.currentPeriodEnd) }}
+            </span>
           </div>
-          <div class="flex items-center justify-between text-sm">
-            <span class="text-muted-foreground">Current plan</span>
-            <span class="font-medium">{{ subscription!.plan === Plan.Pro ? 'Pro' : 'Hobby' }}</span>
-          </div>
-          <div class="flex items-center justify-between text-sm">
-            <span class="text-muted-foreground">Current period ends</span>
-            <span>{{ formatDate(subscription!.currentPeriodEnd) }}</span>
-          </div>
-          <div class="flex items-center justify-between text-sm">
-            <span class="text-muted-foreground">Credit balance</span>
-            <span class="tabular-nums">{{ formatCents(subscription!.creditAmountCents) }}</span>
-          </div>
+          <Button v-if="isAdmin" variant="outline" class="shrink-0" @click="changePlan">
+            Change plan
+          </Button>
         </div>
       </section>
 
@@ -272,49 +260,28 @@ async function handleOpenPortal() {
         </p>
       </div>
 
-      <QueryError
-        v-if="usageError && !usage"
-        title="Couldn't load this period's usage"
-        :error="usageError"
-        @retry="refetchUsage()"
-      />
-      <section v-else-if="usage || usageLoading" class="space-y-2.5">
-        <h3 class="text-sm font-medium text-muted-foreground">This period</h3>
-        <div class="space-y-2.5 rounded-lg border p-3">
-          <template v-if="!usage">
-            <template v-for="row in usageSkeleton" :key="row.label">
-              <div v-if="row.total" class="h-px bg-border/60" />
-              <div class="flex h-5 items-center justify-between text-sm" :class="{ 'font-semibold': row.total }">
-                <span :class="{ 'text-muted-foreground': !row.total }">{{ row.label }}</span>
-                <Skeleton :class="['h-3', row.width]" />
-              </div>
-            </template>
-          </template>
-          <template v-else>
-            <div class="flex items-center justify-between text-sm">
-              <span class="text-muted-foreground">Resources</span>
-              <span class="tabular-nums">{{ formatCents(usage.resourceCostCents) }}</span>
-            </div>
-            <div class="flex items-center justify-between text-sm">
-              <span class="text-muted-foreground">Credits</span>
-              <span class="text-status-ok tabular-nums">{{ formatCents(-usage.creditsCents) }}</span>
-            </div>
-            <div class="h-px bg-border/60" />
-            <div class="flex items-center justify-between text-sm font-semibold">
-              <span>Estimated total</span>
-              <span class="tabular-nums">{{ formatCents(usage.estimatedTotalCents) }}</span>
-            </div>
-          </template>
-        </div>
-      </section>
+      <template v-if="hasPlan">
+        <div class="-mx-4 border-t" />
 
-      <section v-if="isAdmin && hasPlan" class="space-y-2.5">
-        <h3 class="text-sm font-medium text-muted-foreground">Plan</h3>
-        <PlanPicker
-          :model-value="subscription!.plan ?? Plan.Hobby"
-          @update:model-value="confirmPlan = $event"
+        <QueryError
+          v-if="usageError && !usage"
+          title="Couldn't load this period's total"
+          :error="usageError"
+          @retry="refetchUsage()"
         />
-      </section>
+        <section v-else aria-label="This period" class="flex flex-col gap-0.5">
+          <span class="text-sm text-muted-foreground">Total so far</span>
+          <span v-if="usage" class="text-xl font-semibold tabular-nums">{{ formatCents(usage.estimatedTotalCents) }}</span>
+          <Skeleton v-else-if="usageLoading" class="my-1.5 h-5 w-20" />
+          <RouterLink
+            :to="{ name: 'usage' }"
+            class="mt-1.5 inline-flex items-center gap-1.5 self-start text-sm font-medium text-foreground hover:text-muted-foreground"
+          >
+            See usage and invoice preview
+            <ArrowRight :size="14" />
+          </RouterLink>
+        </section>
+      </template>
     </div>
 
     <template v-if="isAdmin && billingAvailable && !subLoading" #footer>
@@ -329,16 +296,5 @@ async function handleOpenPortal() {
       </div>
     </template>
 
-    <ConfirmDialog
-      :open="!!confirmPlan"
-      :title="`Switch to ${confirmPlan === Plan.Pro ? 'Pro' : 'Hobby'}?`"
-      :description="`Your plan changes to ${confirmPlan === Plan.Pro ? 'Pro (€25/mo)' : 'Hobby (€5/mo)'} right away, with prorated billing.`"
-      confirm-label="Switch plan"
-      :icon="CreditCard"
-      pending-label="Switching…"
-      :pending="selectingPlan"
-      @update:open="(value) => { if (!value) confirmPlan = null }"
-      @confirm="handleChangePlan"
-    />
   </ContextDrawer>
 </template>
