@@ -27,8 +27,6 @@ func Parse(data []byte) (*Env, error) {
 		return nil, fmt.Errorf("parse values: %w", err)
 	}
 
-	migrateLegacyPublicHost(env)
-
 	return env, nil
 }
 
