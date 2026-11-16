@@ -585,6 +585,7 @@ type ComplexityRoot struct {
 		Issuer        func(childComplexity int) int
 		Lines         func(childComplexity int) int
 		Number        func(childComplexity int) int
+		PDFURL        func(childComplexity int) int
 		PaidAt        func(childComplexity int) int
 		Status        func(childComplexity int) int
 		SubtotalCents func(childComplexity int) int
@@ -3390,6 +3391,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Invoice.Number(childComplexity), true
+	case "Invoice.pdfUrl":
+		if e.ComplexityRoot.Invoice.PDFURL == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Invoice.PDFURL(childComplexity), true
 	case "Invoice.paidAt":
 		if e.ComplexityRoot.Invoice.PaidAt == nil {
 			break
@@ -7481,6 +7488,8 @@ func (ec *executionContext) childFields_Invoice(ctx context.Context, field graph
 		return ec.fieldContext_Invoice_issuedAt(ctx, field)
 	case "paidAt":
 		return ec.fieldContext_Invoice_paidAt(ctx, field)
+	case "pdfUrl":
+		return ec.fieldContext_Invoice_pdfUrl(ctx, field)
 	case "issuer":
 		return ec.fieldContext_Invoice_issuer(ctx, field)
 	case "billedTo":
@@ -21411,6 +21420,29 @@ func (ec *executionContext) _Invoice_paidAt(ctx context.Context, field graphql.C
 }
 func (ec *executionContext) fieldContext_Invoice_paidAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Invoice", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _Invoice_pdfUrl(ctx context.Context, field graphql.CollectedField, obj *model.Invoice) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Invoice_pdfUrl(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.PDFURL, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Invoice_pdfUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Invoice", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _Invoice_issuer(ctx context.Context, field graphql.CollectedField, obj *model.Invoice) (ret graphql.Marshaler) {
@@ -43915,6 +43947,11 @@ func (ec *executionContext) _Invoice(ctx context.Context, sel ast.SelectionSet, 
 			}
 		case "paidAt":
 			out.Values[i] = ec._Invoice_paidAt(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "pdfUrl":
+			out.Values[i] = ec._Invoice_pdfUrl(ctx, field, obj)
 			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}

@@ -53,6 +53,7 @@ type InvoiceView struct {
 	Status        billing.InvoiceStatus
 	IssuedAt      time.Time
 	PaidAt        *time.Time
+	PDFURL        string
 	Issuer        billing.Party
 	BilledTo      billing.Party
 	Lines         []InvoiceLineView
@@ -62,7 +63,8 @@ type InvoiceView struct {
 }
 
 // InvoiceLineView is an invoice line in the unit people read: hours rather
-// than the minutes CPU and memory are metered in.
+// than the minutes CPU and memory are metered in, months of 720 hours rather
+// than the hours volumes and object storage are priced in.
 type InvoiceLineView struct {
 	Kind            string
 	Plan            *pkgbilling.Plan
@@ -81,8 +83,8 @@ type lineUnit struct {
 var lineUnits = map[billing.Meter]lineUnit{
 	billing.MeterCPU:     {kind: "CPU", unit: "vCPU-hours", factor: 60},
 	billing.MeterMemory:  {kind: "MEMORY", unit: "GB-hours", factor: 60},
-	billing.MeterDisk:    {kind: "VOLUMES", unit: "GB-hours", factor: 1},
-	billing.MeterStorage: {kind: "OBJECT_STORAGE", unit: "GB-hours", factor: 1},
+	billing.MeterDisk:    {kind: "VOLUMES", unit: "GB-months", factor: 720},
+	billing.MeterStorage: {kind: "OBJECT_STORAGE", unit: "GB-months", factor: 720},
 	billing.MeterEgress:  {kind: "EGRESS", unit: "GB", factor: 1},
 }
 
@@ -368,6 +370,7 @@ func invoiceView(invoice *billing.Invoice) *InvoiceView {
 		Status:        invoice.Status,
 		IssuedAt:      invoice.IssuedAt,
 		PaidAt:        invoice.PaidAt,
+		PDFURL:        invoice.PDFURL,
 		Issuer:        invoice.Issuer,
 		BilledTo:      invoice.BilledTo,
 		SubtotalCents: int(invoice.SubtotalCents),

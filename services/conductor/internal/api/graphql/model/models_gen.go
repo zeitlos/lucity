@@ -800,12 +800,13 @@ type InviteMemberInput struct {
 	Role  WorkspaceRole `json:"role"`
 }
 
-// The invoice that closes a billing period. A preview has no number yet, and its `issuedAt` is when it will be issued.
+// The invoice that closes a billing period. A preview has no number and no `pdfUrl` yet, and its `issuedAt` is when it will be issued.
 type Invoice struct {
 	Number        *string       `json:"number,omitempty"`
 	Status        InvoiceStatus `json:"status"`
 	IssuedAt      time.Time     `json:"issuedAt"`
 	PaidAt        *time.Time    `json:"paidAt,omitempty"`
+	PDFURL        *string       `json:"pdfUrl,omitempty"`
 	Issuer        *InvoiceParty `json:"issuer"`
 	BilledTo      *InvoiceParty `json:"billedTo"`
 	Lines         []InvoiceLine `json:"lines"`
@@ -814,7 +815,7 @@ type Invoice struct {
 	TotalCents    int           `json:"totalCents"`
 }
 
-// One line of an invoice. `plan` is set on plan lines. `quantity` is in `unit`, such as `vCPU-hours`, `GB-hours`, `GB` or `month`.
+// One line of an invoice. `plan` is set on plan lines. `quantity` is in `unit`, such as `vCPU-hours`, `GB-hours`, `GB-months`, `GB` or `month`.
 type InvoiceLine struct {
 	Kind            InvoiceLineKind `json:"kind"`
 	Plan            *Plan           `json:"plan,omitempty"`

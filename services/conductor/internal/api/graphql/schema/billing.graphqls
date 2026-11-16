@@ -116,7 +116,7 @@ enum InvoiceLineKind {
   EGRESS
 }
 
-"""One line of an invoice. `plan` is set on plan lines. `quantity` is in `unit`, such as `vCPU-hours`, `GB-hours`, `GB` or `month`."""
+"""One line of an invoice. `plan` is set on plan lines. `quantity` is in `unit`, such as `vCPU-hours`, `GB-hours`, `GB-months`, `GB` or `month`."""
 type InvoiceLine {
   kind: InvoiceLineKind!
   plan: Plan
@@ -131,12 +131,13 @@ type InvoiceParty {
   address: [String!]!
 }
 
-"""The invoice that closes a billing period. A preview has no number yet, and its `issuedAt` is when it will be issued."""
+"""The invoice that closes a billing period. A preview has no number and no `pdfUrl` yet, and its `issuedAt` is when it will be issued."""
 type Invoice {
   number: String
   status: InvoiceStatus!
   issuedAt: Time!
   paidAt: Time
+  pdfUrl: String
   issuer: InvoiceParty!
   billedTo: InvoiceParty!
   lines: [InvoiceLine!]!

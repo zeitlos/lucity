@@ -67,6 +67,7 @@ type Invoice struct {
 	Status        InvoiceStatus
 	IssuedAt      time.Time
 	PaidAt        *time.Time
+	PDFURL        string
 	Issuer        Party
 	BilledTo      Party
 	Lines         []InvoiceLine
@@ -182,6 +183,7 @@ func (c *Client) Invoice(ctx context.Context, customerID string, period Period) 
 		SubtotalCents: invoice.Subtotal,
 		TotalCents:    invoice.Total,
 		BilledTo:      Party{Name: invoice.CustomerName, Address: addressLines(invoice.CustomerAddress)},
+		PDFURL:        invoice.InvoicePDF,
 	}
 
 	if transitions := invoice.StatusTransitions; transitions != nil {

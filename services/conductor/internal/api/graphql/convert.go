@@ -1699,6 +1699,10 @@ func convertInvoice(invoice *conductor.InvoiceView) *model.Invoice {
 		result.Number = new(invoice.Number)
 	}
 
+	if invoice.PDFURL != "" {
+		result.PDFURL = new(invoice.PDFURL)
+	}
+
 	for _, line := range invoice.Lines {
 		converted := model.InvoiceLine{
 			Kind:            model.InvoiceLineKind(line.Kind),
