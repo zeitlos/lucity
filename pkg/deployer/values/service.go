@@ -19,7 +19,7 @@ type Service struct {
 	Autoscaling    *Autoscaling         `yaml:"autoscaling,omitempty"`
 	Resources      Resources            `yaml:"resources,omitempty"`
 	Domains        []Domain             `yaml:"domains,omitempty"`
-	Command        StartCommand         `yaml:"command,omitempty"`
+	Command        []string             `yaml:"command,omitempty"`
 	HealthCheck    *HealthCheck         `yaml:"healthCheck,omitempty"`
 	RunAsUser      *int64               `yaml:"runAsUser,omitempty"`
 	RunAsGroup     *int64               `yaml:"runAsGroup,omitempty"`
