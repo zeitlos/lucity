@@ -543,6 +543,7 @@ victoria-metrics-alert:
                 for: 5m
                 labels: { severity: critical }
                 annotations:
+                  title: Node not ready
                   summary: "Node {{ $labels.node }} is not Ready"
               # kubelet working set over KSM capacity; eviction triggers on
               # capacity minus working set.
@@ -554,6 +555,7 @@ victoria-metrics-alert:
                 for: 15m
                 labels: { severity: warning }
                 annotations:
+                  title: Node memory high
                   summary: "Node {{ $labels.node }} memory working set at {{ $value | humanizePercentage }} of capacity"
               - alert: NodeMemoryCritical
                 expr: |-
@@ -563,6 +565,7 @@ victoria-metrics-alert:
                 for: 5m
                 labels: { severity: critical }
                 annotations:
+                  title: Node memory critical
                   summary: "Node {{ $labels.node }} memory working set at {{ $value | humanizePercentage }} of capacity — evictions imminent"
               - alert: NodeCPUHigh
                 expr: |-
@@ -572,6 +575,7 @@ victoria-metrics-alert:
                 for: 15m
                 labels: { severity: warning }
                 annotations:
+                  title: Node CPU high
                   summary: "Node {{ $labels.node }} CPU at {{ $value | humanizePercentage }} of capacity for 15m"
               # Scheduling capacity: requested vs allocatable across the cluster.
               # Pods stop scheduling near 100% while node usage can still look idle.
@@ -590,6 +594,7 @@ victoria-metrics-alert:
                 for: 30m
                 labels: { severity: warning }
                 annotations:
+                  title: Cluster requests high
                   summary: "Cluster {{ $labels.resource }} requests at {{ $value | humanizePercentage }} of allocatable — add a node before scheduling stalls"
               - alert: ClusterRequestsCritical
                 expr: |-
@@ -606,6 +611,7 @@ victoria-metrics-alert:
                 for: 15m
                 labels: { severity: critical }
                 annotations:
+                  title: Cluster requests critical
                   summary: "Cluster {{ $labels.resource }} requests at {{ $value | humanizePercentage }} of allocatable — new pods will fail to schedule"
               # Pods the scheduler cannot place. Platform pods are named, tenant
               # pods only counted, so these alerts carry no tenant names.
@@ -614,12 +620,14 @@ victoria-metrics-alert:
                 for: 10m
                 labels: { severity: warning }
                 annotations:
+                  title: Platform pod unschedulable
                   summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} has not been scheduled for 10m"
               - alert: TenantPodsUnschedulable
                 expr: count(kube_pod_status_scheduled{condition="false", namespace!~"kube-system|kube-public|kube-node-lease|lucity-system|lucity-builds|cert-manager|cilium-secrets|default|external-dns|flexplane-observability|ingress-nginx|otel-system"} == 1)
                 for: 30m
                 labels: { severity: warning }
                 annotations:
+                  title: Tenant pods unschedulable
                   summary: "{{ $value | humanize }} tenant pod(s) cannot be scheduled: a node pool is out of pod slots, memory or volume slots"
               # WaitForFirstConsumer claims stay Pending until volume creation
               # succeeds, so a claim with a waiting pod means provisioning is
@@ -634,18 +642,21 @@ victoria-metrics-alert:
                 for: 30m
                 labels: { severity: warning }
                 annotations:
+                  title: Volume provisioning stuck
                   summary: "{{ $value | humanize }} volume claims have a pod waiting for them but no volume: check the Hetzner volume limit and the hcloud-csi controller"
               - alert: PodCrashLoopBackOff
                 expr: kube_pod_container_status_waiting_reason{reason="CrashLoopBackOff", namespace=~"kube-system|lucity-system|lucity-builds"} == 1
                 for: 15m
                 labels: { severity: warning }
                 annotations:
+                  title: Pod crash looping
                   summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is crash-looping"
               - alert: ContainerRestartingRepeatedly
                 expr: increase_prometheus(kube_pod_container_status_restarts_total{namespace=~"kube-system|lucity-system"}[1h]) >= 3
                 for: 5m
                 labels: { severity: warning }
                 annotations:
+                  title: Container restarting repeatedly
                   summary: "{{ $labels.namespace }}/{{ $labels.pod }} restarted {{ $value | humanize }} times in the last hour"
               - alert: ContainerOOMKilled
                 expr: |-
@@ -654,12 +665,14 @@ victoria-metrics-alert:
                   (max_over_time(kube_pod_container_status_last_terminated_reason{reason="OOMKilled", namespace=~"kube-system|lucity-system"}[10m]) == 1)
                 labels: { severity: warning }
                 annotations:
+                  title: Container OOM-killed
                   summary: "{{ $labels.namespace }}/{{ $labels.pod }} container {{ $labels.container }} was OOMKilled"
               - alert: MetricsPipelineStalled
                 expr: absent(kube_pod_container_status_restarts_total{namespace="lucity-system"})
                 for: 10m
                 labels: { severity: critical }
                 annotations:
+                  title: Metrics pipeline stalled
                   summary: "No kube-state-metrics samples for 10m: the metrics pipeline is stalled and every other alert is blind"
               - alert: TelemetryAgentSilent
                 expr: |-
@@ -668,6 +681,7 @@ victoria-metrics-alert:
                 for: 10m
                 labels: { severity: warning }
                 annotations:
+                  title: Telemetry agent silent
                   summary: "No kubelet samples from {{ $labels.node }} for 10m: its telemetry agent is down or cannot reach the gateway"
               - alert: TelemetryGatewayDegraded
                 expr: |-
@@ -676,36 +690,42 @@ victoria-metrics-alert:
                 for: 10m
                 labels: { severity: warning }
                 annotations:
+                  title: Telemetry gateway degraded
                   summary: "Telemetry gateway is running below its desired replica count ({{ $value }} available)"
               - alert: TelemetryRefusing
                 expr: sum by (k8s_pod_name) (rate_prometheus({__name__=~"otelcol_receiver_refused_(metric_points|log_records)_total"}[5m])) > 0
                 for: 10m
                 labels: { severity: warning }
                 annotations:
+                  title: Telemetry refused
                   summary: "{{ $labels.k8s_pod_name }} is refusing telemetry: its memory limiter is shedding load"
               - alert: TelemetryExportFailing
                 expr: sum by (k8s_pod_name, exporter) (rate_prometheus({__name__=~"otelcol_exporter_send_failed_(metric_points|log_records)_total"}[5m])) > 0
                 for: 10m
                 labels: { severity: warning }
                 annotations:
+                  title: Telemetry export failing
                   summary: "{{ $labels.k8s_pod_name }} exporter {{ $labels.exporter }} fails to deliver telemetry"
               - alert: TelemetryQueueFilling
                 expr: max by (k8s_node_name, exporter) (otelcol_exporter_queue_size / otelcol_exporter_queue_capacity) > 0.5
                 for: 5m
                 labels: { severity: warning }
                 annotations:
+                  title: Telemetry queue filling
                   summary: "Telemetry queue on {{ $labels.k8s_node_name }} is {{ $value | humanizePercentage }} full: samples are buffering on the node"
               - alert: UsageExporterStale
                 expr: time() - max by (source) (max_over_time(lucity_exporter_last_success_timestamp_seconds[2h])) > 1800
                 for: 5m
                 labels: { severity: warning }
                 annotations:
+                  title: Usage exporter stale
                   summary: "Usage source {{ $labels.source }} last refreshed {{ $value | humanizeDuration }} ago: billable usage is not being recorded"
               - alert: MeteringStalled
                 expr: changes(kube_configmap_metadata_resource_version{namespace="lucity-system", configmap="metering-checkpoint"}[3h]) == 0
                 for: 5m
                 labels: { severity: warning }
                 annotations:
+                  title: Metering stalled
                   summary: "Metering has not completed a billing window in 3 hours: usage is not reaching Stripe, check the cashier logs for \"window failed\""
               - alert: LoopStalled
                 expr: |-
@@ -717,29 +737,34 @@ victoria-metrics-alert:
                 for: 5m
                 labels: { severity: warning }
                 annotations:
+                  title: Background loop stalled
                   summary: "Background loop {{ $labels.loop }} last passed {{ $value | humanizeDuration }} ago"
               - alert: HelmReleaseBroken
                 expr: sum by (chart, status) (lucity_helm_releases{status!~"deployed|superseded"}) > 0
                 for: 15m
                 labels: { severity: warning }
                 annotations:
+                  title: Helm release broken
                   summary: "{{ $value }} {{ $labels.chart }} releases have their newest revision in {{ $labels.status }}"
               - alert: BuildQueueSlow
                 expr: histogram_quantile(0.95, sum by (le) (rate(lucity_job_queue_seconds_bucket{component="build"}[30m]))) > 600
                 for: 10m
                 labels: { severity: warning }
                 annotations:
+                  title: Build queue slow
                   summary: "Builds wait {{ $value | humanizeDuration }} for admission at p95: the build cap is saturated"
               - alert: SignupSpike
                 expr: sum(increase(lucity_signups_total[1h])) > 15
                 labels: { severity: warning }
                 annotations:
+                  title: Signup spike
                   summary: "{{ $value }} signups in the last hour: check for an abuse wave"
               - alert: EdgeZonesHigh
                 expr: lucity_edge_zones > 450
                 for: 10m
                 labels: { severity: warning }
                 annotations:
+                  title: Edge zones near limit
                   summary: "{{ $value }} edge zones in use, the account limit is 500"
               - alert: PVCNearlyFull
                 expr: |-
@@ -754,6 +779,7 @@ victoria-metrics-alert:
                 for: 10m
                 labels: { severity: warning }
                 annotations:
+                  title: Volume nearly full
                   summary: "PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} >85% full"
                   redacted: "A tenant volume is more than 85% full"
               - alert: PVCCriticallyFull
@@ -769,6 +795,7 @@ victoria-metrics-alert:
                 for: 5m
                 labels: { severity: critical }
                 annotations:
+                  title: Volume critically full
                   summary: "PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} >95% full"
                   redacted: "A tenant volume is more than 95% full"
               - alert: CertExpiringSoon
@@ -778,6 +805,7 @@ victoria-metrics-alert:
                 for: 1h
                 labels: { severity: warning }
                 annotations:
+                  title: Certificate expiring
                   summary: "Certificate {{ $labels.namespace }}/{{ $labels.name }} expires in {{ $value | humanizeDuration }} and cert-manager has not renewed it"
                   redacted: "A tenant certificate expires in {{ $value | humanizeDuration }} and cert-manager has not renewed it"
               - alert: CertificateNotReady
@@ -785,6 +813,7 @@ victoria-metrics-alert:
                 for: 1h
                 labels: { severity: warning }
                 annotations:
+                  title: Certificate not ready
                   summary: "Certificate {{ $labels.namespace }}/{{ $labels.name }} not Ready for >1h"
                   redacted: "A tenant certificate has not been Ready for more than 1h"
               - alert: ZotDown
@@ -792,23 +821,27 @@ victoria-metrics-alert:
                 for: 5m
                 labels: { severity: critical }
                 annotations:
+                  title: Registry down
                   summary: "Zot registry is down"
               - alert: BuildkitRestarted
                 expr: increase_prometheus(kube_pod_container_status_restarts_total{namespace="lucity-builds", container="buildkitd"}[15m]) >= 1
                 labels: { severity: warning }
                 annotations:
+                  title: Buildkit restarted
                   summary: "buildkitd {{ $labels.pod }} restarted {{ $value | humanize }} times in the last 15m, running builds failed"
               - alert: VPAComponentDown
                 expr: kube_deployment_status_replicas_available{namespace="lucity-system", deployment=~"vpa-(admission-controller|recommender|updater)"} == 0
                 for: 10m
                 labels: { severity: warning }
                 annotations:
+                  title: VPA component down
                   summary: "VPA {{ $labels.deployment }} has no available replicas"
               - alert: VictoriaMetricsHighCardinality
                 expr: vm_cache_entries{type="storage/hour_metric_ids"} > 500000
                 for: 1h
                 labels: { severity: warning }
                 annotations:
+                  title: Metrics cardinality high
                   summary: "VictoriaMetrics active series >500k — investigate top metrics with /api/v1/status/tsdb"
           - name: postgres-backups
             rules:
@@ -817,6 +850,7 @@ victoria-metrics-alert:
                 for: 5m
                 labels: { severity: critical }
                 annotations:
+                  title: Backup plugin down
                   summary: "Barman Cloud plugin is down — CNPG cannot reconcile any database"
               - alert: PostgresVolumeNearlyFull
                 expr: |-
@@ -831,6 +865,7 @@ victoria-metrics-alert:
                 for: 10m
                 labels: { severity: warning }
                 annotations:
+                  title: Database volume nearly full
                   summary: "Database volume {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} >85% full — check WAL archiving"
                   redacted: "A tenant database volume is more than 85% full, check WAL archiving"
               - alert: PostgresVolumeCriticallyFull
@@ -846,6 +881,7 @@ victoria-metrics-alert:
                 for: 5m
                 labels: { severity: critical }
                 annotations:
+                  title: Database volume critically full
                   summary: "Database volume {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} >95% full — primary will go read-only"
                   redacted: "A tenant database volume is more than 95% full, the primary will go read-only"
               - alert: PostgresWALArchivingFailing
@@ -860,6 +896,7 @@ victoria-metrics-alert:
                 for: 15m
                 labels: { severity: critical }
                 annotations:
+                  title: Database WAL archiving failing
                   summary: "Database primary {{ $labels.namespace }}/{{ $labels.pod }} cannot archive WAL: backups and point-in-time recovery are stale, WAL piles up on its volume"
                   redacted: "A tenant database cannot archive WAL, its backups are stale and WAL piles up on its volume"
           - name: postgres-replication
@@ -884,6 +921,7 @@ victoria-metrics-alert:
                 for: 5m
                 labels: { severity: warning }
                 annotations:
+                  title: Database standby not streaming
                   summary: "Database {{ $labels.namespace }}/{{ $labels.cluster }} has a standby that is not streaming from primary {{ $labels.pod }}, failover would land on a stale or hung instance"
                   redacted: "A tenant database has a standby that is not streaming from its primary"
           - name: edge-gateway
@@ -898,6 +936,7 @@ victoria-metrics-alert:
                 for: 5m
                 labels: { severity: critical }
                 annotations:
+                  title: Gateway routes without upstream
                   summary: "Gateway is answering 503 for routes without an upstream ({{ $value | humanize }} req/s): xDS out of sync"
               # 5xx from the platform's OWN services behind the gateway
               # (conductor, dashboard, docs, cashier, logto, rybbit). Tenant
@@ -908,6 +947,7 @@ victoria-metrics-alert:
                 for: 10m
                 labels: { severity: warning }
                 annotations:
+                  title: Platform service errors
                   summary: "Platform service 5xx: {{ $labels.envoy_cluster_name }} ({{ $value | humanize }} req/s)"
               # TLS handshake errors — cert/SNI mismatch, expired cert, or Cilium L4 issue.
               - alert: GatewayTLSHandshakeErrors
@@ -915,6 +955,7 @@ victoria-metrics-alert:
                 for: 10m
                 labels: { severity: warning }
                 annotations:
+                  title: Gateway TLS errors
                   summary: "Elevated TLS handshake errors on the gateway ({{ $value | humanize }}/s)"
               # Cannot connect to a platform service pod — pod down, NetworkPolicy
               # blocking, wrong port. Scoped to platform services for the same
@@ -924,12 +965,14 @@ victoria-metrics-alert:
                 for: 5m
                 labels: { severity: warning }
                 annotations:
+                  title: Platform service unreachable
                   summary: "Cannot connect to platform service {{ $labels.envoy_cluster_name }} ({{ $value | humanize }}/s)"
               - alert: CiliumOperatorDegraded
                 expr: max by (k8s_pod_name) (cilium_hive_status{status="degraded"}) > 0
                 for: 10m
                 labels: { severity: critical }
                 annotations:
+                  title: Cilium operator degraded
                   summary: "cilium-operator {{ $labels.k8s_pod_name }} is degraded: new routes and custom domains may not reach the gateway until it is restarted"
           - name: load-balancers
             rules:
@@ -941,6 +984,7 @@ victoria-metrics-alert:
                 for: 5m
                 labels: { severity: critical }
                 annotations:
+                  title: Load balancer near connection limit
                   summary: "Load balancer {{ $labels.name }} is at {{ $value | humanizePercentage }} of its connection ceiling — new connections are dropped at 100%"
               # Targets are nodes, TCP-checked on the NodePort every 15s with
               # 3 retries; 5m rides out a plain reboot. The Postgres LBs use
@@ -951,12 +995,14 @@ victoria-metrics-alert:
                 for: 5m
                 labels: { severity: warning }
                 annotations:
+                  title: Load balancer target unhealthy
                   summary: "Load balancer {{ $labels.name }} has {{ $value }} unhealthy target(s)"
               - alert: LoadBalancerNoHealthyTargets
                 expr: hcloud_loadbalancer_targets_healthy == 0 and hcloud_loadbalancer_targets > 0
                 for: 5m
                 labels: { severity: critical }
                 annotations:
+                  title: Load balancer has no healthy targets
                   summary: "Load balancer {{ $labels.name }} has no healthy target, so every connection through it fails"
               # An API failure (bad token, outage) drops the hcloud_* series
               # silently instead of erroring. 5 = half the one-minute scrapes.
@@ -965,6 +1011,7 @@ victoria-metrics-alert:
                 for: 5m
                 labels: { severity: warning }
                 annotations:
+                  title: Hetzner API failing
                   summary: "Hetzner API requests failing for the {{ $labels.collector }} collector ({{ $value | humanize }} in 10m) — load balancer alerts are blind"
   alertmanager:
     enabled: false
@@ -988,31 +1035,19 @@ victoria-metrics-alert:
     templates:
       lucity.tmpl: |-
         {{ define "lucity.telegram" -}}
-        <b>{{ .Status | toUpper }}: {{ .CommonLabels.alertname }}</b> ({{ .CommonLabels.severity }})
-        {{ range .Alerts }}
-        {{- if and .Labels.namespace (not (match "^(cert-manager|cilium-secrets|default|external-dns|ingress-nginx|kube-node-lease|kube-public|kube-system|lucity-agents|lucity-builds|lucity-system|otel-system)$" .Labels.namespace)) }}
-        {{ or .Annotations.redacted "A tenant resource is affected" }}
-        • ref: <code>{{ slice .Fingerprint 0 8 }}</code>
-        {{- else }}
-        {{ .Annotations.summary }}
-        {{- with .Labels.namespace }}
-        • namespace: <code>{{ . }}</code>{{ end }}
-        {{- with .Labels.pod }}
-        • pod: <code>{{ . }}</code>{{ end }}
-        {{- with .Labels.container }}
-        • container: <code>{{ . }}</code>{{ end }}
-        {{- with .Labels.node }}
-        • node: <code>{{ . }}</code>{{ end }}
-        {{- with .Labels.persistentvolumeclaim }}
-        • pvc: <code>{{ . }}</code>{{ end }}
-        {{- with .Labels.name }}
-        • name: <code>{{ . }}</code>{{ end }}
-        {{- with .Labels.reason }}
-        • reason: <code>{{ . }}</code>{{ end }}
-        {{- with .Labels.job }}
-        • job: <code>{{ . }}</code>{{ end }}
-        {{- end }}
-        {{ end }}
+        {{ $alerts := .Alerts.Firing }}{{ if eq .Status "resolved" }}{{ $alerts = .Alerts.Resolved }}{{ end -}}
+        {{ range $i, $alert := $alerts }}{{ if eq $i 0 -}}
+        {{ if eq $alert.Status "resolved" }}✅{{ else if eq $alert.Labels.severity "critical" }}🔴{{ else if eq $alert.Labels.severity "info" }}ℹ️{{ else }}🟠{{ end }} <b>{{ if eq $alert.Status "resolved" }}Resolved: {{ end }}{{ or $alert.Annotations.title $alert.Labels.alertname | html }}</b>
+        {{ end }}{{ if lt $i 10 }}
+        • {{ if and $alert.Labels.namespace (not (match "^(cert-manager|cilium-secrets|default|external-dns|ingress-nginx|kube-node-lease|kube-public|kube-system|lucity-agents|lucity-builds|lucity-system|otel-system)$" $alert.Labels.namespace)) -}}
+        {{ or $alert.Annotations.redacted "A tenant resource is affected" | html }} · ref <code>{{ slice $alert.Fingerprint 0 8 }}</code>
+        {{- else if and (eq $alert.Status "resolved") $alert.Annotations.resolved -}}
+        {{ $alert.Annotations.resolved | html }}
+        {{- else -}}
+        {{ or $alert.Annotations.summary $alert.Labels.alertname | html }}
+        {{- end }}{{ end }}{{ end }}
+        {{- if gt (len $alerts) 10 }}
+        {{ len $alerts }} in total{{ end }}
         {{- end }}
     config:
       global:
