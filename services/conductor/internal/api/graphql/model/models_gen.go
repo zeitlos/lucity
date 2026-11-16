@@ -253,6 +253,13 @@ func (this BasicCapability) GetAvailability() Availability { return this.Availab
 // The cheapest plan that unlocks it, when `availability` is `PLAN_REQUIRED`.
 func (this BasicCapability) GetPlan() *Plan { return this.Plan }
 
+// A billing period. `end` is exclusive.
+type BillingPeriod struct {
+	Start   time.Time `json:"start"`
+	End     time.Time `json:"end"`
+	Current bool      `json:"current"`
+}
+
 type BillingPortalURL struct {
 	URL string `json:"url"`
 }
@@ -725,6 +732,16 @@ type Environment struct {
 	Buckets        []Bucket        `json:"buckets"`
 }
 
+// What one environment cost in a billing period. `deletedAt` is the last time it used anything, set only once it no longer exists.
+type EnvironmentUsage struct {
+	ID          platform.EnvironmentID `json:"id"`
+	Name        string                 `json:"name"`
+	DeletedAt   *time.Time             `json:"deletedAt,omitempty"`
+	AmountCents float64                `json:"amountCents"`
+	Daily       []float64              `json:"daily"`
+	Resources   []ResourceUsage        `json:"resources"`
+}
+
 type GitHubInstallation struct {
 	AccountLogin     string            `json:"accountLogin"`
 	AccountAvatarURL string            `json:"accountAvatarUrl"`
@@ -781,6 +798,35 @@ type ImageSearchResult struct {
 type InviteMemberInput struct {
 	Email string        `json:"email"`
 	Role  WorkspaceRole `json:"role"`
+}
+
+// The invoice that closes a billing period. A preview has no number yet, and its `issuedAt` is when it will be issued.
+type Invoice struct {
+	Number        *string       `json:"number,omitempty"`
+	Status        InvoiceStatus `json:"status"`
+	IssuedAt      time.Time     `json:"issuedAt"`
+	PaidAt        *time.Time    `json:"paidAt,omitempty"`
+	Issuer        *InvoiceParty `json:"issuer"`
+	BilledTo      *InvoiceParty `json:"billedTo"`
+	Lines         []InvoiceLine `json:"lines"`
+	SubtotalCents int           `json:"subtotalCents"`
+	CreditCents   int           `json:"creditCents"`
+	TotalCents    int           `json:"totalCents"`
+}
+
+// One line of an invoice. `plan` is set on plan lines. `quantity` is in `unit`, such as `vCPU-hours`, `GB-hours`, `GB` or `month`.
+type InvoiceLine struct {
+	Kind            InvoiceLineKind `json:"kind"`
+	Plan            *Plan           `json:"plan,omitempty"`
+	Quantity        float64         `json:"quantity"`
+	Unit            string          `json:"unit"`
+	UnitAmountCents float64         `json:"unitAmountCents"`
+	AmountCents     int             `json:"amountCents"`
+}
+
+type InvoiceParty struct {
+	Name    string   `json:"name"`
+	Address []string `json:"address"`
 }
 
 type KeyValueStore struct {
@@ -885,6 +931,16 @@ type Project struct {
 	Environments []Environment `json:"environments"`
 }
 
+// What one project cost in a billing period, split by environment.
+type ProjectUsage struct {
+	ID           platform.ProjectID `json:"id"`
+	Name         string             `json:"name"`
+	DeletedAt    *time.Time         `json:"deletedAt,omitempty"`
+	AmountCents  float64            `json:"amountCents"`
+	Daily        []float64          `json:"daily"`
+	Environments []EnvironmentUsage `json:"environments"`
+}
+
 // The smallest and largest value the workspace may set, as quantities such as `250m` or `16Gi`, with the plans that allow more.
 type QuantityLimit struct {
 	Min string `json:"min"`
@@ -928,6 +984,15 @@ type ReleaseTrigger struct {
 type ReplicaCount struct {
 	Desired int `json:"desired"`
 	Ready   int `json:"ready"`
+}
+
+// What one resource of an environment cost in a billing period. `daily` holds one amount per day of the period, in cents.
+type ResourceUsage struct {
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	Kind        UsageResourceKind `json:"kind"`
+	AmountCents float64           `json:"amountCents"`
+	Daily       []float64         `json:"daily"`
 }
 
 type Resources struct {
@@ -1125,6 +1190,14 @@ type UpdateMemberRoleInput struct {
 
 type UpdateWorkspaceInput struct {
 	Name string `json:"name"`
+}
+
+// What the workspace used in a billing period, split by project, environment and resource, up to `measuredUntil`, with the invoice that closes the period.
+type Usage struct {
+	Period        *BillingPeriod `json:"period"`
+	MeasuredUntil time.Time      `json:"measuredUntil"`
+	Projects      []ProjectUsage `json:"projects"`
+	Invoice       *Invoice       `json:"invoice,omitempty"`
 }
 
 type UsageSummary struct {
@@ -2888,6 +2961,126 @@ func (e Harness) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+type InvoiceLineKind string
+
+const (
+	InvoiceLineKindPlan          InvoiceLineKind = "PLAN"
+	InvoiceLineKindCPU           InvoiceLineKind = "CPU"
+	InvoiceLineKindMemory        InvoiceLineKind = "MEMORY"
+	InvoiceLineKindVolumes       InvoiceLineKind = "VOLUMES"
+	InvoiceLineKindObjectStorage InvoiceLineKind = "OBJECT_STORAGE"
+	InvoiceLineKindEgress        InvoiceLineKind = "EGRESS"
+)
+
+var AllInvoiceLineKind = []InvoiceLineKind{
+	InvoiceLineKindPlan,
+	InvoiceLineKindCPU,
+	InvoiceLineKindMemory,
+	InvoiceLineKindVolumes,
+	InvoiceLineKindObjectStorage,
+	InvoiceLineKindEgress,
+}
+
+func (e InvoiceLineKind) IsValid() bool {
+	switch e {
+	case InvoiceLineKindPlan, InvoiceLineKindCPU, InvoiceLineKindMemory, InvoiceLineKindVolumes, InvoiceLineKindObjectStorage, InvoiceLineKindEgress:
+		return true
+	}
+	return false
+}
+
+func (e InvoiceLineKind) String() string {
+	return string(e)
+}
+
+func (e *InvoiceLineKind) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = InvoiceLineKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid InvoiceLineKind", str)
+	}
+	return nil
+}
+
+func (e InvoiceLineKind) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *InvoiceLineKind) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e InvoiceLineKind) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type InvoiceStatus string
+
+const (
+	InvoiceStatusPreview InvoiceStatus = "PREVIEW"
+	InvoiceStatusOpen    InvoiceStatus = "OPEN"
+	InvoiceStatusPaid    InvoiceStatus = "PAID"
+)
+
+var AllInvoiceStatus = []InvoiceStatus{
+	InvoiceStatusPreview,
+	InvoiceStatusOpen,
+	InvoiceStatusPaid,
+}
+
+func (e InvoiceStatus) IsValid() bool {
+	switch e {
+	case InvoiceStatusPreview, InvoiceStatusOpen, InvoiceStatusPaid:
+		return true
+	}
+	return false
+}
+
+func (e InvoiceStatus) String() string {
+	return string(e)
+}
+
+func (e *InvoiceStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = InvoiceStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid InvoiceStatus", str)
+	}
+	return nil
+}
+
+func (e InvoiceStatus) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *InvoiceStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e InvoiceStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 // Which end of a time range a page of log entries starts from.
 type LogDirection string
 
@@ -4200,6 +4393,69 @@ func (e *TLSStatus) UnmarshalJSON(b []byte) error {
 }
 
 func (e TLSStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type UsageResourceKind string
+
+const (
+	UsageResourceKindService       UsageResourceKind = "SERVICE"
+	UsageResourceKindDatabase      UsageResourceKind = "DATABASE"
+	UsageResourceKindKeyValueStore UsageResourceKind = "KEY_VALUE_STORE"
+	UsageResourceKindVolume        UsageResourceKind = "VOLUME"
+	UsageResourceKindBucket        UsageResourceKind = "BUCKET"
+	UsageResourceKindAgent         UsageResourceKind = "AGENT"
+)
+
+var AllUsageResourceKind = []UsageResourceKind{
+	UsageResourceKindService,
+	UsageResourceKindDatabase,
+	UsageResourceKindKeyValueStore,
+	UsageResourceKindVolume,
+	UsageResourceKindBucket,
+	UsageResourceKindAgent,
+}
+
+func (e UsageResourceKind) IsValid() bool {
+	switch e {
+	case UsageResourceKindService, UsageResourceKindDatabase, UsageResourceKindKeyValueStore, UsageResourceKindVolume, UsageResourceKindBucket, UsageResourceKindAgent:
+		return true
+	}
+	return false
+}
+
+func (e UsageResourceKind) String() string {
+	return string(e)
+}
+
+func (e *UsageResourceKind) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = UsageResourceKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid UsageResourceKind", str)
+	}
+	return nil
+}
+
+func (e UsageResourceKind) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *UsageResourceKind) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e UsageResourceKind) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

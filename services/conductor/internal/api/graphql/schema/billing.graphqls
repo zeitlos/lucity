@@ -56,6 +56,103 @@ type PlanSelection {
   checkoutUrl: String
 }
 
+"""A billing period. `end` is exclusive."""
+type BillingPeriod {
+  start: Time!
+  end: Time!
+  current: Boolean!
+}
+
+enum UsageResourceKind {
+  SERVICE
+  DATABASE
+  KEY_VALUE_STORE
+  VOLUME
+  BUCKET
+  AGENT
+}
+
+"""What one resource of an environment cost in a billing period. `daily` holds one amount per day of the period, in cents."""
+type ResourceUsage {
+  id: String!
+  name: String!
+  kind: UsageResourceKind!
+  amountCents: Float!
+  daily: [Float!]!
+}
+
+"""What one environment cost in a billing period. `deletedAt` is the last time it used anything, set only once it no longer exists."""
+type EnvironmentUsage {
+  id: EnvironmentID!
+  name: String!
+  deletedAt: Time
+  amountCents: Float!
+  daily: [Float!]!
+  resources: [ResourceUsage!]!
+}
+
+"""What one project cost in a billing period, split by environment."""
+type ProjectUsage {
+  id: ProjectID!
+  name: String!
+  deletedAt: Time
+  amountCents: Float!
+  daily: [Float!]!
+  environments: [EnvironmentUsage!]!
+}
+
+enum InvoiceStatus {
+  PREVIEW
+  OPEN
+  PAID
+}
+
+enum InvoiceLineKind {
+  PLAN
+  CPU
+  MEMORY
+  VOLUMES
+  OBJECT_STORAGE
+  EGRESS
+}
+
+"""One line of an invoice. `plan` is set on plan lines. `quantity` is in `unit`, such as `vCPU-hours`, `GB-hours`, `GB` or `month`."""
+type InvoiceLine {
+  kind: InvoiceLineKind!
+  plan: Plan
+  quantity: Float!
+  unit: String!
+  unitAmountCents: Float!
+  amountCents: Int!
+}
+
+type InvoiceParty {
+  name: String!
+  address: [String!]!
+}
+
+"""The invoice that closes a billing period. A preview has no number yet, and its `issuedAt` is when it will be issued."""
+type Invoice {
+  number: String
+  status: InvoiceStatus!
+  issuedAt: Time!
+  paidAt: Time
+  issuer: InvoiceParty!
+  billedTo: InvoiceParty!
+  lines: [InvoiceLine!]!
+  subtotalCents: Int!
+  creditCents: Int!
+  totalCents: Int!
+}
+
+"""What the workspace used in a billing period, split by project, environment and resource, up to `measuredUntil`, with the invoice that closes the period."""
+type Usage {
+  period: BillingPeriod!
+  measuredUntil: Time!
+  projects: [ProjectUsage!]!
+  invoice: Invoice
+}
+
 extend type Query {
   """The plan of the workspace, with its subscription status, billing period and credit balance. Null when the workspace has never had a subscription."""
   subscription: BillingSubscription @hasRole(role: WORKSPACE_MEMBER)
@@ -63,6 +160,10 @@ extend type Query {
   usageSummary: UsageSummary @hasRole(role: WORKSPACE_MEMBER)
   """Every plan with what it includes and costs, the free tier first. Empty without billing."""
   plans: [PlanOffer!]! @hasRole(role: WORKSPACE_MEMBER)
+  """The current billing period and up to two before it, newest first. Empty without a subscription."""
+  billingPeriods: [BillingPeriod!]! @hasRole(role: WORKSPACE_MEMBER)
+  """Usage and invoice of the billing period starting at `periodStart`, one of `billingPeriods`. Null without a subscription."""
+  usage(periodStart: Time!): Usage @hasRole(role: WORKSPACE_MEMBER)
 }
 
 extend type Mutation {

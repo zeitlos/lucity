@@ -15,6 +15,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/to"
 	"github.com/zeitlos/lucity/pkg/usererror"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
+	internalbilling "github.com/zeitlos/lucity/services/conductor/internal/billing"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployjob"
@@ -22,6 +23,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/planner"
 	"github.com/zeitlos/lucity/services/conductor/internal/scanjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/servicelogs"
+	"github.com/zeitlos/lucity/services/conductor/internal/usage"
 	"github.com/zeitlos/lucity/services/conductor/internal/vulnerabilities"
 )
 
@@ -1610,4 +1612,118 @@ func claimVariableKey(seen map[string]struct{}, key string) error {
 	seen[key] = struct{}{}
 
 	return nil
+}
+
+var usageResourceKinds = map[usage.Kind]model.UsageResourceKind{
+	usage.KindService:       model.UsageResourceKindService,
+	usage.KindDatabase:      model.UsageResourceKindDatabase,
+	usage.KindKeyValueStore: model.UsageResourceKindKeyValueStore,
+	usage.KindVolume:        model.UsageResourceKindVolume,
+	usage.KindBucket:        model.UsageResourceKindBucket,
+	usage.KindAgent:         model.UsageResourceKindAgent,
+}
+
+func convertBillingPeriod(period internalbilling.Period) model.BillingPeriod {
+	return model.BillingPeriod{
+		Start:   period.Start,
+		End:     period.End,
+		Current: period.Current,
+	}
+}
+
+func convertUsage(report *conductor.UsageReport) *model.Usage {
+	result := &model.Usage{
+		Period:        new(convertBillingPeriod(report.Period)),
+		MeasuredUntil: report.MeasuredUntil,
+		Projects:      make([]model.ProjectUsage, 0, len(report.Projects)),
+		Invoice:       convertInvoice(report.Invoice),
+	}
+
+	for _, project := range report.Projects {
+		converted := model.ProjectUsage{
+			ID:           project.ID,
+			Name:         project.Name,
+			DeletedAt:    project.DeletedAt,
+			AmountCents:  project.Cents,
+			Daily:        project.Daily,
+			Environments: make([]model.EnvironmentUsage, 0, len(project.Environments)),
+		}
+
+		for _, environment := range project.Environments {
+			resources := make([]model.ResourceUsage, 0, len(environment.Resources))
+
+			for _, resource := range environment.Resources {
+				resources = append(resources, model.ResourceUsage{
+					ID:          resource.ID,
+					Name:        resource.Name,
+					Kind:        usageResourceKinds[resource.Kind],
+					AmountCents: resource.Cents,
+					Daily:       resource.Daily,
+				})
+			}
+
+			converted.Environments = append(converted.Environments, model.EnvironmentUsage{
+				ID:          environment.ID,
+				Name:        environment.Name,
+				DeletedAt:   environment.DeletedAt,
+				AmountCents: environment.Cents,
+				Daily:       environment.Daily,
+				Resources:   resources,
+			})
+		}
+
+		result.Projects = append(result.Projects, converted)
+	}
+
+	return result
+}
+
+func convertInvoice(invoice *conductor.InvoiceView) *model.Invoice {
+	if invoice == nil {
+		return nil
+	}
+
+	result := &model.Invoice{
+		Status:        model.InvoiceStatus(invoice.Status),
+		IssuedAt:      invoice.IssuedAt,
+		PaidAt:        invoice.PaidAt,
+		Issuer:        convertInvoiceParty(invoice.Issuer),
+		BilledTo:      convertInvoiceParty(invoice.BilledTo),
+		Lines:         make([]model.InvoiceLine, 0, len(invoice.Lines)),
+		SubtotalCents: invoice.SubtotalCents,
+		CreditCents:   invoice.CreditCents,
+		TotalCents:    invoice.TotalCents,
+	}
+
+	if invoice.Number != "" {
+		result.Number = new(invoice.Number)
+	}
+
+	for _, line := range invoice.Lines {
+		converted := model.InvoiceLine{
+			Kind:            model.InvoiceLineKind(line.Kind),
+			Quantity:        line.Quantity,
+			Unit:            line.Unit,
+			UnitAmountCents: line.UnitAmountCents,
+			AmountCents:     line.AmountCents,
+		}
+
+		if line.Plan != nil {
+			converted.Plan = new(convertBillingPlan(*line.Plan))
+		}
+
+		result.Lines = append(result.Lines, converted)
+	}
+
+	return result
+}
+
+func convertInvoiceParty(party internalbilling.Party) *model.InvoiceParty {
+	address := party.Address
+
+	if address == nil {
+		address = []string{}
+	}
+
+	return &model.InvoiceParty{Name: party.Name, Address: address}
 }

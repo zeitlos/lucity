@@ -7,6 +7,7 @@ package graphql
 
 import (
 	"context"
+	"time"
 
 	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
@@ -118,4 +119,34 @@ func (r *queryResolver) Plans(ctx context.Context) ([]model.PlanOffer, error) {
 		result = append(result, convertPlanOffer(offer))
 	}
 	return result, nil
+}
+
+// BillingPeriods is the resolver for the billingPeriods field.
+func (r *queryResolver) BillingPeriods(ctx context.Context) ([]model.BillingPeriod, error) {
+	ws, err := tenant.FromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	periods, err := r.Conductor.BillingPeriods(ctx, ws)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]model.BillingPeriod, 0, len(periods))
+	for _, period := range periods {
+		result = append(result, convertBillingPeriod(period))
+	}
+	return result, nil
+}
+
+// Usage is the resolver for the usage field.
+func (r *queryResolver) Usage(ctx context.Context, periodStart time.Time) (*model.Usage, error) {
+	ws, err := tenant.FromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	report, err := r.Conductor.Usage(ctx, ws, periodStart)
+	if err != nil || report == nil {
+		return nil, err
+	}
+	return convertUsage(report), nil
 }

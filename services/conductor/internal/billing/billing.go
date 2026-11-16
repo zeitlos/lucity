@@ -37,7 +37,15 @@ const (
 type Prices struct {
 	Hobby   string
 	Pro     string
-	Metered []string
+	CPU     string
+	Memory  string
+	Disk    string
+	Storage string
+	Egress  string
+}
+
+func (p Prices) metered() []string {
+	return []string{p.CPU, p.Memory, p.Disk, p.Storage, p.Egress}
 }
 
 type Client struct {
@@ -294,7 +302,7 @@ func (c *Client) items(planPrice string) []*stripe.SubscriptionCreateItemParams 
 		items = append(items, &stripe.SubscriptionCreateItemParams{Price: stripe.String(planPrice)})
 	}
 
-	for _, price := range c.prices.Metered {
+	for _, price := range c.prices.metered() {
 		items = append(items, &stripe.SubscriptionCreateItemParams{Price: stripe.String(price)})
 	}
 

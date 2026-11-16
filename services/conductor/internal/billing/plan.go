@@ -261,7 +261,7 @@ func (c *Client) checkout(ctx context.Context, customerID, workspace, price stri
 		params.PaymentMethodCollection = stripe.String("always")
 		params.LineItems = []*stripe.CheckoutSessionCreateLineItemParams{{Price: stripe.String(price), Quantity: stripe.Int64(1)}}
 
-		for _, metered := range c.prices.Metered {
+		for _, metered := range c.prices.metered() {
 			params.LineItems = append(params.LineItems, &stripe.CheckoutSessionCreateLineItemParams{Price: stripe.String(metered)})
 		}
 
