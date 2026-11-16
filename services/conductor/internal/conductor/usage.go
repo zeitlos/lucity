@@ -233,7 +233,7 @@ func (c *Client) projectUsage(ctx context.Context, ws string, live []platform.Pr
 		} else {
 			lastSeen := environment.LastSeen
 			entry.DeletedAt = &lastSeen
-			entry.Resources = resourceUsage(environment.Resources, nil)
+			entry.Resources = resourceUsage(environmentID, environment.Resources, nil)
 		}
 
 		project.Cents += environment.Cents
@@ -317,10 +317,10 @@ func (c *Client) resourceUsage(ctx context.Context, environment platform.Environ
 		}
 	}
 
-	return resourceUsage(resources, names)
+	return resourceUsage(environment, resources, names)
 }
 
-func resourceUsage(resources []usage.Resource, names map[usage.Kind]map[string]string) []ResourceUsage {
+func resourceUsage(environment platform.EnvironmentID, resources []usage.Resource, names map[usage.Kind]map[string]string) []ResourceUsage {
 	result := make([]ResourceUsage, 0, len(resources))
 
 	for _, resource := range resources {
@@ -331,7 +331,7 @@ func resourceUsage(resources []usage.Resource, names map[usage.Kind]map[string]s
 		}
 
 		result = append(result, ResourceUsage{
-			ID:    resource.ID,
+			ID:    environment.String() + "/" + resource.ID,
 			Name:  name,
 			Kind:  resource.Kind,
 			Cents: resource.Cents,

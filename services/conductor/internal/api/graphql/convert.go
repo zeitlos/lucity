@@ -1641,7 +1641,7 @@ func convertUsage(report *conductor.UsageReport) *model.Usage {
 
 	for _, project := range report.Projects {
 		converted := model.ProjectUsage{
-			ID:           project.ID,
+			ProjectID:    project.ID,
 			Name:         project.Name,
 			DeletedAt:    project.DeletedAt,
 			AmountCents:  project.Cents,
@@ -1654,7 +1654,7 @@ func convertUsage(report *conductor.UsageReport) *model.Usage {
 
 			for _, resource := range environment.Resources {
 				resources = append(resources, model.ResourceUsage{
-					ID:          resource.ID,
+					ResourceID:  resource.ID,
 					Name:        resource.Name,
 					Kind:        usageResourceKinds[resource.Kind],
 					AmountCents: resource.Cents,
@@ -1663,12 +1663,12 @@ func convertUsage(report *conductor.UsageReport) *model.Usage {
 			}
 
 			converted.Environments = append(converted.Environments, model.EnvironmentUsage{
-				ID:          environment.ID,
-				Name:        environment.Name,
-				DeletedAt:   environment.DeletedAt,
-				AmountCents: environment.Cents,
-				Daily:       environment.Daily,
-				Resources:   resources,
+				EnvironmentID: environment.ID,
+				Name:          environment.Name,
+				DeletedAt:     environment.DeletedAt,
+				AmountCents:   environment.Cents,
+				Daily:         environment.Daily,
+				Resources:     resources,
 			})
 		}
 

@@ -734,12 +734,12 @@ type Environment struct {
 
 // What one environment cost in a billing period. `deletedAt` is the last time it used anything, set only once it no longer exists.
 type EnvironmentUsage struct {
-	ID          platform.EnvironmentID `json:"id"`
-	Name        string                 `json:"name"`
-	DeletedAt   *time.Time             `json:"deletedAt,omitempty"`
-	AmountCents float64                `json:"amountCents"`
-	Daily       []float64              `json:"daily"`
-	Resources   []ResourceUsage        `json:"resources"`
+	EnvironmentID platform.EnvironmentID `json:"environmentId"`
+	Name          string                 `json:"name"`
+	DeletedAt     *time.Time             `json:"deletedAt,omitempty"`
+	AmountCents   float64                `json:"amountCents"`
+	Daily         []float64              `json:"daily"`
+	Resources     []ResourceUsage        `json:"resources"`
 }
 
 type GitHubInstallation struct {
@@ -933,7 +933,7 @@ type Project struct {
 
 // What one project cost in a billing period, split by environment.
 type ProjectUsage struct {
-	ID           platform.ProjectID `json:"id"`
+	ProjectID    platform.ProjectID `json:"projectId"`
 	Name         string             `json:"name"`
 	DeletedAt    *time.Time         `json:"deletedAt,omitempty"`
 	AmountCents  float64            `json:"amountCents"`
@@ -986,9 +986,9 @@ type ReplicaCount struct {
 	Ready   int `json:"ready"`
 }
 
-// What one resource of an environment cost in a billing period. `daily` holds one amount per day of the period, in cents.
+// What one resource of an environment cost in a billing period. `resourceId` is the resource's full ID, unique together with `kind`. `daily` holds one amount per day of the period, in cents.
 type ResourceUsage struct {
-	ID          string            `json:"id"`
+	ResourceID  string            `json:"resourceId"`
 	Name        string            `json:"name"`
 	Kind        UsageResourceKind `json:"kind"`
 	AmountCents float64           `json:"amountCents"`

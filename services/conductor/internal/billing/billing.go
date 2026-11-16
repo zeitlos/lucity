@@ -201,15 +201,21 @@ func (c *Client) Usage(ctx context.Context, customerID string) (*Usage, error) {
 
 	if err != nil {
 		slog.DebugContext(ctx, "billing: no invoice preview", "customer", customerID, "error", err)
-	} else if preview.Lines != nil {
-		for _, line := range preview.Lines.Data {
+	} else {
+		lines, err := c.allLines(ctx, preview)
+
+		if err != nil {
+			return nil, err
+		}
+
+		for _, line := range lines {
 			if line.Pricing == nil || line.Pricing.PriceDetails == nil || line.Pricing.PriceDetails.Price == nil {
 				continue
 			}
 
 			switch line.Pricing.PriceDetails.Price.ID {
 			case c.prices.Hobby, c.prices.Pro:
-				plan = line.Amount
+				plan += line.Amount
 			default:
 				resource += line.Amount
 			}

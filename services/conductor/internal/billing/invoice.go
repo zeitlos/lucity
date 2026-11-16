@@ -243,23 +243,33 @@ func (c *Client) periodInvoice(ctx context.Context, subscriptionID string, perio
 	return nil, nil
 }
 
-func (c *Client) invoiceLines(ctx context.Context, invoice *stripe.Invoice) ([]InvoiceLine, error) {
+func (c *Client) allLines(ctx context.Context, invoice *stripe.Invoice) ([]*stripe.InvoiceLineItem, error) {
 	if invoice.Lines == nil {
 		return nil, nil
 	}
 
-	items := invoice.Lines.Data
+	if !invoice.Lines.HasMore {
+		return invoice.Lines.Data, nil
+	}
 
-	if invoice.Lines.HasMore {
-		items = nil
+	var lines []*stripe.InvoiceLineItem
 
-		for line, err := range c.stripe.V1Invoices.ListLines(ctx, &stripe.InvoiceListLinesParams{Invoice: stripe.String(invoice.ID)}).All(ctx) {
-			if err != nil {
-				return nil, fmt.Errorf("list invoice lines: %w", err)
-			}
-
-			items = append(items, line)
+	for line, err := range c.stripe.V1Invoices.ListLines(ctx, &stripe.InvoiceListLinesParams{Invoice: stripe.String(invoice.ID)}).All(ctx) {
+		if err != nil {
+			return nil, fmt.Errorf("list invoice lines: %w", err)
 		}
+
+		lines = append(lines, line)
+	}
+
+	return lines, nil
+}
+
+func (c *Client) invoiceLines(ctx context.Context, invoice *stripe.Invoice) ([]InvoiceLine, error) {
+	items, err := c.allLines(ctx, invoice)
+
+	if err != nil {
+		return nil, err
 	}
 
 	plans := map[billing.Plan]*InvoiceLine{}

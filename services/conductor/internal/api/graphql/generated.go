@@ -528,12 +528,12 @@ type ComplexityRoot struct {
 	}
 
 	EnvironmentUsage struct {
-		AmountCents func(childComplexity int) int
-		Daily       func(childComplexity int) int
-		DeletedAt   func(childComplexity int) int
-		ID          func(childComplexity int) int
-		Name        func(childComplexity int) int
-		Resources   func(childComplexity int) int
+		AmountCents   func(childComplexity int) int
+		Daily         func(childComplexity int) int
+		DeletedAt     func(childComplexity int) int
+		EnvironmentID func(childComplexity int) int
+		Name          func(childComplexity int) int
+		Resources     func(childComplexity int) int
 	}
 
 	GitHubInstallation struct {
@@ -790,8 +790,8 @@ type ComplexityRoot struct {
 		Daily        func(childComplexity int) int
 		DeletedAt    func(childComplexity int) int
 		Environments func(childComplexity int) int
-		ID           func(childComplexity int) int
 		Name         func(childComplexity int) int
+		ProjectID    func(childComplexity int) int
 	}
 
 	QuantityLimit struct {
@@ -891,9 +891,9 @@ type ComplexityRoot struct {
 	ResourceUsage struct {
 		AmountCents func(childComplexity int) int
 		Daily       func(childComplexity int) int
-		ID          func(childComplexity int) int
 		Kind        func(childComplexity int) int
 		Name        func(childComplexity int) int
+		ResourceID  func(childComplexity int) int
 	}
 
 	Resources struct {
@@ -3168,12 +3168,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.EnvironmentUsage.DeletedAt(childComplexity), true
-	case "EnvironmentUsage.id":
-		if e.ComplexityRoot.EnvironmentUsage.ID == nil {
+	case "EnvironmentUsage.environmentId":
+		if e.ComplexityRoot.EnvironmentUsage.EnvironmentID == nil {
 			break
 		}
 
-		return e.ComplexityRoot.EnvironmentUsage.ID(childComplexity), true
+		return e.ComplexityRoot.EnvironmentUsage.EnvironmentID(childComplexity), true
 	case "EnvironmentUsage.name":
 		if e.ComplexityRoot.EnvironmentUsage.Name == nil {
 			break
@@ -4835,18 +4835,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ProjectUsage.Environments(childComplexity), true
-	case "ProjectUsage.id":
-		if e.ComplexityRoot.ProjectUsage.ID == nil {
-			break
-		}
-
-		return e.ComplexityRoot.ProjectUsage.ID(childComplexity), true
 	case "ProjectUsage.name":
 		if e.ComplexityRoot.ProjectUsage.Name == nil {
 			break
 		}
 
 		return e.ComplexityRoot.ProjectUsage.Name(childComplexity), true
+	case "ProjectUsage.projectId":
+		if e.ComplexityRoot.ProjectUsage.ProjectID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProjectUsage.ProjectID(childComplexity), true
 
 	case "QuantityLimit.max":
 		if e.ComplexityRoot.QuantityLimit.Max == nil {
@@ -5491,12 +5491,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ResourceUsage.Daily(childComplexity), true
-	case "ResourceUsage.id":
-		if e.ComplexityRoot.ResourceUsage.ID == nil {
-			break
-		}
-
-		return e.ComplexityRoot.ResourceUsage.ID(childComplexity), true
 	case "ResourceUsage.kind":
 		if e.ComplexityRoot.ResourceUsage.Kind == nil {
 			break
@@ -5509,6 +5503,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ResourceUsage.Name(childComplexity), true
+	case "ResourceUsage.resourceId":
+		if e.ComplexityRoot.ResourceUsage.ResourceID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ResourceUsage.ResourceID(childComplexity), true
 
 	case "Resources.cpu":
 		if e.ComplexityRoot.Resources.CPU == nil {
@@ -7371,8 +7371,8 @@ func (ec *executionContext) childFields_Environment(ctx context.Context, field g
 
 func (ec *executionContext) childFields_EnvironmentUsage(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
-	case "id":
-		return ec.fieldContext_EnvironmentUsage_id(ctx, field)
+	case "environmentId":
+		return ec.fieldContext_EnvironmentUsage_environmentId(ctx, field)
 	case "name":
 		return ec.fieldContext_EnvironmentUsage_name(ctx, field)
 	case "deletedAt":
@@ -7679,8 +7679,8 @@ func (ec *executionContext) childFields_Project(ctx context.Context, field graph
 
 func (ec *executionContext) childFields_ProjectUsage(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
-	case "id":
-		return ec.fieldContext_ProjectUsage_id(ctx, field)
+	case "projectId":
+		return ec.fieldContext_ProjectUsage_projectId(ctx, field)
 	case "name":
 		return ec.fieldContext_ProjectUsage_name(ctx, field)
 	case "deletedAt":
@@ -7775,8 +7775,8 @@ func (ec *executionContext) childFields_ReplicaCount(ctx context.Context, field 
 
 func (ec *executionContext) childFields_ResourceUsage(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
-	case "id":
-		return ec.fieldContext_ResourceUsage_id(ctx, field)
+	case "resourceId":
+		return ec.fieldContext_ResourceUsage_resourceId(ctx, field)
 	case "name":
 		return ec.fieldContext_ResourceUsage_name(ctx, field)
 	case "kind":
@@ -20544,16 +20544,16 @@ func (ec *executionContext) fieldContext_Environment_buckets(_ context.Context, 
 	return fc, nil
 }
 
-func (ec *executionContext) _EnvironmentUsage_id(ctx context.Context, field graphql.CollectedField, obj *model.EnvironmentUsage) (ret graphql.Marshaler) {
+func (ec *executionContext) _EnvironmentUsage_environmentId(ctx context.Context, field graphql.CollectedField, obj *model.EnvironmentUsage) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
 		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_EnvironmentUsage_id(ctx, field)
+			return ec.fieldContext_EnvironmentUsage_environmentId(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return obj.ID, nil
+			return obj.EnvironmentID, nil
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v platform.EnvironmentID) graphql.Marshaler {
@@ -20563,7 +20563,7 @@ func (ec *executionContext) _EnvironmentUsage_id(ctx context.Context, field grap
 		true,
 	)
 }
-func (ec *executionContext) fieldContext_EnvironmentUsage_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_EnvironmentUsage_environmentId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("EnvironmentUsage", field, false, false, errors.New("field of type EnvironmentID does not have child fields"))
 }
 
@@ -28879,16 +28879,16 @@ func (ec *executionContext) fieldContext_Project_environments(_ context.Context,
 	return fc, nil
 }
 
-func (ec *executionContext) _ProjectUsage_id(ctx context.Context, field graphql.CollectedField, obj *model.ProjectUsage) (ret graphql.Marshaler) {
+func (ec *executionContext) _ProjectUsage_projectId(ctx context.Context, field graphql.CollectedField, obj *model.ProjectUsage) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
 		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_ProjectUsage_id(ctx, field)
+			return ec.fieldContext_ProjectUsage_projectId(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return obj.ID, nil
+			return obj.ProjectID, nil
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v platform.ProjectID) graphql.Marshaler {
@@ -28898,7 +28898,7 @@ func (ec *executionContext) _ProjectUsage_id(ctx context.Context, field graphql.
 		true,
 	)
 }
-func (ec *executionContext) fieldContext_ProjectUsage_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_ProjectUsage_projectId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("ProjectUsage", field, false, false, errors.New("field of type ProjectID does not have child fields"))
 }
 
@@ -32674,16 +32674,16 @@ func (ec *executionContext) fieldContext_ReplicaCount_ready(_ context.Context, f
 	return graphql.NewScalarFieldContext("ReplicaCount", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
-func (ec *executionContext) _ResourceUsage_id(ctx context.Context, field graphql.CollectedField, obj *model.ResourceUsage) (ret graphql.Marshaler) {
+func (ec *executionContext) _ResourceUsage_resourceId(ctx context.Context, field graphql.CollectedField, obj *model.ResourceUsage) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
 		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_ResourceUsage_id(ctx, field)
+			return ec.fieldContext_ResourceUsage_resourceId(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return obj.ID, nil
+			return obj.ResourceID, nil
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
@@ -32693,7 +32693,7 @@ func (ec *executionContext) _ResourceUsage_id(ctx context.Context, field graphql
 		true,
 	)
 }
-func (ec *executionContext) fieldContext_ResourceUsage_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_ResourceUsage_resourceId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("ResourceUsage", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
@@ -43535,8 +43535,8 @@ func (ec *executionContext) _EnvironmentUsage(ctx context.Context, sel ast.Selec
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("EnvironmentUsage")
-		case "id":
-			out.Values[i] = ec._EnvironmentUsage_id(ctx, field, obj)
+		case "environmentId":
+			out.Values[i] = ec._EnvironmentUsage_environmentId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -45436,8 +45436,8 @@ func (ec *executionContext) _ProjectUsage(ctx context.Context, sel ast.Selection
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("ProjectUsage")
-		case "id":
-			out.Values[i] = ec._ProjectUsage_id(ctx, field, obj)
+		case "projectId":
+			out.Values[i] = ec._ProjectUsage_projectId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -47001,8 +47001,8 @@ func (ec *executionContext) _ResourceUsage(ctx context.Context, sel ast.Selectio
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("ResourceUsage")
-		case "id":
-			out.Values[i] = ec._ResourceUsage_id(ctx, field, obj)
+		case "resourceId":
+			out.Values[i] = ec._ResourceUsage_resourceId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
