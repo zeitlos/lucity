@@ -577,42 +577,6 @@ victoria-metrics-alert:
                 annotations:
                   title: Node CPU high
                   summary: "Node {{ $labels.node }} CPU at {{ $value | humanizePercentage }} of capacity for 15m"
-              # Scheduling capacity: requested vs allocatable across the cluster.
-              # Pods stop scheduling near 100% while node usage can still look idle.
-              - alert: ClusterRequestsHigh
-                expr: |-
-                  sum by (resource) (
-                    (
-                      kube_pod_container_resource_requests{resource=~"cpu|memory"}
-                      or kube_pod_init_container_resource_requests{resource=~"cpu|memory"}
-                        * on (namespace, pod, container) group_left() kube_pod_init_container_info{restart_policy="Always"}
-                    )
-                    * on (namespace, pod) group_left() max by (namespace, pod) (kube_pod_status_phase{phase=~"Pending|Running"} == 1)
-                  )
-                  / on (resource) sum by (resource) (kube_node_status_allocatable{resource=~"cpu|memory"})
-                  > 0.7
-                for: 30m
-                labels: { severity: warning }
-                annotations:
-                  title: Cluster requests high
-                  summary: "Cluster {{ $labels.resource }} requests at {{ $value | humanizePercentage }} of allocatable — add a node before scheduling stalls"
-              - alert: ClusterRequestsCritical
-                expr: |-
-                  sum by (resource) (
-                    (
-                      kube_pod_container_resource_requests{resource=~"cpu|memory"}
-                      or kube_pod_init_container_resource_requests{resource=~"cpu|memory"}
-                        * on (namespace, pod, container) group_left() kube_pod_init_container_info{restart_policy="Always"}
-                    )
-                    * on (namespace, pod) group_left() max by (namespace, pod) (kube_pod_status_phase{phase=~"Pending|Running"} == 1)
-                  )
-                  / on (resource) sum by (resource) (kube_node_status_allocatable{resource=~"cpu|memory"})
-                  > 0.9
-                for: 15m
-                labels: { severity: critical }
-                annotations:
-                  title: Cluster requests critical
-                  summary: "Cluster {{ $labels.resource }} requests at {{ $value | humanizePercentage }} of allocatable — new pods will fail to schedule"
               # Pods the scheduler cannot place. Platform pods are named, tenant
               # pods only counted, so these alerts carry no tenant names.
               - alert: PlatformPodUnschedulable
@@ -843,6 +807,102 @@ victoria-metrics-alert:
                 annotations:
                   title: Metrics cardinality high
                   summary: "VictoriaMetrics active series >500k — investigate top metrics with /api/v1/status/tsdb"
+          - name: node-pools
+            rules:
+              - record: lucity:node_pool:info
+                expr: |-
+                  max by (node, pool) (label_replace(kube_node_spec_taint{key="lucity.dev/node-pool"}, "pool", "$1", "value", "(.+)"))
+                  or on (node)
+                  max by (node, pool) (label_replace(kube_node_info, "pool", "default", "", ""))
+              - record: lucity:pool_requests:sum
+                expr: |-
+                  sum by (pool, resource) (
+                    (
+                      kube_pod_container_resource_requests{resource=~"cpu|memory"}
+                      or kube_pod_init_container_resource_requests{resource=~"cpu|memory"}
+                        * on (namespace, pod, container) group_left() kube_pod_init_container_info{restart_policy="Always"}
+                    )
+                    * on (namespace, pod) group_left() max by (namespace, pod) (kube_pod_status_phase{phase=~"Pending|Running"} == 1)
+                    * on (node) group_left(pool) lucity:node_pool:info
+                  )
+              - record: lucity:pool_allocatable:sum
+                expr: sum by (pool, resource) (kube_node_status_allocatable{resource=~"cpu|memory|pods"} * on (node) group_left(pool) lucity:node_pool:info)
+              - record: lucity:pool_allocatable:max_node
+                expr: max by (pool, resource) (kube_node_status_allocatable{resource=~"cpu|memory|pods"} * on (node) group_left(pool) lucity:node_pool:info)
+              - record: lucity:pool_pods:count
+                expr: |-
+                  sum by (pool) (
+                    count by (node) (
+                      max by (namespace, pod, node) (kube_pod_container_resource_requests{node!=""})
+                        and on (namespace, pod) (kube_pod_status_phase{phase=~"Pending|Running"} == 1)
+                    )
+                    * on (node) group_left(pool) lucity:node_pool:info
+                  )
+              - record: lucity:pool_volume_attachments:count
+                expr: |-
+                  sum by (pool) (
+                    count by (node) (kube_volumeattachment_info and on (volumeattachment) (kube_volumeattachment_status_attached == 1))
+                    * on (node) group_left(pool) lucity:node_pool:info
+                  )
+              - alert: PoolVolumeSlotsLow
+                expr: 16 * count by (pool) (lucity:node_pool:info) - on (pool) lucity:pool_volume_attachments:count < 16
+                for: 30m
+                labels: { severity: warning }
+                annotations:
+                  title: Pool volume slots low
+                  summary: "{{ $labels.pool }} pool has {{ $value | humanize }} free volume slots, less than one node holds: a drained or lost node's volumes can't move"
+              - alert: PoolVolumeSlotsExhausted
+                expr: 16 * count by (pool) (lucity:node_pool:info) - on (pool) lucity:pool_volume_attachments:count <= 2
+                for: 15m
+                labels: { severity: critical }
+                annotations:
+                  title: Pool volume slots exhausted
+                  summary: "{{ $labels.pool }} pool has {{ $value | humanize }} free volume slots: the next database or volume will stay Pending. Add a node"
+              - alert: PoolRequestsNoHeadroom
+                expr: |-
+                  lucity:pool_requests:sum
+                  / on (pool, resource) (lucity:pool_allocatable:sum - on (pool, resource) lucity:pool_allocatable:max_node)
+                  > 1
+                  and on (pool) count by (pool) (lucity:node_pool:info) > 1
+                for: 30m
+                labels: { severity: warning }
+                annotations:
+                  title: Pool has no node headroom
+                  summary: "{{ $labels.pool }} pool {{ $labels.resource }} requests need {{ $value | humanizePercentage }} of what is left with its biggest node down: a drain or reboot leaves pods Pending"
+              - alert: PoolRequestsCritical
+                expr: lucity:pool_requests:sum / on (pool, resource) lucity:pool_allocatable:sum > 0.9
+                for: 15m
+                labels: { severity: critical }
+                annotations:
+                  title: Pool requests critical
+                  summary: "{{ $labels.pool }} pool {{ $labels.resource }} requests at {{ $value | humanizePercentage }} of allocatable: new pods will fail to schedule"
+              - alert: PoolMemoryHigh
+                expr: |-
+                  sum by (pool) (label_replace(k8s_node_memory_working_set_bytes, "node", "$1", "k8s_node_name", "(.*)") * on (node) group_left(pool) lucity:node_pool:info)
+                  / on (pool) sum by (pool) (kube_node_status_capacity{resource="memory"} * on (node) group_left(pool) lucity:node_pool:info)
+                  > 0.85
+                for: 15m
+                labels: { severity: warning }
+                annotations:
+                  title: Pool memory high
+                  summary: "{{ $labels.pool }} pool memory working set at {{ $value | humanizePercentage }} of capacity"
+              - alert: PoolCPUHigh
+                expr: |-
+                  sum by (pool) (label_replace(k8s_node_cpu_usage, "node", "$1", "k8s_node_name", "(.*)") * on (node) group_left(pool) lucity:node_pool:info)
+                  / on (pool) sum by (pool) (kube_node_status_capacity{resource="cpu"} * on (node) group_left(pool) lucity:node_pool:info)
+                  > 0.8
+                for: 30m
+                labels: { severity: warning }
+                annotations:
+                  title: Pool CPU high
+                  summary: "{{ $labels.pool }} pool CPU at {{ $value | humanizePercentage }} of capacity for 30m"
+              - alert: PoolPodsHigh
+                expr: lucity:pool_pods:count / on (pool) lucity:pool_allocatable:sum{resource="pods"} > 0.85
+                for: 15m
+                labels: { severity: warning }
+                annotations:
+                  title: Pool pod slots high
+                  summary: "{{ $labels.pool }} pool runs {{ $value | humanizePercentage }} of its pod slots"
           - name: postgres-backups
             rules:
               - alert: BarmanPluginDown
