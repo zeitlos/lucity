@@ -9,12 +9,20 @@ export interface Release {
 export const releasesUrl = 'https://github.com/zeitlos/lucity/releases';
 
 const tags: Record<string, string> = {
+  '17 Nov': 'v26.11.4',
   '11 Nov': 'v26.11.3',
   '6 Nov': 'v26.11.2',
-  '2 Nov': 'v26.11.1',
 };
 
 const earlier: Release[] = [
+  {
+    date: '2 Nov',
+    tag: 'v26.11.1',
+    items: [
+      { name: 'Database metrics and top queries', text: 'CPU, memory, connections and the slowest statements, per database.' },
+      { name: 'Allowed addresses for public databases', text: 'An exposed database only accepts the ranges you list.' },
+    ],
+  },
   {
     date: '2 Oct',
     tag: 'v26.10.1',

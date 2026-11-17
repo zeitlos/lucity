@@ -1,5 +1,12 @@
 [
   {
+    "date": "17 Nov",
+    "items": [
+      { "name": "See where your money goes", "text": "Usage per project, environment and resource, day by day, with a CSV export." },
+      { "name": "Deploys that say why they're stuck", "text": "If your app never gets ready, Lucity tells you, down to the port nothing listens on." }
+    ]
+  },
+  {
     "date": "11 Nov",
     "items": [
       { "name": "Deploy one app from a monorepo", "text": "Lucity lists the apps it finds in your repository and you pick the one to deploy." },
@@ -12,13 +19,6 @@
       { "name": "A log explorer", "text": "Search by keyword, go back up to 14 days and filter by instance, including ones that already crashed." },
       { "name": "A canvas that updates live", "text": "Deploys, scaling and new resources show up within a second. No reload." },
       { "name": "Jump anywhere with ⌘K", "text": "One palette for every project, environment and resource." }
-    ]
-  },
-  {
-    "date": "2 Nov",
-    "items": [
-      { "name": "Database metrics and top queries", "text": "CPU, memory, connections and the slowest statements, per database." },
-      { "name": "Allowed addresses for public databases", "text": "An exposed database only accepts the ranges you list." }
     ]
   }
 ]
