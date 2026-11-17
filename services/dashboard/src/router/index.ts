@@ -43,6 +43,11 @@ const router = createRouter({
           component: ProjectsPage,
         },
         {
+          path: ':workspace/~/usage',
+          name: 'usage',
+          component: () => import('@/pages/UsagePage.vue'),
+        },
+        {
           path: ':workspace/~/:drawer(members|connections|api-tokens|billing|settings)',
           name: 'workspace',
           component: ProjectsPage,

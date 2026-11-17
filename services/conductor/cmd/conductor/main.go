@@ -41,6 +41,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/servicelogs"
 	sourceGH "github.com/zeitlos/lucity/services/conductor/internal/source/github"
 	"github.com/zeitlos/lucity/services/conductor/internal/upstream"
+	"github.com/zeitlos/lucity/services/conductor/internal/usage"
 	"github.com/zeitlos/lucity/services/conductor/internal/vulnerabilities"
 
 	"github.com/zeitlos/lucity/pkg/auth"
@@ -286,7 +287,11 @@ func main() {
 		billingClient = billing.New(config.StripeSecretKey, billing.Prices{
 			Hobby:   config.StripeHobbyPriceID,
 			Pro:     config.StripeProPriceID,
-			Metered: metered,
+			CPU:     config.StripeEcoCPUPriceID,
+			Memory:  config.StripeEcoMemPriceID,
+			Disk:    config.StripeEcoDiskPriceID,
+			Storage: config.StripeStoragePriceID,
+			Egress:  config.StripeEgressPriceID,
 		})
 		slog.Info("billing enabled")
 	} else {
@@ -512,6 +517,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	usageClient, err := usage.New(config.VictoriaMetricsURL)
+	if err != nil {
+		slog.Error("failed to create usage client", "error", err)
+		os.Exit(1)
+	}
+
 	chartFS, err := fs.Sub(charts.LucityApp, "lucity-app")
 
 	if err != nil {
@@ -568,7 +579,7 @@ func main() {
 
 	registry := prometheus.NewRegistry()
 
-	conductor := conductor.New(billingClient, githubApp, logtoClient, directoryClient, platformClient, cachedPlatform, changes, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, vulnerabilitiesClient, pipelineClient, planner, source, hostnameClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, domainsClient, upstream.New(), agentRunnerClient, agentAuditClient, servicelogs.New(config.VictoriaLogsURL), conductorConfig, registry)
+	conductor := conductor.New(billingClient, githubApp, logtoClient, directoryClient, platformClient, cachedPlatform, changes, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, vulnerabilitiesClient, pipelineClient, planner, source, hostnameClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, usageClient, domainsClient, upstream.New(), agentRunnerClient, agentAuditClient, servicelogs.New(config.VictoriaLogsURL), conductorConfig, registry)
 
 	platformClient.Start(ctx)
 	cachedClients.Start(ctx)

@@ -5,14 +5,13 @@ import { useRoute, useRouter } from 'vue-router';
 import { useMutation, useQuery } from '@vue/apollo-composable';
 import { AlertCircle, CircleArrowUp, Coins, CreditCard, ExternalLink, Users } from '@lucide/vue';
 import { graphql } from '@/gql';
-import { Plan, WorkspaceRole, type GatePlansQuery } from '@/gql/graphql';
+import { Plan, SubscriptionStatus, WorkspaceRole, type GatePlansQuery } from '@/gql/graphql';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import DialogIcon from '@/components/DialogIcon.vue';
 import { failureToast } from '@/components/ui/sonner';
 import { useAuth } from '@/composables/useAuth';
 import { rememberPendingCreate, useGate } from '@/composables/useGate';
-import { CapabilitiesDocument } from '@/composables/useCapabilities';
 import { apolloClient } from '@/lib/apollo';
 import { formatCpuQuantity, formatMoney, formatStorage } from '@/lib/format';
 import { planTitle } from '@/lib/capabilities';
@@ -134,12 +133,20 @@ const { result: plansResult, loading: plansLoading } = useQuery(GatePlansDocumen
 const { result: subscriptionResult } = useQuery(GateSubscriptionDocument, null, () => ({ enabled: comparing.value, errorPolicy: 'all' }));
 const { result: membersResult } = useQuery(GateMembersDocument, null, () => ({ enabled: asking.value }));
 
-const offers = computed(() => plansResult.value?.plans ?? []);
-const currentPlan = computed(() => subscriptionResult.value?.subscription?.plan ?? null);
+const subscription = computed(() => subscriptionResult.value?.subscription ?? null);
+const currentPlan = computed(() => subscription.value?.plan ?? null);
+const onTrial = computed(() => subscription.value?.status === SubscriptionStatus.Trialing && !subscription.value.plan);
+const offers = computed(() => (plansResult.value?.plans ?? []).filter(offer => offer.plan || onTrial.value));
 const admins = computed(() => (membersResult.value?.workspace.members ?? []).filter(m => m.role === WorkspaceRole.Admin));
 
 const { mutate: selectPlanMutate, loading: upgrading } = useMutation(GateSelectPlanDocument);
 const { mutate: addCardMutate, loading: addingCard } = useMutation(AddPaymentMethodDocument);
+
+const upgradingPlan = computed(() => {
+  const current = offers.value.find(offer => offer.plan === currentPlan.value);
+  const selected = offers.value.find(offer => offer.plan === selectedPlan.value);
+  return !current || !selected || selected.priceCents > current.priceCents;
+});
 
 function price(offer: { priceCents: number; currency: string }) {
   return formatMoney(offer.priceCents / 100, offer.currency);
@@ -166,7 +173,7 @@ async function upgrade() {
       return;
     }
 
-    await apolloClient.refetchQueries({ include: [CapabilitiesDocument] });
+    await apolloClient.refetchQueries({ include: 'active' });
     close();
   } catch (e: unknown) {
     failureToast('Failed to change the plan', e);
@@ -197,7 +204,7 @@ function choosePlan() {
 
 <template>
   <Dialog v-model:open="open">
-    <DialogContent v-if="planRequest && comparing" :class="[mobileSheetClass, 'sm:max-w-4xl']">
+    <DialogContent v-if="planRequest && comparing" :class="[mobileSheetClass, onTrial ? 'sm:max-w-4xl' : 'sm:max-w-2xl']">
       <DialogHeader>
         <DialogIcon :icon="CircleArrowUp" />
         <DialogTitle>{{ planRequest.title }}</DialogTitle>
@@ -208,7 +215,7 @@ function choosePlan() {
 
       <div v-if="plansLoading && !offers.length" class="h-80" />
 
-      <div v-else role="radiogroup" aria-label="Plan" class="-mx-6 grid grid-cols-4 text-sm">
+      <div v-else role="radiogroup" aria-label="Plan" class="-mx-6 grid text-sm" :class="onTrial ? 'grid-cols-4' : 'grid-cols-3'">
         <div class="pl-6" />
         <label
           v-for="(offer, index) in offers"
@@ -263,7 +270,7 @@ function choosePlan() {
         </p>
         <div class="flex shrink-0 gap-2">
           <Button variant="outline" @click="close">Cancel</Button>
-          <Button :pending="upgrading" @click="upgrade">Upgrade to {{ planTitle(selectedPlan) }}</Button>
+          <Button :pending="upgrading" @click="upgrade">{{ upgradingPlan ? 'Upgrade' : 'Switch' }} to {{ planTitle(selectedPlan) }}</Button>
         </div>
       </DialogFooter>
     </DialogContent>

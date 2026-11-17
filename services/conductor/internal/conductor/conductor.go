@@ -36,6 +36,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/servicelogs"
 	"github.com/zeitlos/lucity/services/conductor/internal/source"
 	"github.com/zeitlos/lucity/services/conductor/internal/upstream"
+	"github.com/zeitlos/lucity/services/conductor/internal/usage"
 	"github.com/zeitlos/lucity/services/conductor/internal/vulnerabilities"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -62,6 +63,7 @@ type Client struct {
 	environment     environment.Interface
 	objectStorage   objectstorage.Interface
 	metrics         *metrics.Provider
+	usage           *usage.Client
 	domains         *domains.Client
 	registry        *registry.Client
 	upstream        *upstream.Client
@@ -104,7 +106,7 @@ type Config struct {
 	CardGateAccountAge   time.Duration
 }
 
-func New(billing *billing.Client, githubApp *ghpkg.App, logto *logto.Client, directory directory.Interface, platform platform.Interface, cachedPlatform platform.Interface, changes platform.Changes, buildjob buildjob.Interface, deployjob deployjob.Interface, scanjob scanjob.Interface, scanreport *scanreport.Client, vulnerabilities *vulnerabilities.Client, pipeline pipeline.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, deployer deployer.Interface, environment environment.Interface, objectStorage objectstorage.Interface, metrics *metrics.Provider, domains *domains.Client, upstream *upstream.Client, agentRunner *agentrunner.Client, agentAudit *agentaudit.Client, serviceLogs *servicelogs.Client, config Config, registerer prometheus.Registerer) *Client {
+func New(billing *billing.Client, githubApp *ghpkg.App, logto *logto.Client, directory directory.Interface, platform platform.Interface, cachedPlatform platform.Interface, changes platform.Changes, buildjob buildjob.Interface, deployjob deployjob.Interface, scanjob scanjob.Interface, scanreport *scanreport.Client, vulnerabilities *vulnerabilities.Client, pipeline pipeline.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, deployer deployer.Interface, environment environment.Interface, objectStorage objectstorage.Interface, metrics *metrics.Provider, usage *usage.Client, domains *domains.Client, upstream *upstream.Client, agentRunner *agentrunner.Client, agentAudit *agentaudit.Client, serviceLogs *servicelogs.Client, config Config, registerer prometheus.Registerer) *Client {
 	signups := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "lucity_signups_total",
 		Help: "Users whose personal workspace was created.",
@@ -136,6 +138,7 @@ func New(billing *billing.Client, githubApp *ghpkg.App, logto *logto.Client, dir
 		environment:       environment,
 		objectStorage:     objectStorage,
 		metrics:           metrics,
+		usage:             usage,
 		domains:           domains,
 		upstream:          upstream,
 		agentRunner:       agentRunner,

@@ -66,6 +66,7 @@ const sheetItems = computed(() =>
 
 const activeKey = computed(() => {
   if (route.name === 'connection') return 'connections';
+  if (route.name === 'usage') return 'usage';
   const drawer = route.params.drawer;
   return typeof drawer === 'string' && drawer ? drawer : tabs.value[0]?.key;
 });
