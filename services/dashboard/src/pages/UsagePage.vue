@@ -30,6 +30,7 @@ import {
   foldRows,
   formatCents,
   formatDay,
+  formatMonth,
   formatDayTime,
   formatShare,
   isoDay,
@@ -133,9 +134,9 @@ const periodKey = computed({
   },
 });
 
-const periodOptions = computed(() => periods.value.map(candidate => ({
+const periodOptions = computed(() => periods.value.map((candidate, index) => ({
   value: isoDay(new Date(candidate.start)),
-  label: periodLabel(candidate.start, candidate.end),
+  label: candidate.current ? 'Current' : periods.value[index - 1]?.current ? 'Previous' : formatMonth(new Date(candidate.start)),
 })));
 
 const { result, error, refetch } = useQuery(
@@ -248,7 +249,7 @@ function downloadCsv() {
         <div class="flex h-full flex-col overflow-hidden rounded-lg border bg-card shadow-sm max-md:rounded-none max-md:border-0 max-md:shadow-none">
           <PageToolbar title="Usage">
             <div class="order-last flex w-full items-center gap-2.5 sm:order-none sm:w-auto">
-              <Skeleton v-if="periodsLoading && !periodsResult" class="h-7 w-72 max-sm:flex-1" />
+              <Skeleton v-if="periodsLoading && !periodsResult" class="h-7 w-48 max-sm:flex-1" />
               <SegmentedControl
                 v-else-if="periodOptions.length > 1"
                 v-model="periodKey"

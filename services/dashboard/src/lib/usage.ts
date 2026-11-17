@@ -117,6 +117,10 @@ export function formatDay(date: Date): string {
   return date.toLocaleDateString(LOCALE, { month: 'short', day: 'numeric' });
 }
 
+export function formatMonth(date: Date): string {
+  return date.toLocaleDateString(LOCALE, { month: 'long' });
+}
+
 export function formatDayTime(date: Date): string {
   return date.toLocaleString(LOCALE, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 }
