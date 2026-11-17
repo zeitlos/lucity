@@ -1,6 +1,6 @@
 import type { RouteLocationNamedRaw } from 'vue-router';
 import type { PanelEntry } from '@/composables/usePanel';
-import { UsageResourceKind } from '@/gql/graphql';
+import { InvoiceLineKind, UsageResourceKind } from '@/gql/graphql';
 import { formatMoney } from '@/lib/format';
 import { environmentRoute, projectRoute } from '@/lib/routes';
 
@@ -11,6 +11,23 @@ const palette = ['var(--chart-1)', 'var(--chart-5)', 'var(--chart-4)', 'var(--ch
 const neutral = 'var(--muted-foreground)';
 const shades = [100, 60, 36, 20];
 const resourceShades = [70, 45, 28, 16];
+
+const BREAKDOWN_SHARE = 0.95;
+const BREAKDOWN_SLACK_CENTS = 100;
+
+export const invoiceLineLabels: Record<InvoiceLineKind, string> = {
+  [InvoiceLineKind.Plan]: 'Plan',
+  [InvoiceLineKind.Cpu]: 'CPU',
+  [InvoiceLineKind.Memory]: 'Memory',
+  [InvoiceLineKind.Volumes]: 'Volumes',
+  [InvoiceLineKind.ObjectStorage]: 'Object storage',
+  [InvoiceLineKind.Egress]: 'Egress',
+};
+
+export function breakdownComplete(breakdownCents: number, invoicedCents: number): boolean {
+  const missing = invoicedCents - breakdownCents;
+  return missing < BREAKDOWN_SLACK_CENTS || breakdownCents >= invoicedCents * BREAKDOWN_SHARE;
+}
 
 const panelTypes: Record<UsageResourceKind, PanelEntry['type']> = {
   [UsageResourceKind.Service]: 'service',

@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { InvoiceLineKind, InvoiceStatus, Plan } from '@/gql/graphql';
 import { mobileSheetClass } from '@/lib/dialog';
 import { formatDate } from '@/lib/format';
-import { formatCents, formatQuantity, formatRate, periodLabel } from '@/lib/usage';
+import { formatCents, formatQuantity, formatRate, invoiceLineLabels, periodLabel } from '@/lib/usage';
 
 const props = defineProps<{
   invoice: {
@@ -39,15 +39,6 @@ const props = defineProps<{
 
 const open = defineModel<boolean>('open', { required: true });
 
-const kindLabels: Record<InvoiceLineKind, string> = {
-  [InvoiceLineKind.Plan]: 'Plan',
-  [InvoiceLineKind.Cpu]: 'CPU',
-  [InvoiceLineKind.Memory]: 'Memory',
-  [InvoiceLineKind.Volumes]: 'Volumes',
-  [InvoiceLineKind.ObjectStorage]: 'Object storage',
-  [InvoiceLineKind.Egress]: 'Egress',
-};
-
 const planLabels: Partial<Record<Plan, string>> = {
   [Plan.Hobby]: 'Hobby plan',
   [Plan.Pro]: 'Pro plan',
@@ -57,7 +48,7 @@ const preview = computed(() => props.invoice.status === InvoiceStatus.Preview);
 
 const lines = computed(() => props.invoice.lines.map((line) => {
   if (line.kind === InvoiceLineKind.Plan) {
-    const plan = (line.plan && planLabels[line.plan]) ?? kindLabels[line.kind];
+    const plan = (line.plan && planLabels[line.plan]) ?? invoiceLineLabels[line.kind];
     const time = line.amountCents < 0 ? 'Unused time on' : 'Remaining time on';
     return {
       label: line.proration ? `${time} ${plan}` : plan,
@@ -69,7 +60,7 @@ const lines = computed(() => props.invoice.lines.map((line) => {
   }
 
   return {
-    label: kindLabels[line.kind],
+    label: invoiceLineLabels[line.kind],
     period: '',
     quantity: `${formatQuantity(line.quantity)} ${line.unit}`,
     rate: `${formatRate(line.unitAmountCents)} per ${line.unit.replace(/s$/, '')}`,

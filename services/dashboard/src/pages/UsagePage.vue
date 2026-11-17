@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
 import { Download, ReceiptText } from '@lucide/vue';
 import { graphql } from '@/gql';
-import { InvoiceStatus } from '@/gql/graphql';
+import { InvoiceLineKind, InvoiceStatus } from '@/gql/graphql';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -14,6 +14,7 @@ import PageToolbar from '@/components/PageToolbar.vue';
 import QueryError from '@/components/QueryError.vue';
 import SegmentedControl from '@/components/SegmentedControl.vue';
 import InvoiceDialog from '@/components/usage/InvoiceDialog.vue';
+import UsageInvoiceLines from '@/components/usage/UsageInvoiceLines.vue';
 import UsageRows from '@/components/usage/UsageRows.vue';
 import UsageScopeFilter from '@/components/usage/UsageScopeFilter.vue';
 import { useAuth } from '@/composables/useAuth';
@@ -23,6 +24,7 @@ import { workspaceNavItems } from '@/lib/contextNav';
 import { formatDate } from '@/lib/format';
 import { darkTooltipClass } from '@/lib/tooltip';
 import {
+  breakdownComplete,
   dayDate,
   dayIndex,
   download,
@@ -179,6 +181,10 @@ watch(() => rows.value.main[0]?.key, (key) => {
 const visible = computed(() => scoped(projects.value, scope.value));
 const workspaceCents = computed(() => sum(projects.value.map(project => project.amountCents)));
 const scopedCents = computed(() => sum(visible.value.map(project => project.amountCents)));
+const invoicedLines = computed(() => usage.value?.invoice?.lines.filter(line => line.kind !== InvoiceLineKind.Plan) ?? []);
+const invoicedCents = computed(() => sum(invoicedLines.value.map(line => line.amountCents)));
+const complete = computed(() => !usage.value?.invoice || breakdownComplete(workspaceCents.value, invoicedCents.value));
+const headlineCents = computed(() => (complete.value ? scopedCents.value : invoicedCents.value));
 
 const soFar = computed(() => (usage.value?.period.current ? ' so far' : ''));
 const usageLabel = computed(() => `Usage${soFar.value}`);
@@ -261,7 +267,7 @@ function downloadCsv() {
               <ReceiptText />
               <span class="max-sm:sr-only">{{ usage.period.current ? 'Invoice preview' : 'Invoice' }}</span>
             </Button>
-            <Button variant="outline" class="max-sm:w-9 max-sm:px-0" :disabled="!usage" @click="downloadCsv">
+            <Button v-if="complete" variant="outline" class="max-sm:w-9 max-sm:px-0" :disabled="!usage" @click="downloadCsv">
               <Download />
               <span class="max-sm:sr-only">Download CSV</span>
             </Button>
@@ -298,16 +304,16 @@ function downloadCsv() {
 
             <div v-else class="flex flex-col gap-7 px-6 pt-5 pb-8 max-sm:px-4">
               <Skeleton v-if="!usage" class="h-9 w-40" />
-              <UsageScopeFilter v-else v-model="scope" :projects="projects" :colors="colors" />
+              <UsageScopeFilter v-else-if="complete" v-model="scope" :projects="projects" :colors="colors" />
 
               <section aria-label="Usage and invoice" class="flex flex-col gap-4">
                 <div class="flex flex-wrap gap-x-6 gap-y-4">
                   <div class="flex flex-col gap-0.5">
                     <template v-if="usage">
                       <span class="text-sm text-muted-foreground">{{ usageLabel }}</span>
-                      <span class="text-4xl font-semibold tabular-nums">{{ formatCents(scopedCents) }}</span>
+                      <span class="text-4xl font-semibold tabular-nums">{{ formatCents(headlineCents) }}</span>
                       <span class="mt-0.5 text-xs text-muted-foreground">
-                        {{ range }}<template v-if="scope"> · {{ formatCents(workspaceCents) }} in this workspace</template>
+                        {{ range }}<template v-if="scope && complete"> · {{ formatCents(workspaceCents) }} in this workspace</template>
                       </span>
                     </template>
                     <template v-else>
@@ -329,7 +335,7 @@ function downloadCsv() {
                 </div>
 
                 <Skeleton v-if="!usage" class="h-9 w-full" />
-                <div v-else-if="strip.length" role="group" :aria-label="`Usage split by ${level}`" class="flex h-9 gap-0.75">
+                <div v-else-if="complete && strip.length" role="group" :aria-label="`Usage split by ${level}`" class="flex h-9 gap-0.75">
                   <Tooltip v-for="item in strip" :key="item.key">
                     <TooltipTrigger as-child>
                       <component
@@ -368,6 +374,12 @@ function downloadCsv() {
                   <Skeleton class="ml-auto h-4 w-16" />
                 </div>
               </div>
+              <UsageInvoiceLines
+                v-else-if="!complete"
+                :lines="invoicedLines"
+                :total-label="usageLabel"
+                :total-cents="invoicedCents"
+              />
               <p v-else-if="rows.main.length === 0" class="-mx-4 border-t px-4 py-6 text-sm text-muted-foreground sm:-mx-6 sm:px-6">
                 Nothing used in this period.
               </p>
