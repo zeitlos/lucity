@@ -75,7 +75,7 @@ const payment = computed(() => {
 });
 
 const totalLabel = computed(() => ({
-  [InvoiceStatus.Preview]: 'Estimated total',
+  [InvoiceStatus.Preview]: 'Total so far',
   [InvoiceStatus.Paid]: 'Amount paid',
   [InvoiceStatus.Open]: 'Amount due',
 })[props.invoice.status]);

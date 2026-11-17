@@ -14,6 +14,7 @@ const props = defineProps<{
   tail: UsageRow[];
   level: UsageLevel;
   totalLabel: string;
+  totalNote?: string;
   periodStart: string;
   measuredUntil: string;
   days: number;
@@ -191,7 +192,9 @@ async function follow(event: MouseEvent, navigate: (event?: MouseEvent) => Promi
     </div>
 
     <div role="row" class="grid grid-cols-[minmax(0,1fr)_auto] gap-x-6 border-t px-4 py-3 font-semibold sm:px-6">
-      <span role="rowheader">{{ totalLabel }}</span>
+      <span role="rowheader">
+        {{ totalLabel }}<span v-if="totalNote" class="font-normal text-muted-foreground"> · {{ totalNote }}</span>
+      </span>
       <span role="cell" class="text-right">{{ formatCents(totalCents) }}</span>
     </div>
   </div>

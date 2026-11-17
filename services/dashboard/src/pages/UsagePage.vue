@@ -184,10 +184,20 @@ const scopedCents = computed(() => sum(visible.value.map(project => project.amou
 const invoicedLines = computed(() => usage.value?.invoice?.lines.filter(line => line.kind !== InvoiceLineKind.Plan) ?? []);
 const invoicedCents = computed(() => sum(invoicedLines.value.map(line => line.amountCents)));
 const complete = computed(() => !usage.value?.invoice || breakdownComplete(workspaceCents.value, invoicedCents.value));
-const headlineCents = computed(() => (complete.value ? scopedCents.value : invoicedCents.value));
+const showUsage = computed(() => !usage.value?.invoice || (scope.value !== null && complete.value));
+
+const scopeName = computed(() => {
+  const current = scope.value;
+  if (!current) return '';
+  const project = projects.value.find(candidate => candidate.projectId === current.project);
+  if (!current.environment) return project?.name ?? '';
+  return project?.environments.find(environment => environment.environmentId === current.environment)?.name ?? '';
+});
 
 const soFar = computed(() => (usage.value?.period.current ? ' so far' : ''));
 const usageLabel = computed(() => `Usage${soFar.value}`);
+const headlineLabel = computed(() => (scopeName.value ? `${scopeName.value} usage${soFar.value}` : usageLabel.value));
+const measuredNote = computed(() => (usage.value?.period.current ? `up to ${formatDayTime(new Date(usage.value.measuredUntil))}` : ''));
 
 const range = computed(() => {
   if (!usage.value) return '';
@@ -254,15 +264,6 @@ function downloadCsv() {
       <div class="relative min-w-0 flex-1">
         <div class="flex h-full flex-col overflow-hidden rounded-lg border bg-card shadow-sm max-md:rounded-none max-md:border-0 max-md:shadow-none">
           <PageToolbar title="Usage">
-            <div class="order-last flex w-full items-center gap-2.5 sm:order-none sm:w-auto">
-              <Skeleton v-if="periodsLoading && !periodsResult" class="h-7 w-48 max-sm:flex-1" />
-              <SegmentedControl
-                v-else-if="periodOptions.length > 1"
-                v-model="periodKey"
-                label="Billing period"
-                :options="periodOptions"
-              />
-            </div>
             <Button v-if="usage?.invoice" variant="outline" class="max-sm:w-9 max-sm:px-0" @click="invoiceOpen = true">
               <ReceiptText />
               <span class="max-sm:sr-only">{{ usage.period.current ? 'Invoice preview' : 'Invoice' }}</span>
@@ -303,34 +304,35 @@ function downloadCsv() {
             />
 
             <div v-else class="flex flex-col gap-7 px-6 pt-5 pb-8 max-sm:px-4">
-              <Skeleton v-if="!usage" class="h-9 w-40" />
-              <UsageScopeFilter v-else-if="complete" v-model="scope" :projects="projects" :colors="colors" />
+              <div class="flex flex-wrap items-center gap-3">
+                <Skeleton v-if="!usage" class="h-9 w-40" />
+                <UsageScopeFilter v-else-if="complete" v-model="scope" :projects="projects" :colors="colors" />
+                <Skeleton v-if="periodsLoading && !periodsResult" class="ml-auto h-7 w-48" />
+                <SegmentedControl
+                  v-else-if="periodOptions.length > 1"
+                  v-model="periodKey"
+                  class="ml-auto"
+                  label="Billing period"
+                  :options="periodOptions"
+                />
+              </div>
 
               <section aria-label="Usage and invoice" class="flex flex-col gap-4">
                 <div class="flex flex-wrap gap-x-6 gap-y-4">
-                  <div class="flex flex-col gap-0.5">
-                    <template v-if="usage">
-                      <span class="text-sm text-muted-foreground">{{ usageLabel }}</span>
-                      <span class="text-4xl font-semibold tabular-nums">{{ formatCents(headlineCents) }}</span>
-                      <span class="mt-0.5 text-xs text-muted-foreground">
-                        {{ range }}<template v-if="scope && complete"> · {{ formatCents(workspaceCents) }} in this workspace</template>
-                      </span>
-                    </template>
-                    <template v-else>
-                      <Skeleton class="my-0.5 h-4 w-24" />
-                      <Skeleton class="my-1 h-9 w-36" />
-                      <Skeleton class="my-1 h-3 w-32" />
-                    </template>
-                  </div>
-                  <div v-if="usage?.invoice" class="flex flex-col gap-0.5 border-l pl-6">
-                    <span class="text-sm text-muted-foreground">{{ usage.period.current ? 'Estimated invoice' : 'Invoice' }}</span>
-                    <span class="text-4xl font-semibold tabular-nums">{{ formatCents(usage.invoice.totalCents) }}</span>
-                    <span class="mt-0.5 text-xs text-muted-foreground">{{ payment }}</span>
-                  </div>
-                  <div v-else-if="!usage" class="flex flex-col gap-0.5 border-l pl-6">
+                  <div v-if="!usage" class="flex flex-col gap-0.5">
                     <Skeleton class="my-0.5 h-4 w-28" />
                     <Skeleton class="my-1 h-9 w-36" />
-                    <Skeleton class="my-1 h-3 w-28" />
+                    <Skeleton class="my-1 h-3 w-32" />
+                  </div>
+                  <div v-if="usage && showUsage" class="flex flex-col gap-0.5">
+                    <span class="text-sm text-muted-foreground">{{ headlineLabel }}</span>
+                    <span class="text-4xl font-semibold tabular-nums">{{ formatCents(scopedCents) }}</span>
+                    <span class="mt-0.5 text-xs text-muted-foreground">{{ range }}</span>
+                  </div>
+                  <div v-if="usage?.invoice" :class="['flex flex-col gap-0.5', showUsage && 'border-l pl-6']">
+                    <span class="text-sm text-muted-foreground">{{ usage.period.current ? 'Invoice so far' : 'Invoice' }}</span>
+                    <span class="text-4xl font-semibold tabular-nums">{{ formatCents(usage.invoice.totalCents) }}</span>
+                    <span class="mt-0.5 text-xs text-muted-foreground">{{ payment }}</span>
                   </div>
                 </div>
 
@@ -390,6 +392,7 @@ function downloadCsv() {
                 :tail="rows.tail"
                 :level="level"
                 :total-label="usageLabel"
+                :total-note="measuredNote"
                 :period-start="usage.period.start"
                 :measured-until="usage.measuredUntil"
                 :days="days"
