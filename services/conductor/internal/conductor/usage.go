@@ -68,6 +68,9 @@ type InvoiceView struct {
 type InvoiceLineView struct {
 	Kind            string
 	Plan            *pkgbilling.Plan
+	Proration       bool
+	PeriodStart     *time.Time
+	PeriodEnd       *time.Time
 	Quantity        float64
 	Unit            string
 	UnitAmountCents float64
@@ -381,14 +384,24 @@ func invoiceView(invoice *billing.Invoice) *InvoiceView {
 	for _, line := range invoice.Lines {
 		if line.Plan != pkgbilling.PlanNone {
 			plan := line.Plan
-			view.Lines = append(view.Lines, InvoiceLineView{
+			planLine := InvoiceLineView{
 				Kind:            "PLAN",
 				Plan:            &plan,
+				Proration:       line.Proration,
 				Quantity:        line.Quantity,
 				Unit:            "month",
 				UnitAmountCents: line.UnitAmountCents,
 				AmountCents:     int(line.AmountCents),
-			})
+			}
+
+			if !line.PeriodStart.IsZero() {
+				periodStart := line.PeriodStart
+				periodEnd := line.PeriodEnd
+				planLine.PeriodStart = &periodStart
+				planLine.PeriodEnd = &periodEnd
+			}
+
+			view.Lines = append(view.Lines, planLine)
 
 			continue
 		}

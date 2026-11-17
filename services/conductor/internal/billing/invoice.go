@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"time"
 
@@ -48,10 +49,15 @@ const (
 )
 
 // InvoiceLine is one line of an invoice: a plan when Plan is set, a meter
-// otherwise. Quantity and UnitAmountCents are in the meter's Stripe unit.
+// otherwise. A plan line carries the period it pays for, and Proration marks
+// the unused or remaining time of a plan change. Quantity and UnitAmountCents
+// are in the meter's Stripe unit.
 type InvoiceLine struct {
 	Plan            billing.Plan
 	Meter           Meter
+	Proration       bool
+	PeriodStart     time.Time
+	PeriodEnd       time.Time
 	Quantity        float64
 	UnitAmountCents float64
 	AmountCents     int64
@@ -274,9 +280,8 @@ func (c *Client) invoiceLines(ctx context.Context, invoice *stripe.Invoice) ([]I
 		return nil, err
 	}
 
-	plans := map[billing.Plan]*InvoiceLine{}
+	var plans []InvoiceLine
 	meters := map[Meter]*InvoiceLine{}
-	var planOrder []billing.Plan
 
 	for _, line := range items {
 		if line.Pricing == nil || line.Pricing.PriceDetails == nil || line.Pricing.PriceDetails.Price == nil {
@@ -288,16 +293,20 @@ func (c *Client) invoiceLines(ctx context.Context, invoice *stripe.Invoice) ([]I
 		unit := line.Pricing.UnitAmountDecimal.InexactFloat64()
 
 		if plan := c.plan(priceID); plan != billing.PlanNone {
-			existing, ok := plans[plan]
-
-			if !ok {
-				existing = &InvoiceLine{Plan: plan, Quantity: 1}
-				plans[plan] = existing
-				planOrder = append(planOrder, plan)
+			entry := InvoiceLine{
+				Plan:            plan,
+				Proration:       prorated(line),
+				Quantity:        1,
+				UnitAmountCents: float64(line.Amount),
+				AmountCents:     line.Amount,
 			}
 
-			existing.AmountCents += line.Amount
-			existing.UnitAmountCents = float64(existing.AmountCents)
+			if line.Period != nil {
+				entry.PeriodStart = time.Unix(line.Period.Start, 0)
+				entry.PeriodEnd = time.Unix(line.Period.End, 0)
+			}
+
+			plans = append(plans, entry)
 			continue
 		}
 
@@ -318,11 +327,12 @@ func (c *Client) invoiceLines(ctx context.Context, invoice *stripe.Invoice) ([]I
 		existing.AmountCents += line.Amount
 	}
 
-	lines := make([]InvoiceLine, 0, len(plans)+len(meters))
+	slices.SortStableFunc(plans, func(a, b InvoiceLine) int {
+		return a.PeriodStart.Compare(b.PeriodStart)
+	})
 
-	for _, plan := range planOrder {
-		lines = append(lines, *plans[plan])
-	}
+	lines := make([]InvoiceLine, 0, len(plans)+len(meters))
+	lines = append(lines, plans...)
 
 	for _, meter := range Meters {
 		if line, ok := meters[meter]; ok {
@@ -331,6 +341,20 @@ func (c *Client) invoiceLines(ctx context.Context, invoice *stripe.Invoice) ([]I
 	}
 
 	return lines, nil
+}
+
+func prorated(line *stripe.InvoiceLineItem) bool {
+	if line.Parent == nil {
+		return false
+	}
+
+	if details := line.Parent.SubscriptionItemDetails; details != nil && details.Proration {
+		return true
+	}
+
+	details := line.Parent.InvoiceItemDetails
+
+	return details != nil && details.Proration
 }
 
 func (c *Client) issuer(ctx context.Context) (Party, error) {

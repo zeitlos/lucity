@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { Check, ChevronDown, LayoutGrid, Search, X } from '@lucide/vue';
 import IconButton from '@/components/IconButton.vue';
+import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { formatCents, formatDay, sum, type UsageProject, type UsageScope } from '@/lib/usage';
 import { cn } from '@/lib/utils';
@@ -81,26 +82,23 @@ function pick(option: Option) {
 </script>
 
 <template>
-  <div class="flex items-center gap-1">
+  <div class="flex min-w-0 items-center gap-1">
     <Popover v-model:open="open">
       <PopoverTrigger as-child>
-        <button
-          type="button"
-          class="inline-flex h-9 items-center gap-2 rounded-md border bg-card pr-2.5 pl-3 text-sm text-foreground transition-colors hover:border-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
-        >
+        <Button variant="outline" class="pr-2.5 pl-3">
           <span
             v-if="scope"
             class="size-2 shrink-0 rounded-xs"
             :style="{ background: colors.get(scope.environment ?? scope.project) }"
           />
-          <LayoutGrid v-else :size="16" class="text-muted-foreground" />
-          <span class="font-medium whitespace-nowrap">{{ selectedProject?.name ?? 'All projects' }}</span>
+          <LayoutGrid v-else class="text-muted-foreground" />
+          <span class="truncate">{{ selectedProject?.name ?? 'All projects' }}</span>
           <template v-if="selectedEnvironment">
             <span class="text-muted-foreground">/</span>
-            <span class="font-medium whitespace-nowrap">{{ selectedEnvironment.name }}</span>
+            <span class="truncate">{{ selectedEnvironment.name }}</span>
           </template>
-          <ChevronDown :size="14" class="text-muted-foreground" />
-        </button>
+          <ChevronDown class="text-muted-foreground" />
+        </Button>
       </PopoverTrigger>
       <PopoverContent align="start" class="w-90 overflow-hidden p-0">
         <label class="flex h-11 items-center gap-2 border-b px-3">

@@ -8230,7 +8230,7 @@
       {
         "kind": "OBJECT",
         "name": "Invoice",
-        "description": "The invoice that closes a billing period. A preview has no number yet, and its `issuedAt` is when it will be issued.",
+        "description": "The invoice that closes a billing period. A preview has no number and no `pdfUrl` yet, and its `issuedAt` is when it will be issued.",
         "isOneOf": null,
         "fields": [
           {
@@ -8346,6 +8346,18 @@
             "deprecationReason": null
           },
           {
+            "name": "pdfUrl",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "status",
             "description": null,
             "args": [],
@@ -8402,7 +8414,7 @@
       {
         "kind": "OBJECT",
         "name": "InvoiceLine",
-        "description": "One line of an invoice. `plan` is set on plan lines. `quantity` is in `unit`, such as `vCPU-hours`, `GB-hours`, `GB` or `month`.",
+        "description": "One line of an invoice. A plan line has `plan` and the period it pays for, and `proration` marks the unused or remaining time of a plan change. `quantity` is in `unit`, such as `vCPU-hours`, `GB-hours`, `GB-months`, `GB` or `month`.",
         "isOneOf": null,
         "fields": [
           {
@@ -8438,6 +8450,30 @@
             "deprecationReason": null
           },
           {
+            "name": "periodEnd",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Time",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "periodStart",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Time",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "plan",
             "description": null,
             "args": [],
@@ -8445,6 +8481,22 @@
               "kind": "ENUM",
               "name": "Plan",
               "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "proration",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "Boolean",
+                "kind": "SCALAR",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null

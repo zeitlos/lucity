@@ -5,7 +5,10 @@ const LOCALE = 'en-US';
 const DAY = 24 * 60 * 60 * 1000;
 
 const palette = ['var(--chart-1)', 'var(--chart-5)', 'var(--chart-4)', 'var(--chart-3)', 'var(--chart-2)'];
+const neutral = 'var(--muted-foreground)';
 const shades = [100, 60, 36, 20];
+const resourceShades = [70, 45, 28, 16];
+const FOLD_SHARE = 0.01;
 
 export interface UsageResource {
   resourceId: string;
@@ -38,6 +41,20 @@ export interface UsageScope {
   environment?: string;
 }
 
+export interface UsageRow {
+  key: string;
+  name: string;
+  kind?: UsageResourceKind;
+  deletedAt?: string | null;
+  amountCents: number;
+  daily: number[];
+  color?: string;
+  scope?: UsageScope;
+  children: UsageRow[];
+}
+
+export type UsageLevel = 'project' | 'environment' | 'resource';
+
 export function tint(color: string, amount: number): string {
   return amount >= 100 ? color : `color-mix(in oklab, ${color} ${amount}%, var(--card))`;
 }
@@ -46,7 +63,7 @@ export function projectColors(projects: UsageProject[]): Map<string, string> {
   const colors = new Map<string, string>();
 
   projects.forEach((project, i) => {
-    const color = palette[i % palette.length]!;
+    const color = palette[i] ?? neutral;
     colors.set(project.projectId, color);
 
     project.environments.forEach((environment, j) => {
@@ -58,6 +75,7 @@ export function projectColors(projects: UsageProject[]): Map<string, string> {
 }
 
 export function formatCents(cents: number): string {
+  if (cents > 0 && cents < 0.5) return `<${formatMoney(0.01, 'EUR')}`;
   return formatMoney(cents / 100, 'EUR');
 }
 
@@ -70,6 +88,7 @@ export function formatRate(cents: number): string {
 }
 
 export function formatQuantity(value: number): string {
+  if (value > 0 && value < 0.01) return '<0.01';
   const digits = value < 10 ? 2 : value < 1000 ? 1 : 0;
   return value.toLocaleString(LOCALE, { maximumFractionDigits: digits });
 }
@@ -82,6 +101,10 @@ export function formatShare(ratio: number): string {
 
 export function formatDay(date: Date): string {
   return date.toLocaleDateString(LOCALE, { month: 'short', day: 'numeric' });
+}
+
+export function formatDayTime(date: Date): string {
+  return date.toLocaleString(LOCALE, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 }
 
 export function dayDate(periodStart: string, index: number): Date {
@@ -98,6 +121,82 @@ export function periodLabel(start: string, end: string): string {
 
 export function scopeKey(scope: UsageScope | null): string {
   return scope ? scope.environment ?? scope.project : '';
+}
+
+export function scopeLevel(scope: UsageScope | null): UsageLevel {
+  if (!scope) return 'project';
+  return scope.environment ? 'resource' : 'environment';
+}
+
+function resourceRow(resource: UsageResource, color?: string): UsageRow {
+  return {
+    key: `${resource.kind}:${resource.resourceId}`,
+    name: resource.name,
+    kind: resource.kind,
+    amountCents: resource.amountCents,
+    daily: resource.daily,
+    color,
+    children: [],
+  };
+}
+
+function environmentRow(project: UsageProject, environment: UsageEnvironment, colors: Map<string, string>): UsageRow {
+  return {
+    key: environment.environmentId,
+    name: environment.name,
+    deletedAt: environment.deletedAt,
+    amountCents: environment.amountCents,
+    daily: environment.daily,
+    color: colors.get(environment.environmentId),
+    scope: { project: project.projectId, environment: environment.environmentId },
+    children: environment.resources.map(resource => resourceRow(resource)),
+  };
+}
+
+export function usageRows(projects: UsageProject[], scope: UsageScope | null, colors: Map<string, string>): UsageRow[] {
+  if (!scope) {
+    return projects.map(project => ({
+      key: project.projectId,
+      name: project.name,
+      deletedAt: project.deletedAt,
+      amountCents: project.amountCents,
+      daily: project.daily,
+      color: colors.get(project.projectId),
+      scope: { project: project.projectId },
+      children: project.environments.map(environment => environmentRow(project, environment, colors)),
+    }));
+  }
+
+  const project = projects.find(candidate => candidate.projectId === scope.project);
+  if (!project) return [];
+
+  if (!scope.environment) {
+    return project.environments.map(environment => environmentRow(project, environment, colors));
+  }
+
+  const environment = project.environments.find(candidate => candidate.environmentId === scope.environment);
+  const color = colors.get(project.projectId) ?? neutral;
+
+  return (environment?.resources ?? []).map((resource, i) =>
+    resourceRow(resource, tint(color, resourceShades[Math.min(i, resourceShades.length - 1)]!)));
+}
+
+export function foldRows(rows: UsageRow[]): { main: UsageRow[]; tail: UsageRow[] } {
+  const total = sum(rows.map(row => row.amountCents));
+  const tail = rows.filter(row => total > 0 && row.amountCents / total < FOLD_SHARE);
+  if (tail.length < 2) return { main: rows, tail: [] };
+  return { main: rows.filter(row => !tail.includes(row)), tail };
+}
+
+export function foldRow(tail: UsageRow[], level: UsageLevel): UsageRow {
+  return {
+    key: 'tail',
+    name: `${tail.length} ${level}s under ${formatShare(FOLD_SHARE)}`,
+    amountCents: sum(tail.map(row => row.amountCents)),
+    daily: sumDays(tail.map(row => row.daily)),
+    color: tint(neutral, 45),
+    children: [],
+  };
 }
 
 export function scoped(projects: UsageProject[], scope: UsageScope | null): UsageProject[] {

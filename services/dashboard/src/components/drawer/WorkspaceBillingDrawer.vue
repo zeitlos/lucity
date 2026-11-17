@@ -164,7 +164,7 @@ async function handleOpenPortal() {
       </div>
       <div class="-mx-4 border-t" />
       <div class="flex flex-col gap-0.5">
-        <span class="text-sm text-muted-foreground">Total so far</span>
+        <span class="text-sm text-muted-foreground">Estimated invoice</span>
         <Skeleton class="my-1.5 h-5 w-20" />
       </div>
     </div>
@@ -270,7 +270,7 @@ async function handleOpenPortal() {
           @retry="refetchUsage()"
         />
         <section v-else aria-label="This period" class="flex flex-col gap-0.5">
-          <span class="text-sm text-muted-foreground">Total so far</span>
+          <span class="text-sm text-muted-foreground">Estimated invoice</span>
           <span v-if="usage" class="text-xl font-semibold tabular-nums">{{ formatCents(usage.estimatedTotalCents) }}</span>
           <Skeleton v-else-if="usageLoading" class="my-1.5 h-5 w-20" />
           <RouterLink

@@ -1706,6 +1706,9 @@ func convertInvoice(invoice *conductor.InvoiceView) *model.Invoice {
 	for _, line := range invoice.Lines {
 		converted := model.InvoiceLine{
 			Kind:            model.InvoiceLineKind(line.Kind),
+			Proration:       line.Proration,
+			PeriodStart:     line.PeriodStart,
+			PeriodEnd:       line.PeriodEnd,
 			Quantity:        line.Quantity,
 			Unit:            line.Unit,
 			UnitAmountCents: line.UnitAmountCents,

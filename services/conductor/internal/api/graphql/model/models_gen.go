@@ -815,10 +815,13 @@ type Invoice struct {
 	TotalCents    int           `json:"totalCents"`
 }
 
-// One line of an invoice. `plan` is set on plan lines. `quantity` is in `unit`, such as `vCPU-hours`, `GB-hours`, `GB-months`, `GB` or `month`.
+// One line of an invoice. A plan line has `plan` and the period it pays for, and `proration` marks the unused or remaining time of a plan change. `quantity` is in `unit`, such as `vCPU-hours`, `GB-hours`, `GB-months`, `GB` or `month`.
 type InvoiceLine struct {
 	Kind            InvoiceLineKind `json:"kind"`
 	Plan            *Plan           `json:"plan,omitempty"`
+	Proration       bool            `json:"proration"`
+	PeriodStart     *time.Time      `json:"periodStart,omitempty"`
+	PeriodEnd       *time.Time      `json:"periodEnd,omitempty"`
 	Quantity        float64         `json:"quantity"`
 	Unit            string          `json:"unit"`
 	UnitAmountCents float64         `json:"unitAmountCents"`

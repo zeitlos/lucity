@@ -5,7 +5,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useMutation, useQuery } from '@vue/apollo-composable';
 import { AlertCircle, CircleArrowUp, Coins, CreditCard, ExternalLink, Users } from '@lucide/vue';
 import { graphql } from '@/gql';
-import { Plan, WorkspaceRole, type GatePlansQuery } from '@/gql/graphql';
+import { Plan, SubscriptionStatus, WorkspaceRole, type GatePlansQuery } from '@/gql/graphql';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import DialogIcon from '@/components/DialogIcon.vue';
@@ -133,8 +133,10 @@ const { result: plansResult, loading: plansLoading } = useQuery(GatePlansDocumen
 const { result: subscriptionResult } = useQuery(GateSubscriptionDocument, null, () => ({ enabled: comparing.value, errorPolicy: 'all' }));
 const { result: membersResult } = useQuery(GateMembersDocument, null, () => ({ enabled: asking.value }));
 
-const offers = computed(() => plansResult.value?.plans ?? []);
-const currentPlan = computed(() => subscriptionResult.value?.subscription?.plan ?? null);
+const subscription = computed(() => subscriptionResult.value?.subscription ?? null);
+const currentPlan = computed(() => subscription.value?.plan ?? null);
+const onTrial = computed(() => subscription.value?.status === SubscriptionStatus.Trialing && !subscription.value.plan);
+const offers = computed(() => (plansResult.value?.plans ?? []).filter(offer => offer.plan || onTrial.value));
 const admins = computed(() => (membersResult.value?.workspace.members ?? []).filter(m => m.role === WorkspaceRole.Admin));
 
 const { mutate: selectPlanMutate, loading: upgrading } = useMutation(GateSelectPlanDocument);
@@ -202,7 +204,7 @@ function choosePlan() {
 
 <template>
   <Dialog v-model:open="open">
-    <DialogContent v-if="planRequest && comparing" :class="[mobileSheetClass, 'sm:max-w-4xl']">
+    <DialogContent v-if="planRequest && comparing" :class="[mobileSheetClass, onTrial ? 'sm:max-w-4xl' : 'sm:max-w-2xl']">
       <DialogHeader>
         <DialogIcon :icon="CircleArrowUp" />
         <DialogTitle>{{ planRequest.title }}</DialogTitle>
@@ -213,7 +215,7 @@ function choosePlan() {
 
       <div v-if="plansLoading && !offers.length" class="h-80" />
 
-      <div v-else role="radiogroup" aria-label="Plan" class="-mx-6 grid grid-cols-4 text-sm">
+      <div v-else role="radiogroup" aria-label="Plan" class="-mx-6 grid text-sm" :class="onTrial ? 'grid-cols-4' : 'grid-cols-3'">
         <div class="pl-6" />
         <label
           v-for="(offer, index) in offers"

@@ -595,7 +595,10 @@ type ComplexityRoot struct {
 	InvoiceLine struct {
 		AmountCents     func(childComplexity int) int
 		Kind            func(childComplexity int) int
+		PeriodEnd       func(childComplexity int) int
+		PeriodStart     func(childComplexity int) int
 		Plan            func(childComplexity int) int
+		Proration       func(childComplexity int) int
 		Quantity        func(childComplexity int) int
 		Unit            func(childComplexity int) int
 		UnitAmountCents func(childComplexity int) int
@@ -3434,12 +3437,30 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.InvoiceLine.Kind(childComplexity), true
+	case "InvoiceLine.periodEnd":
+		if e.ComplexityRoot.InvoiceLine.PeriodEnd == nil {
+			break
+		}
+
+		return e.ComplexityRoot.InvoiceLine.PeriodEnd(childComplexity), true
+	case "InvoiceLine.periodStart":
+		if e.ComplexityRoot.InvoiceLine.PeriodStart == nil {
+			break
+		}
+
+		return e.ComplexityRoot.InvoiceLine.PeriodStart(childComplexity), true
 	case "InvoiceLine.plan":
 		if e.ComplexityRoot.InvoiceLine.Plan == nil {
 			break
 		}
 
 		return e.ComplexityRoot.InvoiceLine.Plan(childComplexity), true
+	case "InvoiceLine.proration":
+		if e.ComplexityRoot.InvoiceLine.Proration == nil {
+			break
+		}
+
+		return e.ComplexityRoot.InvoiceLine.Proration(childComplexity), true
 	case "InvoiceLine.quantity":
 		if e.ComplexityRoot.InvoiceLine.Quantity == nil {
 			break
@@ -7512,6 +7533,12 @@ func (ec *executionContext) childFields_InvoiceLine(ctx context.Context, field g
 		return ec.fieldContext_InvoiceLine_kind(ctx, field)
 	case "plan":
 		return ec.fieldContext_InvoiceLine_plan(ctx, field)
+	case "proration":
+		return ec.fieldContext_InvoiceLine_proration(ctx, field)
+	case "periodStart":
+		return ec.fieldContext_InvoiceLine_periodStart(ctx, field)
+	case "periodEnd":
+		return ec.fieldContext_InvoiceLine_periodEnd(ctx, field)
 	case "quantity":
 		return ec.fieldContext_InvoiceLine_quantity(ctx, field)
 	case "unit":
@@ -21654,6 +21681,75 @@ func (ec *executionContext) _InvoiceLine_plan(ctx context.Context, field graphql
 }
 func (ec *executionContext) fieldContext_InvoiceLine_plan(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("InvoiceLine", field, false, false, errors.New("field of type Plan does not have child fields"))
+}
+
+func (ec *executionContext) _InvoiceLine_proration(ctx context.Context, field graphql.CollectedField, obj *model.InvoiceLine) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_InvoiceLine_proration(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Proration, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_InvoiceLine_proration(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("InvoiceLine", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _InvoiceLine_periodStart(ctx context.Context, field graphql.CollectedField, obj *model.InvoiceLine) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_InvoiceLine_periodStart(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.PeriodStart, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
+			return ec.marshalOTime2ᚖtimeᚐTime(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_InvoiceLine_periodStart(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("InvoiceLine", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _InvoiceLine_periodEnd(ctx context.Context, field graphql.CollectedField, obj *model.InvoiceLine) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_InvoiceLine_periodEnd(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.PeriodEnd, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
+			return ec.marshalOTime2ᚖtimeᚐTime(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_InvoiceLine_periodEnd(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("InvoiceLine", field, false, false, errors.New("field of type Time does not have child fields"))
 }
 
 func (ec *executionContext) _InvoiceLine_quantity(ctx context.Context, field graphql.CollectedField, obj *model.InvoiceLine) (ret graphql.Marshaler) {
@@ -44025,6 +44121,21 @@ func (ec *executionContext) _InvoiceLine(ctx context.Context, sel ast.SelectionS
 			}
 		case "plan":
 			out.Values[i] = ec._InvoiceLine_plan(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "proration":
+			out.Values[i] = ec._InvoiceLine_proration(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "periodStart":
+			out.Values[i] = ec._InvoiceLine_periodStart(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "periodEnd":
+			out.Values[i] = ec._InvoiceLine_periodEnd(ctx, field, obj)
 			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}

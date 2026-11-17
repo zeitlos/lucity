@@ -116,10 +116,13 @@ enum InvoiceLineKind {
   EGRESS
 }
 
-"""One line of an invoice. `plan` is set on plan lines. `quantity` is in `unit`, such as `vCPU-hours`, `GB-hours`, `GB-months`, `GB` or `month`."""
+"""One line of an invoice. A plan line has `plan` and the period it pays for, and `proration` marks the unused or remaining time of a plan change. `quantity` is in `unit`, such as `vCPU-hours`, `GB-hours`, `GB-months`, `GB` or `month`."""
 type InvoiceLine {
   kind: InvoiceLineKind!
   plan: Plan
+  proration: Boolean!
+  periodStart: Time
+  periodEnd: Time
   quantity: Float!
   unit: String!
   unitAmountCents: Float!
