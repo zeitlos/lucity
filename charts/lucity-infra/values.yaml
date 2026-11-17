@@ -487,7 +487,7 @@ victoria-metrics-single:
   enabled: false
   server:
     # Default "1" means 1 MONTH; set explicitly so we know what we're getting.
-    retentionPeriod: "100d"
+    retentionPeriod: "365d"
     extraArgs:
       # Convert OTLP metric names and labels to Prometheus form on ingest.
       # Affects only OTLP-pushed metrics (host_metrics, kubelet_stats); prometheus-scraped
