@@ -129,11 +129,6 @@ type InvoiceLine {
   amountCents: Int!
 }
 
-type InvoiceParty {
-  name: String!
-  address: [String!]!
-}
-
 """The invoice that closes a billing period. A preview has no number and no `pdfUrl` yet, and its `issuedAt` is when it will be issued."""
 type Invoice {
   number: String
@@ -141,8 +136,6 @@ type Invoice {
   issuedAt: Time!
   paidAt: Time
   pdfUrl: String
-  issuer: InvoiceParty!
-  billedTo: InvoiceParty!
   lines: [InvoiceLine!]!
   subtotalCents: Int!
   creditCents: Int!

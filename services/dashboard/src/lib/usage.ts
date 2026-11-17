@@ -1,5 +1,8 @@
+import type { RouteLocationNamedRaw } from 'vue-router';
+import type { PanelEntry } from '@/composables/usePanel';
 import { UsageResourceKind } from '@/gql/graphql';
 import { formatMoney } from '@/lib/format';
+import { environmentRoute, projectRoute } from '@/lib/routes';
 
 const LOCALE = 'en-US';
 const DAY = 24 * 60 * 60 * 1000;
@@ -8,6 +11,15 @@ const palette = ['var(--chart-1)', 'var(--chart-5)', 'var(--chart-4)', 'var(--ch
 const neutral = 'var(--muted-foreground)';
 const shades = [100, 60, 36, 20];
 const resourceShades = [70, 45, 28, 16];
+
+const panelTypes: Record<UsageResourceKind, PanelEntry['type']> = {
+  [UsageResourceKind.Service]: 'service',
+  [UsageResourceKind.Database]: 'database',
+  [UsageResourceKind.KeyValueStore]: 'keyValueStore',
+  [UsageResourceKind.Bucket]: 'bucket',
+  [UsageResourceKind.Volume]: 'volume',
+  [UsageResourceKind.Agent]: 'agent',
+};
 const FOLD_SHARE = 0.01;
 
 export interface UsageResource {
@@ -50,6 +62,8 @@ export interface UsageRow {
   daily: number[];
   color?: string;
   scope?: UsageScope;
+  to?: RouteLocationNamedRaw;
+  panel?: PanelEntry;
   children: UsageRow[];
 }
 
@@ -128,7 +142,7 @@ export function scopeLevel(scope: UsageScope | null): UsageLevel {
   return scope.environment ? 'resource' : 'environment';
 }
 
-function resourceRow(resource: UsageResource, color?: string): UsageRow {
+function resourceRow(resource: UsageResource, environment: UsageEnvironment, color?: string): UsageRow {
   return {
     key: `${resource.kind}:${resource.resourceId}`,
     name: resource.name,
@@ -136,6 +150,8 @@ function resourceRow(resource: UsageResource, color?: string): UsageRow {
     amountCents: resource.amountCents,
     daily: resource.daily,
     color,
+    to: environment.deletedAt ? undefined : environmentRoute(environment.environmentId),
+    panel: { type: panelTypes[resource.kind], id: resource.resourceId, label: resource.name },
     children: [],
   };
 }
@@ -149,7 +165,8 @@ function environmentRow(project: UsageProject, environment: UsageEnvironment, co
     daily: environment.daily,
     color: colors.get(environment.environmentId),
     scope: { project: project.projectId, environment: environment.environmentId },
-    children: environment.resources.map(resource => resourceRow(resource)),
+    to: environment.deletedAt ? undefined : environmentRoute(environment.environmentId),
+    children: environment.resources.map(resource => resourceRow(resource, environment)),
   };
 }
 
@@ -163,6 +180,7 @@ export function usageRows(projects: UsageProject[], scope: UsageScope | null, co
       daily: project.daily,
       color: colors.get(project.projectId),
       scope: { project: project.projectId },
+      to: project.deletedAt ? undefined : projectRoute(project.projectId),
       children: project.environments.map(environment => environmentRow(project, environment, colors)),
     }));
   }
@@ -175,10 +193,12 @@ export function usageRows(projects: UsageProject[], scope: UsageScope | null, co
   }
 
   const environment = project.environments.find(candidate => candidate.environmentId === scope.environment);
+  if (!environment) return [];
+
   const color = colors.get(project.projectId) ?? neutral;
 
-  return (environment?.resources ?? []).map((resource, i) =>
-    resourceRow(resource, tint(color, resourceShades[Math.min(i, resourceShades.length - 1)]!)));
+  return environment.resources.map((resource, i) =>
+    resourceRow(resource, environment, tint(color, resourceShades[Math.min(i, resourceShades.length - 1)]!)));
 }
 
 export function foldRows(rows: UsageRow[]): { main: UsageRow[]; tail: UsageRow[] } {

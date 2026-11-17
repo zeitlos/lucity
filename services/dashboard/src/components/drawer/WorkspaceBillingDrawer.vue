@@ -47,16 +47,6 @@ const SelectPlanDocument = graphql(`
   }
 `);
 
-const BillingPlansDocument = graphql(`
-  query BillingPlans {
-    plans {
-      plan
-      priceCents
-      currency
-    }
-  }
-`);
-
 const BillingPortalUrlDocument = graphql(`
   mutation BillingPortalUrl {
     billingPortalUrl {
@@ -90,15 +80,8 @@ const subscription = computed(() => subResult.value?.subscription);
 const { result: usageResult, loading: usageLoading, error: usageError, refetch: refetchUsage } = useQuery(UsageSummaryDocument);
 const usage = computed(() => usageResult.value?.usageSummary);
 
-const { result: plansResult } = useQuery(BillingPlansDocument);
-
 function planName(plan: Plan | null | undefined): string {
   return plan === Plan.Pro ? 'Pro' : 'Hobby';
-}
-
-function planPrice(plan: Plan | null | undefined): string {
-  const offer = plansResult.value?.plans.find(candidate => candidate.plan === plan);
-  return offer ? `${formatMoney(offer.priceCents / 100, offer.currency)} per month` : '';
 }
 
 
@@ -225,10 +208,7 @@ async function handleOpenPortal() {
         <div class="flex items-start justify-between gap-4">
           <div class="flex flex-col gap-0.5">
             <span class="text-sm text-muted-foreground">Plan</span>
-            <span class="text-xl font-semibold">
-              {{ planName(subscription!.plan) }}
-              <span class="text-sm font-normal text-muted-foreground">{{ planPrice(subscription!.plan) }}</span>
-            </span>
+            <span class="text-xl font-semibold">{{ planName(subscription!.plan) }}</span>
             <span class="text-xs text-muted-foreground">
               <Status :tone="subscriptionStatus(subscription!.status).tone" variant="text">{{ subscriptionStatus(subscription!.status).label }}</Status>
               · {{ isTrialing ? 'ends' : 'renews' }} on {{ formatDate(subscription!.currentPeriodEnd) }}

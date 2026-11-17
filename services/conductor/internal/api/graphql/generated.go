@@ -579,10 +579,8 @@ type ComplexityRoot struct {
 	}
 
 	Invoice struct {
-		BilledTo      func(childComplexity int) int
 		CreditCents   func(childComplexity int) int
 		IssuedAt      func(childComplexity int) int
-		Issuer        func(childComplexity int) int
 		Lines         func(childComplexity int) int
 		Number        func(childComplexity int) int
 		PDFURL        func(childComplexity int) int
@@ -602,11 +600,6 @@ type ComplexityRoot struct {
 		Quantity        func(childComplexity int) int
 		Unit            func(childComplexity int) int
 		UnitAmountCents func(childComplexity int) int
-	}
-
-	InvoiceParty struct {
-		Address func(childComplexity int) int
-		Name    func(childComplexity int) int
 	}
 
 	KeyValueStore struct {
@@ -3358,12 +3351,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.ImageSearchResult.StarCount(childComplexity), true
 
-	case "Invoice.billedTo":
-		if e.ComplexityRoot.Invoice.BilledTo == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Invoice.BilledTo(childComplexity), true
 	case "Invoice.creditCents":
 		if e.ComplexityRoot.Invoice.CreditCents == nil {
 			break
@@ -3376,12 +3363,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Invoice.IssuedAt(childComplexity), true
-	case "Invoice.issuer":
-		if e.ComplexityRoot.Invoice.Issuer == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Invoice.Issuer(childComplexity), true
 	case "Invoice.lines":
 		if e.ComplexityRoot.Invoice.Lines == nil {
 			break
@@ -3479,19 +3460,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.InvoiceLine.UnitAmountCents(childComplexity), true
-
-	case "InvoiceParty.address":
-		if e.ComplexityRoot.InvoiceParty.Address == nil {
-			break
-		}
-
-		return e.ComplexityRoot.InvoiceParty.Address(childComplexity), true
-	case "InvoiceParty.name":
-		if e.ComplexityRoot.InvoiceParty.Name == nil {
-			break
-		}
-
-		return e.ComplexityRoot.InvoiceParty.Name(childComplexity), true
 
 	case "KeyValueStore.createdAt":
 		if e.ComplexityRoot.KeyValueStore.CreatedAt == nil {
@@ -7511,10 +7479,6 @@ func (ec *executionContext) childFields_Invoice(ctx context.Context, field graph
 		return ec.fieldContext_Invoice_paidAt(ctx, field)
 	case "pdfUrl":
 		return ec.fieldContext_Invoice_pdfUrl(ctx, field)
-	case "issuer":
-		return ec.fieldContext_Invoice_issuer(ctx, field)
-	case "billedTo":
-		return ec.fieldContext_Invoice_billedTo(ctx, field)
 	case "lines":
 		return ec.fieldContext_Invoice_lines(ctx, field)
 	case "subtotalCents":
@@ -7549,16 +7513,6 @@ func (ec *executionContext) childFields_InvoiceLine(ctx context.Context, field g
 		return ec.fieldContext_InvoiceLine_amountCents(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type InvoiceLine", field.Name)
-}
-
-func (ec *executionContext) childFields_InvoiceParty(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-	switch field.Name {
-	case "name":
-		return ec.fieldContext_InvoiceParty_name(ctx, field)
-	case "address":
-		return ec.fieldContext_InvoiceParty_address(ctx, field)
-	}
-	return nil, fmt.Errorf("no field named %q was found under type InvoiceParty", field.Name)
 }
 
 func (ec *executionContext) childFields_KeyValueStore(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -21472,70 +21426,6 @@ func (ec *executionContext) fieldContext_Invoice_pdfUrl(_ context.Context, field
 	return graphql.NewScalarFieldContext("Invoice", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
-func (ec *executionContext) _Invoice_issuer(ctx context.Context, field graphql.CollectedField, obj *model.Invoice) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Invoice_issuer(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.Issuer, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *model.InvoiceParty) graphql.Marshaler {
-			return ec.marshalNInvoiceParty2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐInvoiceParty(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_Invoice_issuer(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Invoice",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_InvoiceParty(ctx, field)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Invoice_billedTo(ctx context.Context, field graphql.CollectedField, obj *model.Invoice) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Invoice_billedTo(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.BilledTo, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *model.InvoiceParty) graphql.Marshaler {
-			return ec.marshalNInvoiceParty2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐInvoiceParty(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_Invoice_billedTo(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Invoice",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_InvoiceParty(ctx, field)
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Invoice_lines(ctx context.Context, field graphql.CollectedField, obj *model.Invoice) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -21842,52 +21732,6 @@ func (ec *executionContext) _InvoiceLine_amountCents(ctx context.Context, field 
 }
 func (ec *executionContext) fieldContext_InvoiceLine_amountCents(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("InvoiceLine", field, false, false, errors.New("field of type Int does not have child fields"))
-}
-
-func (ec *executionContext) _InvoiceParty_name(ctx context.Context, field graphql.CollectedField, obj *model.InvoiceParty) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_InvoiceParty_name(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.Name, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalNString2string(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_InvoiceParty_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("InvoiceParty", field, false, false, errors.New("field of type String does not have child fields"))
-}
-
-func (ec *executionContext) _InvoiceParty_address(ctx context.Context, field graphql.CollectedField, obj *model.InvoiceParty) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_InvoiceParty_address(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.Address, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
-			return ec.marshalNString2ᚕstringᚄ(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_InvoiceParty_address(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("InvoiceParty", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _KeyValueStore_id(ctx context.Context, field graphql.CollectedField, obj *model.KeyValueStore) (ret graphql.Marshaler) {
@@ -44051,16 +43895,6 @@ func (ec *executionContext) _Invoice(ctx context.Context, sel ast.SelectionSet, 
 			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
-		case "issuer":
-			out.Values[i] = ec._Invoice_issuer(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "billedTo":
-			out.Values[i] = ec._Invoice_billedTo(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "lines":
 			out.Values[i] = ec._Invoice_lines(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -44156,49 +43990,6 @@ func (ec *executionContext) _InvoiceLine(ctx context.Context, sel ast.SelectionS
 			}
 		case "amountCents":
 			out.Values[i] = ec._InvoiceLine_amountCents(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
-
-	return out
-}
-
-var invoicePartyImplementors = []string{"InvoiceParty"}
-
-func (ec *executionContext) _InvoiceParty(ctx context.Context, sel ast.SelectionSet, obj *model.InvoiceParty) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, invoicePartyImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("InvoiceParty")
-		case "name":
-			out.Values[i] = ec._InvoiceParty_name(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "address":
-			out.Values[i] = ec._InvoiceParty_address(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -51171,16 +50962,6 @@ func (ec *executionContext) unmarshalNInvoiceLineKind2githubᚗcomᚋzeitlosᚋl
 
 func (ec *executionContext) marshalNInvoiceLineKind2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐInvoiceLineKind(ctx context.Context, sel ast.SelectionSet, v model.InvoiceLineKind) graphql.Marshaler {
 	return v
-}
-
-func (ec *executionContext) marshalNInvoiceParty2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐInvoiceParty(ctx context.Context, sel ast.SelectionSet, v *model.InvoiceParty) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._InvoiceParty(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNInvoiceStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐInvoiceStatus(ctx context.Context, v any) (model.InvoiceStatus, error) {

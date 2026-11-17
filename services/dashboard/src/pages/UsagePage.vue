@@ -90,14 +90,6 @@ const UsageDocument = graphql(`
         issuedAt
         paidAt
         pdfUrl
-        issuer {
-          name
-          address
-        }
-        billedTo {
-          name
-          address
-        }
         lines {
           kind
           plan
@@ -364,18 +356,18 @@ function downloadCsv() {
                 </div>
               </section>
 
-              <div v-if="!usage" class="flex flex-col">
+              <div v-if="!usage" class="-mx-4 flex flex-col sm:-mx-6">
                 <div
                   v-for="row in 4"
                   :key="row"
-                  class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 border-t py-3 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,22rem)_7rem]"
+                  class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 border-t px-4 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,22rem)_7rem] sm:px-6"
                 >
                   <Skeleton class="h-4 w-32" />
                   <Skeleton class="h-7 w-full max-sm:hidden" />
                   <Skeleton class="ml-auto h-4 w-16" />
                 </div>
               </div>
-              <p v-else-if="rows.main.length === 0" class="border-t py-6 text-sm text-muted-foreground">
+              <p v-else-if="rows.main.length === 0" class="-mx-4 border-t px-4 py-6 text-sm text-muted-foreground sm:-mx-6 sm:px-6">
                 Nothing used in this period.
               </p>
               <UsageRows

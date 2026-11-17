@@ -1687,8 +1687,6 @@ func convertInvoice(invoice *conductor.InvoiceView) *model.Invoice {
 		Status:        model.InvoiceStatus(invoice.Status),
 		IssuedAt:      invoice.IssuedAt,
 		PaidAt:        invoice.PaidAt,
-		Issuer:        convertInvoiceParty(invoice.Issuer),
-		BilledTo:      convertInvoiceParty(invoice.BilledTo),
 		Lines:         make([]model.InvoiceLine, 0, len(invoice.Lines)),
 		SubtotalCents: invoice.SubtotalCents,
 		CreditCents:   invoice.CreditCents,
@@ -1723,14 +1721,4 @@ func convertInvoice(invoice *conductor.InvoiceView) *model.Invoice {
 	}
 
 	return result
-}
-
-func convertInvoiceParty(party internalbilling.Party) *model.InvoiceParty {
-	address := party.Address
-
-	if address == nil {
-		address = []string{}
-	}
-
-	return &model.InvoiceParty{Name: party.Name, Address: address}
 }

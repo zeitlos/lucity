@@ -10,11 +10,6 @@ import { mobileSheetClass } from '@/lib/dialog';
 import { formatDate } from '@/lib/format';
 import { formatCents, formatQuantity, formatRate, periodLabel } from '@/lib/usage';
 
-interface InvoiceParty {
-  name: string;
-  address: string[];
-}
-
 const props = defineProps<{
   invoice: {
     number?: string | null;
@@ -22,8 +17,6 @@ const props = defineProps<{
     issuedAt: string;
     paidAt?: string | null;
     pdfUrl?: string | null;
-    issuer: InvoiceParty;
-    billedTo: InvoiceParty;
     lines: {
       kind: InvoiceLineKind;
       plan?: Plan | null;
@@ -95,11 +88,6 @@ const totalLabel = computed(() => ({
   [InvoiceStatus.Paid]: 'Amount paid',
   [InvoiceStatus.Open]: 'Amount due',
 })[props.invoice.status]);
-
-const parties = computed(() => [
-  { label: 'From', party: props.invoice.issuer },
-  { label: 'Billed to', party: props.invoice.billedTo },
-].filter(entry => entry.party.name || entry.party.address.length));
 </script>
 
 <template>
@@ -113,16 +101,9 @@ const parties = computed(() => [
         </DialogDescription>
       </DialogHeader>
 
-      <dl class="flex flex-wrap gap-x-10 gap-y-4 text-sm">
-        <div v-for="entry in parties" :key="entry.label" class="flex flex-col gap-0.5">
-          <dt class="text-xs text-muted-foreground">{{ entry.label }}</dt>
-          <dd class="font-medium">{{ entry.party.name }}</dd>
-          <dd v-for="(line, i) in entry.party.address" :key="i" class="text-muted-foreground">{{ line }}</dd>
-        </div>
-        <div v-if="invoice.number" class="flex flex-col gap-0.5">
-          <dt class="text-xs text-muted-foreground">Number</dt>
-          <dd class="font-mono text-xs leading-5">{{ invoice.number }}</dd>
-        </div>
+      <dl v-if="invoice.number" class="flex flex-col gap-0.5 text-sm">
+        <dt class="text-xs text-muted-foreground">Number</dt>
+        <dd class="font-mono text-xs leading-5">{{ invoice.number }}</dd>
       </dl>
 
       <div class="-mx-6 min-w-0 border-y">

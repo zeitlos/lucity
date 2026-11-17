@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/stripe/stripe-go/v87"
@@ -63,19 +62,12 @@ type InvoiceLine struct {
 	AmountCents     int64
 }
 
-type Party struct {
-	Name    string
-	Address []string
-}
-
 type Invoice struct {
 	Number        string
 	Status        InvoiceStatus
 	IssuedAt      time.Time
 	PaidAt        *time.Time
 	PDFURL        string
-	Issuer        Party
-	BilledTo      Party
 	Lines         []InvoiceLine
 	SubtotalCents int64
 	CreditCents   int64
@@ -188,7 +180,6 @@ func (c *Client) Invoice(ctx context.Context, customerID string, period Period) 
 		Lines:         lines,
 		SubtotalCents: invoice.Subtotal,
 		TotalCents:    invoice.Total,
-		BilledTo:      Party{Name: invoice.CustomerName, Address: addressLines(invoice.CustomerAddress)},
 		PDFURL:        invoice.InvoicePDF,
 	}
 
@@ -217,14 +208,6 @@ func (c *Client) Invoice(ctx context.Context, customerID string, period Period) 
 		view.CreditCents = min(balance, meteredCents(view.Lines))
 		view.TotalCents -= view.CreditCents
 	}
-
-	issuer, err := c.issuer(ctx)
-
-	if err != nil {
-		slog.WarnContext(ctx, "billing: failed to read the issuer", "error", err)
-	}
-
-	view.Issuer = issuer
 
 	return view, nil
 }
@@ -357,40 +340,6 @@ func prorated(line *stripe.InvoiceLineItem) bool {
 	return details != nil && details.Proration
 }
 
-func (c *Client) issuer(ctx context.Context) (Party, error) {
-	account, err := c.stripe.V1Accounts.Retrieve(ctx, nil)
-
-	if err != nil {
-		return Party{}, fmt.Errorf("retrieve account: %w", err)
-	}
-
-	var party Party
-
-	if account.Settings != nil && account.Settings.Dashboard != nil {
-		party.Name = account.Settings.Dashboard.DisplayName
-	}
-
-	if account.BusinessProfile != nil {
-		if account.BusinessProfile.Name != "" {
-			party.Name = account.BusinessProfile.Name
-		}
-
-		party.Address = addressLines(account.BusinessProfile.SupportAddress)
-	}
-
-	if account.Company != nil {
-		if account.Company.Name != "" {
-			party.Name = account.Company.Name
-		}
-
-		if lines := addressLines(account.Company.Address); len(lines) > 0 {
-			party.Address = lines
-		}
-	}
-
-	return party, nil
-}
-
 func (c *Client) meter(priceID string) (Meter, bool) {
 	switch priceID {
 	case c.prices.CPU:
@@ -453,20 +402,4 @@ func itemPeriod(subscription *stripe.Subscription) (time.Time, time.Time) {
 	}
 
 	return time.Time{}, time.Time{}
-}
-
-func addressLines(address *stripe.Address) []string {
-	if address == nil {
-		return nil
-	}
-
-	var lines []string
-
-	for _, line := range []string{address.Line1, address.Line2, strings.TrimSpace(address.PostalCode + " " + address.City), address.State, address.Country} {
-		if line != "" {
-			lines = append(lines, line)
-		}
-	}
-
-	return lines
 }

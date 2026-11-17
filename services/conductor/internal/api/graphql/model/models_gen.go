@@ -807,8 +807,6 @@ type Invoice struct {
 	IssuedAt      time.Time     `json:"issuedAt"`
 	PaidAt        *time.Time    `json:"paidAt,omitempty"`
 	PDFURL        *string       `json:"pdfUrl,omitempty"`
-	Issuer        *InvoiceParty `json:"issuer"`
-	BilledTo      *InvoiceParty `json:"billedTo"`
 	Lines         []InvoiceLine `json:"lines"`
 	SubtotalCents int           `json:"subtotalCents"`
 	CreditCents   int           `json:"creditCents"`
@@ -826,11 +824,6 @@ type InvoiceLine struct {
 	Unit            string          `json:"unit"`
 	UnitAmountCents float64         `json:"unitAmountCents"`
 	AmountCents     int             `json:"amountCents"`
-}
-
-type InvoiceParty struct {
-	Name    string   `json:"name"`
-	Address []string `json:"address"`
 }
 
 type KeyValueStore struct {

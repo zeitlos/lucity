@@ -54,8 +54,6 @@ type InvoiceView struct {
 	IssuedAt      time.Time
 	PaidAt        *time.Time
 	PDFURL        string
-	Issuer        billing.Party
-	BilledTo      billing.Party
 	Lines         []InvoiceLineView
 	SubtotalCents int
 	CreditCents   int
@@ -374,8 +372,6 @@ func invoiceView(invoice *billing.Invoice) *InvoiceView {
 		IssuedAt:      invoice.IssuedAt,
 		PaidAt:        invoice.PaidAt,
 		PDFURL:        invoice.PDFURL,
-		Issuer:        invoice.Issuer,
-		BilledTo:      invoice.BilledTo,
 		SubtotalCents: int(invoice.SubtotalCents),
 		CreditCents:   int(invoice.CreditCents),
 		TotalCents:    int(invoice.TotalCents),
