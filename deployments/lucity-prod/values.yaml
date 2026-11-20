@@ -33,7 +33,7 @@ conductor:
         effect: NoSchedule
   env:
     OIDC_ISSUER_URL: https://id.lucity.cloud/oidc
-    OIDC_CLIENT_ID: 30ztkgeb1c7hwmnx6bf4s
+    OIDC_CLIENT_ID: gdwxgohaj5sssq6igi6d0
     OIDC_AUDIENCE: https://api.lucity.cloud
     OIDC_CLI_CLIENT_ID: y4jzqbb1vm92i7v05djd7
     OIDC_CALLBACK_URL: https://lucity.cloud/auth/callback
@@ -82,6 +82,7 @@ conductor:
     DATABASE_BACKUP_S3_BUCKET: lucity-prod-db-backups
     DATABASE_BACKUP_S3_REGION: eu-west-par
   envSecret:
+    OIDC_CLIENT_SECRET: OIDC_CLIENT_SECRET
     STRIPE_SECRET_KEY: CONDUCTOR_STRIPE_SECRET_KEY
     SESSION_SECRET: SESSION_SECRET
     GITHUB_CLIENT_SECRET: GITHUB_CLIENT_SECRET
