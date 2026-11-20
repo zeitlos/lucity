@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import QueryError from '@/components/QueryError.vue';
-import { ref, watch, computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
 import { graphql } from '@/gql';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges';
+import { useVariableRows } from '@/composables/useVariableRows';
 import FormFooter from '@/components/FormFooter.vue';
 import VariablesEditor from '@/components/VariablesEditor.vue';
 import { failureToast } from '@/components/ui/sonner';
-import type { VariableReference, VariableRow, VariableSourceTypename } from '@/lib/variables';
+import type { VariableReference, VariableSourceTypename } from '@/lib/variables';
 
 const ServiceVariablesDocument = graphql(`
   query ServiceVariables($service: ServiceID!) {
@@ -36,9 +37,18 @@ const AvailableVariablesDocument = graphql(`
   }
 `);
 
-const SetServiceVariablesDocument = graphql(`
-  mutation SetServiceVariables($service: ServiceID!, $variables: [ServiceVariableInput!]!) {
-    setServiceVariables(service: $service, variables: $variables)
+const LinkedVariableValuesDocument = graphql(`
+  query LinkedVariableValues($environment: EnvironmentID!) {
+    availableVariables(environment: $environment) {
+      id
+      value
+    }
+  }
+`);
+
+const UpdateServiceVariablesDocument = graphql(`
+  mutation UpdateServiceVariables($service: ServiceID!, $set: [ServiceVariableInput!]!, $unset: [String!]!) {
+    updateServiceVariables(service: $service, set: $set, unset: $unset)
   }
 `);
 
@@ -49,9 +59,6 @@ const props = defineProps<{
 
 const { activeEnvironment } = useEnvironment();
 const environmentId = computed(() => activeEnvironment.value?.id ?? '');
-
-const rows = ref<VariableRow[]>([]);
-const hasChanges = ref(false);
 
 const { result, loading, error, refetch } = useQuery(
   ServiceVariablesDocument,
@@ -65,43 +72,65 @@ const { result: availableResult } = useQuery(
   () => ({ enabled: !!environmentId.value }),
 );
 
+const valuesRequested = ref(false);
+
+const {
+  result: valuesResult,
+  loading: loadingValues,
+  refetch: refetchValues,
+  onError: onValuesError,
+} = useQuery(
+  LinkedVariableValuesDocument,
+  () => ({ environment: environmentId.value }),
+  () => ({ enabled: valuesRequested.value && !!environmentId.value }),
+);
+
+onValuesError((e) => {
+  valuesRequested.value = false;
+  failureToast('Couldn\'t load the linked values', e);
+});
+
+function revealValues() {
+  if (valuesRequested.value) {
+    void refetchValues();
+  } else {
+    valuesRequested.value = true;
+  }
+}
+
+const values = computed(() => new Map((valuesResult.value?.availableVariables ?? []).map(v => [v.id, v.value])));
+
 const references = computed<VariableReference[]>(() =>
   (availableResult.value?.availableVariables ?? []).map(v => ({
     id: v.id,
     key: v.key,
     typename: v.source.__typename as VariableSourceTypename,
     sourceName: v.source.name,
+    value: values.value.get(v.id),
   })),
 );
 
-function resetRows() {
-  const vars = result.value?.serviceVariables;
-  if (!vars) return;
-  rows.value = vars.map(v => ({ key: v.key, value: v.value ?? '', ref: v.ref ?? null }));
-  hasChanges.value = false;
-}
+const { rows, changes, dirty, duplicate, reset, commit } = useVariableRows(() =>
+  result.value?.serviceVariables.map(v => ({ key: v.key, value: v.value ?? '', ref: v.ref ?? null })),
+);
 
-watch(() => result.value?.serviceVariables, () => {
-  if (!hasChanges.value) resetRows();
-}, { immediate: true });
+useUnsavedChanges(dirty);
 
-useUnsavedChanges(hasChanges);
-
-const { mutate: setVarsMutate, loading: saving } = useMutation(SetServiceVariablesDocument);
+const { mutate: updateVarsMutate, loading: saving } = useMutation(UpdateServiceVariablesDocument);
 
 async function handleSave() {
   try {
-    const variables = rows.value
-      .filter(r => r.key.trim())
-      .map(r => ({
-        key: r.key.trim(),
-        value: r.ref ? undefined : r.value,
-        ref: r.ref ?? undefined,
-      }));
+    await updateVarsMutate({
+      service: props.serviceId,
+      set: changes.value.set.map(change => ({
+        key: change.key,
+        value: change.ref ? undefined : change.value,
+        ref: change.ref ?? undefined,
+      })),
+      unset: changes.value.unset,
+    });
 
-    await setVarsMutate({ service: props.serviceId, variables });
-
-    hasChanges.value = false;
+    commit();
     refetch();
   } catch (e: unknown) {
     failureToast('Failed to save variables', e);
@@ -122,21 +151,26 @@ async function handleSave() {
       v-model:rows="rows"
       :references="references"
       :loading="loading"
+      :loading-values="loadingValues"
       :disabled="saving"
       empty-title="No variables yet"
       empty-description="Add one, or paste KEY=value lines into a key field."
-      @change="hasChanges = true"
+      @reveal="revealValues"
     />
 
     <FormFooter
       class="sticky bottom-0 -mx-4 -mb-4 bg-card"
-      :dirty="hasChanges"
+      :dirty="dirty"
       :saving="saving"
+      :disabled="!!duplicate"
       @save="handleSave"
-      @discard="resetRows"
+      @discard="reset"
     >
       <template #hint>
-        Available at build time and runtime. Paste <code class="rounded bg-muted px-1 py-0.5 font-mono">KEY=value</code> lines into a key field to add several.
+        <template v-if="duplicate">Two variables are named "{{ duplicate }}".</template>
+        <template v-else>
+          Available at build time and runtime. Paste <code class="rounded bg-muted px-1 py-0.5 font-mono">KEY=value</code> lines into a key field to add several.
+        </template>
       </template>
     </FormFooter>
   </div>

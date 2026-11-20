@@ -57,7 +57,7 @@ const { result, loading, error, refetch } = useQuery(
 
 const vulnerabilitiesPanel = useVulnerabilitiesPanel();
 
-const showVulnerabilities = computed(() => !!result.value?.service?.sourceUrl);
+const showVulnerabilities = computed(() => (result.value ? !!result.value.service?.sourceUrl : loading.value));
 const vulnerabilityReport = computed(() => result.value?.service?.vulnerabilityReport ?? null);
 
 const summaryBadges = computed(() => {
@@ -108,10 +108,15 @@ function shortCommit(commit: string): string {
         </p>
       </div>
 
-      <div v-if="loading && !vulnerabilityReport" class="space-y-2">
-        <Skeleton class="h-8 w-full" />
-        <Skeleton class="h-9 w-full" />
-      </div>
+      <template v-if="loading && !vulnerabilityReport">
+        <div class="flex flex-wrap gap-2">
+          <Skeleton v-for="width in ['w-20', 'w-16', 'w-24', 'w-14', 'w-24']" :key="width" :class="['h-7 rounded-full', width]" />
+        </div>
+        <div class="flex h-9 items-center justify-between border border-input bg-background px-4">
+          <Skeleton class="h-3 w-44" />
+          <Skeleton class="size-4 rounded-sm" />
+        </div>
+      </template>
 
       <EmptyState
         v-else-if="!vulnerabilityReport"
@@ -170,10 +175,17 @@ function shortCommit(commit: string): string {
         </p>
       </div>
 
-      <div v-if="loading && !report" class="space-y-2">
-        <Skeleton class="h-16 w-full" />
-        <Skeleton class="h-16 w-full" />
-        <Skeleton class="h-16 w-full" />
+      <div v-if="loading && !report" class="flex flex-col items-center gap-1 rounded-lg border border-dashed px-6 py-8">
+        <Skeleton class="mb-2 size-10" />
+        <div class="flex h-5 items-center">
+          <Skeleton class="h-3 w-36" />
+        </div>
+        <div class="flex h-5 items-center">
+          <Skeleton class="h-3 w-72 max-w-full" />
+        </div>
+        <div class="flex h-5 items-center">
+          <Skeleton class="h-3 w-40" />
+        </div>
       </div>
 
       <EmptyState

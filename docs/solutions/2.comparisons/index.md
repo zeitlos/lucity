@@ -15,14 +15,14 @@ The PaaS market has great options. Here's an honest look at how Lucity compares.
 | **Self-hostable** | Yes | No | No | No | No | No | Yes |
 | **Ejectability** | Full | No | No | No | No | No | No |
 | **Kubernetes native** | Yes | Hidden | Hidden | No | No | No (Firecracker) | No (Docker) |
-| **EU hosting** | Yes (Swiss coming soon) | No | No | EU (Salesforce) | No | Yes (Amsterdam, Frankfurt) | BYOS |
+| **EU hosting** | Yes (Germany) | Yes (Amsterdam) | Yes (Frankfurt) | Yes (Ireland) | Yes (4 regions) | Yes (Amsterdam, Frankfurt, Paris, Stockholm) | BYOS |
 | **Standard Helm releases** | Yes | Proprietary | Proprietary | Proprietary | Proprietary | No | No |
-| **PR previews** | Yes | Yes | Yes | Add-on | Yes | Manual | Yes |
-| **PostgreSQL** | CNPG | Yes | Yes | Yes | Neon (partner) | Managed ($38+/mo) | Yes |
+| **PR previews** | No | Yes | Yes | Yes (Review Apps) | Yes | Via GitHub Action | Yes |
+| **PostgreSQL** | Yes, with standby | Yes | Yes | Yes | Neon (partner) | Managed ($38+/mo) | Yes |
 | **Redis** | Yes | Yes | Yes | Yes | Upstash (partner) | Yes | Yes |
-| **Cron jobs** | Yes | Yes | Yes | Add-on | Yes | Via Machines API | Yes |
+| **Cron jobs** | No | Yes | Yes | Add-on | Yes | Via Machines API | Yes |
 | **Custom domains** | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| **CLI** | Coming soon | Yes | No | Yes | Yes | Yes | No |
+| **CLI** | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 
 ## How to Read This
 
@@ -32,7 +32,7 @@ Choose based on what matters to you:
 
 - If **ejectability** matters (you want to own your infrastructure config and leave without a rewrite), that's where Lucity stands alone.
 - If **open source** matters (you want to self-host, audit the code, or contribute), Lucity and Coolify are the only options in this list. Lucity runs on Kubernetes with standard Helm releases; Coolify runs on Docker Compose.
-- If **data residency** matters (you need EU hosting for compliance, with Swiss data residency coming soon), Lucity Cloud runs on European infrastructure.
+- If **data residency** matters (you need EU hosting for compliance), Lucity Cloud runs on European infrastructure, operated by a Swiss company.
 - If **maximum polish** matters and lock-in isn't a concern, Railway and Vercel are excellent choices.
 
 ## Detailed Comparisons

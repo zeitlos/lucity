@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"github.com/zeitlos/lucity/pkg/platform"
+	"github.com/zeitlos/lucity/pkg/to"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 )
 
@@ -65,19 +66,7 @@ func (r *environmentResolver) Volumes(ctx context.Context, obj *model.Environmen
 
 // CreateEnvironment is the resolver for the createEnvironment field.
 func (r *mutationResolver) CreateEnvironment(ctx context.Context, input model.CreateEnvironmentInput) (*model.Environment, error) {
-	tier := platform.EcoTier
-
-	if input.Tier != nil {
-		parsed, err := parseResourceTier(*input.Tier)
-
-		if err != nil {
-			return nil, err
-		}
-
-		tier = parsed
-	}
-
-	e, err := r.Conductor.CreateEnvironment(ctx, input.Project, input.Name, input.FromEnvironment, tier)
+	e, err := r.Conductor.CreateEnvironment(ctx, input.Project, to.Val(input.ID), input.Name)
 
 	if err != nil {
 		return nil, err
@@ -86,6 +75,17 @@ func (r *mutationResolver) CreateEnvironment(ctx context.Context, input model.Cr
 	result := convertEnvironment(*e)
 
 	return &result, nil
+}
+
+// RenameEnvironment is the resolver for the renameEnvironment field.
+func (r *mutationResolver) RenameEnvironment(ctx context.Context, environment platform.EnvironmentID, name string) (*model.Environment, error) {
+	result, err := r.Conductor.RenameEnvironment(ctx, environment, name)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertEnvironment(*result)), nil
 }
 
 // DeleteEnvironment is the resolver for the deleteEnvironment field.
@@ -123,6 +123,31 @@ func (r *queryResolver) Environment(ctx context.Context, environment platform.En
 	}
 
 	return new(convertEnvironment(*env)), nil
+}
+
+// Environment is the resolver for the environment field.
+func (r *subscriptionResolver) Environment(ctx context.Context, environment platform.EnvironmentID) (<-chan *model.Environment, error) {
+	updates, err := r.Conductor.EnvironmentUpdates(ctx, environment)
+
+	if err != nil {
+		return nil, err
+	}
+
+	out := make(chan *model.Environment)
+
+	go func() {
+		defer close(out)
+
+		for env := range updates {
+			select {
+			case out <- new(convertEnvironment(env)):
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return out, nil
 }
 
 // Environment returns EnvironmentResolver implementation.

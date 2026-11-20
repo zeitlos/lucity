@@ -1,0 +1,1 @@
+export const mobileSheetClass = 'max-md:top-auto max-md:bottom-0 max-md:max-h-[calc(100dvh-3rem)] max-md:translate-y-0 max-md:overflow-y-auto max-md:rounded-t-xl max-md:rounded-b-none max-md:border-x-0 max-md:border-b-0';

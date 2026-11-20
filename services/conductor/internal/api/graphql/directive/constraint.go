@@ -2,8 +2,11 @@ package directive
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"reflect"
 	"regexp"
+	"strings"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/go-playground/validator/v10"
@@ -40,11 +43,53 @@ func (c *Constraint) Validate(ctx context.Context, obj interface{}, next graphql
 		return val, nil
 	}
 
-	path := graphql.GetPathContext(ctx).Path()
-
 	if err = c.validator.Var(val, constraint); err != nil {
-		return val, usererror.Errorf("value '%s' for %s does not match %s", val, path, constraint)
+		return val, usererror.New(describe(fieldName(ctx), err))
 	}
 
 	return val, nil
+}
+
+func fieldName(ctx context.Context) string {
+	for path := graphql.GetPathContext(ctx); path != nil; path = path.Parent {
+		if path.Field != nil {
+			return *path.Field
+		}
+	}
+
+	return "value"
+}
+
+func describe(field string, err error) string {
+	var errs validator.ValidationErrors
+
+	if !errors.As(err, &errs) || len(errs) == 0 {
+		return field + " is not valid"
+	}
+
+	fe := errs[0]
+
+	unit := ""
+
+	switch fe.Kind() {
+	case reflect.String:
+		unit = " characters"
+	case reflect.Slice, reflect.Array, reflect.Map:
+		unit = " items"
+	}
+
+	if fe.Param() == "1" {
+		unit = strings.TrimSuffix(unit, "s")
+	}
+
+	switch fe.Tag() {
+	case "min":
+		return fmt.Sprintf("%s must be at least %s%s", field, fe.Param(), unit)
+	case "max":
+		return fmt.Sprintf("%s must be at most %s%s", field, fe.Param(), unit)
+	case "resource_name":
+		return field + " may only use lowercase letters, digits and hyphens, and must start and end with a letter or digit"
+	default:
+		return field + " is not valid"
+	}
 }

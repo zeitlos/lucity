@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { mobileSheetClass } from '@/lib/dialog';
 import { ref } from 'vue';
 import { useApolloClient } from '@vue/apollo-composable';
 import {
@@ -22,7 +23,6 @@ import { Button } from '@/components/ui/button';
 const props = defineProps<{
   open: boolean;
   projectId: string;
-  projectName: string;
 }>();
 
 const emit = defineEmits<{
@@ -88,7 +88,7 @@ async function handleEject() {
     :open="open"
     @update:open="emit('update:open', $event)"
   >
-    <DialogContent class="overflow-hidden p-0 sm:max-w-120">
+    <DialogContent :class="[mobileSheetClass, 'overflow-hidden p-0 sm:max-w-120']">
       <!-- Hero section with pattern background -->
       <div class="pattern-circles relative flex flex-col items-center bg-card px-8 pt-10 pb-6">
         <!-- Radial fade overlay -->
@@ -107,7 +107,7 @@ async function handleEject() {
             Eject project
           </DialogTitle>
           <DialogDescription class="text-sm leading-relaxed text-muted-foreground">
-            Export <strong class="font-medium text-foreground">{{ projectName }}</strong>
+            Export this project
             as a self-contained zip you can deploy anywhere.
           </DialogDescription>
         </DialogHeader>

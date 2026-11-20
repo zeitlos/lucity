@@ -1,0 +1,40 @@
+"""A tool a connector offers."""
+type ConnectorTool {
+  name: String!
+  description: String
+}
+
+"""A set of tools connected to the workspace, such as Linear or Sentry. Agents reach a connector only once they are granted it, and never see its credential."""
+type Connector {
+  id: ConnectorID!
+  name: String!
+  """The address of the connector's remote MCP server."""
+  url: String!
+  """The last four characters of the credential, if it has one. The credential itself is never returned."""
+  credentialHint: String
+  status: CredentialStatus!
+  """When the credential was last checked."""
+  checkedAt: Time
+  """The tools the connector listed at the last check."""
+  tools: [ConnectorTool!]!
+  """The agents granted this connector."""
+  agents: [Agent!]! @goField(forceResolver: true)
+}
+
+extend type Query {
+  """The connectors of the workspace."""
+  connectors: [Connector!]! @hasRole(role: WORKSPACE_MEMBER)
+  """One connector."""
+  connector(id: ConnectorID!): Connector! @hasRole(role: WORKSPACE_MEMBER)
+}
+
+extend type Mutation {
+  """Connects a remote MCP server as a connector. `url` must use https. The connector is checked by listing its tools, and one that can't be reached or turns the credential down is not stored. The credential is sent as a bearer token."""
+  createConnector(name: String! @constraint(constraint: "resource_name,min=2,max=32"), url: String! @constraint(constraint: "min=1,max=512"), credential: String @constraint(constraint: "min=1,max=4096")): Connector! @hasRole(role: WORKSPACE_ADMIN)
+  """Replaces the credential of a connector, after checking the new one."""
+  replaceConnectorCredential(connector: ConnectorID!, credential: String! @constraint(constraint: "min=1,max=4096")): Connector! @hasRole(role: WORKSPACE_ADMIN)
+  """Checks the credential again and refreshes the list of tools."""
+  refreshConnector(connector: ConnectorID!): Connector! @hasRole(role: WORKSPACE_ADMIN)
+  """Disconnects a connector and removes it from every agent it was granted to."""
+  deleteConnector(connector: ConnectorID!): Boolean! @hasRole(role: WORKSPACE_ADMIN)
+}

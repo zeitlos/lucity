@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/component: identity-provider
 spec:
-  instances: {{ .Values.logto.postgres.instances | default 1 }}
+  instances: {{ .Values.logto.postgres.instances | default 2 }}
   {{- if .Values.logto.postgres.version }}
   imageName: ghcr.io/cloudnative-pg/postgresql:{{ .Values.logto.postgres.version }}
   {{- end }}

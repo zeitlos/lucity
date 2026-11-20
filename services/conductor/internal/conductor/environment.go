@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/platform"
@@ -21,28 +22,102 @@ func (c *Client) Environment(ctx context.Context, id EnvironmentID) (*Environmen
 	return c.platform.Environment(ctx, id)
 }
 
-// CreateEnvironment provisions a new env namespace at the requested tier.
-// The helm release materializes lazily on the first service/db/volume/
-// variable write — no explicit install is needed here.
-//
-// fromEnvironment duplication is NOT yet supported on the helm-only path:
-// it requires walking the source env's services/databases/volumes via
-// platform.* and re-creating each via the deployer, but platform.Service
-// doesn't yet expose Image and Port fields. Variables are also deferred
-// (see variable.go TODO). Until those land, callers must omit
-// fromEnvironment.
-func (c *Client) CreateEnvironment(ctx context.Context, project ProjectID, name string, fromEnvironment *EnvironmentID, tier ResourceTier) (*Environment, error) {
-	if fromEnvironment != nil {
-		return nil, usererror.New("creating an environment from a source is not yet supported")
+const updateSettle = time.Second
+
+// EnvironmentUpdates sends the environment, then sends it again after the
+// objects behind it change, at most once per second. It ends when ctx is done
+// or the environment is gone.
+func (c *Client) EnvironmentUpdates(ctx context.Context, id EnvironmentID) (<-chan Environment, error) {
+	environment, err := c.Environment(ctx, id)
+
+	if err != nil {
+		return nil, err
 	}
 
+	changes := c.changes.Watch(ctx, id)
+	updates := make(chan Environment)
+
+	go func() {
+		defer close(updates)
+
+		for {
+			select {
+			case updates <- *environment:
+			case <-ctx.Done():
+				return
+			}
+
+			select {
+			case <-changes:
+			case <-ctx.Done():
+				return
+			}
+
+			select {
+			case <-time.After(updateSettle):
+			case <-ctx.Done():
+				return
+			}
+
+			select {
+			case <-changes:
+			default:
+			}
+
+			environment, err = c.Environment(ctx, id)
+
+			if err != nil {
+				return
+			}
+		}
+	}()
+
+	return updates, nil
+}
+
+const defaultEnvironment = "development"
+
+// CreateEnvironment provisions a new env namespace.
+// The helm release materializes lazily on the first service/db/volume/
+// variable write — no explicit install is needed here.
+func (c *Client) CreateEnvironment(ctx context.Context, project ProjectID, id, name string) (*Environment, error) {
+	existing, err := c.platform.Project(ctx, project)
+
+	if err != nil {
+		return nil, err
+	}
+
+	taken := make(map[string]string, len(existing.Environments))
+
+	for _, environment := range existing.Environments {
+		taken[environment.ID.Name] = "Another environment in this project"
+	}
+
+	id, err = pickID(taken, id, name, "environment")
+
+	if err != nil {
+		return nil, err
+	}
+
+	return c.createEnvironment(ctx, project, id, name, existing.Name)
+}
+
+func (c *Client) createEnvironment(ctx context.Context, project ProjectID, id, name, projectName string) (*Environment, error) {
 	envID := platform.EnvironmentID{
 		Workspace: project.Workspace,
 		Project:   project.Name,
-		Name:      name,
+		Name:      id,
 	}
 
-	if err := c.environment.Ensure(ctx, envID, tier); err != nil {
+	if err := c.environment.Ensure(ctx, envID); err != nil {
+		return nil, err
+	}
+
+	if err := c.environment.SetName(ctx, envID, name); err != nil {
+		return nil, err
+	}
+
+	if err := c.environment.SetProjectName(ctx, envID, projectName); err != nil {
 		return nil, err
 	}
 
@@ -52,15 +127,19 @@ func (c *Client) CreateEnvironment(ctx context.Context, project ProjectID, name 
 		}
 	}
 
-	environment, err := c.Environment(ctx, envID)
+	return c.Environment(ctx, envID)
+}
 
-	if err != nil {
+func (c *Client) RenameEnvironment(ctx context.Context, id platform.EnvironmentID, name string) (*Environment, error) {
+	if _, err := c.platform.Environment(ctx, id); err != nil {
 		return nil, err
 	}
 
-	environment.ResourceTier = tier
+	if err := c.environment.SetName(ctx, id, name); err != nil {
+		return nil, err
+	}
 
-	return environment, nil
+	return c.Environment(ctx, id)
 }
 
 func (c *Client) DeleteEnvironment(ctx context.Context, environment platform.EnvironmentID) error {

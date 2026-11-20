@@ -88,8 +88,8 @@ func (m *Manager) Workspace() string {
 			return token.Workspace
 		}
 	}
-	if m.cfg.Workspace != "" {
-		return m.cfg.Workspace
+	if workspace := m.storedWorkspace(); workspace != "" {
+		return workspace
 	}
 	if session, _ := m.ciSession(context.Background()); session != nil {
 		return session.Workspace
@@ -198,6 +198,18 @@ func (m *Manager) BootstrapWorkspaces(ctx context.Context) error {
 
 func (m *Manager) apiToken() string {
 	return os.Getenv("LUCITY_API_TOKEN")
+}
+
+func (m *Manager) storedWorkspace() string {
+	if stored, err := config.Load(); err == nil {
+		m.mu.Lock()
+		m.cfg.Workspace = stored.Workspace
+		m.mu.Unlock()
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.cfg.Workspace
 }
 
 func (m *Manager) storedRefreshToken() string {

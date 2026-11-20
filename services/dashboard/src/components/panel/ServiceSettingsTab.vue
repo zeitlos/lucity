@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import NameSettings from '@/components/NameSettings.vue';
+import { mobileSheetClass } from '@/lib/dialog';
 import CodeBlock from '@/components/CodeBlock.vue';
 import { Status } from '@/components/ui/status';
 import { certificateStatus, dnsStatus, domainStatus } from '@/lib/status';
@@ -7,7 +9,7 @@ import DialogIcon from '@/components/DialogIcon.vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { ref, computed, watch, nextTick, type ComponentPublicInstance } from 'vue';
 import { useMutation, useApolloClient } from '@vue/apollo-composable';
-import { Trash2, Globe, Plus, Minus, RefreshCw, ChevronDown, Network, ExternalLink, Scaling, GitBranch, Play, Zap, ArrowRight, Cpu, MemoryStick, Leaf, ShieldCheck, Check, ChevronsUpDown, Activity, UserCog, ClipboardList } from '@lucide/vue';
+import { Trash2, Globe, Plus, Minus, RefreshCw, ChevronDown, Network, ExternalLink, Scaling, GitBranch, Play, Zap, ArrowRight, Cpu, MemoryStick, ShieldCheck, Check, ChevronsUpDown, Activity, UserCog, ClipboardList } from '@lucide/vue';
 import GithubIcon from '@/components/GithubIcon.vue';
 import { getDomain } from 'tldts';
 import { graphql } from '@/gql';
@@ -19,10 +21,23 @@ import {
   DnsStatus,
   EndpointType,
   Protocol,
-  ResourceTier,
   TlsStatus,
+  Availability,
 } from '@/gql/graphql';
+import { useCapabilities } from '@/composables/useCapabilities';
+import { useGate } from '@/composables/useGate';
+import GateTag from '@/components/GateTag.vue';
+import { aboveLimit, gatedChoices, planTitle } from '@/lib/capabilities';
+import { formatCpuQuantity, formatStorage } from '@/lib/format';
 
+const RenameServiceDocument = graphql(`
+  mutation RenameService($service: ServiceID!, $name: String!) {
+    renameService(service: $service, name: $name) {
+      id
+      name
+    }
+  }
+`);
 const RemoveServiceDocument = graphql(`
   mutation RemoveService($service: ServiceID!) {
     removeService(service: $service)
@@ -202,8 +217,7 @@ const SetServiceUserDocument = graphql(`
     }
   }
 `);
-import { useEnvironment } from '@/composables/useEnvironment';
-import type { Endpoint, Service } from '@/composables/useEnvironment';
+import { useEnvironment, type Endpoint, type Service } from '@/composables/useEnvironment';
 import Spinner from '@/components/LoadingSpinner.vue';
 import { Button } from '@/components/ui/button';
 import IconButton from '@/components/IconButton.vue';
@@ -253,7 +267,15 @@ const emit = defineEmits<{
   (e: 'refetch'): void;
 }>();
 
-const { activeEnvironment } = useEnvironment();
+const { mutate: renameMutate, loading: renaming } = useMutation(RenameServiceDocument);
+
+async function handleRename(name: string) {
+  try {
+    await renameMutate({ service: props.service.id, name });
+  } catch (e: unknown) {
+    failureToast('Failed to rename service', e);
+  }
+}
 
 const endpoints = computed(() => props.service.endpoints ?? []);
 const platformEndpoint = computed(() => endpoints.value.find(e => e.type === EndpointType.Platform));
@@ -261,7 +283,6 @@ const customEndpoints = computed(() => endpoints.value.filter(e => e.type === En
 const internalEndpoint = computed(() => endpoints.value.find(e => e.type === EndpointType.Internal));
 
 const resources = computed(() => props.service.resources ?? null);
-const resourceTier = computed(() => activeEnvironment.value?.resourceTier ?? null);
 
 function domainUrl(endpoint: Endpoint) {
   let url = `${endpoint.protocol}://${endpoint.host}`;
@@ -689,6 +710,7 @@ async function handleAddCustomDomain() {
     closeAddDomain();
     recordsHost.value = hostname;
     emit('refetch');
+    refetchCapabilities();
   } catch (e: unknown) {
     failureToast('Failed to add custom domain', e);
   }
@@ -704,6 +726,7 @@ async function handleRemoveDomain(hostname: string) {
 
     domainToRemove.value = null;
     emit('refetch');
+    refetchCapabilities();
   } catch (e: unknown) {
     failureToast('Failed to remove domain', e);
   } finally {
@@ -732,6 +755,10 @@ const scalingTargetCPU = ref(70);
 const scalingSaving = ref(false);
 
 const { mutate: setScalingMutate } = useMutation(SetServiceScalingDocument);
+
+const { activeEnvVolumes } = useEnvironment();
+const mountedVolume = computed(() => activeEnvVolumes.value.find(v => v.mount?.service === props.service.id) ?? null);
+const replicaMax = computed(() => (mountedVolume.value ? 1 : 20));
 
 function syncScalingFromService() {
   const svc = props.service;
@@ -773,6 +800,7 @@ const scalingSummary = computed(() => {
     return `${svc.autoscaling.minReplicas}–${svc.autoscaling.maxReplicas} replicas · autoscaling`;
   }
   const r = svc.replicas.desired ?? 1;
+  if (r === 0) return 'Stopped';
   return `${r} replica${r !== 1 ? 's' : ''} · manual`;
 });
 
@@ -837,6 +865,31 @@ const selectedMemory = ref('');
 const resourcesSaving = ref(false);
 
 const { mutate: setResourcesMutate } = useMutation(SetServiceResourcesDocument);
+
+const { capabilities, refetch: refetchCapabilities } = useCapabilities();
+const { openFor, pick } = useGate();
+
+const cpuChoices = computed(() => gatedChoices(cpuOptions, capabilities.value?.services.cpu, resources.value?.cpu));
+const memoryChoices = computed(() => gatedChoices(memoryOptions, capabilities.value?.services.memory, resources.value?.memory));
+const cpuAboveLimit = computed(() => aboveLimit(capabilities.value?.services.cpu, resources.value?.cpu));
+const memoryAboveLimit = computed(() => aboveLimit(capabilities.value?.services.memory, resources.value?.memory));
+
+const newDomainGated = computed(() => capabilities.value?.customDomains.availability === Availability.PlanRequired);
+const domainGated = computed(() => !isDomainUpdate.value && newDomainGated.value);
+
+function addDomainClicked() {
+  const gate = capabilities.value?.customDomains;
+  if (domainGated.value && gate?.plan && openFor(gate, `Another custom domain needs the ${planTitle(gate.plan)} plan`)) return;
+  handleAddCustomDomain();
+}
+
+function pickCpu(value: unknown) {
+  pick(cpuChoices.value, value, v => { selectedCpu.value = v; });
+}
+
+function pickMemory(value: unknown) {
+  pick(memoryChoices.value, value, v => { selectedMemory.value = v; });
+}
 
 function discardResources() {
   selectedCpu.value = resources.value?.cpu ?? '';
@@ -935,6 +988,18 @@ async function handleRemoveService() {
 
 <template>
   <div class="space-y-6">
+    <section class="space-y-2">
+      <h3 class="text-sm font-medium text-muted-foreground">
+        General
+      </h3>
+      <NameSettings
+        :name="service.name"
+        :id="service.id"
+        :saving="renaming"
+        @save="handleRename"
+      />
+    </section>
+
     <!-- Source -->
     <section v-if="service.sourceUrl" class="space-y-2">
       <h3 class="text-sm font-medium text-muted-foreground">
@@ -1101,7 +1166,8 @@ async function handleRemoveService() {
             <fieldset :disabled="commandSaving" class="min-w-0">
               <div class="space-y-3 border-t px-4 py-3">
                 <p class="text-xs text-muted-foreground">
-                  Command that will be run to start new deployments. Overrides the default command.
+                  Command that will be run to start new deployments. Overrides the default command. It runs
+                  without a shell, so write variables as $(NAME) and use sh -c '…' for shell features.
                 </p>
                 <Input
                   v-model="customStartCommand"
@@ -1334,7 +1400,7 @@ async function handleRemoveService() {
             <div class="space-y-3 border-t px-4 py-3">
               <div v-if="!platformEndpoint">
                 <p class="mb-2 text-xs text-muted-foreground">
-                  Auto-generated domain for {{ activeEnvironment?.name ?? 'this environment' }}.
+                  Auto-generated domain for this environment.
                 </p>
                 <Button
                   variant="outline"
@@ -1346,32 +1412,37 @@ async function handleRemoveService() {
                 </Button>
               </div>
 
-              <div v-else class="flex items-center gap-2">
-                <div class="flex min-w-0 flex-1 items-stretch overflow-hidden rounded-md border bg-muted/30">
-                  <a
-                    :href="domainUrl(platformEndpoint)"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="flex min-w-0 flex-1 items-center gap-2 px-3 py-2 transition-colors hover:bg-muted/80"
+              <div v-else class="space-y-1">
+                <div class="flex items-center gap-2">
+                  <div class="flex min-w-0 flex-1 items-stretch overflow-hidden rounded-md border bg-muted/30">
+                    <a
+                      :href="domainUrl(platformEndpoint)"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="flex min-w-0 flex-1 items-center gap-2 px-3 py-2 transition-colors hover:bg-muted/80"
+                    >
+                      <ExternalLink :size="14" class="shrink-0 text-muted-foreground" />
+                      <span class="truncate font-mono text-sm hover:underline">{{ platformEndpoint.host }}</span>
+                    </a>
+                    <CopyButton
+                      label="Copy"
+                      class="h-auto shrink-0 rounded-none border-l px-2.5 text-muted-foreground hover:text-foreground"
+                      :value="platformEndpoint!.host"
+                    />
+                  </div>
+                  <IconButton
+                    label="Remove domain"
+                    class="shrink-0 text-destructive"
+                    :disabled="removingHostname === platformEndpoint!.host || redirectSourceByTarget.has(platformEndpoint!.host)"
+                    @click="domainToRemove = platformEndpoint!.host"
                   >
-                    <ExternalLink :size="14" class="shrink-0 text-muted-foreground" />
-                    <span class="truncate font-mono text-sm hover:underline">{{ platformEndpoint.host }}</span>
-                  </a>
-                  <CopyButton
-                    label="Copy"
-                    class="h-auto shrink-0 rounded-none border-l px-2.5 text-muted-foreground hover:text-foreground"
-                    :value="platformEndpoint!.host"
-                  />
+                    <Spinner v-if="removingHostname === platformEndpoint!.host" :size="14" />
+                    <Trash2 v-else />
+                  </IconButton>
                 </div>
-                <IconButton
-                  label="Remove domain"
-                  class="shrink-0 text-destructive"
-                  :disabled="removingHostname === platformEndpoint!.host"
-                  @click="domainToRemove = platformEndpoint!.host"
-                >
-                  <Spinner v-if="removingHostname === platformEndpoint!.host" :size="14" />
-                  <Trash2 v-else />
-                </IconButton>
+                <p v-if="redirectSourceByTarget.has(platformEndpoint.host)" class="text-xs text-muted-foreground">
+                  "{{ redirectSourceByTarget.get(platformEndpoint.host) }}" redirects here. Remove that first.
+                </p>
               </div>
             </div>
           </CollapsibleContent>
@@ -1397,52 +1468,53 @@ async function handleRemoveService() {
           <CollapsibleContent>
             <div class="space-y-3 border-t px-4 py-3">
               <div v-if="customEndpoints.length" class="space-y-2">
-                <div
-                  v-for="endpoint in customEndpoints"
-                  :key="endpoint.host"
-                  class="flex items-center gap-2"
-                >
-                  <div class="flex min-w-0 flex-1 items-stretch overflow-hidden rounded-md border bg-muted/30">
-                    <a
-                      :href="domainUrl(endpoint)"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="flex min-w-0 flex-1 items-center gap-2 px-3 py-2 transition-colors hover:bg-muted/80"
+                <div v-for="endpoint in customEndpoints" :key="endpoint.host" class="space-y-1">
+                  <div class="flex items-center gap-2">
+                    <div class="flex min-w-0 flex-1 items-stretch overflow-hidden rounded-md border bg-muted/30">
+                      <a
+                        :href="domainUrl(endpoint)"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="flex min-w-0 flex-1 items-center gap-2 px-3 py-2 transition-colors hover:bg-muted/80"
+                      >
+                        <ExternalLink :size="14" class="shrink-0 text-muted-foreground" />
+                        <span class="truncate font-mono text-sm hover:underline">{{ endpoint.host }}</span>
+                        <template v-if="endpoint.redirectTo">
+                          <ArrowRight :size="12" class="shrink-0 text-muted-foreground" />
+                          <span class="truncate font-mono text-sm text-muted-foreground">{{ endpoint.redirectTo }}</span>
+                        </template>
+                      </a>
+                      <CopyButton
+                        label="Copy"
+                        class="h-auto shrink-0 rounded-none border-l px-2.5 text-muted-foreground hover:text-foreground"
+                        :value="endpoint.host"
+                      />
+                    </div>
+                    <span class="hidden shrink-0 text-xs text-muted-foreground sm:flex">
+                      <Status :tone="domainStatus(endpoint.dns.status, endpoint.tls).tone" variant="text">
+                        {{ domainStatus(endpoint.dns.status, endpoint.tls).label }}
+                      </Status>
+                    </span>
+                    <IconButton
+                      label="DNS records"
+                      class="shrink-0"
+                      @click="recordsHost = endpoint.host"
                     >
-                      <ExternalLink :size="14" class="shrink-0 text-muted-foreground" />
-                      <span class="truncate font-mono text-sm hover:underline">{{ endpoint.host }}</span>
-                      <template v-if="endpoint.redirectTo">
-                        <ArrowRight :size="12" class="shrink-0 text-muted-foreground" />
-                        <span class="truncate font-mono text-sm text-muted-foreground">{{ endpoint.redirectTo }}</span>
-                      </template>
-                    </a>
-                    <CopyButton
-                      label="Copy"
-                      class="h-auto shrink-0 rounded-none border-l px-2.5 text-muted-foreground hover:text-foreground"
-                      :value="endpoint.host"
-                    />
+                      <ClipboardList />
+                    </IconButton>
+                    <IconButton
+                      label="Remove domain"
+                      class="shrink-0 text-destructive"
+                      :disabled="removingHostname === endpoint.host || redirectSourceByTarget.has(endpoint.host)"
+                      @click="domainToRemove = endpoint.host"
+                    >
+                      <Spinner v-if="removingHostname === endpoint.host" :size="14" />
+                      <Trash2 v-else />
+                    </IconButton>
                   </div>
-                  <span class="hidden shrink-0 text-xs text-muted-foreground sm:flex">
-                    <Status :tone="domainStatus(endpoint.dns.status, endpoint.tls).tone" variant="text">
-                      {{ domainStatus(endpoint.dns.status, endpoint.tls).label }}
-                    </Status>
-                  </span>
-                  <IconButton
-                    label="DNS records"
-                    class="shrink-0"
-                    @click="recordsHost = endpoint.host"
-                  >
-                    <ClipboardList />
-                  </IconButton>
-                  <IconButton
-                    :label="redirectSourceByTarget.has(endpoint.host) ? `Target of ${redirectSourceByTarget.get(endpoint.host)}` : 'Remove domain'"
-                    class="shrink-0 text-destructive"
-                    :disabled="removingHostname === endpoint.host || redirectSourceByTarget.has(endpoint.host)"
-                    @click="domainToRemove = endpoint.host"
-                  >
-                    <Spinner v-if="removingHostname === endpoint.host" :size="14" />
-                    <Trash2 v-else />
-                  </IconButton>
+                  <p v-if="redirectSourceByTarget.has(endpoint.host)" class="text-xs text-muted-foreground">
+                    "{{ redirectSourceByTarget.get(endpoint.host) }}" redirects here. Remove that first.
+                  </p>
                 </div>
               </div>
 
@@ -1469,7 +1541,7 @@ async function handleRemoveService() {
                     {{ hostnameError }}
                   </p>
                   <p v-else-if="isApexInput && !redirectEnabled" class="px-1 text-xs text-muted-foreground">
-                    An apex domain needs an ALIAS record at your DNS provider. If yours does not support that, redirect it to a subdomain instead.
+                    An apex domain needs an ALIAS or ANAME record, or a CNAME on the root domain where your DNS provider allows one, like Cloudflare. If it has neither, redirect the domain to a subdomain.
                   </p>
                 </div>
                 <div class="flex flex-wrap items-center gap-3">
@@ -1498,8 +1570,14 @@ async function handleRemoveService() {
                 </p>
                 <div class="flex justify-end gap-2">
                   <Button variant="ghost" @click="closeAddDomain">Cancel</Button>
-                  <Button :pending="addingCustomDomain" :disabled="!canAddDomain" @click="handleAddCustomDomain">
+                  <Button
+                    :variant="domainGated ? 'upgrade' : 'default'"
+                    :pending="addingCustomDomain"
+                    :disabled="!canAddDomain"
+                    @click="addDomainClicked"
+                  >
                     {{ addingCustomDomain ? (isDomainUpdate ? 'Updating…' : 'Adding…') : isDomainUpdate ? 'Update domain' : 'Add domain' }}
+                    <GateTag v-if="domainGated" inverse :plan="capabilities?.customDomains.plan" />
                   </Button>
                 </div>
               </div>
@@ -1509,7 +1587,7 @@ async function handleRemoveService() {
       </Collapsible>
 
       <Dialog :open="!!recordsHost" @update:open="(open) => { if (!open) recordsHost = null; }">
-        <DialogContent class="sm:max-w-xl">
+        <DialogContent :class="[mobileSheetClass, 'sm:max-w-xl']">
           <DialogHeader>
             <DialogIcon :icon="Globe" />
             <DialogTitle class="font-mono">{{ recordsHost }}</DialogTitle>
@@ -1544,7 +1622,7 @@ async function handleRemoveService() {
                 :key="record.type + record.host + record.value"
                 class="rounded-md border bg-muted/30 px-3 py-2 text-xs"
               >
-                <p class="mb-1 font-mono font-semibold">{{ record.type }}</p>
+                <p class="mb-1 font-mono font-semibold">{{ record.type === DnsRecordType.Alias ? 'ALIAS or CNAME' : record.type }}</p>
                 <div class="grid grid-cols-[3rem_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1">
                   <span class="text-muted-foreground">Name</span>
                   <span class="min-w-0 break-all font-mono">{{ record.host }}</span>
@@ -1560,7 +1638,7 @@ async function handleRemoveService() {
               v-if="recordsEndpoint.dns.requiredRecords.some(r => r.type === DnsRecordType.Alias)"
               class="text-xs text-muted-foreground"
             >
-              ALIAS, ANAME or CNAME flattening, depending on your DNS provider. Without that support, redirect the domain to a subdomain instead.
+              Use an ALIAS or ANAME record if your DNS provider has one. If it allows a CNAME on the root domain, like Cloudflare, add a CNAME. If it has neither, redirect the domain to a subdomain.
             </p>
           </div>
           <div v-else class="flex items-center justify-center py-6">
@@ -1668,8 +1746,8 @@ async function handleRemoveService() {
                       label="Fewer replicas"
                       variant="outline"
                       class="shrink-0"
-                      :disabled="autoscalingEnabled || scalingReplicas <= 1"
-                      @click="scalingReplicas = clamp(scalingReplicas - 1, 1, 20)"
+                      :disabled="autoscalingEnabled || scalingReplicas <= 0"
+                      @click="scalingReplicas = clamp(scalingReplicas - 1, 0, replicaMax)"
                     >
                       <Minus />
                     </IconButton>
@@ -1677,23 +1755,29 @@ async function handleRemoveService() {
                       v-model.number="scalingReplicas"
                       type="number"
                       class="h-8 w-16 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                      :min="1"
-                      :max="20"
+                      :min="0"
+                      :max="replicaMax"
                       :disabled="autoscalingEnabled"
-                      @blur="scalingReplicas = clamp(scalingReplicas, 1, 20)"
+                      @blur="scalingReplicas = clamp(scalingReplicas, 0, replicaMax)"
                     />
                     <IconButton
                       label="More replicas"
                       variant="outline"
                       class="shrink-0"
-                      :disabled="autoscalingEnabled || scalingReplicas >= 20"
-                      @click="scalingReplicas = clamp(scalingReplicas + 1, 1, 20)"
+                      :disabled="autoscalingEnabled || scalingReplicas >= replicaMax"
+                      @click="scalingReplicas = clamp(scalingReplicas + 1, 0, replicaMax)"
                     >
                       <Plus />
                     </IconButton>
                   </div>
                   <p v-if="autoscalingEnabled" class="text-xs text-muted-foreground">
                     Managed by autoscaler.
+                  </p>
+                  <p v-else-if="scalingReplicas === 0" class="text-xs text-muted-foreground">
+                    Stops the service. Its volumes, variables and domains stay.
+                  </p>
+                  <p v-else-if="mountedVolume" class="text-xs text-muted-foreground">
+                    Runs at most one replica while volume "{{ mountedVolume.name }}" is mounted.
                   </p>
                 </div>
 
@@ -1703,7 +1787,7 @@ async function handleRemoveService() {
                     <Label class="text-sm font-medium">Autoscaling</Label>
                     <p class="text-xs text-muted-foreground">Scale replicas based on CPU usage.</p>
                   </div>
-                  <Switch v-model="autoscalingEnabled" class="data-[state=unchecked]:bg-border" />
+                  <Switch v-model="autoscalingEnabled" :disabled="!!mountedVolume && !autoscalingEnabled" class="data-[state=unchecked]:bg-border" />
                 </div>
 
                 <!-- Autoscaling settings -->
@@ -1716,7 +1800,7 @@ async function handleRemoveService() {
                         variant="outline"
                         class="shrink-0"
                         :disabled="scalingMinReplicas <= 1"
-                        @click="scalingMinReplicas = clamp(scalingMinReplicas - 1, 1, 20)"
+                        @click="scalingMinReplicas = clamp(scalingMinReplicas - 1, 1, scalingMaxReplicas)"
                       >
                         <Minus />
                       </IconButton>
@@ -1725,15 +1809,15 @@ async function handleRemoveService() {
                         type="number"
                         class="h-8 w-full min-w-0 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                         :min="1"
-                        :max="20"
-                        @blur="scalingMinReplicas = clamp(scalingMinReplicas, 1, 20)"
+                        :max="scalingMaxReplicas"
+                        @blur="scalingMinReplicas = clamp(scalingMinReplicas, 1, scalingMaxReplicas)"
                       />
                       <IconButton
                         label="Raise minimum"
                         variant="outline"
                         class="shrink-0"
-                        :disabled="scalingMinReplicas >= 20"
-                        @click="scalingMinReplicas = clamp(scalingMinReplicas + 1, 1, 20)"
+                        :disabled="scalingMinReplicas >= scalingMaxReplicas"
+                        @click="scalingMinReplicas = clamp(scalingMinReplicas + 1, 1, scalingMaxReplicas)"
                       >
                         <Plus />
                       </IconButton>
@@ -1747,8 +1831,8 @@ async function handleRemoveService() {
                         label="Lower maximum"
                         variant="outline"
                         class="shrink-0"
-                        :disabled="scalingMaxReplicas <= 1"
-                        @click="scalingMaxReplicas = clamp(scalingMaxReplicas - 1, 1, 20)"
+                        :disabled="scalingMaxReplicas <= scalingMinReplicas"
+                        @click="scalingMaxReplicas = clamp(scalingMaxReplicas - 1, scalingMinReplicas, 20)"
                       >
                         <Minus />
                       </IconButton>
@@ -1756,9 +1840,9 @@ async function handleRemoveService() {
                         v-model.number="scalingMaxReplicas"
                         type="number"
                         class="h-8 w-full min-w-0 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                        :min="1"
+                        :min="scalingMinReplicas"
                         :max="20"
-                        @blur="scalingMaxReplicas = clamp(scalingMaxReplicas, 1, 20)"
+                        @blur="scalingMaxReplicas = clamp(scalingMaxReplicas, scalingMinReplicas, 20)"
                       />
                       <IconButton
                         label="Raise maximum"
@@ -1834,19 +1918,23 @@ async function handleRemoveService() {
               <Cpu :size="16" class="shrink-0 text-muted-foreground" />
               <div class="min-w-0 flex-1">
                 <p class="text-sm font-medium text-foreground">CPU</p>
-                <p class="text-xs text-muted-foreground">Limit per instance</p>
+                <p v-if="cpuAboveLimit" class="text-xs text-status-warn">Above the plan's limit of {{ formatCpuQuantity(capabilities!.services.cpu.max) }}, so it can only shrink</p>
+                <p v-else class="text-xs text-muted-foreground">Limit per instance</p>
               </div>
-              <Select v-model="selectedCpu">
+              <Select :model-value="selectedCpu" @update:model-value="pickCpu">
                 <SelectTrigger class="h-8 w-36">
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem
-                    v-for="option in cpuOptions"
+                    v-for="option in cpuChoices"
                     :key="option.value"
                     :value="option.value"
                   >
-                    {{ option.label }}
+                    <span class="flex w-full items-center justify-between gap-3">
+                      {{ option.label }}
+                      <GateTag v-if="option.state.kind === 'plan'" :plan="option.state.plan" />
+                    </span>
                   </SelectItem>
                 </SelectContent>
               </Select>
@@ -1855,36 +1943,26 @@ async function handleRemoveService() {
               <MemoryStick :size="16" class="shrink-0 text-muted-foreground" />
               <div class="min-w-0 flex-1">
                 <p class="text-sm font-medium text-foreground">Memory</p>
-                <p class="text-xs text-muted-foreground">Limit per instance</p>
+                <p v-if="memoryAboveLimit" class="text-xs text-status-warn">Above the plan's limit of {{ formatStorage(capabilities!.services.memory.max) }}, so it can only shrink</p>
+                <p v-else class="text-xs text-muted-foreground">Limit per instance</p>
               </div>
-              <Select v-model="selectedMemory">
+              <Select :model-value="selectedMemory" @update:model-value="pickMemory">
                 <SelectTrigger class="h-8 w-36">
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem
-                    v-for="option in memoryOptions"
+                    v-for="option in memoryChoices"
                     :key="option.value"
                     :value="option.value"
                   >
-                    {{ option.label }}
+                    <span class="flex w-full items-center justify-between gap-3">
+                      {{ option.label }}
+                      <GateTag v-if="option.state.kind === 'plan'" :plan="option.state.plan" />
+                    </span>
                   </SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div v-if="resourceTier === ResourceTier.Eco" class="flex items-center gap-3 px-4 py-3">
-              <Leaf :size="16" class="shrink-0 text-emerald-500" />
-              <div class="min-w-0 flex-1">
-                <p class="text-sm font-medium text-foreground">Eco</p>
-                <p class="text-xs text-muted-foreground">Burstable compute, shared resources</p>
-              </div>
-            </div>
-            <div v-else-if="resourceTier === ResourceTier.Production" class="flex items-center gap-3 px-4 py-3">
-              <ShieldCheck :size="16" class="shrink-0 text-violet-500" />
-              <div class="min-w-0 flex-1">
-                <p class="text-sm font-medium text-foreground">Production</p>
-                <p class="text-xs text-muted-foreground">Guaranteed performance, dedicated resources</p>
-              </div>
             </div>
           </fieldset>
           <FormFooter

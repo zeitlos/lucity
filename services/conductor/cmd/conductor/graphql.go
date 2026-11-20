@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/zeitlos/lucity/pkg/logto"
@@ -49,7 +50,11 @@ const (
 	allowSuspendedDirective = "allowSuspended"
 )
 
-func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvider *oidc.Provider, store *sessionStore, codec *session.Codec, verifier *auth.Verifier, logtoClient *logto.Client, callbackURL, dashboardURL, githubAppSlug, githubActionsAudience, oidcIssuer, oidcAudience, oidcCLIClientID string) *GraphQLServer {
+const maxSubscriptionsPerConnection = 20
+
+type openSubscriptionsKey struct{}
+
+func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvider *oidc.Provider, tokens *sessionTokens, codec *session.Codec, verifier *auth.Verifier, logtoClient *logto.Client, callbackURL, dashboardURL, githubAppSlug, githubActionsAudience, oidcIssuer, oidcAudience, oidcCLIClientID string) *GraphQLServer {
 	resolver := gatewaygraphql.Resolver{
 		Conductor: conductorClient,
 	}
@@ -135,7 +140,11 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 					if suspended {
 						slog.Warn("mutation blocked: workspace suspended", "workspace", workspace, "operation", oc.OperationName)
 
-						return nil, usererror.New("workspace suspended: update your payment method to continue")
+						if abuse, _ := org.CustomData["abuse"].(bool); abuse {
+							return nil, usererror.Errorf("this workspace is suspended; choose a paid plan at %s/%s/~/billing to continue", dashboardURL, workspace)
+						}
+
+						return nil, usererror.Errorf("this workspace is suspended because of a payment issue; add or update a payment method at %s/%s/~/billing to continue", dashboardURL, workspace)
 					}
 				}
 
@@ -164,12 +173,15 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 			// Non-browser clients authenticate with a bearer token in
 			// connectionParams. Browser clients arrive with their session
 			// cookie already resolved to claims on the HTTP upgrade request.
+			var expiresAt time.Time
+
 			token, _ := initPayload["Authorization"].(string)
 			if token != "" {
 				token = strings.TrimPrefix(token, "Bearer ")
 				if claims, err := verifier.ValidateToken(ctx, token); err == nil {
 					ctx = auth.NewContext(ctx, claims)
 					ctx = auth.WithToken(ctx, token)
+					expiresAt = claims.ExpiresAt
 				}
 			}
 
@@ -180,16 +192,25 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 
 				// Cookie clients have no per-workspace token yet; mint it
 				// from the session and fold the role into the claims.
-				if sid, ok := sessionIDFromContext(ctx); ok {
-					if orgToken, err := store.orgToken(ctx, sid, ws); err == nil {
+				if data, ok := sessionFromContext(ctx); ok {
+					if orgToken, err := tokens.workspaceToken(ctx, data, ws); err == nil {
 						if tokenClaims, err := verifier.ValidateToken(ctx, orgToken); err == nil {
 							if claims, err := auth.FromContext(ctx); err == nil {
 								claims.Workspaces = tokenClaims.Workspaces
 								ctx = auth.NewContext(ctx, claims)
+								expiresAt = tokenClaims.ExpiresAt
 							}
 						}
 					}
 				}
+			}
+
+			ctx = context.WithValue(ctx, openSubscriptionsKey{}, &atomic.Int32{})
+
+			if !expiresAt.IsZero() {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithDeadline(ctx, expiresAt)
+				context.AfterFunc(ctx, cancel)
 			}
 
 			return ctx, &initPayload, nil
@@ -197,7 +218,7 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 	})
 	srv.SetQueryCache(lru.New[*ast.QueryDocument](1000))
 	srv.Use(extension.Introspection{})
-	srv.Use(extension.FixedComplexityLimit(200))
+	srv.Use(extension.FixedComplexityLimit(300))
 
 	// Audit logging for mutations
 	srv.AroundOperations(func(ctx context.Context, next gqlgen.OperationHandler) gqlgen.ResponseHandler {
@@ -212,6 +233,33 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 		return next(ctx)
 	})
 
+	srv.AroundOperations(func(ctx context.Context, next gqlgen.OperationHandler) gqlgen.ResponseHandler {
+		oc := gqlgen.GetOperationContext(ctx)
+		open, ok := ctx.Value(openSubscriptionsKey{}).(*atomic.Int32)
+
+		if oc.Operation == nil || oc.Operation.Operation != ast.Subscription || !ok {
+			return next(ctx)
+		}
+
+		if open.Add(1) > maxSubscriptionsPerConnection {
+			open.Add(-1)
+
+			return gqlgen.OneShot(gqlgen.ErrorResponse(ctx, "too many subscriptions on this connection"))
+		}
+
+		responses := next(ctx)
+
+		return func(ctx context.Context) *gqlgen.Response {
+			response := responses(ctx)
+
+			if response == nil {
+				open.Add(-1)
+			}
+
+			return response
+		}
+	})
+
 	// Enforcing IDs stay within workspace provided by header.
 	srv.AroundFields(func(ctx context.Context, next graphql.Resolver) (any, error) {
 		fc := graphql.GetFieldContext(ctx)
@@ -221,6 +269,10 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 				callerWorkspace, err := tenant.FromContext(ctx)
 
 				if err != nil {
+					if _, err := auth.FromContext(ctx); err != nil {
+						return usererror.New("unauthenticated")
+					}
+
 					return usererror.New("workspace not specified")
 				}
 
@@ -254,6 +306,25 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 
 		if presented.Err == nil {
 			return presented
+		}
+
+		if gate, ok := conductor.AsGateError(err); ok {
+			extensions := map[string]interface{}{"code": string(gate.Availability)}
+
+			if gate.Plan.Paid() {
+				extensions["plan"] = strings.ToUpper(string(gate.Plan))
+			}
+
+			return &gqlerror.Error{Message: gate.Message, Path: presented.Path, Locations: presented.Locations, Extensions: extensions}
+		}
+
+		if errors.Is(err, conductor.ErrPrepaidCard) {
+			return &gqlerror.Error{
+				Message:    "That card is prepaid. Use a debit or credit card, or choose a plan, which accepts prepaid cards. Nothing was charged.",
+				Path:       presented.Path,
+				Locations:  presented.Locations,
+				Extensions: map[string]interface{}{"code": "PREPAID_CARD"},
+			}
 		}
 
 		var userErr *usererror.Error
@@ -304,21 +375,18 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 		w.WriteHeader(http.StatusOK)
 	})
 
-	// Version endpoint
-	mux.HandleFunc("/version", versionHandler())
-
 	// Auth endpoints
 	var ciVerifier *githubActionsVerifier
 	if githubActionsAudience != "" {
 		ciVerifier = newGitHubActionsVerifier(githubActionsAudience)
 	}
-	registerAuthRoutes(mux, oidcProvider, store, codec, conductorClient, logtoClient, callbackURL, dashboardURL, githubAppSlug, oidcIssuer, oidcAudience, oidcCLIClientID, ciVerifier)
+	registerAuthRoutes(mux, oidcProvider, tokens, codec, conductorClient, logtoClient, callbackURL, dashboardURL, githubAppSlug, oidcIssuer, oidcAudience, oidcCLIClientID, ciVerifier)
 
 	// GraphQL endpoints
 	mux.Handle("/playground", playground.Handler("GraphQL playground", "/graphql"))
 	mux.Handle("/graphql", srv)
 
-	authMiddleware := sessionAuth(store, codec, verifier)
+	authMiddleware := sessionAuth(tokens, codec, verifier)
 
 	// TODO: Validate if CORS is even needed. Dashboard and conductor run under the same hostname.
 	corsHandler := cors.New(cors.Options{
@@ -484,8 +552,7 @@ func rateLimitMiddleware(next http.Handler) http.Handler {
 	}()
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Skip rate limiting for health checks and version endpoint
-		if strings.HasPrefix(r.URL.Path, "/health") || r.URL.Path == "/version" {
+		if strings.HasPrefix(r.URL.Path, "/health") {
 			next.ServeHTTP(w, r)
 			return
 		}

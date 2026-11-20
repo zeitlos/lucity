@@ -6,7 +6,17 @@ export interface NodePosition {
   y: number;
 }
 
+export interface NodeRect extends NodePosition {
+  width: number;
+  height: number;
+}
+
 type EnvironmentLayouts = Record<string, Record<string, NodePosition>>;
+
+export const gridSize = 24;
+const nodeGap = 2 * gridSize;
+const laneWidth = 12 * gridSize + nodeGap;
+const laneCount = 3;
 
 const layouts = useStorage<EnvironmentLayouts>('lucity_canvas_layout', {});
 
@@ -18,12 +28,53 @@ function isUsable(position: NodePosition | undefined): position is NodePosition 
   );
 }
 
+function snapToGrid(value: number) {
+  return Math.round(value / gridSize) * gridSize;
+}
+
+function fits(rect: NodeRect, occupied: NodeRect[]) {
+  return occupied.every(other =>
+    rect.x >= other.x + other.width + nodeGap ||
+    other.x >= rect.x + rect.width + nodeGap ||
+    rect.y >= other.y + other.height + nodeGap ||
+    other.y >= rect.y + rect.height + nodeGap,
+  );
+}
+
+export function firstFreeSpot(size: { width: number; height: number }, occupied: NodeRect[]): NodePosition {
+  for (let y = 0; ; y += gridSize) {
+    for (let lane = 0; lane < laneCount; lane++) {
+      const spot = { x: lane * laneWidth, y };
+      if (fits({ ...spot, ...size }, occupied)) return spot;
+    }
+  }
+}
+
+export function nearestFreeSpot(rect: NodeRect, occupied: NodeRect[]): NodePosition {
+  let best: NodePosition = rect;
+  let bestDistance = Infinity;
+  for (let ring = 0; ring * gridSize <= bestDistance; ring++) {
+    for (let dx = -ring; dx <= ring; dx++) {
+      for (let dy = -ring; dy <= ring; dy++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== ring) continue;
+        const distance = Math.hypot(dx, dy) * gridSize;
+        const spot = { x: rect.x + dx * gridSize, y: rect.y + dy * gridSize };
+        if (distance < bestDistance && fits({ ...rect, ...spot }, occupied)) {
+          best = spot;
+          bestDistance = distance;
+        }
+      }
+    }
+  }
+  return { x: best.x, y: best.y };
+}
+
 export function useCanvasLayout(environmentId: MaybeRefOrGetter<string | undefined>) {
   function positionFor(nodeId: string): NodePosition | null {
     const envId = toValue(environmentId);
     if (!envId) return null;
     const position = layouts.value[envId]?.[nodeId];
-    return isUsable(position) ? position : null;
+    return isUsable(position) ? { x: snapToGrid(position.x), y: snapToGrid(position.y) } : null;
   }
 
   function setPosition(nodeId: string, position: NodePosition) {
@@ -46,12 +97,24 @@ export function useCanvasLayout(environmentId: MaybeRefOrGetter<string | undefin
     const current = layouts.value[envId];
     if (!current) return;
 
-    const live = new Set(nodeIds);
-    const kept = Object.fromEntries(
-      Object.entries(current).filter(([id]) => live.has(id)),
-    );
+    // TODO: remove the legacy fallback (the else branch and the `some` check below)
+    // a few releases after 2026-11. Node ids gained a "<kind>:" prefix then, and this
+    // carries positions saved under the bare resource id over to the prefixed id.
+    // When two kinds share a name, only the first takes the old position.
+    const kept: Record<string, NodePosition> = {};
+    const claimedLegacyIds = new Set<string>();
+    for (const id of nodeIds) {
+      const legacyId = id.slice(id.indexOf(':') + 1);
+      if (current[id]) {
+        kept[id] = current[id];
+      } else if (current[legacyId] && !claimedLegacyIds.has(legacyId)) {
+        kept[id] = current[legacyId];
+        claimedLegacyIds.add(legacyId);
+      }
+    }
 
-    if (Object.keys(kept).length !== Object.keys(current).length) {
+    const keptIds = Object.keys(kept);
+    if (keptIds.length !== Object.keys(current).length || keptIds.some(id => !current[id])) {
       layouts.value = { ...layouts.value, [envId]: kept };
     }
   }

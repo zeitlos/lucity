@@ -90,6 +90,18 @@ func Validate(env *Env, workspace, registry string) error {
 		if err := validatePublicAccess(name, pg.PublicAccess); err != nil {
 			return err
 		}
+
+		if pg.Size != "" {
+			size, err := resource.ParseQuantity(pg.Size)
+
+			if err != nil {
+				return usererror.Errorf("database %q: invalid size %q", name, pg.Size)
+			}
+
+			if size.Sign() <= 0 || size.Cmp(maxDatabaseSize) > 0 {
+				return usererror.Errorf("database %q: size must be greater than 0 and at most %s", name, maxDatabaseSize.String())
+			}
+		}
 	}
 
 	if err := validateBackupStore(env.Databases.BackupStore); err != nil {
@@ -154,6 +166,10 @@ func Validate(env *Env, workspace, registry string) error {
 		}
 	}
 
+	if err := validateAgents(env); err != nil {
+		return err
+	}
+
 	mountedBy := map[string]string{}
 
 	for k := range env.SharedVariables {
@@ -193,7 +209,7 @@ func Validate(env *Env, workspace, registry string) error {
 			return usererror.Errorf("service %q: port must be in [0, 65535]", svcName)
 		}
 
-		if svc.Replicas < 0 {
+		if svc.Replicas != nil && *svc.Replicas < 0 {
 			return usererror.Errorf("service %q: replicas must be non-negative", svcName)
 		}
 
@@ -207,7 +223,7 @@ func Validate(env *Env, workspace, registry string) error {
 			}
 		}
 
-		if err := validateStartCommand(svc.Command); err != nil {
+		if err := validateStartCommand(strings.Join(svc.Command, " ")); err != nil {
 			return usererror.Errorf("service %q: %v", svcName, err)
 		}
 
@@ -254,7 +270,7 @@ func Validate(env *Env, workspace, registry string) error {
 		}
 
 		if len(svc.VolumeMounts) > 0 {
-			if svc.Replicas > 1 {
+			if svc.Replicas != nil && *svc.Replicas > 1 {
 				return usererror.Errorf("service %q mounts a volume and cannot scale beyond a single replica", svcName)
 			}
 

@@ -62,7 +62,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [conductor, builder, cashier, exporter, stagehand, dashboard, docs, switchboard]
+        service: [conductor, builder, cashier, exporter, stagehand, dashboard, docs, switchboard, agent]
         include:
           - service: conductor
             dockerfile: services/conductor/Dockerfile
@@ -87,12 +87,14 @@ jobs:
             context: services/dashboard
             build-args: |
               VITE_BASE_PATH=/app/
-              VERSION=${{ needs.version.outputs.version }}
           - service: docs
             dockerfile: docs/Dockerfile
             context: docs
           - service: switchboard
             dockerfile: services/switchboard/Dockerfile
+            context: .
+          - service: agent
+            dockerfile: services/agent/Dockerfile
             context: .
 
     steps:
@@ -185,7 +187,7 @@ jobs:
     needs: version
     strategy:
       matrix:
-        chart: [lucity, lucity-app, lucity-infra, lucity-agent]
+        chart: [lucity, lucity-app, lucity-infra]
 
     steps:
       - uses: actions/checkout@v6
@@ -243,11 +245,17 @@ jobs:
           go-version: '1.27'
           cache-dependency-path: cli/go.sum
 
+      - name: Write the CLI signing key
+        run: printf '%s\n' "$CLI_SIGNING_KEY" > "$RUNNER_TEMP/cli-signing-key.pem"
+        env:
+          CLI_SIGNING_KEY: ${{ secrets.CLI_SIGNING_KEY }}
+
       - uses: goreleaser/goreleaser-action@v6
         with:
           version: '~> v2'
           args: release --clean
         env:
           GORELEASER_CURRENT_TAG: ${{ github.event.release.tag_name }}
+          CLI_SIGNING_KEY_FILE: ${{ runner.temp }}/cli-signing-key.pem
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"text/tabwriter"
@@ -18,7 +19,7 @@ const varsUsage = `lucity vars — manage service variables
 Usage:
   lucity vars list <service> [--json]
   lucity vars available <env> [--json]
-  lucity vars set <service> KEY=VALUE... [--ref KEY=<variableID>]... [--json]
+  lucity vars set <service> KEY=VALUE... [--from-file KEY=<path>]... [--ref KEY=<variableID>]... [--json]
 
 Commands:
   list        Show the variables set on a service
@@ -31,8 +32,14 @@ Arguments:
   <env>      Environment id (workspace/project/environment) or its relative form.
 
 Flags:
+  --from-file KEY=<path>   Set KEY to the contents of a file, line breaks included, such as a
+                           PEM key or certificate. Use - as the path to read stdin
   --ref KEY=<variableID>   Bind KEY to an available variable (list them with 'lucity vars available')
   --json                   Emit the result as JSON on stdout
+
+Examples:
+  lucity vars set shop/production/web --from-file JWT_PRIVATE_KEY=./jwt.pem
+  op read op://vault/web/key | lucity vars set shop/production/web --from-file SIGNING_KEY=-
 
 'lucity vars set' merges your changes into the existing variables, so variables
 you do not name are kept. The service then rolls out again on its current image,
@@ -189,6 +196,7 @@ func varsSet(ctx context.Context, args []string) error {
 	asJSON := false
 	literals := map[string]string{}
 	refs := map[string]string{}
+	stdinUsed := false
 	var order []string
 	seen := map[string]bool{}
 	appendKey := func(key string) {
@@ -224,9 +232,26 @@ func varsSet(ctx context.Context, args []string) error {
 			}
 			refs[key] = value
 			appendKey(key)
+		case token == "--from-file" || token == "-from-file":
+			if index+1 >= len(rest) {
+				return errors.New("--from-file requires KEY=<path>")
+			}
+			index++
+			key, value, err := fileAssignment(rest[index], &stdinUsed)
+			if err != nil {
+				return err
+			}
+			literals[key] = value
+			appendKey(key)
+		case strings.HasPrefix(token, "--from-file="):
+			key, value, err := fileAssignment(strings.TrimPrefix(token, "--from-file="), &stdinUsed)
+			if err != nil {
+				return err
+			}
+			literals[key] = value
+			appendKey(key)
 		case strings.HasPrefix(token, "-"):
-			fmt.Fprint(os.Stderr, varsUsage)
-			return fmt.Errorf("unknown flag %q", token)
+			return fmt.Errorf("unknown flag %s; lucity vars set takes --from-file, --ref, --json", token)
 		default:
 			key, value, err := splitAssignment(token, "variable")
 			if err != nil {
@@ -260,64 +285,23 @@ func varsSet(ctx context.Context, args []string) error {
 		return err
 	}
 
-	current, err := readServiceVariables(ctx, client, serviceID)
-	if err != nil {
-		return deployError("vars set (read current)", err)
-	}
-
-	type mergedEntry struct {
-		value *string
-		ref   *string
-	}
-	merged := map[string]mergedEntry{}
-	var mergedOrder []string
-	mergedSeen := map[string]bool{}
-	appendMerged := func(key string) {
-		if !mergedSeen[key] {
-			mergedSeen[key] = true
-			mergedOrder = append(mergedOrder, key)
-		}
-	}
-	for _, variable := range current {
-		merged[variable.Key] = mergedEntry{value: variable.Value, ref: variable.Ref}
-		appendMerged(variable.Key)
-	}
-	usedRef := false
+	set := make([]map[string]any, 0, len(order))
 	for _, key := range order {
 		if reference, ok := refs[key]; ok {
-			value := reference
-			merged[key] = mergedEntry{ref: &value}
-			usedRef = true
+			set = append(set, map[string]any{"key": key, "ref": reference})
 		} else {
-			value := literals[key]
-			merged[key] = mergedEntry{value: &value}
+			set = append(set, map[string]any{"key": key, "value": literals[key]})
 		}
-		appendMerged(key)
 	}
 
-	variables := make([]map[string]any, 0, len(mergedOrder))
-	for _, key := range mergedOrder {
-		entry := merged[key]
-		item := map[string]any{"key": key}
-		switch {
-		case entry.ref != nil:
-			item["ref"] = *entry.ref
-		case entry.value != nil:
-			item["value"] = *entry.value
-		default:
-			item["value"] = ""
-		}
-		variables = append(variables, item)
-	}
-
-	const mutation = `mutation($service: ServiceID!, $variables: [ServiceVariableInput!]!) {
-  setServiceVariables(service: $service, variables: $variables)
+	const mutation = `mutation($service: ServiceID!, $set: [ServiceVariableInput!]!) {
+  updateServiceVariables(service: $service, set: $set)
 }`
 	var writeOut struct {
-		SetServiceVariables bool `json:"setServiceVariables"`
+		UpdateServiceVariables bool `json:"updateServiceVariables"`
 	}
-	if err := client.GraphQL(ctx, mutation, map[string]any{"service": serviceID, "variables": variables}, &writeOut); err != nil {
-		if usedRef {
+	if err := client.GraphQL(ctx, mutation, map[string]any{"service": serviceID, "set": set}, &writeOut); err != nil {
+		if len(refs) > 0 {
 			return fmt.Errorf("%w — a ref must be an id from `lucity vars available`", deployError("vars set", err))
 		}
 		return deployError("vars set", err)
@@ -363,7 +347,7 @@ func variableDisplay(variable serviceVariableView) string {
 		return "→ " + *variable.Ref
 	}
 	if variable.Value != nil {
-		return *variable.Value
+		return strings.ReplaceAll(*variable.Value, "\n", `\n`)
 	}
 	return ""
 }
@@ -374,6 +358,29 @@ func sourceLabel(typename, name string) string {
 		return kind
 	}
 	return kind + " " + name
+}
+
+func fileAssignment(token string, stdinUsed *bool) (string, string, error) {
+	key, path, err := splitAssignment(token, "--from-file")
+	if err != nil {
+		return "", "", err
+	}
+	if path == "-" {
+		if *stdinUsed {
+			return "", "", errors.New("--from-file can read stdin (-) only once")
+		}
+		*stdinUsed = true
+		content, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return "", "", fmt.Errorf("--from-file %s: read stdin: %w", key, err)
+		}
+		return key, string(content), nil
+	}
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return "", "", fmt.Errorf("--from-file %s: %w", key, err)
+	}
+	return key, string(content), nil
 }
 
 func splitAssignment(token, context string) (string, string, error) {

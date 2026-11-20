@@ -2,16 +2,17 @@
 import { serviceStatus } from '@/lib/status';
 import { formatDuration } from '@/lib/format';
 import { devicon } from '@/lib/devicons';
-import { computed, ref, watch, onUnmounted } from 'vue';
+import { computed, ref, watch, onUnmounted, useTemplateRef } from 'vue';
 import { Handle, Position } from '@vue-flow/core';
-import { CircleX, ExternalLink, Globe, Container, HardDrive } from '@lucide/vue';
+import { CircleX, ExternalLink, Globe, HardDrive } from '@lucide/vue';
 import Spinner from '@/components/LoadingSpinner.vue';
 import RelativeTime from '@/components/RelativeTime.vue';
 import { useBuildLogsPanel } from '@/composables/useBuildLogsPanel';
-import GithubIcon from '@/components/GithubIcon.vue';
+import ResourceIcon from '@/components/ResourceIcon.vue';
 import { EndpointType, ServiceStatus, type Protocol } from '@/gql/graphql';
 import type { CanvasReleaseFailure, CanvasReleasePhase } from '@/composables/useCanvasReleaseStatus';
 import { Status } from '@/components/ui/status';
+import { useGridHeight } from '@/composables/useGridHeight';
 
 interface Endpoint {
   host: string;
@@ -47,12 +48,14 @@ const emit = defineEmits<{
   (e: 'select-volume'): void;
 }>();
 
+useGridHeight(useTemplateRef<HTMLElement>('card'));
+
 const isFromRepo = computed(() => !!props.data.sourceUrl);
 
 const gitMask = `url("${devicon('git')}")`;
 
 const status = computed(() => (props.data.activeReleasePhase && !props.data.live
-  ? { tone: 'neutral' as const, label: 'Not live yet' }
+  ? { tone: 'neutral' as const, label: 'Not live yet', glyph: 'dot' as const }
   : serviceStatus(props.data.status)));
 
 const logsPanel = useBuildLogsPanel();
@@ -145,15 +148,16 @@ const hostUrl = computed(() => {
 </script>
 
 <template>
-  <div class="group">
+  <div class="group w-72">
 
     <div
       :class="[
-        'service-node group cursor-pointer rounded-xl border px-6 py-5 shadow-sm transition duration-200 w-72',
+        'service-node group cursor-pointer rounded-xl border px-6 py-5 shadow-sm transition duration-200 flex flex-col',
         'hover:shadow-md',
         selected ? 'border-primary shadow-md' : 'border-border',
         (deployLabel || data.releaseFailure) && 'rounded-tl-none',
       ]"
+      ref="card"
       @click="emit('select')"
     >
       <div
@@ -185,8 +189,7 @@ const hostUrl = computed(() => {
 
       <!-- Header: icon + name -->
       <div class="flex items-center gap-3">
-        <GithubIcon v-if="isFromRepo" :size="28" class="shrink-0" />
-        <Container v-else :size="28" />
+        <ResourceIcon :kind="isFromRepo ? 'repositoryService' : 'imageService'" :size="28" />
         <span class="truncate font-semibold text-foreground">{{ data.name }}</span>
       </div>
 
@@ -224,9 +227,10 @@ const hostUrl = computed(() => {
         </div>
       </div>
 
+      <div class="grow basis-3" />
       <!-- Status row -->
-      <div class="mt-4 flex items-center justify-between border-t border-border/50 pt-4">
-        <Status :tone="status.tone" size="sm">{{ status.label }}</Status>
+      <div class="mt-1 flex items-center justify-between border-t border-border/50 pt-4">
+        <Status :tone="status.tone" :glyph="status.glyph" size="sm">{{ status.label }}</Status>
       </div>
 
       <!-- Vue Flow handles (invisible, for potential edges) -->
@@ -252,8 +256,8 @@ const hostUrl = computed(() => {
       <!-- Content -->
       <div class="relative z-1 flex items-center gap-2.5 px-6 pb-3 pt-6">
         <HardDrive :size="16" class="shrink-0 text-muted-foreground" />
-        <span class="truncate text-sm font-medium text-foreground">{{ data.volume.name }}</span>
-        <span class="ml-auto shrink-0 font-mono text-xs text-muted-foreground">{{ data.volume.path }}</span>
+        <span class="max-w-1/2 shrink-0 truncate text-sm font-medium text-foreground">{{ data.volume.name }}</span>
+        <span dir="rtl" class="ml-auto min-w-0 truncate font-mono text-xs text-muted-foreground"><bdi>{{ data.volume.path }}</bdi></span>
       </div>
     </div>
 

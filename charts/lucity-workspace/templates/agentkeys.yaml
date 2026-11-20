@@ -1,0 +1,25 @@
+{{- $workspace := include "lucity-workspace.workspace" . }}
+{{- range $key, $agent := .Values.agents }}
+{{- $resource := printf "%s.agent.%s" $workspace (replace "/" "." $key) }}
+{{- $routes := list }}
+{{- range $agent.connectors }}
+{{- $routes = append $routes (printf "%s.connector.%s" $workspace .) }}
+{{- end }}
+{{- $hiddenTools := list }}
+{{- range $connector, $tools := $agent.hiddenTools }}
+{{- range $tools }}
+{{- $hiddenTools = append $hiddenTools (printf "%s/%s" $connector .) }}
+{{- end }}
+{{- end }}
+{{- $metadata := dict "workspace" $workspace "agent" (printf "%s/%s" $workspace $key) "routes" $routes "namespaces" (list (required (printf "agent %s needs a namespace" $key) $agent.namespace)) "hiddenTools" $hiddenTools }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $resource }}
+  labels:
+    {{- include "lucity-workspace.labels" $ | nindent 4 }}
+    lucity.dev/agent-key: "true"
+data:
+  {{ $resource }}: {{ dict "keyHash" (required (printf "agent %s needs a keyHash" $key) $agent.keyHash) "metadata" $metadata | toJson | quote }}
+{{- end }}

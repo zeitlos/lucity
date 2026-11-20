@@ -3,12 +3,15 @@ package kubernetes
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/zeitlos/lucity/pkg/image"
+	pkglabels "github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/pkg/platform"
+	"github.com/zeitlos/lucity/pkg/shellwords"
 	"github.com/zeitlos/lucity/pkg/to"
 	"github.com/zeitlos/lucity/pkg/usererror"
 
@@ -20,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 const portName = "http"
@@ -101,6 +105,7 @@ func (c *Client) Services(ctx context.Context, environmentID platform.Environmen
 		hpasByService[hpa.Labels[serviceLabel]] = hpa
 	}
 
+	failures := c.probeFailures(ctx, namespace, pods.Items)
 	services := make([]platform.Service, 0, len(deployments.Items))
 
 	for _, deployment := range deployments.Items {
@@ -111,6 +116,7 @@ func (c *Client) Services(ctx context.Context, environmentID platform.Environmen
 			podsByService[name],
 			routesByService[name],
 			hpasByService[name],
+			failures,
 			environmentID,
 		)
 
@@ -157,6 +163,32 @@ func (c *Client) PendingDomains(ctx context.Context) ([]platform.PendingDomain, 
 	}
 
 	return pending, nil
+}
+
+// RoutedWorkspaces returns every workspace that has at least one service
+// route, attached or not, read live from the API server.
+func (c *Client) RoutedWorkspaces(ctx context.Context) (map[string]bool, error) {
+	routes, err := c.dynamic.Resource(httpRouteGVR).List(ctx, meta.ListOptions{
+		LabelSelector: serviceLabel,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	workspaces := make(map[string]bool)
+
+	for _, route := range routes.Items {
+		workspace := route.GetLabels()[workspaceLabel]
+
+		if workspace == "" {
+			return nil, fmt.Errorf("route %s/%s has no %s label", route.GetNamespace(), route.GetName(), workspaceLabel)
+		}
+
+		workspaces[workspace] = true
+	}
+
+	return workspaces, nil
 }
 
 func (c *Client) ServicesByRepo(ctx context.Context, repoURL string) ([]platform.RepoService, error) {
@@ -242,7 +274,9 @@ func (c *Client) Service(ctx context.Context, id platform.ServiceID) (*platform.
 		hpa = hpas.Items[0]
 	}
 
-	return new(toService(*deployment, replicaSets, pods, routes.Items, hpa, id.EnvironmentID())), nil
+	failures := c.probeFailures(ctx, id.Namespace(), pods)
+
+	return new(toService(*deployment, replicaSets, pods, routes.Items, hpa, failures, id.EnvironmentID())), nil
 }
 
 func (c *Client) BuildVariables(ctx context.Context, id platform.ServiceID) (map[string]string, error) {
@@ -301,7 +335,7 @@ func (c *Client) secretFor(ctx context.Context, serviceID platform.ServiceID) (*
 	return &secrets.Items[0], nil
 }
 
-func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, pods []core.Pod, routes []unstructured.Unstructured, hpa autoscaling.HorizontalPodAutoscaler, environmentID platform.EnvironmentID) platform.Service {
+func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, pods []core.Pod, routes []unstructured.Unstructured, hpa autoscaling.HorizontalPodAutoscaler, failures map[types.UID]string, environmentID platform.EnvironmentID) platform.Service {
 	annotations := deployment.Annotations
 	containers := deployment.Spec.Template.Spec.Containers
 
@@ -309,15 +343,28 @@ func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, pods [
 	currentRevision := deployment.Annotations[annotationRevision]
 
 	deployments := make([]platform.Deployment, 0, len(replicaSets))
+	deployed := make([]apps.ReplicaSet, 0, len(replicaSets))
+	active := -1
+
+	for _, replicaSet := range replicaSets {
+		candidate := toDeployment(replicaSet, deployment, pods, failures, id)
+
+		if !candidate.Image.Built() {
+			continue
+		}
+
+		if replicaSet.Annotations[annotationRevision] == currentRevision {
+			active = len(deployments)
+		}
+
+		deployments = append(deployments, candidate)
+		deployed = append(deployed, replicaSet)
+	}
 
 	var activeDeployment *platform.Deployment
 
-	for i, replicaSet := range replicaSets {
-		deployments = append(deployments, toDeployment(replicaSet, deployment, pods, id))
-
-		if replicaSet.Annotations[annotationRevision] == currentRevision {
-			activeDeployment = &deployments[i]
-		}
+	if active >= 0 {
+		activeDeployment = &deployments[active]
 	}
 
 	var rollout *platform.Rollout
@@ -328,7 +375,7 @@ func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, pods [
 
 	return platform.Service{
 		ID:   id,
-		Name: deployment.Labels[serviceLabel],
+		Name: readableName(deployment.Annotations, pkglabels.Name, deployment.Labels[serviceLabel]),
 
 		Status: serviceStatus(deployment, replicaSets, rollout),
 		Replicas: platform.ReplicaCount{
@@ -353,7 +400,7 @@ func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, pods [
 		ActiveDeployment: activeDeployment,
 		Deployments:      deployments,
 
-		LastDeployedAt: latestReplicaSetTime(replicaSets),
+		LastDeployedAt: latestReplicaSetTime(deployed),
 		CreatedAt:      deployment.CreationTimestamp.Time,
 	}
 }
@@ -611,13 +658,11 @@ func containerCommand(containers []core.Container) string {
 		return ""
 	}
 
-	command := containers[0].Command
-
-	if len(command) == 2 && command[0] == "/bin/sh" && command[1] == "-c" {
-		return strings.Join(containers[0].Args, " ")
+	if len(containers[0].Command) == 0 {
+		return ""
 	}
 
-	return ""
+	return shellwords.Join(append(slices.Clone(containers[0].Command), containers[0].Args...))
 }
 
 // containerHealthCheck reconstructs the health-check config from the rendered

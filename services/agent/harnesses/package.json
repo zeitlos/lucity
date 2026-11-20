@@ -1,0 +1,16 @@
+{
+  "name": "lucity-agent-harnesses",
+  "private": true,
+  "dependencies": {
+    "@agentclientprotocol/claude-agent-acp": "0.98.0",
+    "@agentclientprotocol/codex-acp": "2.3.0",
+    "@openai/codex": "0.164.0"
+  },
+  "optionalDependencies": {
+    "opencode-linux-arm64": "1.19.4",
+    "opencode-linux-x64-baseline": "1.19.4"
+  },
+  "overrides": {
+    "@openai/codex": "0.164.0"
+  }
+}

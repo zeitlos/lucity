@@ -17,6 +17,14 @@ const emit = defineEmits<{
     :guard="false"
     @close="emit('close')"
   >
+    <template v-if="$slots.leading" #leading>
+      <slot name="leading" />
+    </template>
+
+    <template v-if="$slots.actions" #actions>
+      <slot name="actions" />
+    </template>
+
     <div class="min-h-0 flex-1 overflow-y-auto p-4">
       <slot />
     </div>

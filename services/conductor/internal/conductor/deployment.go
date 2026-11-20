@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+
+	"github.com/zeitlos/lucity/pkg/shellwords"
 )
 
 func (c *Client) Deployment(ctx context.Context, id DeploymentID) (*Deployment, error) {
@@ -24,7 +26,7 @@ func (c *Client) DefaultCommand(ctx context.Context, imageRef string) (string, e
 	args = append(args, cfg.Entrypoint...)
 	args = append(args, cfg.Cmd...)
 
-	return strings.Join(args, " "), nil
+	return shellwords.Join(args), nil
 }
 
 func (c *Client) imageExposedPort(ctx context.Context, imageRef string) int {

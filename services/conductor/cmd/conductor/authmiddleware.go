@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -11,29 +13,34 @@ import (
 	"github.com/zeitlos/lucity/pkg/tenant"
 )
 
-const (
-	sessionCookieMaxAge = 30 * 24 * 3600
-	accountTokenHeader  = "X-Lucity-Account-Token"
-)
+const accountTokenHeader = "X-Lucity-Account-Token"
 
-type sessionIDContextKey struct{}
+type sessionContextKey struct{}
 
-func withSessionID(ctx context.Context, sid string) context.Context {
-	return context.WithValue(ctx, sessionIDContextKey{}, sid)
+func withSession(ctx context.Context, data sessionData) context.Context {
+	return context.WithValue(ctx, sessionContextKey{}, data)
 }
 
-func sessionIDFromContext(ctx context.Context) (string, bool) {
-	sid, ok := ctx.Value(sessionIDContextKey{}).(string)
-	return sid, ok
+func sessionFromContext(ctx context.Context) (sessionData, bool) {
+	data, ok := ctx.Value(sessionContextKey{}).(sessionData)
+	return data, ok
 }
 
-func sessionAuth(store *sessionStore, codec *session.Codec, verifier *auth.Verifier) func(http.Handler) http.Handler {
+func sessionAuth(tokens *sessionTokens, codec *session.Codec, verifier *auth.Verifier) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
 
 			if bearer := bearerToken(r); bearer != "" {
-				if claims, err := verifier.ValidateToken(ctx, bearer); err == nil {
+				claims, err := verifier.ValidateToken(ctx, bearer)
+				if errors.Is(err, auth.ErrOrganizationLookup) {
+					slog.WarnContext(ctx, "bearer token could not be checked", "error", err)
+					writeGraphQLError(w, http.StatusServiceUnavailable, "could not verify your sign-in right now, retry in a moment; if it keeps failing, sign in again")
+					return
+				}
+				if err != nil {
+					slog.WarnContext(ctx, "bearer token rejected", "error", err)
+				} else {
 					ctx = auth.NewContext(ctx, claims)
 					if account := r.Header.Get(accountTokenHeader); account != "" {
 						ctx = auth.WithToken(ctx, account)
@@ -48,13 +55,22 @@ func sessionAuth(store *sessionStore, codec *session.Codec, verifier *auth.Verif
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
-			store.ensure(ctx, data.SID, data.RefreshToken)
-			ctx = withSessionID(ctx, data.SID)
+			ctx = withSession(ctx, data)
+
+			signOut := func(err error) {
+				slog.InfoContext(ctx, "session ended; signing out", "subject", data.Sub, "error", err)
+				codec.Clear(w)
+				next.ServeHTTP(w, r)
+			}
 
 			claims := &auth.Claims{Subject: data.Sub, Name: data.Name, Email: data.Email, AvatarURL: data.Picture}
 
 			if workspace := r.Header.Get(tenant.Header); workspace != "" {
-				orgToken, err := store.orgToken(ctx, data.SID, workspace)
+				orgToken, err := tokens.workspaceToken(ctx, data, workspace)
+				if errors.Is(err, errNoSession) {
+					signOut(err)
+					return
+				}
 
 				if err != nil {
 					slog.WarnContext(ctx, "organization token unavailable; request will have no workspace", "workspace", workspace, "subject", data.Sub, "error", err)
@@ -65,19 +81,30 @@ func sessionAuth(store *sessionStore, codec *session.Codec, verifier *auth.Verif
 				}
 			}
 
-			if account, err := store.accountAPIToken(ctx, data.SID); err == nil {
-				ctx = auth.WithToken(ctx, account)
+			if err := tokens.check(ctx, data); errors.Is(err, errNoSession) {
+				signOut(err)
+				return
 			}
 
-			if rotated, ok := store.refreshToken(ctx, data.SID); ok && rotated != data.RefreshToken {
-				data.RefreshToken = rotated
-				_ = codec.Save(w, data)
-			}
+			ctx = auth.WithTokenSource(ctx, func(ctx context.Context) string {
+				account, err := tokens.accountToken(ctx, data)
+				if err != nil {
+					slog.WarnContext(ctx, "account token unavailable", "subject", data.Sub, "error", err)
+					return ""
+				}
+				return account
+			})
 
 			ctx = auth.NewContext(ctx, claims)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+func writeGraphQLError(w http.ResponseWriter, status int, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(map[string]any{"errors": []map[string]string{{"message": message}}})
 }
 
 func bearerToken(r *http.Request) string {

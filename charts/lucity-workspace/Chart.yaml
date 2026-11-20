@@ -1,0 +1,6 @@
+apiVersion: v2
+name: lucity-workspace
+description: Configuration that belongs to a Lucity workspace rather than to one of its environments
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

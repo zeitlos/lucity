@@ -24,7 +24,17 @@ func (c *Client) Bucket(ctx context.Context, id BucketID) (*Bucket, error) {
 	return c.objectStorage.Bucket(ctx, id)
 }
 
-func (c *Client) CreateBucket(ctx context.Context, environment platform.EnvironmentID, name string) (*Bucket, error) {
+func (c *Client) CreateBucket(ctx context.Context, environment platform.EnvironmentID, id, name string) (*Bucket, error) {
+	capabilities, err := c.Capabilities(ctx, environment.Workspace)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := capabilities.Buckets.allow("Creating a bucket"); err != nil {
+		return nil, err
+	}
+
 	existing, err := c.objectStorage.Buckets(ctx, environment, false)
 
 	if err != nil {
@@ -35,7 +45,13 @@ func (c *Client) CreateBucket(ctx context.Context, environment platform.Environm
 		return nil, usererror.Errorf("bucket limit reached: %d per environment", maxBucketsPerEnvironment)
 	}
 
-	bucket, err := c.objectStorage.Create(ctx, environment, name)
+	id, err = c.newResourceID(ctx, environment, id, name, "bucket")
+
+	if err != nil {
+		return nil, err
+	}
+
+	bucket, err := c.objectStorage.Create(ctx, environment, id, name)
 
 	if err != nil {
 		return nil, fmt.Errorf("create bucket: %w", err)

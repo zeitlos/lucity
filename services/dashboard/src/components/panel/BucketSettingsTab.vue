@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import NameSettings from '@/components/NameSettings.vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { ref } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
@@ -8,6 +9,14 @@ import { Button } from '@/components/ui/button';
 import { failureToast } from '@/components/ui/sonner';
 import { formatBytes, formatCount } from '@/lib/format';
 
+const RenameBucketDocument = graphql(`
+  mutation RenameBucket($bucket: BucketID!, $name: String!) {
+    renameBucket(bucket: $bucket, name: $name) {
+      id
+      name
+    }
+  }
+`);
 const DeleteBucketDocument = graphql(`
   mutation DeleteBucket($bucket: BucketID!) {
     deleteBucket(bucket: $bucket)
@@ -28,6 +37,16 @@ const emit = defineEmits<{
   (e: 'bucket-removed'): void;
 }>();
 
+const { mutate: renameMutate, loading: renaming } = useMutation(RenameBucketDocument);
+
+async function handleRename(name: string) {
+  try {
+    await renameMutate({ bucket: props.bucketId, name });
+  } catch (e: unknown) {
+    failureToast('Failed to rename bucket', e);
+  }
+}
+
 const { mutate: deleteBucket, loading: deleting } = useMutation(DeleteBucketDocument);
 const deleteDialogOpen = ref(false);
 
@@ -44,6 +63,18 @@ async function handleDelete() {
 
 <template>
   <div class="space-y-6">
+    <section class="space-y-2">
+      <h3 class="text-sm font-medium text-muted-foreground">
+        General
+      </h3>
+      <NameSettings
+        :name="bucket.name"
+        :id="bucketId"
+        :saving="renaming"
+        @save="handleRename"
+      />
+    </section>
+
     <!-- Configuration -->
     <section class="space-y-2">
       <h3 class="text-sm font-medium text-muted-foreground">

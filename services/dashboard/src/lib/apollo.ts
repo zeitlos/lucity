@@ -5,6 +5,7 @@ import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { getMainDefinition } from '@apollo/client/utilities';
 import { createClient } from 'graphql-ws';
 import { useAuth } from '@/composables/useAuth';
+import { gateFromError, useGate } from '@/composables/useGate';
 
 const { activeWorkspace, login } = useAuth();
 
@@ -17,12 +18,17 @@ const workspaceLink = setContext((_, { headers }) => ({
   },
 }));
 
-const errorLink = onError(({ graphQLErrors, networkError }) => {
+const { open: openGate } = useGate();
+
+const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
   const authFailed =
     graphQLErrors?.some(e => e.message === 'unauthenticated' || e.message === 'unauthorized') ||
     (!!networkError && 'statusCode' in networkError && (networkError.statusCode === 401 || networkError.statusCode === 403));
 
   if (authFailed) login();
+
+  const gate = gateFromError({ graphQLErrors });
+  if (gate && operation.operationName !== 'CompletePaymentMethodCheckout') openGate(gate);
 });
 
 const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -33,7 +39,7 @@ const wsLink = new GraphQLWsLink(createClient({
     'X-Lucity-Workspace': activeWorkspace.value,
   }),
   lazy: true,
-  retryAttempts: 3,
+  retryAttempts: Infinity,
 }));
 
 const splitLink = split(
@@ -51,6 +57,12 @@ export const apolloClient = new ApolloClient({
     typePolicies: {
       VulnerabilityReport: {
         merge: true,
+      },
+      Vulnerability: {
+        keyFields: false,
+      },
+      Endpoint: {
+        keyFields: ['host', 'port'],
       },
     },
   }),

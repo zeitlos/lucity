@@ -60,6 +60,11 @@ withDefaults(defineProps<{
 }
 
 .feature-card {
+  display: grid;
+  grid-row: span 3;
+  grid-template-rows: subgrid;
+  row-gap: 0;
+  align-content: start;
   padding: 1.25rem;
   border: 1px solid var(--ui-border);
   border-radius: 0.875rem;
@@ -67,6 +72,8 @@ withDefaults(defineProps<{
 }
 
 .feature-card-icon {
+  grid-row: 1;
+  justify-self: start;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -79,12 +86,14 @@ withDefaults(defineProps<{
 }
 
 .feature-card-title {
+  grid-row: 2;
   margin: 0;
   font-weight: 600;
   color: var(--ui-text-highlighted);
 }
 
 .feature-card-text {
+  grid-row: 3;
   margin: 0.375rem 0 0;
   font-size: 0.9375rem;
   line-height: 1.6;

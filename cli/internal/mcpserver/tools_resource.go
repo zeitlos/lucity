@@ -3,31 +3,20 @@ package mcpserver
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-func withResourceID(resource any, id string) any {
-	if fields, ok := resource.(map[string]any); ok {
-		if current, set := fields["id"].(string); !set || current == "" || strings.Trim(current, "/") == "" {
-			fields["id"] = id
-		}
-		return fields
-	}
-	return resource
-}
-
 func (s *server) registerResource(m *mcp.Server) {
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "create_database",
-		Description: "Provision a managed PostgreSQL database in an environment. size is the storage size as a Kubernetes quantity (e.g. 10Gi). cpu and memory (e.g. '500m'/'512Mi') size the database; pass both or omit both for platform defaults. Provisioning takes ~1-2 min; poll get_project for status. Wire its credentials into a service with set_variables refs from list_variables' available list; credential values are never returned.",
+		Description: "Provision a managed PostgreSQL database in an environment. size is the storage size as a Kubernetes quantity (e.g. 10Gi). cpu and memory (e.g. '500m'/'512Mi') size the database; pass both or omit both for platform defaults. It accepts connections about a minute after creation, once its status leaves PENDING; pass wait to get the result at that point instead of polling get_project. UPDATING then means it serves while a standby instance catches up. Wire its credentials into a service with set_variables refs from list_variables' available list; credential values are never returned.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(false)},
 	}, s.createDatabase)
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "create_kv_store",
-		Description: "Provision a Redis-compatible key-value store in an environment.",
+		Description: "Provision a Redis-compatible key-value store in an environment. Pass wait to get the result once it accepts connections (status no longer PENDING).",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(false)},
 	}, s.createKeyValueStore)
 
@@ -38,23 +27,31 @@ func (s *server) registerResource(m *mcp.Server) {
 	}, s.createBucket)
 
 	mcp.AddTool(m, &mcp.Tool{
+		Name:        "configure_bucket",
+		Description: "Change bucket settings. public=true makes every object readable by anyone at the bucket's publicEndpoint, public=false makes it private again. Writing always needs credentials.",
+		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(false)},
+	}, s.configureBucket)
+
+	mcp.AddTool(m, &mcp.Tool{
 		Name:        "create_volume",
-		Description: "Provision a persistent volume in an environment. size is a Kubernetes quantity between 10Gi and 1Ti (e.g. 10Gi); it can grow later but never shrink. Optionally mount it into a service at a path; a volume mounts into one service only, and that service must run a single replica.",
+		Description: "Provision a persistent volume in an environment. size is a Kubernetes quantity between 10Gi and 128Gi (e.g. 10Gi); it can grow later but never shrink. Optionally mount it into a service at a path; a volume mounts into one service only, and that service must run a single replica.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(false)},
 	}, s.createVolume)
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "run_sql",
-		Description: "Run a SQL statement against a database, for schema setup and quick checks. Returns up to 200 rows. Bulk dump imports need the database credentials, which are never shown here, so the user runs those from their own terminal.",
+		Description: "Run a SQL statement against a database, for schema setup and quick checks. Returns up to 200 rows into this conversation; to work with results outside it (save to a file, load into a local database, process with jq), run `lucity db query <db> \"<sql>\" --json` in a shell instead, which returns up to 1,000 rows. Bulk dump imports need the database credentials, which are never shown here, so the user runs those from their own terminal.",
 	}, s.runSQL)
 }
 
 type createDatabaseInput struct {
 	Environment string `json:"environment" jsonschema:"environment id (workspace/project/environment)"`
-	Name        string `json:"name" jsonschema:"database name (2-16 chars, lowercase alphanumeric and hyphens)"`
+	Name        string `json:"name" jsonschema:"what people read, any text up to 128 chars (e.g. 'Orders'); it can be renamed later"`
+	ID          string `json:"id,omitempty" jsonschema:"optional id (2-16 chars: lowercase letters, digits and hyphens, starting and ending with a letter or digit); derived from name when omitted, with a counter added if taken. Fixed once created. Use the id this tool returns, never the name, to refer to it later"`
 	Size        string `json:"size,omitempty" jsonschema:"storage size as a Kubernetes quantity (e.g. 10Gi)"`
 	CPU         string `json:"cpu,omitempty" jsonschema:"CPU limit as a Kubernetes quantity (e.g. 500m); provide together with memory, or omit both for platform defaults"`
 	Memory      string `json:"memory,omitempty" jsonschema:"memory limit as a Kubernetes quantity (e.g. 512Mi); provide together with cpu, or omit both for platform defaults"`
+	Wait        int    `json:"wait,omitempty" jsonschema:"optional: seconds (1-300) to wait until it accepts connections (status no longer PENDING) before answering, instead of polling get_project"`
 }
 
 func (s *server) createDatabase(ctx context.Context, _ *mcp.CallToolRequest, input createDatabaseInput) (*mcp.CallToolResult, any, error) {
@@ -65,8 +62,14 @@ func (s *server) createDatabase(ctx context.Context, _ *mcp.CallToolRequest, inp
 	if (input.CPU == "") != (input.Memory == "") {
 		return nil, nil, fmt.Errorf("cpu and memory must be provided together")
 	}
+	if err := validateWait(input.Wait); err != nil {
+		return nil, nil, err
+	}
 
 	dbInput := map[string]any{"environment": environmentID, "name": input.Name}
+	if input.ID != "" {
+		dbInput["id"] = input.ID
+	}
 	if input.Size != "" {
 		dbInput["size"] = input.Size
 	}
@@ -78,20 +81,48 @@ func (s *server) createDatabase(ctx context.Context, _ *mcp.CallToolRequest, inp
   createDatabase(input: $input) { id name status version size public resources { cpu memory } }
 }`
 	var out struct {
-		CreateDatabase any `json:"createDatabase"`
+		CreateDatabase map[string]any `json:"createDatabase"`
 	}
 	if err := s.query(ctx, "create_database", mutation, map[string]any{"input": dbInput}, &out); err != nil {
 		return nil, nil, err
 	}
-	return jsonResult(map[string]any{
-		"database": withResourceID(out.CreateDatabase, environmentID+"/"+input.Name),
-		"note":     "PostgreSQL provisioning takes ~1-2 min; poll get_project until status is HEALTHY, then wire its credentials into a service via set_variables refs from list_variables' available list",
+
+	database, settled, err := pollUntil(ctx, input.Wait, func() (map[string]any, bool, error) {
+		if input.Wait == 0 {
+			return out.CreateDatabase, false, nil
+		}
+		const query = `query($id: DatabaseID!) { database(id: $id) { id name status statusReason version size public resources { cpu memory } } }`
+		var current struct {
+			Database map[string]any `json:"database"`
+		}
+		if err := s.query(ctx, "create_database (status)", query, map[string]any{"id": out.CreateDatabase["id"]}, &current); err != nil {
+			return nil, false, err
+		}
+		return current.Database, resourceSettled(current.Database), nil
 	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	note := "PostgreSQL accepts connections about a minute after creation, once its status leaves PENDING (call get_project, or pass wait next time); wire its credentials into a service via set_variables refs from list_variables' available list right away"
+	if settled {
+		note = "wire its credentials into a service via set_variables refs from list_variables' available list"
+	} else if pending := waitNote(input.Wait, settled, database["status"]); pending != "" {
+		note = pending
+	}
+	return jsonResult(map[string]any{"database": database, "note": note})
+}
+
+func resourceSettled(resource map[string]any) bool {
+	status, _ := resource["status"].(string)
+	return status != "" && status != "PENDING"
 }
 
 type createKeyValueStoreInput struct {
 	Environment string `json:"environment" jsonschema:"environment id (workspace/project/environment)"`
-	Name        string `json:"name" jsonschema:"store name (2-16 chars, lowercase alphanumeric and hyphens)"`
+	Name        string `json:"name" jsonschema:"what people read, any text up to 128 chars (e.g. 'Sessions'); it can be renamed later"`
+	ID          string `json:"id,omitempty" jsonschema:"optional id (2-16 chars: lowercase letters, digits and hyphens, starting and ending with a letter or digit); derived from name when omitted, with a counter added if taken. Fixed once created. Use the id this tool returns, never the name, to refer to it later"`
+	Wait        int    `json:"wait,omitempty" jsonschema:"optional: seconds (1-300) to wait until it accepts connections (status no longer PENDING) before answering, instead of polling get_project"`
 }
 
 func (s *server) createKeyValueStore(ctx context.Context, _ *mcp.CallToolRequest, input createKeyValueStoreInput) (*mcp.CallToolResult, any, error) {
@@ -99,26 +130,52 @@ func (s *server) createKeyValueStore(ctx context.Context, _ *mcp.CallToolRequest
 	if err != nil {
 		return nil, nil, err
 	}
+	if err := validateWait(input.Wait); err != nil {
+		return nil, nil, err
+	}
 
 	const mutation = `mutation($input: CreateKeyValueStoreInput!) {
   createKeyValueStore(input: $input) { id name status version size }
 }`
 	var out struct {
-		CreateKeyValueStore any `json:"createKeyValueStore"`
+		CreateKeyValueStore map[string]any `json:"createKeyValueStore"`
 	}
 	kvInput := map[string]any{"environment": environmentID, "name": input.Name}
+	if input.ID != "" {
+		kvInput["id"] = input.ID
+	}
 	if err := s.query(ctx, "create_kv_store", mutation, map[string]any{"input": kvInput}, &out); err != nil {
 		return nil, nil, err
 	}
-	return jsonResult(map[string]any{
-		"keyValueStore": withResourceID(out.CreateKeyValueStore, environmentID+"/"+input.Name),
-		"note":          "Redis-compatible; wire its credentials into a service via set_variables refs from list_variables' available list",
+
+	store, settled, err := pollUntil(ctx, input.Wait, func() (map[string]any, bool, error) {
+		if input.Wait == 0 {
+			return out.CreateKeyValueStore, false, nil
+		}
+		const query = `query($id: KeyValueStoreID!) { keyValueStore(id: $id) { id name status version size } }`
+		var current struct {
+			KeyValueStore map[string]any `json:"keyValueStore"`
+		}
+		if err := s.query(ctx, "create_kv_store (status)", query, map[string]any{"id": out.CreateKeyValueStore["id"]}, &current); err != nil {
+			return nil, false, err
+		}
+		return current.KeyValueStore, resourceSettled(current.KeyValueStore), nil
 	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	note := "Redis-compatible; wire its credentials into a service via set_variables refs from list_variables' available list"
+	if pending := waitNote(input.Wait, settled, store["status"]); pending != "" {
+		note = pending + ". " + note
+	}
+	return jsonResult(map[string]any{"keyValueStore": store, "note": note})
 }
 
 type createBucketInput struct {
 	Environment string `json:"environment" jsonschema:"environment id (workspace/project/environment)"`
-	Name        string `json:"name" jsonschema:"bucket name (2-16 chars, lowercase alphanumeric and hyphens)"`
+	Name        string `json:"name" jsonschema:"what people read, any text up to 128 chars (e.g. 'Uploads'); it can be renamed later"`
+	ID          string `json:"id,omitempty" jsonschema:"optional id (2-16 chars: lowercase letters, digits and hyphens, starting and ending with a letter or digit); derived from name when omitted, with a counter added if taken. Fixed once created. Use the id this tool returns, never the name, to refer to it later"`
 }
 
 func (s *server) createBucket(ctx context.Context, _ *mcp.CallToolRequest, input createBucketInput) (*mcp.CallToolResult, any, error) {
@@ -134,19 +191,54 @@ func (s *server) createBucket(ctx context.Context, _ *mcp.CallToolRequest, input
 		CreateBucket any `json:"createBucket"`
 	}
 	bucketInput := map[string]any{"environment": environmentID, "name": input.Name}
+	if input.ID != "" {
+		bucketInput["id"] = input.ID
+	}
 	if err := s.query(ctx, "create_bucket", mutation, map[string]any{"input": bucketInput}, &out); err != nil {
 		return nil, nil, err
 	}
 	return jsonResult(map[string]any{
-		"bucket": withResourceID(out.CreateBucket, environmentID+"/"+input.Name),
+		"bucket": out.CreateBucket,
 		"note":   "S3-compatible; wire its credentials into a service via set_variables refs from list_variables' available list",
 	})
 }
 
+type configureBucketInput struct {
+	Bucket string `json:"bucket" jsonschema:"bucket id (workspace/project/environment/bucket)"`
+	Public *bool  `json:"public,omitempty" jsonschema:"true makes every object publicly readable, false makes the bucket private"`
+}
+
+func (s *server) configureBucket(ctx context.Context, _ *mcp.CallToolRequest, input configureBucketInput) (*mcp.CallToolResult, any, error) {
+	bucketID, err := s.resourceID(input.Bucket)
+	if err != nil {
+		return nil, nil, err
+	}
+	if input.Public == nil {
+		return nil, nil, fmt.Errorf("nothing to change: pass public")
+	}
+
+	const mutation = `mutation($bucket: BucketID!, $public: Boolean!) { setBucketPublic(bucket: $bucket, public: $public) { id name status public publicEndpoint } }`
+	var out struct {
+		SetBucketPublic map[string]any `json:"setBucketPublic"`
+	}
+	if err := s.query(ctx, "configure_bucket", mutation, map[string]any{"bucket": bucketID, "public": *input.Public}, &out); err != nil {
+		return nil, nil, err
+	}
+	return jsonResult(map[string]any{"bucket": bucketView(out.SetBucketPublic)})
+}
+
+func bucketView(bucket map[string]any) map[string]any {
+	if public, _ := bucket["public"].(bool); !public {
+		delete(bucket, "publicEndpoint")
+	}
+	return bucket
+}
+
 type createVolumeInput struct {
 	Environment  string `json:"environment" jsonschema:"environment id (workspace/project/environment)"`
-	Name         string `json:"name" jsonschema:"volume name (2-16 chars, lowercase alphanumeric and hyphens)"`
-	Size         string `json:"size" jsonschema:"size as a Kubernetes quantity, 10Gi minimum, 1Ti maximum (e.g. 10Gi)"`
+	Name         string `json:"name" jsonschema:"what people read, any text up to 128 chars (e.g. 'Data'); it can be renamed later"`
+	ID           string `json:"id,omitempty" jsonschema:"optional id (2-16 chars: lowercase letters, digits and hyphens, starting and ending with a letter or digit); derived from name when omitted, with a counter added if taken. Fixed once created. Use the id this tool returns, never the name, to refer to it later"`
+	Size         string `json:"size" jsonschema:"size as a Kubernetes quantity, 10Gi minimum, 128Gi maximum (e.g. 10Gi)"`
 	MountService string `json:"mount_service,omitempty" jsonschema:"optional service id to mount the volume into"`
 	MountPath    string `json:"mount_path,omitempty" jsonschema:"mount path inside the container; required when mount_service is set"`
 }
@@ -157,8 +249,12 @@ func (s *server) createVolume(ctx context.Context, _ *mcp.CallToolRequest, input
 		return nil, nil, err
 	}
 
-	const mutation = `mutation($environment: EnvironmentID!, $name: String!, $size: String!) {
-  createVolume(environment: $environment, name: $name, size: $size) { id name size mount { service path } }
+	if input.MountService != "" && input.MountPath == "" {
+		return nil, nil, fmt.Errorf("mount_path is required when mount_service is set")
+	}
+
+	const mutation = `mutation($environment: EnvironmentID!, $name: String!, $id: String, $size: String!) {
+  createVolume(environment: $environment, name: $name, id: $id, size: $size) { id name size mount { service path } }
 }`
 	var out struct {
 		CreateVolume struct {
@@ -168,18 +264,18 @@ func (s *server) createVolume(ctx context.Context, _ *mcp.CallToolRequest, input
 			Mount any    `json:"mount"`
 		} `json:"createVolume"`
 	}
-	if err := s.query(ctx, "create_volume", mutation, map[string]any{"environment": environmentID, "name": input.Name, "size": input.Size}, &out); err != nil {
+	variables := map[string]any{"environment": environmentID, "name": input.Name, "size": input.Size}
+	if input.ID != "" {
+		variables["id"] = input.ID
+	}
+	if err := s.query(ctx, "create_volume", mutation, variables, &out); err != nil {
 		return nil, nil, err
 	}
 
-	volumeID := environmentID + "/" + input.Name
-	out.CreateVolume.ID = volumeID
+	volumeID := out.CreateVolume.ID
 	result := map[string]any{"volume": out.CreateVolume}
 
 	if input.MountService != "" {
-		if input.MountPath == "" {
-			return nil, nil, fmt.Errorf("mount_path is required when mount_service is set")
-		}
 		serviceID, err := s.serviceID(input.MountService)
 		if err != nil {
 			return nil, nil, err
@@ -202,7 +298,7 @@ func (s *server) createVolume(ctx context.Context, _ *mcp.CallToolRequest, input
 
 type runSQLInput struct {
 	Database string `json:"database" jsonschema:"database id (workspace/project/environment/name)"`
-	Query    string `json:"query" jsonschema:"SQL statement to execute"`
+	Query    string `json:"query" jsonschema:"SQL statement to execute, e.g. select count(*) from users"`
 }
 
 func (s *server) runSQL(ctx context.Context, _ *mcp.CallToolRequest, input runSQLInput) (*mcp.CallToolResult, any, error) {

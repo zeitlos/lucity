@@ -4,6 +4,7 @@ import { WifiOff } from '@lucide/vue';
 import ToastContent from './ToastContent.vue';
 import { describeError } from '@/lib/errors';
 import { openBugReport } from '@/composables/useReportBug';
+import { gateFromError } from '@/composables/useGate';
 
 export { default as Sonner } from './Sonner.vue';
 
@@ -40,6 +41,8 @@ export function errorToast(title: string, options?: ToastOptions) {
  * network errors fade, since they usually clear up on their own.
  */
 export function failureToast(title: string, error: unknown) {
+  if (gateFromError(error)) return;
+
   const { kind, message, detail } = describeError(error);
   return errorToast(title, {
     description: message,

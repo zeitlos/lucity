@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { mobileSheetClass } from '@/lib/dialog';
 import { computed, ref, useId, watch, type Component } from 'vue';
 import { Trash2 } from '@lucide/vue';
 import {
@@ -27,6 +28,7 @@ const props = withDefaults(defineProps<{
   icon?: Component;
   confirmText?: string;
   cancelLabel?: string;
+  blocked?: boolean;
 }>(), {
   description: undefined,
   pendingLabel: undefined,
@@ -35,6 +37,7 @@ const props = withDefaults(defineProps<{
   icon: undefined,
   confirmText: undefined,
   cancelLabel: 'Cancel',
+  blocked: false,
 });
 
 const emit = defineEmits<{
@@ -49,7 +52,7 @@ watch(open, (value) => {
 });
 
 const tileIcon = computed(() => props.icon ?? Trash2);
-const canConfirm = computed(() => !props.pending && (!props.confirmText || typed.value.trim() === props.confirmText));
+const canConfirm = computed(() => !props.blocked && !props.pending && (!props.confirmText || typed.value.trim() === props.confirmText));
 
 function confirm() {
   if (canConfirm.value) emit('confirm');
@@ -61,9 +64,9 @@ function confirm() {
     <AlertDialogTrigger v-if="$slots.trigger" as-child>
       <slot name="trigger" />
     </AlertDialogTrigger>
-    <AlertDialogContent class="flex min-h-68 max-w-md flex-col">
+    <AlertDialogContent :class="[mobileSheetClass, 'flex min-h-68 max-w-md flex-col']">
       <AlertDialogHeader>
-        <DialogIcon :icon="tileIcon" :destructive="destructive" />
+        <DialogIcon :icon="tileIcon" :destructive="destructive && !blocked" />
         <AlertDialogTitle>{{ title }}</AlertDialogTitle>
         <AlertDialogDescription v-if="description || $slots.description">
           <slot name="description">{{ description }}</slot>
@@ -72,7 +75,7 @@ function confirm() {
 
       <slot />
 
-      <form v-if="confirmText" class="space-y-1.5" @submit.prevent="confirm">
+      <form v-if="confirmText && !blocked" class="space-y-1.5" @submit.prevent="confirm">
         <label :for="inputId" class="text-sm text-muted-foreground">
           Type "{{ confirmText }}" to confirm
         </label>
@@ -86,8 +89,10 @@ function confirm() {
       </form>
 
       <AlertDialogFooter class="mt-auto">
-        <AlertDialogCancel :disabled="pending">{{ cancelLabel }}</AlertDialogCancel>
+        <AlertDialogCancel v-if="blocked">Close</AlertDialogCancel>
+        <AlertDialogCancel v-else :disabled="pending">{{ cancelLabel }}</AlertDialogCancel>
         <Button
+          v-if="!blocked"
           :variant="destructive ? 'destructive' : 'default'"
           :pending="pending"
           :disabled="!canConfirm"

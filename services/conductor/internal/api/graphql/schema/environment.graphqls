@@ -1,7 +1,10 @@
+enum ResourceTier { ECO }
+
 type Environment {
   id: EnvironmentID!
+  """What people read. It can be changed, while `id` stays the same."""
   name: String!
-  resourceTier: ResourceTier!
+  resourceTier: ResourceTier! @deprecated(reason: "Every environment runs on the same resources. Always `ECO`.")
   services: [Service!]! @goField(forceResolver: true)
   databases: [Database!]! @goField(forceResolver: true)
   volumes: [Volume!]! @goField(forceResolver: true)
@@ -9,11 +12,11 @@ type Environment {
 
 input CreateEnvironmentInput {
   project: ProjectID!
-  name: String! @constraint(constraint: "resource_name,min=2,max=16")
-  """Not supported yet. Leave it unset, because new environments always start empty."""
-  fromEnvironment: EnvironmentID
-  """Defaults to `ECO`."""
-  tier: ResourceTier
+  """What people read, such as `Staging`. Any text, and it can be changed later."""
+  name: String! @constraint(constraint: "min=1,max=128")
+  """The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused."""
+  id: String @constraint(constraint: "resource_name,min=2,max=16")
+  tier: ResourceTier @deprecated(reason: "Ignored. Every environment runs on the same resources.")
 }
 
 extend type Query {
@@ -23,9 +26,16 @@ extend type Query {
   environment(environment: EnvironmentID!): Environment! @hasRole(role: WORKSPACE_MEMBER)
 }
 
+extend type Subscription {
+  """One environment, sent when the subscription starts and again whenever its services, databases, key-value stores, buckets, volumes or releases change, at most once per second. Domain DNS state and bucket usage are looked up again on every update, so leave them out unless you need them."""
+  environment(environment: EnvironmentID!): Environment! @hasRole(role: WORKSPACE_MEMBER)
+}
+
 extend type Mutation {
   """Creates an empty environment in a project."""
   createEnvironment(input: CreateEnvironmentInput!): Environment! @hasRole(role: WORKSPACE_MEMBER)
+  """Changes the name of an environment. Its id stays the same."""
+  renameEnvironment(environment: EnvironmentID!, name: String! @constraint(constraint: "min=1,max=128")): Environment! @hasRole(role: WORKSPACE_MEMBER)
   """Deletes an environment. It has to be empty, and the last environment of a project can't be deleted."""
   deleteEnvironment(environment: EnvironmentID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
 }

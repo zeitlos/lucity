@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"github.com/zeitlos/lucity/pkg/platform"
+	"github.com/zeitlos/lucity/pkg/to"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 )
 
@@ -36,7 +37,7 @@ func (r *mutationResolver) CreateKeyValueStore(ctx context.Context, input model.
 		size = *input.Size
 	}
 
-	store, err := r.Conductor.CreateKeyValueStore(ctx, input.Environment, input.Name, size)
+	store, err := r.Conductor.CreateKeyValueStore(ctx, input.Environment, to.Val(input.ID), input.Name, size)
 
 	if err != nil {
 		return nil, err
@@ -48,6 +49,17 @@ func (r *mutationResolver) CreateKeyValueStore(ctx context.Context, input model.
 // DeleteKeyValueStore is the resolver for the deleteKeyValueStore field.
 func (r *mutationResolver) DeleteKeyValueStore(ctx context.Context, keyValueStore platform.KeyValueStoreID) (bool, error) {
 	return r.Conductor.DeleteKeyValueStore(ctx, keyValueStore)
+}
+
+// RenameKeyValueStore is the resolver for the renameKeyValueStore field.
+func (r *mutationResolver) RenameKeyValueStore(ctx context.Context, keyValueStore platform.KeyValueStoreID, name string) (*model.KeyValueStore, error) {
+	result, err := r.Conductor.RenameKeyValueStore(ctx, keyValueStore, name)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertKeyValueStore(*result)), nil
 }
 
 // KeyValueStore is the resolver for the keyValueStore field.

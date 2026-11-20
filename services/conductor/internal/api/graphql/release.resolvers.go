@@ -16,18 +16,29 @@ import (
 )
 
 // Deploy is the resolver for the deploy field.
-func (r *mutationResolver) Deploy(ctx context.Context, service platform.ServiceID, gitRef *string) (*model.Release, error) {
+func (r *mutationResolver) Deploy(ctx context.Context, service platform.ServiceID, gitRef *string, noCache *bool) (*model.Release, error) {
 	if err := r.requireServiceDeployBinding(ctx, service); err != nil {
 		return nil, err
 	}
 
-	release, err := r.Conductor.Deploy(ctx, service, to.Val(gitRef))
+	release, err := r.Conductor.Deploy(ctx, service, to.Val(gitRef), to.Val(noCache))
 
 	if err != nil {
 		return nil, err
 	}
 	result := convertRelease(*release)
 	return &result, nil
+}
+
+// CancelBuild is the resolver for the cancelBuild field.
+func (r *mutationResolver) CancelBuild(ctx context.Context, build buildjob.BuildID) (*model.Build, error) {
+	result, err := r.Conductor.CancelBuild(ctx, build)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertBuild(*result)), nil
 }
 
 // Build is the resolver for the build field.

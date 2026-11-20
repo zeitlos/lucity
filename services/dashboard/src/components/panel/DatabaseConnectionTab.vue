@@ -9,6 +9,7 @@ import { DatabaseZap, Globe, Lock, ShieldAlert } from '@lucide/vue';
 import Spinner from '@/components/LoadingSpinner.vue';
 import { graphql } from '@/gql';
 import { Skeleton } from '@/components/ui/skeleton';
+import CredentialFieldSkeleton from '@/components/CredentialFieldSkeleton.vue';
 import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import DatabaseAllowRules from '@/components/panel/DatabaseAllowRules.vue';
@@ -177,24 +178,29 @@ const privateGroups = computed(() => groups.value.filter(g => g.type !== 'PLATFO
 
 <template>
   <div class="space-y-4">
-    <Skeleton v-if="!dbResult" class="h-16 w-full" />
-    <div v-else class="rounded-lg border">
+    <div class="rounded-lg border">
       <div class="flex items-start gap-3 px-4 py-3">
         <Globe :size="16" class="mt-0.5 shrink-0 text-muted-foreground" />
         <div class="flex-1 space-y-0.5">
           <span class="text-sm font-medium text-foreground">Internet access</span>
-          <p class="text-xs text-muted-foreground">
+          <div v-if="!dbResult" class="flex h-4 items-center">
+            <Skeleton class="h-3 w-80 max-w-full" />
+          </div>
+          <p v-else class="text-xs text-muted-foreground">
             {{ isPublic
               ? 'Reachable over TLS on port 5432 from the addresses you allow.'
               : 'Reachable only from your other services over the private network.' }}
           </p>
         </div>
-        <Spinner v-if="toggling" :size="14" class="text-muted-foreground" />
-        <Switch
-          :model-value="isPublic"
-          :disabled="toggling"
-          @update:model-value="onToggle"
-        />
+        <Skeleton v-if="!dbResult" class="h-6 w-11 rounded-full" />
+        <template v-else>
+          <Spinner v-if="toggling" :size="14" class="text-muted-foreground" />
+          <Switch
+            :model-value="isPublic"
+            :disabled="toggling"
+            @update:model-value="onToggle"
+          />
+        </template>
       </div>
       <div v-if="isPublic" class="border-t px-4 py-3">
         <DatabaseAllowRules
@@ -215,8 +221,19 @@ const privateGroups = computed(() => groups.value.filter(g => g.type !== 'PLATFO
     </div>
 
     <!-- Loading -->
-    <div v-if="loading" class="space-y-2">
-      <Skeleton v-for="i in 6" :key="i" class="h-10 w-full" />
+    <div v-if="loading" class="rounded-lg border">
+      <div class="flex items-start gap-3 px-4 py-3">
+        <Lock :size="16" class="mt-0.5 shrink-0 text-muted-foreground" />
+        <div class="flex-1 space-y-0.5">
+          <span class="text-sm font-medium text-foreground">Private network</span>
+          <div class="flex h-4 items-center">
+            <Skeleton class="h-3 w-80 max-w-full" />
+          </div>
+        </div>
+      </div>
+      <div class="border-t px-4 py-3">
+        <CredentialFieldSkeleton :rows="6" />
+      </div>
     </div>
 
     <!-- Provisioning -->

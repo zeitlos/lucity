@@ -1,11 +1,3 @@
-enum ResourceTier { ECO, PRODUCTION }
-
-"""`ECO` lets services share capacity and burst beyond what is reserved for them. `PRODUCTION` reserves the full CPU and memory of every service."""
-input SetEnvironmentResourcesInput {
-  environment: EnvironmentID!
-  tier: ResourceTier!
-}
-
 enum Plan { HOBBY, PRO }
 
 enum SubscriptionStatus {
@@ -14,6 +6,7 @@ enum SubscriptionStatus {
   CANCELED
   INCOMPLETE
   TRIALING
+  TRIAL_ENDED
 }
 
 type BillingSubscription {
@@ -35,10 +28,126 @@ type BillingPortalUrl {
   url: String!
 }
 
+"""What a plan includes. Sizes are quantities such as `16Gi`, and a null count means unlimited."""
+type PlanLimits {
+  cpu: String!
+  memory: String!
+  replicas: Int!
+  volumes: Boolean!
+  volumeSize: String!
+  databaseStorage: String!
+  keyValueStoreSize: String!
+  members: Int
+  customDomains: Int
+}
+
+"""A plan with what it includes and what it costs a month."""
+type PlanOffer {
+  """Null for the free tier."""
+  plan: Plan
+  priceCents: Int!
+  currency: String!
+  limits: PlanLimits!
+}
+
 """The outcome of choosing a plan: the subscription now on it, or a checkout to complete first when the workspace has no card on file."""
 type PlanSelection {
   subscription: BillingSubscription
   checkoutUrl: String
+}
+
+"""A billing period. `end` is exclusive."""
+type BillingPeriod {
+  start: Time!
+  end: Time!
+  current: Boolean!
+}
+
+enum UsageResourceKind {
+  SERVICE
+  DATABASE
+  KEY_VALUE_STORE
+  VOLUME
+  BUCKET
+  AGENT
+}
+
+"""What one resource of an environment cost in a billing period. `resourceId` is the resource's full ID, unique together with `kind`. `daily` holds one amount per day of the period, in cents."""
+type ResourceUsage {
+  resourceId: String!
+  name: String!
+  kind: UsageResourceKind!
+  amountCents: Float!
+  daily: [Float!]!
+}
+
+"""What one environment cost in a billing period. `deletedAt` is the last time it used anything, set only once it no longer exists."""
+type EnvironmentUsage {
+  environmentId: EnvironmentID!
+  name: String!
+  deletedAt: Time
+  amountCents: Float!
+  daily: [Float!]!
+  resources: [ResourceUsage!]!
+}
+
+"""What one project cost in a billing period, split by environment."""
+type ProjectUsage {
+  projectId: ProjectID!
+  name: String!
+  deletedAt: Time
+  amountCents: Float!
+  daily: [Float!]!
+  environments: [EnvironmentUsage!]!
+}
+
+enum InvoiceStatus {
+  PREVIEW
+  OPEN
+  PAID
+}
+
+enum InvoiceLineKind {
+  PLAN
+  CPU
+  MEMORY
+  VOLUMES
+  OBJECT_STORAGE
+  EGRESS
+}
+
+"""One line of an invoice. A plan line has `plan` and the period it pays for, and `proration` marks the unused or remaining time of a plan change. `quantity` is in `unit`, such as `vCPU-hours`, `GB-hours`, `GB-months`, `GB` or `month`."""
+type InvoiceLine {
+  kind: InvoiceLineKind!
+  plan: Plan
+  proration: Boolean!
+  periodStart: Time
+  periodEnd: Time
+  quantity: Float!
+  unit: String!
+  unitAmountCents: Float!
+  amountCents: Int!
+}
+
+"""The invoice that closes a billing period. A preview has no number and no `pdfUrl` yet, and its `issuedAt` is when it will be issued."""
+type Invoice {
+  number: String
+  status: InvoiceStatus!
+  issuedAt: Time!
+  paidAt: Time
+  pdfUrl: String
+  lines: [InvoiceLine!]!
+  subtotalCents: Int!
+  creditCents: Int!
+  totalCents: Int!
+}
+
+"""What the workspace used in a billing period, split by project, environment and resource, up to `measuredUntil`, with the invoice that closes the period."""
+type Usage {
+  period: BillingPeriod!
+  measuredUntil: Time!
+  projects: [ProjectUsage!]!
+  invoice: Invoice
 }
 
 extend type Query {
@@ -46,15 +155,23 @@ extend type Query {
   subscription: BillingSubscription @hasRole(role: WORKSPACE_MEMBER)
   """The costs of the current billing period so far, in cents. Null when the workspace has never had a subscription."""
   usageSummary: UsageSummary @hasRole(role: WORKSPACE_MEMBER)
+  """Every plan with what it includes and costs, the free tier first. Empty without billing."""
+  plans: [PlanOffer!]! @hasRole(role: WORKSPACE_MEMBER)
+  """The current billing period and up to two before it, newest first. Empty without a subscription."""
+  billingPeriods: [BillingPeriod!]! @hasRole(role: WORKSPACE_MEMBER)
+  """Usage and invoice of the billing period starting at `periodStart`, one of `billingPeriods`. Null without a subscription."""
+  usage(periodStart: Time!): Usage @hasRole(role: WORKSPACE_MEMBER)
 }
 
 extend type Mutation {
-  """Sets the tier of an environment. Services and databases pick it up the next time they are created or resized."""
-  setEnvironmentResources(input: SetEnvironmentResourcesInput!): Environment! @hasRole(role: WORKSPACE_MEMBER)
   """Puts the workspace on a plan: switches its plan, prorated, adds one to its trial, or starts a new subscription when it has none. Returns a checkout URL instead when a card is needed first."""
   selectPlan(plan: Plan!): PlanSelection! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
   """A link to the billing portal, where payment details and invoices are managed."""
   billingPortalUrl: BillingPortalUrl! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
   """Completes the checkout a plan selection started, puts the workspace on the plan and returns the subscription."""
   completePlanCheckout(sessionId: String!): BillingSubscription! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
+  """Starts a checkout that saves a card for the workspace without charging it, and returns its URL. `returnPath` is the dashboard path to come back to."""
+  addPaymentMethod(returnPath: String! @constraint(constraint: "min=1,max=512")): CheckoutSession! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
+  """Confirms a finished card checkout. A prepaid card is removed again and refused with the code `PREPAID_CARD`."""
+  completePaymentMethodCheckout(sessionId: String! @constraint(constraint: "min=1,max=255")): Workspace! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
 }

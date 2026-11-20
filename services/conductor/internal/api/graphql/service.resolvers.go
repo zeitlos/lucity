@@ -11,6 +11,7 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/to"
+	"github.com/zeitlos/lucity/pkg/usererror"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 )
@@ -25,12 +26,25 @@ func (r *mutationResolver) AddService(ctx context.Context, environment platform.
 		memory = input.Resources.Memory
 	}
 
-	variables := make(map[string]string, len(input.Variables))
+	seen := make(map[string]struct{}, len(input.Variables))
+	literals := make(map[string]string, len(input.Variables))
+	refs := make(map[string]platform.VariableID)
 	for _, variable := range input.Variables {
-		variables[variable.Key] = variable.Value
+		if err := claimVariableKey(seen, variable.Key); err != nil {
+			return nil, err
+		}
+
+		switch {
+		case variable.Ref != nil:
+			refs[variable.Key] = *variable.Ref
+		case variable.Value != nil:
+			literals[variable.Key] = *variable.Value
+		default:
+			return nil, usererror.Errorf("variable %q: set either value or ref", variable.Key)
+		}
 	}
 
-	service, err := r.Conductor.AddService(ctx, environment, to.Val(input.Name), to.Val(input.Repository), to.Val(input.ContextPath), to.Val(input.Image), variables, cpu, memory, toInt64Ptr(input.User))
+	service, err := r.Conductor.AddService(ctx, environment, to.Val(input.ID), to.Val(input.Name), to.Val(input.Repository), to.Val(input.ContextPath), to.Val(input.Image), literals, refs, cpu, memory, toInt64Ptr(input.User))
 
 	if err != nil {
 		return nil, err
@@ -42,6 +56,17 @@ func (r *mutationResolver) AddService(ctx context.Context, environment platform.
 // RemoveService is the resolver for the removeService field.
 func (r *mutationResolver) RemoveService(ctx context.Context, service platform.ServiceID) (bool, error) {
 	return r.Conductor.RemoveService(ctx, service)
+}
+
+// RenameService is the resolver for the renameService field.
+func (r *mutationResolver) RenameService(ctx context.Context, service platform.ServiceID, name string) (*model.Service, error) {
+	result, err := r.Conductor.RenameService(ctx, service, name)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertService(*result)), nil
 }
 
 // SetCustomStartCommand is the resolver for the setCustomStartCommand field.
@@ -58,6 +83,28 @@ func (r *mutationResolver) SetCustomStartCommand(ctx context.Context, service pl
 // SetServiceBranch is the resolver for the setServiceBranch field.
 func (r *mutationResolver) SetServiceBranch(ctx context.Context, service platform.ServiceID, branch *string) (*model.Service, error) {
 	result, err := r.Conductor.SetServiceBranch(ctx, service, to.Val(branch))
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertService(*result)), nil
+}
+
+// SetServiceContextPath is the resolver for the setServiceContextPath field.
+func (r *mutationResolver) SetServiceContextPath(ctx context.Context, service platform.ServiceID, contextPath string) (*model.Service, error) {
+	result, err := r.Conductor.SetServiceContextPath(ctx, service, contextPath)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertService(*result)), nil
+}
+
+// RestartService is the resolver for the restartService field.
+func (r *mutationResolver) RestartService(ctx context.Context, service platform.ServiceID) (*model.Service, error) {
+	result, err := r.Conductor.RestartService(ctx, service)
 
 	if err != nil {
 		return nil, err
@@ -226,8 +273,8 @@ func (r *queryResolver) Service(ctx context.Context, id platform.ServiceID) (*mo
 }
 
 // DetectServices is the resolver for the detectServices field.
-func (r *queryResolver) DetectServices(ctx context.Context, repositoryURL string) ([]model.DetectedService, error) {
-	services, err := r.Conductor.DetectServices(ctx, repositoryURL)
+func (r *queryResolver) DetectServices(ctx context.Context, repositoryURL string, contextPath *string) ([]model.DetectedService, error) {
+	services, err := r.Conductor.DetectServices(ctx, repositoryURL, to.Val(contextPath))
 	if err != nil {
 		return nil, err
 	}
@@ -318,6 +365,23 @@ func (r *serviceResolver) Releases(ctx context.Context, obj *model.Service) ([]m
 	}
 
 	return result, nil
+}
+
+// LatestRelease is the resolver for the latestRelease field.
+func (r *serviceResolver) LatestRelease(ctx context.Context, obj *model.Service) (*model.Release, error) {
+	releases, err := r.Conductor.Releases(ctx, obj.PlatformService)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(releases) == 0 {
+		return nil, nil
+	}
+
+	release := convertRelease(releases[0])
+
+	return &release, nil
 }
 
 // Metrics is the resolver for the metrics field.

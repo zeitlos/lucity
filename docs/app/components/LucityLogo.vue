@@ -1,19 +1,13 @@
 <script setup lang="ts">
-const props = defineProps<{ suffix?: string }>();
-
-const wordmark = computed(() => (props.suffix ? `Lucity ${props.suffix}` : 'Lucity'));
+defineProps<{ suffix?: string }>();
 </script>
 
 <template>
-  <span class="inline-flex items-center gap-[0.833em] leading-none">
-    <LucityMark class="h-[0.98em] w-auto" />
-    <span class="wordmark">{{ wordmark }}</span>
+  <span class="inline-flex items-baseline gap-[0.61em] leading-none">
+    <LucityMark class="h-[1em] w-auto" />
+    <span class="inline-flex items-baseline gap-2">
+      <LucityWordmark class="h-[1em] w-auto" />
+      <span v-if="suffix" class="text-[1.372em] font-medium text-muted">{{ suffix }}</span>
+    </span>
   </span>
 </template>
-
-<style scoped>
-.wordmark {
-  font-family: 'Redaction 35', Georgia, serif;
-  font-weight: 400;
-}
-</style>

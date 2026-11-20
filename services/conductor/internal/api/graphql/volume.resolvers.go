@@ -9,18 +9,30 @@ import (
 	"context"
 
 	"github.com/zeitlos/lucity/pkg/platform"
+	"github.com/zeitlos/lucity/pkg/to"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 )
 
 // CreateVolume is the resolver for the createVolume field.
-func (r *mutationResolver) CreateVolume(ctx context.Context, environment platform.EnvironmentID, name string, size string) (*model.Volume, error) {
-	volume, err := r.Conductor.CreateVolume(ctx, environment, name, size)
+func (r *mutationResolver) CreateVolume(ctx context.Context, environment platform.EnvironmentID, name string, id *string, size string) (*model.Volume, error) {
+	volume, err := r.Conductor.CreateVolume(ctx, environment, to.Val(id), name, size)
 
 	if err != nil {
 		return nil, err
 	}
 
 	return new(convertVolume(*volume)), nil
+}
+
+// RenameVolume is the resolver for the renameVolume field.
+func (r *mutationResolver) RenameVolume(ctx context.Context, volume platform.VolumeID, name string) (*model.Volume, error) {
+	result, err := r.Conductor.RenameVolume(ctx, volume, name)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertVolume(*result)), nil
 }
 
 // ExpandVolume is the resolver for the expandVolume field.

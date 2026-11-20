@@ -10,7 +10,9 @@ import (
 	"time"
 
 	"github.com/blang/semver/v4"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/zeitlos/lucity/charts"
+	"github.com/zeitlos/lucity/pkg/agentrunner"
 	helmDeployer "github.com/zeitlos/lucity/pkg/deployer/helm"
 	"github.com/zeitlos/lucity/pkg/deployer/values"
 	"github.com/zeitlos/lucity/pkg/domains"
@@ -18,8 +20,10 @@ import (
 	environmentK8s "github.com/zeitlos/lucity/pkg/environment/kubernetes"
 	"github.com/zeitlos/lucity/pkg/hostname"
 	"github.com/zeitlos/lucity/pkg/jobs"
+	metricsHTTP "github.com/zeitlos/lucity/pkg/metrics"
 	"github.com/zeitlos/lucity/pkg/pipeline"
 	platformK8s "github.com/zeitlos/lucity/pkg/platform/kubernetes"
+	"github.com/zeitlos/lucity/services/conductor/internal/agentaudit"
 	webhookhttp "github.com/zeitlos/lucity/services/conductor/internal/api/webhook/http"
 	"github.com/zeitlos/lucity/services/conductor/internal/backuparchive"
 	"github.com/zeitlos/lucity/services/conductor/internal/billing"
@@ -34,14 +38,16 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/planner/railpack"
 	scanjobK8s "github.com/zeitlos/lucity/services/conductor/internal/scanjob/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/scanreport"
+	"github.com/zeitlos/lucity/services/conductor/internal/servicelogs"
 	sourceGH "github.com/zeitlos/lucity/services/conductor/internal/source/github"
+	"github.com/zeitlos/lucity/services/conductor/internal/upstream"
+	"github.com/zeitlos/lucity/services/conductor/internal/usage"
 	"github.com/zeitlos/lucity/services/conductor/internal/vulnerabilities"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/bunny"
 	ghpkg "github.com/zeitlos/lucity/pkg/github"
 	"github.com/zeitlos/lucity/pkg/graceful"
-	"github.com/zeitlos/lucity/pkg/kvstore"
 	"github.com/zeitlos/lucity/pkg/logger"
 	"github.com/zeitlos/lucity/pkg/logto"
 	"github.com/zeitlos/lucity/pkg/oidc"
@@ -54,18 +60,21 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/metadata"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
 type Config struct {
 	Port        string `envconfig:"PORT" default:"8080"`
 	WebhookPort string `envconfig:"WEBHOOK_PORT" default:"9004"`
+	MetricsPort string `envconfig:"METRICS_PORT" default:"9008"`
 	LogLevel    string `envconfig:"LOG_LEVEL" default:"info"`
 
 	// OIDC
 	OIDCIssuerURL    string `envconfig:"OIDC_ISSUER_URL" required:"true"`
 	OIDCDiscoveryURL string `envconfig:"OIDC_DISCOVERY_URL"`
 	OIDCClientID     string `envconfig:"OIDC_CLIENT_ID" required:"true"`
+	OIDCClientSecret string `envconfig:"OIDC_CLIENT_SECRET" required:"true"`
 	OIDCCallbackURL  string `envconfig:"OIDC_CALLBACK_URL" default:"http://localhost:8080/auth/callback"`
 	OIDCAudience     string `envconfig:"OIDC_AUDIENCE"`
 	OIDCCLIClientID  string `envconfig:"OIDC_CLI_CLIENT_ID"`
@@ -81,17 +90,14 @@ type Config struct {
 	LogtoM2MAppSecret string `envconfig:"LOGTO_M2M_APP_SECRET" required:"true"`
 
 	// Stripe billing: optional, disabled without a key
-	StripeSecretKey       string `envconfig:"STRIPE_SECRET_KEY"`
-	StripeHobbyPriceID    string `envconfig:"STRIPE_HOBBY_PRICE_ID"`
-	StripeProPriceID      string `envconfig:"STRIPE_PRO_PRICE_ID"`
-	StripeEcoCPUPriceID   string `envconfig:"STRIPE_ECO_CPU_PRICE_ID"`
-	StripeEcoMemPriceID   string `envconfig:"STRIPE_ECO_MEM_PRICE_ID"`
-	StripeEcoDiskPriceID  string `envconfig:"STRIPE_ECO_DISK_PRICE_ID"`
-	StripeProdCPUPriceID  string `envconfig:"STRIPE_PROD_CPU_PRICE_ID"`
-	StripeProdMemPriceID  string `envconfig:"STRIPE_PROD_MEM_PRICE_ID"`
-	StripeProdDiskPriceID string `envconfig:"STRIPE_PROD_DISK_PRICE_ID"`
-	StripeStoragePriceID  string `envconfig:"STRIPE_STORAGE_PRICE_ID"`
-	StripeEgressPriceID   string `envconfig:"STRIPE_EGRESS_PRICE_ID"`
+	StripeSecretKey      string `envconfig:"STRIPE_SECRET_KEY"`
+	StripeHobbyPriceID   string `envconfig:"STRIPE_HOBBY_PRICE_ID"`
+	StripeProPriceID     string `envconfig:"STRIPE_PRO_PRICE_ID"`
+	StripeEcoCPUPriceID  string `envconfig:"STRIPE_ECO_CPU_PRICE_ID"`
+	StripeEcoMemPriceID  string `envconfig:"STRIPE_ECO_MEM_PRICE_ID"`
+	StripeEcoDiskPriceID string `envconfig:"STRIPE_ECO_DISK_PRICE_ID"`
+	StripeStoragePriceID string `envconfig:"STRIPE_STORAGE_PRICE_ID"`
+	StripeEgressPriceID  string `envconfig:"STRIPE_EGRESS_PRICE_ID"`
 
 	// Webhook (GitHub events)
 	WebhookSecret string `envconfig:"WEBHOOK_SECRET" required:"true"`
@@ -187,6 +193,17 @@ type Config struct {
 	DatabaseBackupRegion          string `envconfig:"DATABASE_BACKUP_S3_REGION"`
 	DatabaseBackupAccessKeyID     string `envconfig:"DATABASE_BACKUP_S3_ACCESS_KEY_ID"`
 	DatabaseBackupSecretAccessKey string `envconfig:"DATABASE_BACKUP_S3_SECRET_ACCESS_KEY"`
+
+	// Agents. Their model and connector calls go through the shared agent
+	// gateway, whose access log VictoriaLogs keeps for the audit.
+	AgentsEnabled        bool   `envconfig:"AGENTS_ENABLED" default:"false"`
+	AgentsNamespace      string `envconfig:"AGENTS_NAMESPACE" default:"lucity-agents"`
+	SwitchboardNamespace string `envconfig:"SWITCHBOARD_NAMESPACE" default:"lucity-switchboard"`
+	AgentImage           string `envconfig:"AGENT_IMAGE"`
+	AgentGatewayURL      string `envconfig:"AGENT_GATEWAY_URL" default:"http://lucity-agent-gateway.lucity-agents.svc.cluster.local"`
+
+	CardGateAccountAge time.Duration `envconfig:"CARD_GATE_ACCOUNT_AGE" default:"2160h"`
+	VictoriaLogsURL    string        `envconfig:"VICTORIA_LOGS_URL"`
 }
 
 func main() {
@@ -203,6 +220,11 @@ func main() {
 
 	if config.EdgeHeaderEnforced && config.EdgeHeaderSecret == "" {
 		slog.Error("EDGE_HEADER_ENFORCED requires EDGE_HEADER_SECRET")
+		os.Exit(1)
+	}
+
+	if config.AgentsEnabled && config.AgentImage == "" {
+		slog.Error("AGENTS_ENABLED requires AGENT_IMAGE")
 		os.Exit(1)
 	}
 
@@ -228,6 +250,7 @@ func main() {
 	oidcProvider := &oidc.Provider{
 		Endpoint:     strings.TrimSuffix(config.OIDCIssuerURL, "/oidc"),
 		ClientID:     config.OIDCClientID,
+		ClientSecret: config.OIDCClientSecret,
 		Audience:     apiAudience,
 		DirectSignIn: directSignIn,
 		Scopes:       loginScopes,
@@ -240,7 +263,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	k8sClient, dynClient, _, err := buildKubeClients()
+	k8sClient, dynClient, metadataClient, restConfig, err := buildKubeClients()
 	if err != nil {
 		slog.Error("failed to build kube clients", "error", err)
 		os.Exit(1)
@@ -252,22 +275,23 @@ func main() {
 			config.StripeEcoCPUPriceID,
 			config.StripeEcoMemPriceID,
 			config.StripeEcoDiskPriceID,
-			config.StripeProdCPUPriceID,
-			config.StripeProdMemPriceID,
-			config.StripeProdDiskPriceID,
 			config.StripeStoragePriceID,
 			config.StripeEgressPriceID,
 		}
 
 		if config.StripeHobbyPriceID == "" || config.StripeProPriceID == "" || slices.Contains(metered, "") {
-			slog.Error("billing needs all ten STRIPE_*_PRICE_ID settings with STRIPE_SECRET_KEY")
+			slog.Error("billing needs all seven STRIPE_*_PRICE_ID settings with STRIPE_SECRET_KEY")
 			os.Exit(1)
 		}
 
 		billingClient = billing.New(config.StripeSecretKey, billing.Prices{
 			Hobby:   config.StripeHobbyPriceID,
 			Pro:     config.StripeProPriceID,
-			Metered: metered,
+			CPU:     config.StripeEcoCPUPriceID,
+			Memory:  config.StripeEcoMemPriceID,
+			Disk:    config.StripeEcoDiskPriceID,
+			Storage: config.StripeStoragePriceID,
+			Egress:  config.StripeEgressPriceID,
 		})
 		slog.Info("billing enabled")
 	} else {
@@ -291,10 +315,19 @@ func main() {
 	loadBalancerHostname := "lb." + config.WorkloadDomain
 
 	secure := secureCookies(config.DashboardURL)
-	sessionStore := newSessionStore(kvstore.NewMemory[sessionValue](), oidcProvider, logtoClient)
-	sessionCodec := session.NewCodec(config.SessionSecret, sessionCookieName, secure, sessionCookieMaxAge)
+	sessionTokens := newSessionTokens(oidcProvider, logtoClient)
+	sessionCodec := session.NewCodec(config.SessionSecret, sessionCookieName, secure, int(sessionTTL.Seconds()))
 
 	platformClient := platformK8s.New(k8sClient, dynClient)
+
+	cachedClients, err := platformK8s.NewCachedClients(k8sClient, dynClient)
+
+	if err != nil {
+		slog.Error("failed to create cached clients", "error", err)
+		os.Exit(1)
+	}
+
+	cachedPlatform := platformK8s.New(cachedClients.Kubernetes(), cachedClients.Dynamic())
 
 	directoryClient, err := directoryLogto.New(logtoClient)
 
@@ -307,6 +340,13 @@ func main() {
 
 	if err != nil {
 		slog.Error("failed to create job cache", "error", err)
+		os.Exit(1)
+	}
+
+	changes, err := platformK8s.NewChanges(cachedClients, jobsCache, metadataClient)
+
+	if err != nil {
+		slog.Error("failed to create change watches", "error", err)
 		os.Exit(1)
 	}
 
@@ -379,6 +419,27 @@ func main() {
 
 	chartRef.Metadata.Version = version.String()
 
+	var agents helmDeployer.AgentConfig
+
+	if config.AgentsEnabled {
+		workspaceChart, err := helmDeployer.LoadChartFromFS(charts.LucityWorkspace, "lucity-workspace")
+
+		if err != nil {
+			slog.Error("failed to load lucity-workspace chart", "error", err)
+			os.Exit(1)
+		}
+
+		workspaceChart.Metadata.Version = version.String()
+
+		agents = helmDeployer.AgentConfig{
+			Image:                config.AgentImage,
+			GatewayURL:           config.AgentGatewayURL,
+			Namespace:            config.AgentsNamespace,
+			SwitchboardNamespace: config.SwitchboardNamespace,
+			WorkspaceChart:       workspaceChart,
+		}
+	}
+
 	var workloadDefaultPlacement values.Placement
 
 	if err := workloadDefaultPlacement.Decode(config.WorkloadDefaultPlacement); err != nil {
@@ -397,7 +458,7 @@ func main() {
 		Enabled:  config.DatabaseBackupEnabled,
 		Endpoint: config.DatabaseBackupEndpoint,
 		Bucket:   config.DatabaseBackupBucket,
-	}, config.RegistryPullURL, workloadDefaultPlacement, helmDeployer.WithEdgeHeader(config.EdgeHeaderEnforced), helmDeployer.WithHTTPSListener(config.GatewayHTTPSListener))
+	}, config.RegistryPullURL, workloadDefaultPlacement, agents, helmDeployer.WithEdgeHeader(config.EdgeHeaderEnforced), helmDeployer.WithHTTPSListener(config.GatewayHTTPSListener))
 
 	if err != nil {
 		slog.Error("failed to create deployer client", "error", err)
@@ -456,6 +517,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	usageClient, err := usage.New(config.VictoriaMetricsURL)
+	if err != nil {
+		slog.Error("failed to create usage client", "error", err)
+		os.Exit(1)
+	}
+
 	chartFS, err := fs.Sub(charts.LucityApp, "lucity-app")
 
 	if err != nil {
@@ -478,6 +545,8 @@ func main() {
 		DashboardURL:         config.DashboardURL,
 		MaxQueuedReleases:    config.MaxQueuedReleases,
 		PaidPlacement:        workloadPaidPlacement,
+		AgentsEnabled:        config.AgentsEnabled,
+		CardGateAccountAge:   config.CardGateAccountAge,
 		BackupArchive: backuparchive.New(backuparchive.Config{
 			Endpoint:        config.DatabaseBackupEndpoint,
 			Bucket:          config.DatabaseBackupBucket,
@@ -499,9 +568,23 @@ func main() {
 		Keychain:     keychain,
 	})
 
-	conductor := conductor.New(billingClient, githubApp, logtoClient, directoryClient, platformClient, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, vulnerabilitiesClient, pipelineClient, planner, source, hostnameClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, domainsClient, conductorConfig)
+	agentRunnerClient, err := agentrunner.New(restConfig, k8sClient)
+
+	if err != nil {
+		slog.Error("failed to create agent runner client", "error", err)
+		os.Exit(1)
+	}
+
+	agentAuditClient := agentaudit.New(config.VictoriaLogsURL, config.AgentsNamespace)
+
+	registry := prometheus.NewRegistry()
+
+	conductor := conductor.New(billingClient, githubApp, logtoClient, directoryClient, platformClient, cachedPlatform, changes, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, vulnerabilitiesClient, pipelineClient, planner, source, hostnameClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, usageClient, domainsClient, upstream.New(), agentRunnerClient, agentAuditClient, servicelogs.New(config.VictoriaLogsURL), conductorConfig, registry)
 
 	platformClient.Start(ctx)
+	cachedClients.Start(ctx)
+	cachedPlatform.Start(ctx)
+	changes.Start(ctx)
 	jobsCache.Start(ctx)
 
 	slog.Info("release queue ready", "maxQueuedPerWorkspace", config.MaxQueuedReleases)
@@ -511,9 +594,9 @@ func main() {
 		githubActionsAudience = originFromURL(config.OIDCCallbackURL)
 	}
 
-	graphqlServer := NewGraphQLServer(config.Port, conductor, oidcProvider, sessionStore, sessionCodec, verifier, logtoClient, config.OIDCCallbackURL, config.DashboardURL, config.GitHubAppSlug, githubActionsAudience, config.OIDCIssuerURL, apiAudience, config.OIDCCLIClientID)
+	graphqlServer := NewGraphQLServer(config.Port, conductor, oidcProvider, sessionTokens, sessionCodec, verifier, logtoClient, config.OIDCCallbackURL, config.DashboardURL, config.GitHubAppSlug, githubActionsAudience, config.OIDCIssuerURL, apiAudience, config.OIDCCLIClientID)
 
-	servers := []graceful.Server{graphqlServer}
+	servers := []graceful.Server{graphqlServer, metricsHTTP.NewServer(config.MetricsPort, registry)}
 
 	if githubApp != nil {
 		webhookHandler := &webhookhttp.Handler{
@@ -521,7 +604,7 @@ func main() {
 			Platform:  platformClient,
 			Conductor: conductor,
 		}
-		webhookSrv := webhookhttp.NewServer(config.WebhookPort, config.WebhookSecret, webhookHandler)
+		webhookSrv := webhookhttp.NewServer(config.WebhookPort, config.WebhookSecret, webhookHandler, registry)
 		servers = append(servers, webhookSrv)
 		slog.Info("webhook receiver ready", "port", config.WebhookPort)
 	} else {
@@ -531,27 +614,27 @@ func main() {
 	graceful.Serve(ctx, servers...)
 }
 
-func buildKubeClients() (kubernetes.Interface, dynamic.Interface, metadata.Interface, error) {
+func buildKubeClients() (kubernetes.Interface, dynamic.Interface, metadata.Interface, *rest.Config, error) {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	cfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		loadingRules, &clientcmd.ConfigOverrides{},
 	).ClientConfig()
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	cfg.QPS = 50
 	cfg.Burst = 100
 	k8s, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	dyn, err := dynamic.NewForConfig(cfg)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	meta, err := metadata.NewForConfig(cfg)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
-	return k8s, dyn, meta, nil
+	return k8s, dyn, meta, cfg, nil
 }

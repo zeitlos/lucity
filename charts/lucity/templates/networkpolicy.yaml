@@ -17,7 +17,8 @@ spec:
   ingress: []
 ---
 # Conductor: HTTP from anywhere (Gateway API ingress for GraphQL +
-# auth + dashboard API), webhook port from anywhere (GitHub events).
+# auth + dashboard API), webhook port from anywhere (GitHub events),
+# metrics port from the otel agents only.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -38,6 +39,13 @@ spec:
     # Webhook (GitHub events) — internet-facing
     - ports:
         - port: {{ .Values.conductor.webhookPort }}
+          protocol: TCP
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: otel-agent
+      ports:
+        - port: {{ .Values.conductor.metricsPort }}
           protocol: TCP
 ---
 # Dashboard: allow ingress from any source (internet-facing)
@@ -77,7 +85,7 @@ spec:
           protocol: TCP
 ---
 {{- if .Values.cashier.enabled }}
-# Cashier: no ingress, it only calls out
+# Cashier: metrics port from the otel agents only
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -90,7 +98,38 @@ spec:
       {{- include "lucity.selectorLabels" (dict "name" "cashier" "release" .Release.Name) | nindent 6 }}
   policyTypes:
     - Ingress
-  ingress: []
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: otel-agent
+      ports:
+        - port: {{ .Values.cashier.metricsPort }}
+          protocol: TCP
+{{- end }}
+{{- if .Values.stagehand.enabled }}
+---
+# Stagehand: metrics port from the otel agents only
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "lucity.fullname" . }}-stagehand
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "lucity.selectorLabels" (dict "name" "stagehand" "release" .Release.Name) | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: otel-agent
+      ports:
+        - port: {{ .Values.stagehand.metricsPort }}
+          protocol: TCP
 {{- end }}
 {{- if .Values.exporter.enabled }}
 ---

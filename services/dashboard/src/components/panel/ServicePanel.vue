@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { useGuardedTab } from '@/composables/useUnsavedChanges';
+import { usePanelTab } from '@/composables/usePanel';
 import PanelShell from '@/components/PanelShell.vue';
-import { SquareArrowOutUpRight, Container } from '@lucide/vue';
-import GithubIcon from '@/components/GithubIcon.vue';
+import { PictureInPicture2 } from '@lucide/vue';
+import ResourceIcon from '@/components/ResourceIcon.vue';
 import { useServiceLogsPanel } from '@/composables/useServiceLogsPanel';
 import type { Service } from '@/composables/useEnvironment';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -23,7 +23,7 @@ const emit = defineEmits<{
   (e: 'refetch'): void;
 }>();
 
-const { tab: activeTab, selectTab } = useGuardedTab('deployments');
+const { tab: activeTab, selectTab } = usePanelTab('deployments');
 
 const serviceLogsPanel = useServiceLogsPanel();
 
@@ -36,21 +36,20 @@ function openLogs() {
 <template>
   <PanelShell :title="service.name" @close="emit('close')">
     <template #icon>
-      <GithubIcon v-if="service.sourceUrl" />
-      <Container v-else />
+      <ResourceIcon :kind="service.sourceUrl ? 'repositoryService' : 'imageService'" :size="24" />
     </template>
 
     <!-- Tab Content -->
     <Tabs :model-value="activeTab" @update:model-value="selectTab" class="flex min-h-0 flex-1 flex-col">
       <div class="shrink-0 border-b px-4 pt-2">
-        <TabsList class="w-full border-b-0">
+        <TabsList class="w-full overflow-x-auto overflow-y-hidden border-b-0 [scrollbar-width:none]">
           <TabsTrigger value="deployments">Deployments</TabsTrigger>
           <button
             class="-mb-px inline-flex items-center justify-center gap-1 whitespace-nowrap border-b-2 border-transparent px-1 pb-2.5 pt-2 text-sm font-medium text-muted-foreground transition-all hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
             @click="openLogs"
           >
             Logs
-            <SquareArrowOutUpRight :size="11" class="opacity-50" />
+            <PictureInPicture2 :size="11" class="opacity-50" />
           </button>
           <TabsTrigger value="metrics">Metrics</TabsTrigger>
           <TabsTrigger value="variables">Variables</TabsTrigger>
@@ -62,7 +61,7 @@ function openLogs() {
       <ScrollArea class="min-h-0 flex-1">
 
         <TabsContent value="deployments" class="px-4 py-4">
-          <DeploymentsTab :service="service" @refetch="emit('refetch')" />
+          <DeploymentsTab :service="service" />
         </TabsContent>
 
         <TabsContent value="metrics" class="px-4 py-4">

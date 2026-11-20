@@ -1,6 +1,6 @@
 import { onBeforeUnmount, onMounted } from 'vue';
 
-const OPEN_LAYER = [
+export const OPEN_LAYER = [
   '[role="dialog"][data-state="open"]',
   '[role="alertdialog"][data-state="open"]',
   '[role="menu"][data-state="open"]',
@@ -11,7 +11,7 @@ const OPEN_LAYER = [
 const stack: Array<() => void> = [];
 let listening = false;
 
-function isEditable(target: EventTarget | null): target is HTMLElement {
+export function isEditable(target: EventTarget | null): target is HTMLElement {
   return target instanceof HTMLElement
     && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/platform"
+	"github.com/zeitlos/lucity/pkg/usererror"
 )
 
 type KeyValueStoreID = platform.KeyValueStoreID
@@ -23,15 +24,25 @@ type KeyValueStoreCredentials struct {
 }
 
 func (c *Client) KeyValueStores(ctx context.Context, environment EnvironmentID) ([]KeyValueStore, error) {
-	return c.platform.KeyValueStores(ctx, environment)
+	return c.cachedPlatform.KeyValueStores(ctx, environment)
 }
 
 func (c *Client) KeyValueStore(ctx context.Context, id KeyValueStoreID) (*KeyValueStore, error) {
 	return c.platform.KeyValueStore(ctx, id)
 }
 
-func (c *Client) CreateKeyValueStore(ctx context.Context, environment platform.EnvironmentID, name, size string) (*KeyValueStore, error) {
+func (c *Client) CreateKeyValueStore(ctx context.Context, environment platform.EnvironmentID, id, name, size string) (*KeyValueStore, error) {
 	const version = "8"
+
+	capabilities, err := c.Capabilities(ctx, environment.Workspace)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := capabilities.KeyValueStores.allow("Creating a key-value store"); err != nil {
+		return nil, err
+	}
 
 	if size == "" {
 		size = "1Gi"
@@ -40,20 +51,33 @@ func (c *Client) CreateKeyValueStore(ctx context.Context, environment platform.E
 	parsedSize, err := resource.ParseQuantity(size)
 
 	if err != nil {
-		return nil, fmt.Errorf("parse size: %w", err)
+		return nil, usererror.Errorf("invalid size %q", size)
 	}
 
-	if _, err := c.deployer.KeyValueStores().Create(ctx, environment, name, deployer.KeyValueStoreSpec{
-		Version:  version,
-		Size:     parsedSize,
-		Password: randCrockford32(32),
+	if err := capabilities.KeyValueStores.Size.check("Size", parsedSize, nil); err != nil {
+		return nil, err
+	}
+
+	id, err = c.newResourceID(ctx, environment, id, name, "store")
+
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := c.deployer.KeyValueStores().Create(ctx, environment, id, deployer.KeyValueStoreSpec{
+		DisplayName: name,
+		Version:     version,
+		Size:        parsedSize,
+		Password:    randCrockford32(32),
 	}); err != nil {
 		return nil, fmt.Errorf("create key-value store: %w", err)
 	}
 
 	return &KeyValueStore{
+		ID:      platform.KeyValueStoreID{Workspace: environment.Workspace, Project: environment.Project, Environment: environment.Name, Name: id},
 		Name:    name,
 		Version: version,
+		Status:  platform.DatabasePending,
 		Size:    parsedSize,
 	}, nil
 }

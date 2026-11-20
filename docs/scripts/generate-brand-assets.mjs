@@ -1,21 +1,20 @@
 #!/usr/bin/env node
 /**
- * Generates the Lucity logo lockups, favicons, app icons and the social
- * preview image from public/logo-mark.svg and the Redaction wordmark font.
- * The favicons and the touch icon are also written to the dashboard.
+ * Generates the Lucity logo lockups, favicons and app icons from
+ * public/logo-mark.svg and public/logo-wordmark.svg. The favicons and the
+ * touch icon are also written to the dashboard. The social preview image
+ * public/img/og.jpg comes from the dashboard's /brand page.
  *
- * Requires woff2_decompress, rsvg-convert and magick on PATH
- * (brew install woff2 librsvg imagemagick).
+ * Requires rsvg-convert and magick on PATH (brew install librsvg imagemagick).
  *
  * Usage: node scripts/generate-brand-assets.mjs
  */
 
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import opentype from 'opentype.js';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const publicDir = join(root, 'public');
@@ -33,13 +32,11 @@ const [markWidth, markHeight] = markSource.match(/viewBox="0 0 ([\d.]+) ([\d.]+)
 const markPath = markSource.match(/ d="([^"]+)"/)[1];
 const markColor = markSource.match(/fill="(#[0-9a-fA-F]{6})"/)[1];
 
-function font(file) {
-  const source = join(work, file);
-  copyFileSync(join(publicDir, 'fonts', file), source);
-  execFileSync('woff2_decompress', [source]);
-  const data = readFileSync(source.replace(/\.woff2$/, '.ttf'));
-  return opentype.parse(data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength));
-}
+const wordmarkSource = readFileSync(join(publicDir, 'logo-wordmark.svg'), 'utf8');
+const [wordmarkTop, wordmarkWidth, wordmarkHeight] = wordmarkSource.match(/viewBox="0 (-[\d.]+) ([\d.]+) ([\d.]+)"/).slice(1).map(Number);
+const wordmarkPath = wordmarkSource.match(/ d="([^"]+)"/)[1];
+const wordmarkScale = markHeight / -wordmarkTop;
+const wordmarkX = markWidth + markHeight * 0.61;
 
 const n = v => +v.toFixed(2);
 
@@ -52,28 +49,8 @@ function mark(fill, x = 0, y = 0, scale = 1) {
   return `<path${transform} d="${markPath}" fill="${fill}"/>`;
 }
 
-function pathData({ commands }) {
-  return commands.map(({ type, x, y, x1, y1, x2, y2 }) => {
-    if (type === 'Z') return 'Z';
-    if (type === 'C') return `C${n(x1)} ${n(y1)} ${n(x2)} ${n(y2)} ${n(x)} ${n(y)}`;
-    if (type === 'Q') return `Q${n(x1)} ${n(y1)} ${n(x)} ${n(y)}`;
-    return `${type}${n(x)} ${n(y)}`;
-  }).join('');
-}
-
-function text(face, value, x, baseline, size, fill, opacity = 1) {
-  const alpha = opacity < 1 ? ` fill-opacity="${opacity}"` : '';
-  return `<path d="${pathData(face.getPath(value, x, baseline, size))}" fill="${fill}"${alpha}/>`;
-}
-
-function centeredText(face, value, center, baseline, size, fill, opacity) {
-  return text(face, value, center - face.getAdvanceWidth(value, size) / 2, baseline, size, fill, opacity);
-}
-
-function lineBoxBaseline(face, size) {
-  const { ascender, descender } = face.tables.hhea;
-  const unit = size / face.unitsPerEm;
-  return (size - (ascender - descender) * unit) / 2 + ascender * unit;
+function wordmark(fill) {
+  return `<path transform="translate(${n(wordmarkX)} ${n(markHeight)}) scale(${+wordmarkScale.toFixed(5)})" d="${wordmarkPath}" fill="${fill}"/>`;
 }
 
 function rasterize(source, width, height, output) {
@@ -91,21 +68,11 @@ function target(...parts) {
   return path;
 }
 
-const wordmarkFace = font('Redaction_35-Regular.woff2');
-const headlineFace = font('Redaction_20-Regular.woff2');
-const sansFace = font('MonaSans-Variable.woff2');
-sansFace.variation.set({ wght: 400 });
-
-const wordmarkSize = markHeight / 0.98;
-const wordmarkX = markWidth + wordmarkSize * 20 / 24;
-const wordmarkBaseline = (markHeight - wordmarkSize) / 2 + lineBoxBaseline(wordmarkFace, wordmarkSize);
-const wordmarkBox = wordmarkFace.getPath('Lucity', wordmarkX, wordmarkBaseline, wordmarkSize).getBoundingBox();
-const lockupTop = Math.min(0, wordmarkBox.y1);
-const lockupBox = [0, lockupTop, wordmarkBox.x2, Math.max(markHeight, wordmarkBox.y2) - lockupTop];
+const lockupBox = [0, 0, wordmarkX + wordmarkWidth * wordmarkScale, markHeight + (wordmarkHeight + wordmarkTop) * wordmarkScale];
 const lockupPngHeight = 240;
 
 for (const [name, color, fill, readme] of [['light', ink, markColor, 'logo.svg'], ['dark', paper, markDark, 'logo-dark.svg']]) {
-  const lockup = svg(lockupBox, [mark(fill), text(wordmarkFace, 'Lucity', wordmarkX, wordmarkBaseline, wordmarkSize, color)]);
+  const lockup = svg(lockupBox, [mark(fill), wordmark(color)]);
   writeFileSync(target(publicDir, `logo-${name}.svg`), lockup);
   writeFileSync(target(repoDir, 'assets', readme), lockup);
   rasterize(lockup, Math.round(lockupPngHeight * lockupBox[2] / lockupBox[3]), lockupPngHeight, target(publicDir, `logo-${name}.png`));
@@ -136,31 +103,6 @@ for (const dir of [publicDir, dashboardPublicDir]) {
 rasterize(tile(0.72), 192, 192, target(publicDir, 'web-app-manifest-192x192.png'));
 rasterize(tile(0.72), 512, 512, target(publicDir, 'web-app-manifest-512x512.png'));
 rasterize(tile(0.62), 512, 512, target(publicDir, 'web-app-manifest-maskable-512x512.png'));
-
-const og = { width: 1280, height: 640, center: 640 };
-const ogMarkHeight = 84, ogMarkWidth = ogMarkHeight * markWidth / markHeight;
-const headline = { size: 96, lineHeight: 106 };
-const ogBlock = ogMarkHeight + 62 + 0.7 * headline.size + headline.lineHeight + 76 + 8;
-const ogTop = (og.height - ogBlock) / 2;
-const ogFirstLine = ogTop + ogMarkHeight + 62 + 0.7 * headline.size;
-const ogOverlay = svg([0, 0, og.width, og.height], [
-  mark(markDark, og.center - ogMarkWidth / 2, ogTop, ogMarkHeight / markHeight),
-  centeredText(headlineFace, 'Deploy anything.', og.center, ogFirstLine, headline.size, cream),
-  centeredText(headlineFace, 'Own your stack.', og.center, ogFirstLine + headline.lineHeight, headline.size, cream),
-  centeredText(sansFace, 'Open-source · Kubernetes-native · Ejectable', og.center, ogFirstLine + headline.lineHeight + 76, 30, cream, 0.78),
-]);
-execFileSync('magick', [
-  join(repoDir, 'services/dashboard/assets/img/cablecar.webp'),
-  '-resize', `${og.width}x${og.height}^`,
-  '-gravity', 'center',
-  '-extent', `${og.width}x${og.height}`,
-  '-fill', 'black',
-  '-colorize', '55%',
-  rasterize(ogOverlay, og.width, og.height, join(work, 'og-overlay.png')),
-  '-composite',
-  '-quality', '86',
-  target(publicDir, 'img/og.jpg'),
-]);
 
 rmSync(work, { recursive: true, force: true });
 console.log(written.map(path => `wrote ${path.replace(`${repoDir}/`, '')}`).join('\n'));

@@ -1,68 +1,136 @@
 <script setup lang="ts">
+import { environmentRoute, projectRoute, routeEnvironmentId, routeProjectId } from '@/lib/routes';
 import QueryError from '@/components/QueryError.vue';
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useQuery } from '@vue/apollo-composable';
+import { useQuery, useSubscription } from '@vue/apollo-composable';
 import { graphql } from '@/gql';
-import { ServiceStatus, DatabaseStatus, ReleaseStatus, RolloutStatus, ScanStatus } from '@/gql/graphql';
+import { AgentStatus } from '@/gql/graphql';
 
-const EnvironmentDocument = graphql(`
-  query Environment($environment: EnvironmentID!) {
-    environment(environment: $environment) {
+graphql(`
+  fragment EnvironmentFields on Environment {
+    id
+    name
+    services {
       id
       name
-      resourceTier
-      services {
+      status
+      replicas {
+        desired
+        ready
+      }
+      autoscaling {
+        minReplicas
+        maxReplicas
+        targetCpu
+      }
+      port
+      endpoints {
+        host
+        port
+        protocol
+        type
+        redirectTo
+        tls
+      }
+      sourceUrl
+      branch
+      autoDeploy
+      ciDeploy
+      contextPath
+      resources {
+        cpu
+        memory
+      }
+      command
+      healthCheck {
+        path
+        port
+        initialDelaySeconds
+        periodSeconds
+        timeoutSeconds
+        failureThreshold
+        startupFailureThreshold
+      }
+      user
+      activeDeployment {
         id
-        name
+        image
+        imageDigest
+        commit
+        commitMessage
+        ref
         status
+        createdAt
         replicas {
           desired
           ready
         }
-        autoscaling {
-          minReplicas
-          maxReplicas
-          targetCpu
+        rollout {
+          status
+          reason
+          message
+          restarts
+          startedAt
         }
-        port
-        endpoints {
-          host
-          port
-          protocol
-          type
-          redirectTo
-          dns {
-            status
-            requiredRecords {
-              type
-              host
-              value
-            }
+      }
+      deployments {
+        id
+        image
+        imageDigest
+        commit
+        commitMessage
+        ref
+        status
+        createdAt
+      }
+      builds {
+        id
+        status
+        startedAt
+        finishedAt
+      }
+      releases {
+        id
+        status
+        createdAt
+        trigger {
+          kind
+          actor
+        }
+        source {
+          provider
+          repository
+          url
+          ref
+          contextPath
+          commit {
+            sha
+            message
+            url
           }
-          tls
         }
-        sourceUrl
-        branch
-        autoDeploy
-        ciDeploy
-        contextPath
-        resources {
-          cpu
-          memory
+        build {
+          id
+          status
+          startedAt
+          finishedAt
         }
-        command
-        healthCheck {
-          path
-          port
-          initialDelaySeconds
-          periodSeconds
-          timeoutSeconds
-          failureThreshold
-          startupFailureThreshold
+        deploy {
+          id
+          status
+          startedAt
+          finishedAt
         }
-        user
-        activeDeployment {
+        scan {
+          id
+          status
+          findingsCount
+          verifiedCount
+          startedAt
+          finishedAt
+        }
+        deployment {
           id
           image
           imageDigest
@@ -83,125 +151,81 @@ const EnvironmentDocument = graphql(`
             startedAt
           }
         }
-        deployments {
-          id
-          image
-          imageDigest
-          commit
-          commitMessage
-          ref
-          status
-          createdAt
-        }
-        builds {
-          id
-          status
-          startedAt
-          finishedAt
-        }
-        releases {
-          id
-          status
-          createdAt
-          trigger {
-            kind
-            actor
-          }
-          source {
-            provider
-            repository
-            url
-            ref
-            contextPath
-            commit {
-              sha
-              message
-              url
-            }
-          }
-          build {
-            id
-            status
-            startedAt
-            finishedAt
-          }
-          deploy {
-            id
-            status
-            startedAt
-            finishedAt
-          }
-          scan {
-            id
-            status
-            findingsCount
-            verifiedCount
-            startedAt
-            finishedAt
-          }
-          deployment {
-            id
-            image
-            imageDigest
-            commit
-            commitMessage
-            ref
-            status
-            createdAt
-            replicas {
-              desired
-              ready
-            }
-            rollout {
-              status
-              reason
-              message
-              restarts
-              startedAt
-            }
-          }
-        }
-        lastDeployedAt
-        createdAt
       }
-      databases {
-        id
-        name
-        version
-        instances
-        status
-        size
-        createdAt
+      lastDeployedAt
+      createdAt
+    }
+    databases {
+      id
+      name
+      version
+      instances
+      status
+      size
+      createdAt
+    }
+    keyValueStores {
+      id
+      name
+      version
+      status
+      size
+      createdAt
+    }
+    buckets {
+      id
+      name
+      region
+      endpoint
+      publicEndpoint
+      status
+      public
+      createdAt
+    }
+    volumes {
+      id
+      name
+      size
+      mount {
+        service
+        path
       }
-      keyValueStores {
+    }
+  }
+`);
+
+const EnvironmentDocument = graphql(`
+  query Environment($environment: EnvironmentID!) {
+    environment(environment: $environment) {
+      ...EnvironmentFields
+      services {
         id
-        name
-        version
-        status
-        size
-        createdAt
+        endpoints {
+          host
+          port
+          dns {
+            status
+            requiredRecords {
+              type
+              host
+              value
+            }
+          }
+        }
       }
       buckets {
         id
-        name
-        region
-        endpoint
-        publicEndpoint
-        status
         sizeBytes
         objectCount
-        public
-        createdAt
       }
-      volumes {
-        id
-        name
-        size
-        mount {
-          service
-          path
-        }
-      }
+    }
+  }
+`);
+
+const EnvironmentUpdatesDocument = graphql(`
+  subscription EnvironmentUpdates($environment: EnvironmentID!) {
+    environment(environment: $environment) {
+      ...EnvironmentFields
     }
   }
 `);
@@ -235,6 +259,44 @@ const EnvironmentDefaultCommandsDocument = graphql(`
   }
 `);
 
+const EnvironmentAgentsDocument = graphql(`
+  query EnvironmentAgents($environment: EnvironmentID!) {
+    environment(environment: $environment) {
+      id
+      agents {
+        id
+        name
+        harness
+        instructions
+        status
+        allowedHosts
+        privateNetwork
+        connectors {
+          approval
+          hiddenTools
+          connector {
+            id
+            name
+          }
+        }
+        channels {
+          chatApp {
+            id
+            name
+            kind
+            account
+            url
+          }
+          channel {
+            id
+            name
+          }
+        }
+      }
+    }
+  }
+`);
+
 const ProjectEnvironmentsDocument = graphql(`
   query ProjectEnvironments($id: ProjectID!) {
     project(id: $id) {
@@ -243,15 +305,15 @@ const ProjectEnvironmentsDocument = graphql(`
       environments {
         id
         name
-        resourceTier
       }
     }
   }
 `);
-import { Braces, SlidersHorizontal, Workflow, Plus } from '@lucide/vue';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Plus } from '@lucide/vue';
+import CanvasSkeleton from '@/components/canvas/CanvasSkeleton.vue';
 import { Button } from '@/components/ui/button';
 import ContextRail from '@/components/ContextRail.vue';
+import { environmentNavItems } from '@/lib/contextNav';
 import SharedVariablesDrawer from '@/components/drawer/SharedVariablesDrawer.vue';
 import EnvironmentSettingsDrawer from '@/components/drawer/EnvironmentSettingsDrawer.vue';
 import ServiceCanvas from '@/components/canvas/ServiceCanvas.vue';
@@ -260,6 +322,7 @@ import DatabasePanel from '@/components/panel/DatabasePanel.vue';
 import KeyValueStorePanel from '@/components/panel/KeyValueStorePanel.vue';
 import BucketPanel from '@/components/panel/BucketPanel.vue';
 import VolumePanel from '@/components/panel/VolumePanel.vue';
+import AgentPanel from '@/components/panel/AgentPanel.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import CreateCommandPalette from '@/components/CreateCommandPalette.vue';
 import MountVolumeDialog from '@/components/MountVolumeDialog.vue';
@@ -268,59 +331,30 @@ import ServiceLogsPanel from '@/components/panel/ServiceLogsPanel.vue';
 import ServiceVulnerabilitiesPanel from '@/components/panel/ServiceVulnerabilitiesPanel.vue';
 import { useEnvironment, type Environment } from '@/composables/useEnvironment';
 import { usePanel } from '@/composables/usePanel';
+import { confirmDiscard } from '@/composables/useUnsavedChanges';
 import { useBuildLogsPanel } from '@/composables/useBuildLogsPanel';
 import { useServiceLogsPanel } from '@/composables/useServiceLogsPanel';
 import { useVulnerabilitiesPanel } from '@/composables/useVulnerabilitiesPanel';
+import { useCapabilities } from '@/composables/useCapabilities';
+import { usePageTitle } from '@/composables/usePageTitle';
 import { parseQuantity } from '@/lib/format';
 import { rememberEnvironment } from '@/lib/lastEnvironment';
 
 const route = useRoute();
 const router = useRouter();
 
-const environmentId = computed(() => {
-  const id = route.params.environmentId;
-  return Array.isArray(id) ? id[0]! : (id as string);
-});
+const environmentId = computed(() => routeEnvironmentId(route) ?? '');
 
-const projectId = computed(() => {
-  // EnvironmentID format: workspace/project/env-name. ProjectID is the first two segments.
-  const parts = environmentId.value.split('/');
-  if (parts.length >= 2) {
-    return `${parts[0]}/${parts[1]}`;
-  }
-  return '';
-});
-
-const SERVICE_TRANSIENT_STATUSES = new Set<ServiceStatus>([
-  ServiceStatus.Deploying,
-  ServiceStatus.Degraded,
-]);
-const DATABASE_TRANSIENT_STATUSES = new Set<DatabaseStatus>([
-  DatabaseStatus.Pending,
-  DatabaseStatus.Updating,
-  DatabaseStatus.Degraded,
-]);
-const RELEASE_TRANSIENT_STATUSES = new Set<ReleaseStatus>([
-  ReleaseStatus.Queued,
-  ReleaseStatus.Building,
-  ReleaseStatus.Deploying,
-]);
-const RELEASE_POLL_MAX_AGE_MS = 60 * 60 * 1000;
-const SCAN_TRANSIENT_STATUSES = new Set<ScanStatus>([ScanStatus.Queued, ScanStatus.Running]);
-
-function isReleaseInFlight(release: { status: ReleaseStatus; createdAt: string; scan?: { status: ScanStatus } | null }): boolean {
-  const active = RELEASE_TRANSIENT_STATUSES.has(release.status)
-    || (release.scan != null && SCAN_TRANSIENT_STATUSES.has(release.scan.status));
-
-  return active && Date.now() - new Date(release.createdAt).getTime() < RELEASE_POLL_MAX_AGE_MS;
-}
-
-const isReconciling = ref(false);
+const projectId = computed(() => routeProjectId(route) ?? '');
 
 const { result, loading, error, refetch } = useQuery(
   EnvironmentDocument,
   () => ({ environment: environmentId.value }),
-  () => ({ pollInterval: isReconciling.value ? 3000 : 0 }),
+);
+
+useSubscription(
+  EnvironmentUpdatesDocument,
+  () => ({ environment: environmentId.value }),
 );
 
 const { result: volumeUsageResult } = useQuery(
@@ -347,6 +381,27 @@ watch(activeImageDigests, (current, previous) => {
 });
 
 const environment = computed(() => result.value?.environment ?? null);
+
+const agentsBusy = ref(false);
+const { agents: agentsAvailable } = useCapabilities();
+
+const { result: agentsResult, refetch: refetchAgents } = useQuery(
+  EnvironmentAgentsDocument,
+  () => ({ environment: environmentId.value }),
+  () => ({ enabled: agentsAvailable.value, pollInterval: agentsBusy.value ? 3000 : 10000 }),
+);
+
+const agents = computed(() => agentsResult.value?.environment?.agents ?? []);
+
+const AGENT_BUSY_STATUSES = new Set<AgentStatus>([
+  AgentStatus.Starting,
+  AgentStatus.Working,
+  AgentStatus.WaitingForApproval,
+]);
+
+watch(agents, (list) => {
+  agentsBusy.value = list.some(agent => AGENT_BUSY_STATUSES.has(agent.status));
+});
 
 // Load sibling environments for the env switcher
 const { result: projectResult } = useQuery(
@@ -385,7 +440,6 @@ watch(
       const shells: Environment[] = envs.map(e => ({
         id: e.id,
         name: e.name,
-        resourceTier: e.resourceTier,
         services: [],
         databases: [],
         keyValueStores: [],
@@ -411,17 +465,9 @@ watch(
     const defaultCommands = new Map((commands?.services ?? []).map(s => [s.id, s.defaultCommand]));
     const volumeUsage = new Map((usage?.volumes ?? []).map(v => [v.id, volumeUsagePercent(v)]));
 
-    isReconciling.value =
-      env.services.some(s => SERVICE_TRANSIENT_STATUSES.has(s.status)) ||
-      env.services.some(s => s.activeDeployment?.rollout?.status === RolloutStatus.Progressing) ||
-      env.services.some(s => s.releases.some(isReleaseInFlight)) ||
-      env.databases.some(d => DATABASE_TRANSIENT_STATUSES.has(d.status)) ||
-      env.keyValueStores.some(v => DATABASE_TRANSIENT_STATUSES.has(v.status));
-
     const full: Environment = {
       id: env.id,
       name: env.name,
-      resourceTier: env.resourceTier,
       services: env.services.map(s => ({
         id: s.id,
         name: s.name,
@@ -618,6 +664,22 @@ const selectedVolume = computed(() => {
   return activeEnvVolumes.value.find(v => v.id === currentPanel.value!.id) ?? null;
 });
 
+const selectedAgent = computed(() => {
+  if (!currentPanel.value || currentPanel.value.type !== 'agent') return null;
+  return agents.value.find(a => a.id === currentPanel.value!.id) ?? null;
+});
+
+const selectedResource = computed(() =>
+  selectedService.value
+  ?? selectedDatabase.value
+  ?? selectedKeyValueStore.value
+  ?? selectedBucket.value
+  ?? selectedVolume.value
+  ?? selectedAgent.value,
+);
+
+const serviceNames = computed(() => activeEnvServices.value.map(s => s.name));
+
 // Services that already hold a mounted volume (one volume per service)
 const mountedServiceIds = computed(() =>
   activeEnvVolumes.value
@@ -641,6 +703,14 @@ function openMountDialog(volumeId: string) {
 // Command palette
 const paletteOpen = ref(false);
 
+watch(() => route.query.new, (value) => {
+  if (value !== 'resource') return;
+  paletteOpen.value = true;
+  const query = { ...route.query };
+  delete query.new;
+  router.replace({ query });
+}, { immediate: true });
+
 function handleResourceRemoved() {
   closePanel();
   refetch();
@@ -648,6 +718,12 @@ function handleResourceRemoved() {
 
 function handleCreateFromPalette() {
   refetch();
+  refetchAgents();
+}
+
+function handleAgentRemoved() {
+  closePanel();
+  refetchAgents();
 }
 
 const hasResources = computed(() =>
@@ -655,41 +731,40 @@ const hasResources = computed(() =>
   activeEnvDatabases.value.length > 0 ||
   activeEnvKeyValueStores.value.length > 0 ||
   activeEnvBuckets.value.length > 0 ||
-  activeEnvVolumes.value.length > 0,
+  activeEnvVolumes.value.length > 0 ||
+  agents.value.length > 0,
 );
 
 const drawer = computed(() => route.params.drawer);
 
-const projectName = computed(() => projectResult.value?.project?.name ?? projectId.value);
-
-const railItems = computed(() => [
-  {
-    key: 'canvas',
-    label: 'Canvas',
-    icon: Workflow,
-    to: { name: 'environment', params: { projectId: projectId.value, environmentId: environmentId.value } },
-  },
-  {
-    key: 'variables',
-    label: 'Variables',
-    icon: Braces,
-    to: { name: 'environment', params: { projectId: projectId.value, environmentId: environmentId.value, drawer: 'variables' } },
-  },
-  {
-    key: 'settings',
-    label: 'Settings',
-    icon: SlidersHorizontal,
-    to: { name: 'environment', params: { projectId: projectId.value, environmentId: environmentId.value, drawer: 'settings' } },
-  },
-]);
+const railItems = computed(() => environmentNavItems(projectId.value, environmentId.value));
 
 const activeKey = computed(() => {
   if (drawer.value === 'variables' || drawer.value === 'settings') return drawer.value;
   return 'canvas';
 });
 
+usePageTitle(() => [
+  selectedResource.value?.name,
+  railItems.value.find(item => item.key === drawer.value)?.label,
+  environment.value?.name,
+  projectResult.value?.project?.name,
+]);
+
 function closeDrawer() {
-  router.push({ name: 'environment', params: { projectId: projectId.value, environmentId: environmentId.value } });
+  router.push(environmentRoute(environmentId.value));
+}
+
+async function closeOverlays() {
+  if (drawer.value) {
+    closeDrawer();
+    return;
+  }
+  if (!(await confirmDiscard())) return;
+  closePanel();
+  logsPanel.close();
+  serviceLogsPanel.close();
+  vulnerabilitiesPanel.close();
 }
 
 watch(drawer, (value) => {
@@ -705,12 +780,21 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
 </script>
 
 <template>
-  <div class="flex h-[calc(100vh-var(--banner-height)-52px-0.75rem-0.5rem)] flex-col">
+  <div class="flex min-h-0 flex-1 flex-col">
     <!-- Loading -->
-    <div v-if="loading && !environment" class="flex flex-1 gap-3 py-3">
-      <div class="w-12" />
-      <div class="flex flex-1 items-center justify-center gap-6 rounded-lg border bg-card">
-        <Skeleton v-for="i in 3" :key="i" class="h-32 w-64" />
+    <div v-if="loading && !environment" class="relative flex min-h-0 flex-1 py-3 max-md:py-0">
+      <ContextRail
+        :items="railItems"
+        :active-key="activeKey"
+        up-label="Up to project"
+        :up-to="projectRoute(projectId)"
+        :project-id="projectId"
+      />
+
+      <div class="relative min-w-0 flex-1">
+        <div class="h-full w-full overflow-hidden rounded-lg border bg-card shadow-sm max-md:rounded-none max-md:border-0 max-md:shadow-none">
+          <CanvasSkeleton @create="paletteOpen = true" />
+        </div>
       </div>
     </div>
 
@@ -728,18 +812,17 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
     </div>
 
     <template v-else-if="environment">
-      <div class="relative flex flex-1 py-3">
+      <div class="relative flex min-h-0 flex-1 py-3 max-md:py-0">
         <ContextRail
           :items="railItems"
           :active-key="activeKey"
           up-label="Up to project"
-          :up-to="{ name: 'project', params: { projectId } }"
+          :up-to="projectRoute(projectId)"
           :project-id="projectId"
-          :project-name="projectName"
         />
 
         <div class="relative min-w-0 flex-1">
-          <div class="h-full w-full overflow-hidden rounded-lg border bg-card shadow-sm">
+          <div class="h-full w-full overflow-hidden rounded-lg border bg-card shadow-sm max-md:rounded-none max-md:border-0 max-md:shadow-none">
             <template v-if="hasResources">
               <ServiceCanvas
                 :services="activeEnvServices"
@@ -747,10 +830,12 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
                 :key-value-stores="activeEnvKeyValueStores"
                 :buckets="activeEnvBuckets"
                 :volumes="activeEnvVolumes"
+                :agents="agents"
                 :environment-id="environmentId"
                 @create="paletteOpen = true"
                 @deploy-completed="refetch()"
                 @mount-volume="openMountDialog"
+                @pane-click="closeOverlays"
               />
             </template>
             <template v-else>
@@ -770,14 +855,22 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
             </template>
           </div>
 
+          <Transition
+            enter-active-class="transition-opacity duration-200"
+            leave-active-class="transition-opacity duration-150"
+            enter-from-class="opacity-0"
+            leave-to-class="opacity-0"
+          >
+            <div v-if="drawer || isOpen" class="absolute inset-0 z-10 bg-foreground/20 md:hidden [.dark_&]:bg-background/60" @click="closeOverlays" />
+          </Transition>
+
           <Transition name="slide-drawer">
             <div
               v-if="drawer === 'variables'"
-              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full max-md:top-3"
             >
               <SharedVariablesDrawer
                 :environment-id="environmentId"
-                :environment-name="environment.name"
                 @close="closeDrawer"
               />
             </div>
@@ -786,11 +879,12 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
           <Transition name="slide-drawer">
             <div
               v-if="drawer === 'settings'"
-              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full max-md:top-3"
             >
               <EnvironmentSettingsDrawer
                 :project-id="projectId"
                 :environment="environment"
+                :only="projectResult?.project?.environments.length === 1"
                 @close="closeDrawer"
               />
             </div>
@@ -801,7 +895,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
         <Transition name="slide-panel">
           <div
             v-if="isOpen && selectedService"
-            class="absolute inset-y-3 right-0 w-[55%]"
+            class="absolute inset-y-3 right-0 left-0 max-md:bottom-0 max-md:z-10 md:left-auto md:w-[55%]"
           >
             <ServicePanel
               :service="selectedService"
@@ -816,7 +910,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
         <Transition name="slide-panel">
           <div
             v-if="isOpen && selectedDatabase"
-            class="absolute inset-y-3 right-0 w-[55%]"
+            class="absolute inset-y-3 right-0 left-0 max-md:bottom-0 max-md:z-10 md:left-auto md:w-[55%]"
           >
             <DatabasePanel
               :database="selectedDatabase"
@@ -831,7 +925,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
         <Transition name="slide-panel">
           <div
             v-if="isOpen && selectedKeyValueStore"
-            class="absolute inset-y-3 right-0 w-[55%]"
+            class="absolute inset-y-3 right-0 left-0 max-md:bottom-0 max-md:z-10 md:left-auto md:w-[55%]"
           >
             <KeyValueStorePanel
               :store="selectedKeyValueStore"
@@ -845,7 +939,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
         <Transition name="slide-panel">
           <div
             v-if="isOpen && selectedBucket"
-            class="absolute inset-y-3 right-0 w-[55%]"
+            class="absolute inset-y-3 right-0 left-0 max-md:bottom-0 max-md:z-10 md:left-auto md:w-[55%]"
           >
             <BucketPanel
               :bucket="selectedBucket"
@@ -859,7 +953,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
         <Transition name="slide-panel">
           <div
             v-if="isOpen && selectedVolume"
-            class="absolute inset-y-3 right-0 w-[55%]"
+            class="absolute inset-y-3 right-0 left-0 max-md:bottom-0 max-md:z-10 md:left-auto md:w-[55%]"
           >
             <VolumePanel
               :volume="selectedVolume"
@@ -872,12 +966,25 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
           </div>
         </Transition>
 
+        <Transition name="slide-panel">
+          <div
+            v-if="isOpen && selectedAgent"
+            class="absolute inset-y-3 right-0 left-0 max-md:bottom-0 max-md:z-10 md:left-auto md:w-[55%]"
+          >
+            <AgentPanel
+              :agent="selectedAgent"
+              :service-names="serviceNames"
+              @close="closePanel"
+              @agent-removed="handleAgentRemoved"
+            />
+          </div>
+        </Transition>
+
         <!-- Service Runtime Logs Panel -->
         <Transition name="slide-panel">
           <div
             v-if="serviceLogsPanel.isOpen.value"
-            class="absolute inset-y-3 right-0 z-10"
-            style="left: calc(45% + 12px + 2rem)"
+            class="absolute inset-y-3 right-0 left-0 z-10 max-md:bottom-0 md:left-[calc(45%+12px+2rem)]"
           >
             <ServiceLogsPanel
               :service-id="serviceLogsPanel.serviceId.value!"
@@ -891,8 +998,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
         <Transition name="slide-panel">
           <div
             v-if="vulnerabilitiesPanel.isOpen.value"
-            class="absolute inset-y-3 right-0 z-10"
-            style="left: calc(45% + 12px + 2rem)"
+            class="absolute inset-y-3 right-0 left-0 z-10 max-md:bottom-0 md:left-[calc(45%+12px+2rem)]"
           >
             <ServiceVulnerabilitiesPanel
               :service-id="vulnerabilitiesPanel.serviceId.value!"
@@ -905,8 +1011,7 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
         <Transition name="slide-panel">
           <div
             v-if="logsPanel.isOpen.value"
-            class="absolute inset-y-3 right-0 z-10"
-            style="left: calc(45% + 12px + 2rem)"
+            class="absolute inset-y-3 right-0 left-0 z-10 max-md:bottom-0 md:left-[calc(45%+12px+2rem)]"
           >
             <BuildLogsPanel
               :id="logsPanel.id.value!"
@@ -966,5 +1071,17 @@ watch(environmentId, (id) => rememberEnvironment(projectId.value, id), { immedia
 .slide-drawer-leave-to {
   transform: translateX(-16px);
   opacity: 0;
+}
+
+@media (width < 48rem) {
+  .slide-panel-enter-from,
+  .slide-panel-leave-to {
+    transform: translateY(100%);
+  }
+
+  .slide-drawer-enter-from,
+  .slide-drawer-leave-to {
+    transform: translateY(16px);
+  }
 }
 </style>

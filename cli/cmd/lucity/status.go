@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -23,7 +24,7 @@ Arguments:
               project/environment/service form relative to the active workspace.
 
 Flags:
-  --json   Emit the service and its active deployment as JSON on stdout
+  --json   Emit the service, its active deployment and its latest release as JSON on stdout
 
 Exit status is non-zero when the active rollout is FAILED or DEGRADED, so CI can
 gate on it.
@@ -44,10 +45,23 @@ const statusQuery = `query($id: ServiceID!) {
   }
 }`
 
+const latestReleaseQuery = `query($id: ServiceID!) {
+  service(id: $id) {
+    latestRelease {
+      id status
+      source { ref commit { sha message } }
+      build { id status }
+      deploy { id status }
+      deployment { id status rollout { status reason message restarts } }
+    }
+  }
+}`
+
 type statusView struct {
 	ID               string          `json:"id"`
 	Status           string          `json:"status"`
 	ActiveDeployment *deploymentView `json:"activeDeployment"`
+	LatestRelease    *releaseView    `json:"latestRelease,omitempty"`
 }
 
 type deploymentView struct {
@@ -91,10 +105,42 @@ func positionalArgs(flags *flag.FlagSet, args []string) ([]string, error) {
 		positionals = append(positionals, rest[0])
 		rest = rest[1:]
 	}
-	if err := flags.Parse(rest); err != nil {
+	if err := parseFlags(flags, rest); err != nil {
 		return nil, err
 	}
 	return append(positionals, flags.Args()...), nil
+}
+
+func parseFlags(flags *flag.FlagSet, args []string) error {
+	usage := flags.Usage
+	flags.Usage = func() {}
+	flags.SetOutput(io.Discard)
+	err := flags.Parse(args)
+	flags.Usage = usage
+	flags.SetOutput(os.Stderr)
+
+	if errors.Is(err, flag.ErrHelp) {
+		usage()
+		return err
+	}
+	if name, unknown := strings.CutPrefix(fmt.Sprint(err), "flag provided but not defined: "); unknown {
+		return fmt.Errorf("unknown flag --%s; lucity %s %s", strings.TrimLeft(name, "-"), flags.Name(), acceptedFlags(flags))
+	}
+	if err != nil {
+		return errors.New(strings.Replace(err.Error(), " for flag -", " for flag --", 1))
+	}
+	return nil
+}
+
+func acceptedFlags(flags *flag.FlagSet) string {
+	var names []string
+	flags.VisitAll(func(f *flag.Flag) {
+		names = append(names, "--"+f.Name)
+	})
+	if len(names) == 0 {
+		return "takes no flags"
+	}
+	return "takes " + strings.Join(names, ", ")
 }
 
 func cmdStatus(ctx context.Context, args []string) error {
@@ -129,6 +175,15 @@ func cmdStatus(ctx context.Context, args []string) error {
 	}
 	service := out.Service
 
+	var latest struct {
+		Service struct {
+			LatestRelease *releaseView `json:"latestRelease"`
+		} `json:"service"`
+	}
+	if err := client.GraphQL(ctx, latestReleaseQuery, map[string]any{"id": serviceID}, &latest); err == nil {
+		service.LatestRelease = latest.Service.LatestRelease
+	}
+
 	if *asJSON {
 		if err := printJSON(service); err != nil {
 			return err
@@ -148,6 +203,13 @@ func cmdStatus(ctx context.Context, args []string) error {
 
 func printStatus(service statusView) {
 	fmt.Printf("Service %s: %s\n", service.ID, service.Status)
+	if release := service.LatestRelease; release != nil && release.Status != "LIVE" {
+		fmt.Printf("Latest release %s: %s", release.ID, release.Status)
+		if release.Source != nil && release.Source.Commit.SHA != "" {
+			fmt.Printf(" (%s)", shortSHA(release.Source.Commit.SHA))
+		}
+		fmt.Println()
+	}
 	deployment := service.ActiveDeployment
 	if deployment == nil {
 		fmt.Println("No active deployment yet.")

@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue';
-import { Eye, EyeOff, Link, Plus, Trash2, Unlink, Braces } from '@lucide/vue';
+import { Eye, EyeOff, Link, Plus, Trash2, Undo2, Unlink, Braces } from '@lucide/vue';
+import CopyButton from '@/components/CopyButton.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import IconButton from '@/components/IconButton.vue';
+import SecretInput from '@/components/SecretInput.vue';
 import SourceIcon from '@/components/SourceIcon.vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,13 +21,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { parseEnvAssignments } from '@/lib/env';
 import { darkTooltipClass } from '@/lib/tooltip';
-import type { VariableReference, VariableRow, VariableSourceTypename } from '@/lib/variables';
+import { duplicateKeys, type VariableReference, type VariableRow, type VariableSourceTypename } from '@/lib/variables';
 
 const rows = defineModel<VariableRow[]>('rows', { required: true });
 
 const props = withDefaults(defineProps<{
   references?: VariableReference[];
   loading?: boolean;
+  loadingValues?: boolean;
   disabled?: boolean;
   emptyTitle: string;
   emptyDescription?: string;
@@ -33,11 +36,12 @@ const props = withDefaults(defineProps<{
   emptyDescription: undefined,
   references: undefined,
   loading: false,
+  loadingValues: false,
   disabled: false,
 });
 
 const emit = defineEmits<{
-  (e: 'change'): void;
+  (e: 'reveal'): void;
 }>();
 
 const SOURCE_LABELS: Record<VariableSourceTypename, string> = {
@@ -59,6 +63,12 @@ const root = ref<HTMLFieldSetElement | null>(null);
 
 const linkable = computed(() => props.references !== undefined);
 
+const skeletonRows = [
+  { key: 'w-28', value: 'w-40' },
+  { key: 'w-36', value: 'w-24' },
+  { key: 'w-20', value: 'w-32' },
+];
+
 const referenceGroups = computed<ReferenceGroup[]>(() => {
   const groups = new Map<string, ReferenceGroup>();
   for (const reference of props.references ?? []) {
@@ -76,86 +86,139 @@ const referenceGroups = computed<ReferenceGroup[]>(() => {
 
 const referenceById = computed(() => new Map((props.references ?? []).map(reference => [reference.id, reference])));
 
-const valueRows = computed(() => rows.value.filter(row => !row.ref));
-const allRevealed = computed(() => valueRows.value.length > 0 && valueRows.value.every(row => row.revealed));
+const revealableRows = computed(() => rows.value.filter(row => !row.removed && (!row.ref || referenceById.value.has(row.ref))));
+const allRevealed = computed(() => revealableRows.value.length > 0 && revealableRows.value.every(row => row.revealed));
 
-function changed() {
-  emit('change');
+const duplicates = computed(() => new Set(duplicateKeys(rows.value)));
+const repeated = computed(() => {
+  const seen = new Set<string>();
+  return rows.value.map(row => {
+    const key = row.key.trim();
+    if (row.removed || !key) return false;
+    const repeat = seen.has(key);
+    seen.add(key);
+    return repeat;
+  });
+});
+
+function isDuplicate(row: VariableRow) {
+  return !row.removed && duplicates.value.has(row.key.trim());
 }
 
 async function addRow() {
   rows.value.push({ key: '', value: '', ref: null, revealed: true });
-  changed();
   await nextTick();
   const keys = root.value?.querySelectorAll<HTMLInputElement>('input[aria-label="Key"]');
   keys?.[keys.length - 1]?.focus();
 }
 
 function removeRow(index: number) {
-  rows.value.splice(index, 1);
-  changed();
+  const row = rows.value[index]!;
+  if (row.persisted) {
+    row.removed = true;
+  } else {
+    rows.value.splice(index, 1);
+  }
+}
+
+function restoreRow(index: number) {
+  rows.value[index]!.removed = false;
 }
 
 function toggleAll() {
   const next = !allRevealed.value;
-  for (const row of rows.value) {
-    if (!row.ref) row.revealed = next;
-  }
+  for (const row of revealableRows.value) row.revealed = next;
+  if (next && revealableRows.value.some(row => row.ref)) emit('reveal');
+}
+
+function toggleReferenceValue(row: VariableRow) {
+  row.revealed = !row.revealed;
+  if (row.revealed) emit('reveal');
 }
 
 function onPasteKey(event: ClipboardEvent, index: number) {
+  if (rows.value[index]?.removed) return;
   const parsed = parseEnvAssignments(event.clipboardData?.getData('text') ?? '');
   if (parsed.length === 0) return;
   event.preventDefault();
   rows.value.splice(index, 1, ...parsed.map(p => ({ key: p.key, value: p.value, ref: null })));
-  changed();
 }
 
 function selectReference(index: number, reference: VariableReference) {
   const row = rows.value[index]!;
   row.ref = reference.id;
   row.value = '';
+  row.revealed = false;
   if (!row.key.trim()) row.key = reference.key.toUpperCase();
   openPopoverIndex.value = null;
-  changed();
 }
 
 function clearReference(index: number) {
   rows.value[index]!.ref = null;
-  changed();
 }
 
 function referenceInfo(row: VariableRow) {
   const reference = row.ref ? referenceById.value.get(row.ref) : undefined;
   if (reference) {
-    return { typename: reference.typename, label: reference.sourceName || SOURCE_LABELS[reference.typename], key: reference.key };
+    return { typename: reference.typename, label: reference.sourceName || SOURCE_LABELS[reference.typename], key: reference.key, value: reference.value };
   }
-  return { typename: null, label: 'Reference', key: row.ref?.split('/').pop() ?? '' };
+  return { typename: null, label: 'Reference', key: row.ref?.split('/').pop() ?? '', value: undefined };
 }
 </script>
 
 <template>
-  <div v-if="loading && rows.length === 0" class="space-y-2">
-    <Skeleton class="h-9 w-full" />
-    <Skeleton class="h-9 w-full" />
+  <div v-if="loading && rows.length === 0" class="space-y-4 sm:space-y-2">
+    <div
+      v-for="row in skeletonRows"
+      :key="row.key"
+      class="flex flex-wrap items-center gap-x-2 gap-y-1.5"
+    >
+      <div class="flex h-9 w-full shrink-0 items-center rounded-md border border-input bg-background px-3 sm:w-2/5">
+        <Skeleton :class="['h-3', row.key]" />
+      </div>
+      <div class="flex min-w-0 flex-1">
+        <span v-if="linkable" class="size-9 shrink-0 border border-r-0 border-input bg-background" />
+        <div
+          class="flex h-9 min-w-0 flex-1 items-center rounded-md border border-input bg-background px-3"
+          :class="{ 'rounded-l-none': linkable }"
+        >
+          <Skeleton :class="['h-3', row.value]" />
+        </div>
+      </div>
+      <span class="flex size-9 shrink-0 items-center justify-center">
+        <Skeleton class="size-4 rounded-sm" />
+      </span>
+    </div>
+    <div class="flex justify-end pt-2">
+      <Skeleton class="h-9 w-32 rounded-none" />
+    </div>
   </div>
 
-  <fieldset v-else ref="root" :disabled="disabled" class="min-w-0 space-y-2">
+  <fieldset v-else ref="root" :disabled="disabled" class="min-w-0 space-y-4 sm:space-y-2">
     <div
       v-for="(row, index) in rows"
       :key="index"
-      class="flex items-center gap-2"
+      class="flex flex-wrap items-start gap-x-2 gap-y-1.5"
     >
       <Input
         v-model="row.key"
         placeholder="KEY"
         aria-label="Key"
-        class="w-2/5 shrink-0 font-mono text-sm"
-        @input="changed"
+        :readonly="row.removed"
+        :aria-invalid="isDuplicate(row) || undefined"
+        class="w-full shrink-0 font-mono text-sm sm:w-2/5"
+        :class="{
+          'text-muted-foreground line-through': row.removed,
+          'border-destructive': isDuplicate(row),
+        }"
         @paste="onPasteKey($event, index)"
       />
 
-      <div class="flex min-w-0 flex-1">
+      <div
+        class="flex min-w-0 flex-1"
+        :class="{ 'opacity-50': row.removed }"
+        :inert="row.removed || undefined"
+      >
         <template v-if="linkable">
           <Tooltip v-if="!row.ref">
             <TooltipTrigger as-child>
@@ -218,41 +281,60 @@ function referenceInfo(row: VariableRow) {
 
         <div
           v-if="row.ref"
-          class="magic-border flex h-9 min-w-0 flex-1 items-center gap-1.5 rounded-md rounded-l-none px-3"
+          class="magic-border flex h-9 min-w-0 flex-1 items-center gap-1.5 rounded-md rounded-l-none pr-1 pl-3"
         >
           <SourceIcon :typename="referenceInfo(row).typename" />
-          <span class="truncate text-xs font-medium">{{ referenceInfo(row).label }}</span>
-          <span class="text-muted-foreground/40">·</span>
-          <span class="truncate font-mono text-xs text-muted-foreground">{{ referenceInfo(row).key }}</span>
-        </div>
-
-        <div v-else class="relative min-w-0 flex-1">
-          <Input
-            v-model="row.value"
-            :type="row.revealed ? 'text' : 'password'"
-            placeholder="value"
-            :aria-label="`Value of ${row.key || 'new variable'}`"
-            autocomplete="off"
-            data-1p-ignore="true"
-            class="w-full pr-9 font-mono text-sm"
-            :class="{ 'rounded-l-none': linkable }"
-            @input="changed"
-          />
+          <template v-if="row.revealed && referenceInfo(row).value !== undefined">
+            <span class="min-w-0 flex-1 truncate font-mono text-sm">{{ referenceInfo(row).value }}</span>
+            <CopyButton
+              :label="`Copy ${row.key || 'value'}`"
+              :value="referenceInfo(row).value ?? ''"
+              size="icon-sm"
+              class="shrink-0 text-muted-foreground hover:bg-transparent"
+            />
+          </template>
+          <template v-else>
+            <span class="truncate text-xs font-medium">{{ referenceInfo(row).label }}</span>
+            <span class="text-muted-foreground/40">·</span>
+            <span class="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">{{ referenceInfo(row).key }}</span>
+          </template>
           <IconButton
+            v-if="referenceInfo(row).typename"
             :label="row.revealed ? 'Hide value' : 'Show value'"
             :aria-pressed="row.revealed"
-            size="icon"
+            :pending="row.revealed && referenceInfo(row).value === undefined && loadingValues"
+            size="icon-sm"
             tabindex="-1"
-            class="absolute right-0 top-0 text-muted-foreground hover:bg-transparent"
-            @click="row.revealed = !row.revealed"
+            class="shrink-0 text-muted-foreground hover:bg-transparent"
+            @click="toggleReferenceValue(row)"
           >
             <EyeOff v-if="row.revealed" />
             <Eye v-else />
           </IconButton>
         </div>
+
+        <div v-else class="min-w-0 flex-1">
+          <SecretInput
+            v-model="row.value"
+            v-model:revealed="row.revealed"
+            placeholder="value"
+            :aria-label="`Value of ${row.key || 'new variable'}`"
+            :class="{ 'rounded-l-none': linkable }"
+          />
+        </div>
       </div>
 
       <IconButton
+        v-if="row.removed"
+        :label="`Keep &quot;${row.key}&quot;`"
+        size="icon"
+        class="shrink-0 text-muted-foreground hover:text-foreground"
+        @click="restoreRow(index)"
+      >
+        <Undo2 />
+      </IconButton>
+      <IconButton
+        v-else
         :label="`Delete ${row.key || 'variable'}`"
         size="icon"
         class="shrink-0 text-muted-foreground hover:text-destructive"
@@ -260,6 +342,10 @@ function referenceInfo(row: VariableRow) {
       >
         <Trash2 />
       </IconButton>
+
+      <p v-if="repeated[index]" class="basis-full text-xs text-destructive">
+        "{{ row.key.trim() }}" is already defined
+      </p>
     </div>
 
     <EmptyState
@@ -272,7 +358,7 @@ function referenceInfo(row: VariableRow) {
 
     <div class="flex items-center justify-end gap-2 pt-2">
       <Button
-        v-if="valueRows.length > 0"
+        v-if="revealableRows.length > 0"
         variant="ghost"
         class="text-muted-foreground"
         @click="toggleAll"

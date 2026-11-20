@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { environmentRoute, projectRoute } from '@/lib/routes';
+import { lastSegment } from '@/lib/id';
 import SegmentedControl from '@/components/SegmentedControl.vue';
 import ContextDrawer from '@/components/drawer/ContextDrawer.vue';
 import QueryError from '@/components/QueryError.vue';
@@ -18,7 +20,6 @@ const ProjectsDocument = graphql(`
       environments {
         id
         name
-        resourceTier
         services {
           id
           name
@@ -67,7 +68,6 @@ const WorkspaceDocument = graphql(`
     }
   }
 `);
-import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -80,11 +80,18 @@ import WelcomeCard from '@/components/WelcomeCard.vue';
 import { useOnboarding } from '@/composables/useOnboarding';
 import { useGitHubInstall } from '@/composables/useGitHubInstall';
 import { preferredEnvironment } from '@/lib/lastEnvironment';
-import { workspaceNavItems } from '@/lib/workspaceNav';
+import { workspaceNavItems } from '@/lib/contextNav';
+import { useCapabilities } from '@/composables/useCapabilities';
 import { useAuth } from '@/composables/useAuth';
+import { usePageTitle } from '@/composables/usePageTitle';
 import ContextRail from '@/components/ContextRail.vue';
 import WorkspaceMembersDrawer from '@/components/drawer/WorkspaceMembersDrawer.vue';
 import ApiTokensDrawer from '@/components/drawer/ApiTokensDrawer.vue';
+import ConnectionsDrawer from '@/components/drawer/ConnectionsDrawer.vue';
+import ConnectorDrawer from '@/components/drawer/ConnectorDrawer.vue';
+import ChatAppDrawer from '@/components/drawer/ChatAppDrawer.vue';
+import AddChannelLinkDialog from '@/components/AddChannelLinkDialog.vue';
+import ModelProviderDrawer from '@/components/drawer/ModelProviderDrawer.vue';
 import WorkspaceBillingDrawer from '@/components/drawer/WorkspaceBillingDrawer.vue';
 import WorkspaceSettingsDrawer from '@/components/drawer/WorkspaceSettingsDrawer.vue';
 
@@ -99,23 +106,40 @@ const githubConnected = computed(() => ghResult.value?.githubConnected ?? false)
 const paletteOpen = ref(false);
 const initialPaletteView = ref<'main' | 'github-repos'>('main');
 
-const { isWorkspaceAdmin } = useAuth();
+const { isWorkspaceAdmin, activeWorkspace } = useAuth();
 const { result: workspaceResult, refetch: refetchWorkspace } = useQuery(WorkspaceDocument);
 const workspace = computed(() => workspaceResult.value?.workspace ?? null);
 
 const drawer = computed(() => route.params.drawer);
+const connection = computed(() => (route.name === 'connection'
+  ? { kind: String(route.params.kind), name: String(route.params.name) }
+  : null));
 const drawerTitles: Record<string, string> = {
   'members': 'Members',
+  'connections': 'Connections',
   'api-tokens': 'API tokens',
   'billing': 'Billing',
   'settings': 'Workspace settings',
 };
 
-const railItems = computed(() => workspaceNavItems(isWorkspaceAdmin.value));
-const activeKey = computed(() => (typeof drawer.value === 'string' && drawer.value ? drawer.value : 'projects'));
+const { agents } = useCapabilities();
+const railItems = computed(() => workspaceNavItems(isWorkspaceAdmin.value, agents.value));
+const activeKey = computed(() => {
+  if (connection.value) return 'connections';
+  return typeof drawer.value === 'string' && drawer.value ? drawer.value : 'projects';
+});
+
+usePageTitle(() => [
+  railItems.value.find(item => item.key === activeKey.value && item.key !== 'projects')?.label,
+  workspace.value?.name,
+]);
 
 function closeDrawer() {
   router.push({ name: 'projects' });
+}
+
+function handleOutsideClick(event: MouseEvent) {
+  if ((drawer.value || connection.value) && !event.defaultPrevented) closeDrawer();
 }
 
 const { isWelcome, dismissWelcome } = useOnboarding();
@@ -158,9 +182,9 @@ watch(paletteOpen, (open) => {
 function projectLink(project: { id: string; environments: { id: string }[] }) {
   const target = preferredEnvironment(project.id, project.environments);
   if (target) {
-    return { name: 'environment', params: { projectId: project.id, environmentId: target.id } };
+    return environmentRoute(target.id);
   }
-  return { name: 'project', params: { projectId: project.id } };
+  return projectRoute(project.id);
 }
 
 function allServices(project: { environments: { services?: { id: string; name: string; sourceUrl: string }[] }[] }) {
@@ -168,8 +192,9 @@ function allServices(project: { environments: { services?: { id: string; name: s
   const out: { name: string; sourceUrl: string }[] = [];
   for (const env of project.environments) {
     for (const svc of env.services ?? []) {
-      if (!seen.has(svc.name)) {
-        seen.add(svc.name);
+      const id = lastSegment(svc.id);
+      if (!seen.has(id)) {
+        seen.add(id);
         out.push(svc);
       }
     }
@@ -195,7 +220,13 @@ const filteredProjects = computed(() => {
   );
 });
 
-const showTable = computed(() => view.value === 'list' && !loading.value && !error.value && filteredProjects.value.length > 0);
+const showTable = computed(() => view.value === 'list' && !error.value && (loading.value || filteredProjects.value.length > 0));
+
+const skeletonCards = [
+  { name: 'w-24', repository: 'w-40', tiles: 3 },
+  { name: 'w-32', repository: 'w-36', tiles: 2 },
+  { name: 'w-20', repository: 'w-44', tiles: 4 },
+];
 
 onKeyStroke('/', (event) => {
   const target = event.target as HTMLElement | null;
@@ -208,58 +239,66 @@ onKeyStroke('/', (event) => {
 </script>
 
 <template>
-    <div class="flex h-[calc(100vh-var(--banner-height)-52px-0.75rem-0.5rem)] flex-col">
-      <div class="relative flex flex-1 py-3">
+    <div class="flex min-h-0 flex-1 flex-col">
+      <div class="relative flex min-h-0 flex-1 py-3 max-md:py-0">
         <ContextRail :items="railItems" :active-key="activeKey" />
 
         <div class="relative min-w-0 flex-1">
-          <div class="flex h-full flex-col overflow-hidden rounded-lg border bg-card shadow-sm">
+          <div class="flex h-full flex-col overflow-hidden rounded-lg border bg-card shadow-sm max-md:rounded-none max-md:border-0 max-md:shadow-none" @click="handleOutsideClick">
             <PageToolbar title="Projects" :count="loading ? undefined : projects.length">
-              <div v-if="projects.length > 0" class="relative w-70">
-                <Search :size="14" class="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  ref="searchInput"
-                  v-model="search"
-                  placeholder="Search projects"
-                  class="h-8 px-8 text-sm"
-                  @keydown.escape="search = ''"
+              <div v-if="loading || projects.length > 0" class="order-last flex w-full items-center gap-2.5 sm:order-none sm:w-auto">
+                <div class="relative flex-1 sm:w-70 sm:flex-none">
+                  <Search :size="14" class="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    ref="searchInput"
+                    v-model="search"
+                    placeholder="Search projects"
+                    class="h-8 px-8 text-sm"
+                    @keydown.escape="search = ''"
+                  />
+                  <kbd
+                    v-if="!search"
+                    class="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 rounded border bg-card px-1.5 font-sans text-xs leading-4.5 text-muted-foreground max-sm:hidden"
+                  >/</kbd>
+                </div>
+                <SegmentedControl
+                  v-model="view"
+                  label="Layout"
+                  :options="viewOptions"
                 />
-                <kbd
-                  v-if="!search"
-                  class="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 rounded border bg-card px-1.5 font-sans text-xs leading-4.5 text-muted-foreground"
-                >/</kbd>
               </div>
-              <SegmentedControl
-                v-if="projects.length > 0"
-                v-model="view"
-                label="Layout"
-                :options="viewOptions"
-              />
-              <Button @click="paletteOpen = true">
+              <Button class="max-sm:w-9 max-sm:px-0" @click="paletteOpen = true">
                 <Plus />
-                New project
+                <span class="max-sm:sr-only">New project</span>
               </Button>
             </PageToolbar>
 
-            <div :class="['flex-1 overflow-y-auto', showTable ? '' : 'p-4']">
-              <div v-if="loading && view === 'list'" class="divide-y">
-                <div v-for="i in 4" :key="i" class="flex items-center gap-4 px-4 py-4">
-                  <Skeleton class="h-4 w-40" />
-                  <Skeleton class="h-4 w-24" />
-                  <Skeleton class="ml-auto h-4 w-20" />
+            <div :class="['flex-1 overflow-y-auto max-md:pb-22', showTable ? '' : 'p-4']">
+              <ProjectTable v-if="loading && view === 'list'" :projects="[]" :link-to="projectLink" loading />
+              <div v-else-if="loading" class="grid items-start gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div
+                  v-for="card in skeletonCards"
+                  :key="card.name"
+                  class="flex flex-col gap-3.5 rounded-lg border bg-card px-5 py-4.5 shadow-sm"
+                >
+                  <div class="space-y-1.5">
+                    <div class="flex h-6 items-center">
+                      <Skeleton :class="['h-4', card.name]" />
+                    </div>
+                    <div class="flex h-4 items-center gap-1.5">
+                      <Skeleton class="size-3 rounded-sm" />
+                      <Skeleton :class="['h-3', card.repository]" />
+                    </div>
+                  </div>
+                  <div class="space-y-0.5 border-t border-border/60 pt-3">
+                    <div class="grid min-h-7.5 grid-cols-[104px_minmax(0,1fr)] items-center gap-2.5 py-1">
+                      <Skeleton class="h-3 w-20" />
+                      <span class="flex gap-1">
+                        <Skeleton v-for="tile in card.tiles" :key="tile" class="size-6 rounded-sm" />
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div v-else-if="loading" class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <Card v-for="i in 3" :key="i">
-                  <CardHeader>
-                    <Skeleton class="h-5 w-32" />
-                    <Skeleton class="mt-2 h-4 w-48" />
-                  </CardHeader>
-                  <CardContent>
-                    <Skeleton class="h-4 w-full" />
-                    <Skeleton class="mt-2 h-4 w-24" />
-                  </CardContent>
-                </Card>
               </div>
 
               <QueryError
@@ -322,10 +361,19 @@ onKeyStroke('/', (event) => {
             </div>
           </div>
 
+          <Transition
+            enter-active-class="transition-opacity duration-200"
+            leave-active-class="transition-opacity duration-150"
+            enter-from-class="opacity-0"
+            leave-to-class="opacity-0"
+          >
+            <div v-if="drawer || connection" class="absolute inset-0 z-10 bg-foreground/20 md:hidden [.dark_&]:bg-background/60" @click="closeDrawer" />
+          </Transition>
+
           <Transition name="slide-drawer">
             <div
               v-if="!workspace && drawer"
-              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full max-md:top-3"
             >
               <ContextDrawer :title="drawerTitles[String(drawer)] ?? ''" @close="closeDrawer">
                 <div class="space-y-3">
@@ -340,7 +388,7 @@ onKeyStroke('/', (event) => {
           <Transition name="slide-drawer">
             <div
               v-if="workspace && drawer === 'members'"
-              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full max-md:top-3"
             >
               <WorkspaceMembersDrawer
                 :workspace="workspace"
@@ -351,10 +399,59 @@ onKeyStroke('/', (event) => {
             </div>
           </Transition>
 
+          <Transition name="slide-drawer" mode="out-in">
+            <div
+              v-if="workspace && agents && drawer === 'connections'"
+              key="connections"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full max-md:top-3"
+            >
+              <ConnectionsDrawer
+                :is-admin="isWorkspaceAdmin"
+                @close="closeDrawer"
+              />
+            </div>
+            <div
+              v-else-if="agents && connection?.kind === 'model-providers'"
+              :key="`model-providers/${connection.name}`"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full max-md:top-3"
+            >
+              <ModelProviderDrawer
+                :workspace="activeWorkspace"
+                :name="connection.name"
+                :is-admin="isWorkspaceAdmin"
+                @close="closeDrawer"
+              />
+            </div>
+            <div
+              v-else-if="agents && connection?.kind === 'connectors'"
+              :key="`connectors/${connection.name}`"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full max-md:top-3"
+            >
+              <ConnectorDrawer
+                :workspace="activeWorkspace"
+                :name="connection.name"
+                :is-admin="isWorkspaceAdmin"
+                @close="closeDrawer"
+              />
+            </div>
+            <div
+              v-else-if="agents && connection?.kind === 'chat-apps'"
+              :key="`chat-apps/${connection.name}`"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full max-md:top-3"
+            >
+              <ChatAppDrawer
+                :workspace="activeWorkspace"
+                :name="connection.name"
+                :is-admin="isWorkspaceAdmin"
+                @close="closeDrawer"
+              />
+            </div>
+          </Transition>
+
           <Transition name="slide-drawer">
             <div
               v-if="workspace && isWorkspaceAdmin && drawer === 'api-tokens'"
-              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full max-md:top-3"
             >
               <ApiTokensDrawer @close="closeDrawer" />
             </div>
@@ -363,7 +460,7 @@ onKeyStroke('/', (event) => {
           <Transition name="slide-drawer">
             <div
               v-if="workspace && drawer === 'billing'"
-              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full max-md:top-3"
             >
               <WorkspaceBillingDrawer
                 :is-admin="isWorkspaceAdmin"
@@ -375,10 +472,11 @@ onKeyStroke('/', (event) => {
           <Transition name="slide-drawer">
             <div
               v-if="workspace && drawer === 'settings'"
-              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full"
+              class="absolute inset-y-0 left-0 z-10 w-110 max-w-full max-md:top-3"
             >
               <WorkspaceSettingsDrawer
                 :workspace="workspace"
+                :projects="result?.projects ?? null"
                 :is-admin="isWorkspaceAdmin"
                 @close="closeDrawer"
                 @changed="refetchWorkspace()"
@@ -392,6 +490,14 @@ onKeyStroke('/', (event) => {
         v-model:open="paletteOpen"
         context="projects"
         :initial-view="initialPaletteView"
+      />
+
+      <AddChannelLinkDialog
+        v-if="agents && route.name === 'add-channel'"
+        :workspace="activeWorkspace"
+        :chat-app="String(route.query.chatApp ?? '')"
+        :channel="String(route.query.channel ?? '')"
+        @close="router.push({ name: 'projects', params: { workspace: activeWorkspace } })"
       />
     </div>
 </template>
@@ -409,5 +515,11 @@ onKeyStroke('/', (event) => {
 .slide-drawer-leave-to {
   transform: translateX(-16px);
   opacity: 0;
+}
+@media (width < 48rem) {
+  .slide-drawer-enter-from,
+  .slide-drawer-leave-to {
+    transform: translateY(16px);
+  }
 }
 </style>

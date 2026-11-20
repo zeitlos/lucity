@@ -5,6 +5,7 @@ import CopyButton from '@/components/CopyButton.vue';
 import QueryError from '@/components/QueryError.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import { Skeleton } from '@/components/ui/skeleton';
+import MetricHeroSkeleton from '@/components/metrics/MetricHeroSkeleton.vue';
 import IconButton from '@/components/IconButton.vue';
 import { computed, ref } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
@@ -500,10 +501,26 @@ function toggleQuery(index: number) {
       </section>
     </template>
 
-    <div v-else-if="loading" class="space-y-3">
-      <Skeleton class="h-40 w-full" />
-      <Skeleton class="h-40 w-full" />
-    </div>
+    <template v-else-if="loading">
+      <section class="grid gap-px overflow-hidden rounded-lg border bg-border @lg:grid-cols-2">
+        <MetricHeroSkeleton v-for="hero in 2" :key="hero" />
+      </section>
+
+      <section class="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border @xl:grid-cols-4">
+        <div v-for="cell in 8" :key="cell" class="flex min-w-0 flex-col gap-1.5 bg-card px-3.5 pb-3 pt-3.5">
+          <div class="flex h-4 items-center">
+            <Skeleton class="h-3 w-20" />
+          </div>
+          <div class="flex h-7 items-center">
+            <Skeleton class="h-5 w-12" />
+          </div>
+          <div class="h-8" />
+          <div class="flex h-4 items-center">
+            <Skeleton class="h-2.5 w-16" />
+          </div>
+        </div>
+      </section>
+    </template>
     <QueryError
       v-else-if="error"
       title="Couldn't load metrics"
@@ -585,10 +602,26 @@ function toggleQuery(index: number) {
             </TableRow>
           </template>
         </TableBody>
+        <TableBody v-else-if="statisticsLoading && !statistics">
+          <TableRow v-for="width in ['w-3/4', 'w-1/2', 'w-2/3']" :key="width" class="h-9 hover:bg-transparent">
+            <TableCell class="w-full max-w-0">
+              <Skeleton :class="['h-3', width]" />
+            </TableCell>
+            <TableCell>
+              <div class="flex items-center justify-end gap-2">
+                <Skeleton class="h-1 w-12 rounded-full" />
+                <Skeleton class="h-3 w-10" />
+              </div>
+            </TableCell>
+            <TableCell><Skeleton class="ml-auto h-3 w-8" /></TableCell>
+            <TableCell><Skeleton class="ml-auto h-3 w-10" /></TableCell>
+            <TableCell><Skeleton class="ml-auto h-3 w-6" /></TableCell>
+            <TableCell />
+          </TableRow>
+        </TableBody>
         <TableBody v-else>
           <TableEmpty :colspan="6">
-            <span v-if="statisticsLoading && !statistics">Loading queries…</span>
-            <span v-else-if="statisticsError">Couldn't read query statistics from the database.</span>
+            <span v-if="statisticsError">Couldn't read query statistics from the database.</span>
             <span v-else-if="statistics && !statistics.enabled">This database doesn't collect query statistics yet.</span>
             <span v-else>No queries recorded yet.</span>
           </TableEmpty>

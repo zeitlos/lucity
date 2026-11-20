@@ -1,8 +1,8 @@
 import type { ContentNavigationItem } from '@nuxt/content';
 
 const sections = {
-  docs: { collection: 'docs', label: 'Docs', home: '/docs/quickstart' },
-  legal: { collection: 'legal', label: 'Legal', home: '/legal/privacy-policy' },
+  docs: { collection: 'docs', label: 'Docs', home: '/docs/quickstart', directory: 'docs/content' },
+  legal: { collection: 'legal', label: 'Legal', home: '/legal/privacy-policy', directory: 'docs/content/99.legal' },
 } as const;
 
 /**

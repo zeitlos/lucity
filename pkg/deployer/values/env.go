@@ -14,6 +14,8 @@ type Env struct {
 	SharedVariableLabels  map[string]string     `yaml:"sharedVariableLabels,omitempty"`
 	Databases             Databases             `yaml:"databases"`
 	Volumes               map[string]Volume     `yaml:"volumes,omitempty"`
+	AgentRuntime          AgentRuntime          `yaml:"agentRuntime"`
+	Agents                map[string]Agent      `yaml:"agents,omitempty"`
 	Gateway               Gateway               `yaml:"gateway"`
 	VerticalPodAutoscaler VerticalPodAutoscaler `yaml:"verticalPodAutoscaler"`
 	Placement             `yaml:",inline"`
@@ -67,6 +69,22 @@ func SetSuspended(env *Env, suspended bool) error {
 
 func SetEnvironmentVariables(env *Env, vars map[string]string) error {
 	env.SharedVariables = maps.Clone(vars)
+
+	return nil
+}
+
+// UpdateEnvironmentVariables sets and removes individual shared variables,
+// keeping every key it is not given.
+func UpdateEnvironmentVariables(env *Env, set map[string]string, unset []string) error {
+	if env.SharedVariables == nil {
+		env.SharedVariables = make(map[string]string)
+	}
+
+	for _, key := range unset {
+		delete(env.SharedVariables, key)
+	}
+
+	maps.Copy(env.SharedVariables, set)
 
 	return nil
 }

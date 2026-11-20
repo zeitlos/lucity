@@ -16,20 +16,211 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/scanjob"
 )
 
+// Something that happened in a session. Events with the same `callId` or `approval` describe the same call or approval, and the later one replaces the earlier one.
+type AgentSessionEvent interface {
+	IsAgentSessionEvent()
+}
+
+// Something a workspace may use, and what unlocks it when it can't yet.
+type Capability interface {
+	IsCapability()
+	GetAvailability() Availability
+	// The cheapest plan that unlocks it, when `availability` is `PLAN_REQUIRED`.
+	GetPlan() *Plan
+}
+
 type VariableSource interface {
 	IsVariableSource()
 }
 
 type AddServiceInput struct {
-	Name        *string         `json:"name,omitempty"`
-	Repository  *string         `json:"repository,omitempty"`
-	ContextPath *string         `json:"contextPath,omitempty"`
-	Image       *string         `json:"image,omitempty"`
-	Variables   []VariableInput `json:"variables,omitempty"`
-	Resources   *ResourcesInput `json:"resources,omitempty"`
+	// What people read. Any text, and it can be changed later. Defaults to the repository or image name.
+	Name *string `json:"name,omitempty"`
+	// The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused.
+	ID          *string `json:"id,omitempty"`
+	Repository  *string `json:"repository,omitempty"`
+	ContextPath *string `json:"contextPath,omitempty"`
+	Image       *string `json:"image,omitempty"`
+	// Variables the service starts with: literal values, or refs to `availableVariables` in the same environment. The first build gets the literal values only.
+	Variables []ServiceVariableInput `json:"variables,omitempty"`
+	Resources *ResourcesInput        `json:"resources,omitempty"`
 	// The user id an image-based service runs as, which also owns its mounted volumes.
 	User *int `json:"user,omitempty"`
 }
+
+// An agent in an environment: a harness with instructions, the connectors it is granted and the network it may reach.
+type Agent struct {
+	ID      platform.AgentID `json:"id"`
+	Name    string           `json:"name"`
+	Harness Harness          `json:"harness"`
+	// Written into the harness's own instruction file, next to its system prompt.
+	Instructions string           `json:"instructions"`
+	Status       AgentStatus      `json:"status"`
+	Connectors   []AgentConnector `json:"connectors"`
+	// The chats and channels the agent talks in.
+	Channels []AgentChannel `json:"channels"`
+	// Hosts on the internet the agent may reach directly, without credentials. `*.example.com` covers the subdomains of `example.com`.
+	AllowedHosts []string `json:"allowedHosts"`
+	// Whether the agent may reach the other services of its environment.
+	PrivateNetwork bool `json:"privateNetwork"`
+	// The sessions of the agent, newest first.
+	Sessions []AgentSession `json:"sessions"`
+}
+
+// A tool call that waits for, or got, a decision from someone in the workspace.
+type AgentApproval struct {
+	ID   string    `json:"id"`
+	Time time.Time `json:"time"`
+	// Pass this to `answerAgentApproval`.
+	Approval string `json:"approval"`
+	// The tool call that needs the approval.
+	CallID *string             `json:"callId,omitempty"`
+	Title  string              `json:"title"`
+	Status AgentApprovalStatus `json:"status"`
+	// Null while pending, or once that person has left the workspace.
+	DecidedBy *WorkspaceMember `json:"decidedBy,omitempty"`
+}
+
+func (AgentApproval) IsAgentSessionEvent() {}
+
+// One call an agent made to a model provider or a connector.
+type AgentAuditEntry struct {
+	Time time.Time      `json:"time"`
+	Kind AgentAuditKind `json:"kind"`
+	// The model provider, for a model call.
+	ModelProvider *string `json:"modelProvider,omitempty"`
+	// The connector, for a tool call.
+	Connector *string `json:"connector,omitempty"`
+	// The model of a model call, or the tool or method of a tool call.
+	Target       string           `json:"target"`
+	InputTokens  *int             `json:"inputTokens,omitempty"`
+	OutputTokens *int             `json:"outputTokens,omitempty"`
+	Result       AgentAuditResult `json:"result"`
+}
+
+// A chat or channel an agent talks in. Linked members of the workspace talk to the agent there, and answer its approvals.
+type AgentChannel struct {
+	ChatApp *ChatApp     `json:"chatApp"`
+	Channel *ChatChannel `json:"channel"`
+}
+
+type AgentChannelInput struct {
+	ChatApp platform.ChatAppID `json:"chatApp"`
+	// The chat app's own ID of the chat or channel.
+	Channel string `json:"channel"`
+}
+
+// A connector granted to an agent.
+type AgentConnector struct {
+	Connector *Connector `json:"connector"`
+	Approval  Approval   `json:"approval"`
+	// Tools of the connector the agent doesn't see and can't call.
+	HiddenTools []string `json:"hiddenTools"`
+}
+
+type AgentConnectorInput struct {
+	Connector platform.ConnectorID `json:"connector"`
+	Approval  Approval             `json:"approval"`
+	// Tool names of the connector to hide from the agent.
+	HiddenTools []string `json:"hiddenTools,omitempty"`
+}
+
+// Text the agent wrote.
+type AgentMessage struct {
+	ID   string    `json:"id"`
+	Time time.Time `json:"time"`
+	Text string    `json:"text"`
+}
+
+func (AgentMessage) IsAgentSessionEvent() {}
+
+// A model an agent can use, from one of the workspace's model providers.
+type AgentModel struct {
+	Provider *ModelProvider `json:"provider"`
+	Name     string         `json:"name"`
+}
+
+type AgentModelInput struct {
+	Provider platform.ModelProviderID `json:"provider"`
+	Name     string                   `json:"name"`
+}
+
+// Something the harness flags about the session rather than says as the agent, like a model fallback or a safety stop.
+type AgentNotice struct {
+	ID          string              `json:"id"`
+	Time        time.Time           `json:"time"`
+	Severity    AgentNoticeSeverity `json:"severity"`
+	Title       string              `json:"title"`
+	Description *string             `json:"description,omitempty"`
+}
+
+func (AgentNotice) IsAgentSessionEvent() {}
+
+// The chat a session started in, or a message came through.
+type AgentOrigin struct {
+	ChatApp *ChatApp     `json:"chatApp"`
+	Channel *ChatChannel `json:"channel"`
+	// Opens the thread in the chat app. Null where the chat app has no links to it.
+	URL *string `json:"url,omitempty"`
+}
+
+// One conversation with an agent. Every member of the workspace can see it and take part.
+type AgentSession struct {
+	ID    platform.AgentSessionID `json:"id"`
+	Title string                  `json:"title"`
+	// Who started the session. Null once that person has left the workspace.
+	StartedBy *WorkspaceMember `json:"startedBy,omitempty"`
+	StartedAt time.Time        `json:"startedAt"`
+	// The model of the next turn.
+	Model  *AgentModel        `json:"model"`
+	Effort Effort             `json:"effort"`
+	Status AgentSessionStatus `json:"status"`
+	// The chat the session started in. Null for one started in Lucity.
+	Origin *AgentOrigin `json:"origin,omitempty"`
+	// Everything that happened in the session, oldest first.
+	Events []AgentSessionEvent `json:"events"`
+}
+
+// A tool the agent called.
+type AgentToolCall struct {
+	ID     string    `json:"id"`
+	Time   time.Time `json:"time"`
+	CallID string    `json:"callId"`
+	// The connector the tool belongs to. Null for the harness's own tools, such as editing a file.
+	Connector *string             `json:"connector,omitempty"`
+	Tool      string              `json:"tool"`
+	Title     string              `json:"title"`
+	Status    AgentToolCallStatus `json:"status"`
+	// The arguments, as JSON.
+	Input  *string `json:"input,omitempty"`
+	Output *string `json:"output,omitempty"`
+}
+
+func (AgentToolCall) IsAgentSessionEvent() {}
+
+// The agent ended its turn and waits for the next message.
+type AgentTurnEnd struct {
+	ID     string             `json:"id"`
+	Time   time.Time          `json:"time"`
+	Reason AgentTurnEndReason `json:"reason"`
+	Error  *string            `json:"error,omitempty"`
+}
+
+func (AgentTurnEnd) IsAgentSessionEvent() {}
+
+// A message someone in the workspace sent to the agent.
+type AgentUserMessage struct {
+	// The event's position in the session. Pass it as `after` to continue from here.
+	ID   string    `json:"id"`
+	Time time.Time `json:"time"`
+	// Null once that person has left the workspace.
+	Author *WorkspaceMember `json:"author,omitempty"`
+	Text   string           `json:"text"`
+	// The chat the message came through. Null for one sent in Lucity.
+	Via *AgentOrigin `json:"via,omitempty"`
+}
+
+func (AgentUserMessage) IsAgentSessionEvent() {}
 
 type APIToken struct {
 	ID        string        `json:"id"`
@@ -51,6 +242,24 @@ type AutoscalingSettings struct {
 	TargetCPU   int `json:"targetCpu"`
 }
 
+type BasicCapability struct {
+	Availability Availability `json:"availability"`
+	Plan         *Plan        `json:"plan,omitempty"`
+}
+
+func (BasicCapability) IsCapability()                      {}
+func (this BasicCapability) GetAvailability() Availability { return this.Availability }
+
+// The cheapest plan that unlocks it, when `availability` is `PLAN_REQUIRED`.
+func (this BasicCapability) GetPlan() *Plan { return this.Plan }
+
+// A billing period. `end` is exclusive.
+type BillingPeriod struct {
+	Start   time.Time `json:"start"`
+	End     time.Time `json:"end"`
+	Current bool      `json:"current"`
+}
+
 type BillingPortalURL struct {
 	URL string `json:"url"`
 }
@@ -65,16 +274,17 @@ type BillingSubscription struct {
 }
 
 type Bucket struct {
-	ID             platform.BucketID `json:"id"`
-	Name           string            `json:"name"`
-	Region         string            `json:"region"`
-	Endpoint       string            `json:"endpoint"`
-	PublicEndpoint string            `json:"publicEndpoint"`
-	Status         BucketStatus      `json:"status"`
-	SizeBytes      int               `json:"sizeBytes"`
-	ObjectCount    int               `json:"objectCount"`
-	Public         bool              `json:"public"`
-	CreatedAt      time.Time         `json:"createdAt"`
+	ID platform.BucketID `json:"id"`
+	// What people read. It can be changed, while `id` stays the same.
+	Name           string       `json:"name"`
+	Region         string       `json:"region"`
+	Endpoint       string       `json:"endpoint"`
+	PublicEndpoint string       `json:"publicEndpoint"`
+	Status         BucketStatus `json:"status"`
+	SizeBytes      int          `json:"sizeBytes"`
+	ObjectCount    int          `json:"objectCount"`
+	Public         bool         `json:"public"`
+	CreatedAt      time.Time    `json:"createdAt"`
 }
 
 type BucketCredentials struct {
@@ -115,6 +325,63 @@ type Build struct {
 	FinishedAt *time.Time       `json:"finishedAt,omitempty"`
 }
 
+// What a workspace can create, how large, and what unlocks the rest.
+type Capabilities struct {
+	Services       *ComputeCapability  `json:"services"`
+	Databases      *DatabaseCapability `json:"databases"`
+	KeyValueStores *StorageCapability  `json:"keyValueStores"`
+	Volumes        *StorageCapability  `json:"volumes"`
+	Buckets        *BasicCapability    `json:"buckets"`
+	Agents         *BasicCapability    `json:"agents"`
+	Members        *CountCapability    `json:"members"`
+	CustomDomains  *CountCapability    `json:"customDomains"`
+}
+
+// A chat account linked to you. It counts as you when you talk to agents or answer their approvals there.
+type ChatAccount struct {
+	Kind ChatAppKind `json:"kind"`
+	// The Mattermost server the account lives on. Null for Telegram.
+	Server *string `json:"server,omitempty"`
+	Handle string  `json:"handle"`
+}
+
+// A started link of a chat account. It finishes once the code reaches the chat app's bot from the account being linked.
+type ChatAccountLink struct {
+	// Opens a chat with the Telegram bot that sends it the code. Null for Mattermost.
+	URL *string `json:"url,omitempty"`
+	// The code to send the bot. In Mattermost, send `link <code>` to the bot in a direct message.
+	Code string `json:"code"`
+	// When the code stops working.
+	ExpiresAt time.Time `json:"expiresAt"`
+}
+
+// A bot in a chat app, connected to the workspace. Agents talk through it in the chats they are added to, and never see its token.
+type ChatApp struct {
+	ID   platform.ChatAppID `json:"id"`
+	Name string             `json:"name"`
+	Kind ChatAppKind        `json:"kind"`
+	// The bot's handle, such as `@acme_ops_bot`.
+	Account string `json:"account"`
+	// The Mattermost server the bot lives on. Null for Telegram.
+	URL *string `json:"url,omitempty"`
+	// The last four characters of the token. The token itself is never returned.
+	CredentialHint *string          `json:"credentialHint,omitempty"`
+	Status         CredentialStatus `json:"status"`
+	// When the token was last checked.
+	CheckedAt *time.Time `json:"checkedAt,omitempty"`
+	// The channels the bot is a member of, asked of the chat app on every read. Telegram can't list a bot's chats, so a Telegram bot has none.
+	Channels []ChatChannel `json:"channels"`
+	// The agents with a channel in this chat app.
+	Agents []Agent `json:"agents"`
+}
+
+// A chat or channel in a chat app.
+type ChatChannel struct {
+	// The chat app's own ID of the chat or channel.
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
 type CheckoutSession struct {
 	URL string `json:"url"`
 }
@@ -125,6 +392,67 @@ type Commit struct {
 	URL     *string `json:"url,omitempty"`
 }
 
+// Creating services, and the CPU, memory and replicas of one.
+type ComputeCapability struct {
+	Availability Availability   `json:"availability"`
+	Plan         *Plan          `json:"plan,omitempty"`
+	CPU          *QuantityLimit `json:"cpu"`
+	Memory       *QuantityLimit `json:"memory"`
+	// The most replicas one service may run, the autoscaling maximum included.
+	Replicas int `json:"replicas"`
+}
+
+func (ComputeCapability) IsCapability()                      {}
+func (this ComputeCapability) GetAvailability() Availability { return this.Availability }
+
+// The cheapest plan that unlocks it, when `availability` is `PLAN_REQUIRED`.
+func (this ComputeCapability) GetPlan() *Plan { return this.Plan }
+
+// A set of tools connected to the workspace, such as Linear or Sentry. Agents reach a connector only once they are granted it, and never see its credential.
+type Connector struct {
+	ID   platform.ConnectorID `json:"id"`
+	Name string               `json:"name"`
+	// The address of the connector's remote MCP server.
+	URL string `json:"url"`
+	// The last four characters of the credential, if it has one. The credential itself is never returned.
+	CredentialHint *string          `json:"credentialHint,omitempty"`
+	Status         CredentialStatus `json:"status"`
+	// When the credential was last checked.
+	CheckedAt *time.Time `json:"checkedAt,omitempty"`
+	// The tools the connector listed at the last check.
+	Tools []ConnectorTool `json:"tools"`
+	// The agents granted this connector.
+	Agents []Agent `json:"agents"`
+}
+
+// A tool a connector offers.
+type ConnectorTool struct {
+	Name        string  `json:"name"`
+	Description *string `json:"description,omitempty"`
+}
+
+// Something counted across the workspace. `availability` already accounts for how many exist.
+type CountCapability struct {
+	Availability Availability `json:"availability"`
+	Plan         *Plan        `json:"plan,omitempty"`
+	// How many the plan allows. Null means unlimited.
+	Limit    *int           `json:"limit,omitempty"`
+	Upgrades []CountUpgrade `json:"upgrades"`
+}
+
+func (CountCapability) IsCapability()                      {}
+func (this CountCapability) GetAvailability() Availability { return this.Availability }
+
+// The cheapest plan that unlocks it, when `availability` is `PLAN_REQUIRED`.
+func (this CountCapability) GetPlan() *Plan { return this.Plan }
+
+// A higher count that another plan allows.
+type CountUpgrade struct {
+	Plan Plan `json:"plan"`
+	// Null means unlimited.
+	Limit *int `json:"limit,omitempty"`
+}
+
 type CreateAPITokenInput struct {
 	Name string        `json:"name"`
 	Role WorkspaceRole `json:"role"`
@@ -132,35 +460,44 @@ type CreateAPITokenInput struct {
 
 type CreateBucketInput struct {
 	Environment platform.EnvironmentID `json:"environment"`
-	Name        string                 `json:"name"`
+	// What people read, such as `Uploads`. Any text, and it can be changed later.
+	Name string `json:"name"`
+	// The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused.
+	ID *string `json:"id,omitempty"`
 }
 
 type CreateDatabaseInput struct {
 	Environment platform.EnvironmentID `json:"environment"`
-	Name        string                 `json:"name"`
-	Size        *string                `json:"size,omitempty"`
-	Resources   *ResourcesInput        `json:"resources,omitempty"`
+	// What people read, such as `Orders`. Any text, and it can be changed later.
+	Name string `json:"name"`
+	// The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused.
+	ID        *string         `json:"id,omitempty"`
+	Size      *string         `json:"size,omitempty"`
+	Resources *ResourcesInput `json:"resources,omitempty"`
 }
 
 type CreateEnvironmentInput struct {
 	Project platform.ProjectID `json:"project"`
-	Name    string             `json:"name"`
-	// Not supported yet. Leave it unset, because new environments always start empty.
-	FromEnvironment *platform.EnvironmentID `json:"fromEnvironment,omitempty"`
-	// Defaults to `ECO`.
+	// What people read, such as `Staging`. Any text, and it can be changed later.
+	Name string `json:"name"`
+	// The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused.
+	ID   *string       `json:"id,omitempty"`
 	Tier *ResourceTier `json:"tier,omitempty"`
 }
 
 type CreateKeyValueStoreInput struct {
 	Environment platform.EnvironmentID `json:"environment"`
-	Name        string                 `json:"name"`
-	Size        *string                `json:"size,omitempty"`
+	// What people read, such as `Sessions`. Any text, and it can be changed later.
+	Name string `json:"name"`
+	// The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused.
+	ID   *string `json:"id,omitempty"`
+	Size *string `json:"size,omitempty"`
 }
 
 type CreateProjectInput struct {
-	// The display name of the project, such as `My API`.
+	// What people read, such as `Customer Portal`. Any text, and it can be changed later.
 	Name string `json:"name"`
-	// The project id. Derived from `name` when left out.
+	// The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused.
 	ID *string `json:"id,omitempty"`
 }
 
@@ -176,11 +513,12 @@ type CreatedAPIToken struct {
 }
 
 type Database struct {
-	ID        platform.DatabaseID `json:"id"`
-	Name      string              `json:"name"`
-	Version   string              `json:"version"`
-	Instances int                 `json:"instances"`
-	Status    DatabaseStatus      `json:"status"`
+	ID platform.DatabaseID `json:"id"`
+	// What people read. It can be changed, while `id` stays the same.
+	Name      string         `json:"name"`
+	Version   string         `json:"version"`
+	Instances int            `json:"instances"`
+	Status    DatabaseStatus `json:"status"`
 	// Why the database is in this state, when it is not healthy.
 	StatusReason *string    `json:"statusReason,omitempty"`
 	Size         string     `json:"size"`
@@ -213,6 +551,7 @@ type DatabaseAllowRuleInput struct {
 }
 
 type DatabaseBackup struct {
+	// The backup, as its database id followed by the backup's own name.
 	ID         string        `json:"id"`
 	Status     BackupStatus  `json:"status"`
 	CreatedAt  time.Time     `json:"createdAt"`
@@ -233,6 +572,21 @@ type DatabaseBackups struct {
 	LastBackupAt         *time.Time       `json:"lastBackupAt,omitempty"`
 	Backups              []DatabaseBackup `json:"backups"`
 }
+
+// Creating databases, and the CPU, memory and storage of one.
+type DatabaseCapability struct {
+	Availability Availability   `json:"availability"`
+	Plan         *Plan          `json:"plan,omitempty"`
+	CPU          *QuantityLimit `json:"cpu"`
+	Memory       *QuantityLimit `json:"memory"`
+	Storage      *QuantityLimit `json:"storage"`
+}
+
+func (DatabaseCapability) IsCapability()                      {}
+func (this DatabaseCapability) GetAvailability() Availability { return this.Availability }
+
+// The cheapest plan that unlocks it, when `availability` is `PLAN_REQUIRED`.
+func (this DatabaseCapability) GetPlan() *Plan { return this.Plan }
 
 type DatabaseColumn struct {
 	Name       string `json:"name"`
@@ -366,14 +720,26 @@ type Endpoint struct {
 }
 
 type Environment struct {
-	ID             platform.EnvironmentID `json:"id"`
-	Name           string                 `json:"name"`
-	ResourceTier   ResourceTier           `json:"resourceTier"`
-	Services       []Service              `json:"services"`
-	Databases      []Database             `json:"databases"`
-	Volumes        []Volume               `json:"volumes"`
-	KeyValueStores []KeyValueStore        `json:"keyValueStores"`
-	Buckets        []Bucket               `json:"buckets"`
+	ID platform.EnvironmentID `json:"id"`
+	// What people read. It can be changed, while `id` stays the same.
+	Name           string          `json:"name"`
+	ResourceTier   ResourceTier    `json:"resourceTier"`
+	Services       []Service       `json:"services"`
+	Databases      []Database      `json:"databases"`
+	Volumes        []Volume        `json:"volumes"`
+	Agents         []Agent         `json:"agents"`
+	KeyValueStores []KeyValueStore `json:"keyValueStores"`
+	Buckets        []Bucket        `json:"buckets"`
+}
+
+// What one environment cost in a billing period. `deletedAt` is the last time it used anything, set only once it no longer exists.
+type EnvironmentUsage struct {
+	EnvironmentID platform.EnvironmentID `json:"environmentId"`
+	Name          string                 `json:"name"`
+	DeletedAt     *time.Time             `json:"deletedAt,omitempty"`
+	AmountCents   float64                `json:"amountCents"`
+	Daily         []float64              `json:"daily"`
+	Resources     []ResourceUsage        `json:"resources"`
 }
 
 type GitHubInstallation struct {
@@ -434,13 +800,40 @@ type InviteMemberInput struct {
 	Role  WorkspaceRole `json:"role"`
 }
 
+// The invoice that closes a billing period. A preview has no number and no `pdfUrl` yet, and its `issuedAt` is when it will be issued.
+type Invoice struct {
+	Number        *string       `json:"number,omitempty"`
+	Status        InvoiceStatus `json:"status"`
+	IssuedAt      time.Time     `json:"issuedAt"`
+	PaidAt        *time.Time    `json:"paidAt,omitempty"`
+	PDFURL        *string       `json:"pdfUrl,omitempty"`
+	Lines         []InvoiceLine `json:"lines"`
+	SubtotalCents int           `json:"subtotalCents"`
+	CreditCents   int           `json:"creditCents"`
+	TotalCents    int           `json:"totalCents"`
+}
+
+// One line of an invoice. A plan line has `plan` and the period it pays for, and `proration` marks the unused or remaining time of a plan change. `quantity` is in `unit`, such as `vCPU-hours`, `GB-hours`, `GB-months`, `GB` or `month`.
+type InvoiceLine struct {
+	Kind            InvoiceLineKind `json:"kind"`
+	Plan            *Plan           `json:"plan,omitempty"`
+	Proration       bool            `json:"proration"`
+	PeriodStart     *time.Time      `json:"periodStart,omitempty"`
+	PeriodEnd       *time.Time      `json:"periodEnd,omitempty"`
+	Quantity        float64         `json:"quantity"`
+	Unit            string          `json:"unit"`
+	UnitAmountCents float64         `json:"unitAmountCents"`
+	AmountCents     int             `json:"amountCents"`
+}
+
 type KeyValueStore struct {
-	ID        platform.KeyValueStoreID `json:"id"`
-	Name      string                   `json:"name"`
-	Version   string                   `json:"version"`
-	Status    DatabaseStatus           `json:"status"`
-	Size      string                   `json:"size"`
-	CreatedAt time.Time                `json:"createdAt"`
+	ID platform.KeyValueStoreID `json:"id"`
+	// What people read. It can be changed, while `id` stays the same.
+	Name      string         `json:"name"`
+	Version   string         `json:"version"`
+	Status    DatabaseStatus `json:"status"`
+	Size      string         `json:"size"`
+	CreatedAt time.Time      `json:"createdAt"`
 }
 
 type KeyValueStoreCredentials struct {
@@ -474,12 +867,52 @@ type MetricsRange struct {
 	Window MetricWindow `json:"window"`
 }
 
+// A model API connected to the workspace. Every agent in the workspace can use it, as far as its harness supports the API.
+type ModelProvider struct {
+	ID   platform.ModelProviderID `json:"id"`
+	Name string                   `json:"name"`
+	API  ModelAPI                 `json:"api"`
+	// The base URL of the API.
+	URL string `json:"url"`
+	// The last four characters of the key. The key itself is never returned.
+	KeyHint *string          `json:"keyHint,omitempty"`
+	Status  CredentialStatus `json:"status"`
+	// When the key was last checked.
+	CheckedAt *time.Time `json:"checkedAt,omitempty"`
+	// The models the provider listed at the last check.
+	Models []string `json:"models"`
+	// The agents whose harness can use this provider.
+	Agents []Agent `json:"agents"`
+}
+
 type Mount struct {
 	Service platform.ServiceID `json:"service"`
 	Path    string             `json:"path"`
 }
 
 type Mutation struct {
+}
+
+// What a plan includes. Sizes are quantities such as `16Gi`, and a null count means unlimited.
+type PlanLimits struct {
+	CPU               string `json:"cpu"`
+	Memory            string `json:"memory"`
+	Replicas          int    `json:"replicas"`
+	Volumes           bool   `json:"volumes"`
+	VolumeSize        string `json:"volumeSize"`
+	DatabaseStorage   string `json:"databaseStorage"`
+	KeyValueStoreSize string `json:"keyValueStoreSize"`
+	Members           *int   `json:"members,omitempty"`
+	CustomDomains     *int   `json:"customDomains,omitempty"`
+}
+
+// A plan with what it includes and what it costs a month.
+type PlanOffer struct {
+	// Null for the free tier.
+	Plan       *Plan       `json:"plan,omitempty"`
+	PriceCents int         `json:"priceCents"`
+	Currency   string      `json:"currency"`
+	Limits     *PlanLimits `json:"limits"`
 }
 
 // The outcome of choosing a plan: the subscription now on it, or a checkout to complete first when the workspace has no card on file.
@@ -489,9 +922,34 @@ type PlanSelection struct {
 }
 
 type Project struct {
-	ID           platform.ProjectID `json:"id"`
+	ID platform.ProjectID `json:"id"`
+	// What people read. It can be changed, while `id` stays the same.
+	Name         string        `json:"name"`
+	Environments []Environment `json:"environments"`
+}
+
+// What one project cost in a billing period, split by environment.
+type ProjectUsage struct {
+	ProjectID    platform.ProjectID `json:"projectId"`
 	Name         string             `json:"name"`
-	Environments []Environment      `json:"environments"`
+	DeletedAt    *time.Time         `json:"deletedAt,omitempty"`
+	AmountCents  float64            `json:"amountCents"`
+	Daily        []float64          `json:"daily"`
+	Environments []EnvironmentUsage `json:"environments"`
+}
+
+// The smallest and largest value the workspace may set, as quantities such as `250m` or `16Gi`, with the plans that allow more.
+type QuantityLimit struct {
+	Min string `json:"min"`
+	Max string `json:"max"`
+	// Higher maximums on other plans, cheapest first. Empty on the top plan and without billing.
+	Upgrades []QuantityUpgrade `json:"upgrades"`
+}
+
+// A higher maximum that another plan allows.
+type QuantityUpgrade struct {
+	Plan Plan   `json:"plan"`
+	Max  string `json:"max"`
 }
 
 type Query struct {
@@ -525,6 +983,15 @@ type ReplicaCount struct {
 	Ready   int `json:"ready"`
 }
 
+// What one resource of an environment cost in a billing period. `resourceId` is the resource's full ID, unique together with `kind`. `daily` holds one amount per day of the period, in cents.
+type ResourceUsage struct {
+	ResourceID  string            `json:"resourceId"`
+	Name        string            `json:"name"`
+	Kind        UsageResourceKind `json:"kind"`
+	AmountCents float64           `json:"amountCents"`
+	Daily       []float64         `json:"daily"`
+}
+
 type Resources struct {
 	CPU    string `json:"cpu"`
 	Memory string `json:"memory"`
@@ -537,7 +1004,10 @@ type ResourcesInput struct {
 
 type RestoreDatabaseInput struct {
 	Database platform.DatabaseID `json:"database"`
-	Name     string              `json:"name"`
+	// What people read, such as `Orders restored`. Any text, and it can be changed later.
+	Name string `json:"name"`
+	// The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused.
+	ID *string `json:"id,omitempty"`
 	// Omit to restore the most recent state in the archive.
 	TargetTime *time.Time `json:"targetTime,omitempty"`
 }
@@ -552,11 +1022,13 @@ type RestoreDatabaseResult struct {
 }
 
 type Rollout struct {
-	Status    RolloutStatus  `json:"status"`
-	Reason    *RolloutReason `json:"reason,omitempty"`
-	Message   *string        `json:"message,omitempty"`
-	Restarts  int            `json:"restarts"`
-	StartedAt time.Time      `json:"startedAt"`
+	Status RolloutStatus `json:"status"`
+	// Why the rollout is not ready. Also set while it is still progressing, as an early sign of what keeps it from becoming ready.
+	Reason *RolloutReason `json:"reason,omitempty"`
+	// What the platform observed, in words, such as the port nothing listens on.
+	Message   *string   `json:"message,omitempty"`
+	Restarts  int       `json:"restarts"`
+	StartedAt time.Time `json:"startedAt"`
 }
 
 type Scan struct {
@@ -586,7 +1058,8 @@ type SecretScanReport struct {
 }
 
 type Service struct {
-	ID             platform.ServiceID   `json:"id"`
+	ID platform.ServiceID `json:"id"`
+	// What people read. It can be changed, while `id` stays the same.
 	Name           string               `json:"name"`
 	Status         ServiceStatus        `json:"status"`
 	Replicas       *ReplicaCount        `json:"replicas"`
@@ -603,11 +1076,13 @@ type Service struct {
 	DefaultCommand string               `json:"defaultCommand"`
 	HealthCheck    *HealthCheck         `json:"healthCheck,omitempty"`
 	// The user id an image-based service runs as, which also owns its mounted volumes. Null means the image's default.
-	User                *int                 `json:"user,omitempty"`
-	ActiveDeployment    *Deployment          `json:"activeDeployment,omitempty"`
-	Deployments         []Deployment         `json:"deployments"`
-	Builds              []Build              `json:"builds"`
-	Releases            []Release            `json:"releases"`
+	User             *int         `json:"user,omitempty"`
+	ActiveDeployment *Deployment  `json:"activeDeployment,omitempty"`
+	Deployments      []Deployment `json:"deployments"`
+	Builds           []Build      `json:"builds"`
+	Releases         []Release    `json:"releases"`
+	// The newest release, which can be newer than the one serving traffic, for example while it builds or after its build failed.
+	LatestRelease       *Release             `json:"latestRelease,omitempty"`
 	Metrics             []MetricSeries       `json:"metrics"`
 	LastDeployedAt      *time.Time           `json:"lastDeployedAt,omitempty"`
 	CreatedAt           time.Time            `json:"createdAt"`
@@ -617,10 +1092,44 @@ type Service struct {
 }
 
 type ServiceLogEntry struct {
-	// The log line, prefixed with the instance it came from when the service runs more than one.
+	// When the line was written.
+	Time time.Time `json:"time"`
+	// The log line, or the details of an event. Empty for events without details.
 	Line string `json:"line"`
 	// The instance that produced the line.
 	Pod string `json:"pod"`
+	// Where the line was written. Null for events.
+	Stream *LogStream `json:"stream,omitempty"`
+	// Set when the entry is something the platform did, not a line of the service.
+	Event *ServiceLogEvent `json:"event,omitempty"`
+}
+
+type ServiceLogFilter struct {
+	// Only lines containing this text, ignoring case. Leaves out events.
+	Search *string `json:"search,omitempty"`
+	// Only entries of this instance.
+	Pod *string `json:"pod,omitempty"`
+}
+
+// An instance that wrote lines in a time range.
+type ServiceLogInstance struct {
+	Pod string `json:"pod"`
+	// Its first line in the range.
+	FirstSeen time.Time `json:"firstSeen"`
+	// Its last line in the range.
+	LastSeen time.Time `json:"lastSeen"`
+	// When it started again after exiting, within the range.
+	Restarts []time.Time `json:"restarts"`
+	// Its state right now.
+	State ServiceInstanceState `json:"state"`
+}
+
+// The lines written in one slot of a time range.
+type ServiceLogVolume struct {
+	// Start of the slot.
+	Time   time.Time `json:"time"`
+	Stdout int       `json:"stdout"`
+	Stderr int       `json:"stderr"`
 }
 
 type ServiceVariable struct {
@@ -636,12 +1145,6 @@ type ServiceVariableInput struct {
 	Value *string `json:"value,omitempty"`
 	// Links the variable to one from `availableVariables`. Set either `value` or `ref`.
 	Ref *platform.VariableID `json:"ref,omitempty"`
-}
-
-// `ECO` lets services share capacity and burst beyond what is reserved for them. `PRODUCTION` reserves the full CPU and memory of every service.
-type SetEnvironmentResourcesInput struct {
-	Environment platform.EnvironmentID `json:"environment"`
-	Tier        ResourceTier           `json:"tier"`
 }
 
 type SetServiceScalingInput struct {
@@ -661,6 +1164,19 @@ type SharedVariable struct {
 	Value string `json:"value"`
 }
 
+// Creating volumes or key-value stores, and the size of one.
+type StorageCapability struct {
+	Availability Availability   `json:"availability"`
+	Plan         *Plan          `json:"plan,omitempty"`
+	Size         *QuantityLimit `json:"size"`
+}
+
+func (StorageCapability) IsCapability()                      {}
+func (this StorageCapability) GetAvailability() Availability { return this.Availability }
+
+// The cheapest plan that unlocks it, when `availability` is `PLAN_REQUIRED`.
+func (this StorageCapability) GetPlan() *Plan { return this.Plan }
+
 type Subscription struct {
 }
 
@@ -671,6 +1187,14 @@ type UpdateMemberRoleInput struct {
 
 type UpdateWorkspaceInput struct {
 	Name string `json:"name"`
+}
+
+// What the workspace used in a billing period, split by project, environment and resource, up to `measuredUntil`, with the invoice that closes the period.
+type Usage struct {
+	Period        *BillingPeriod `json:"period"`
+	MeasuredUntil time.Time      `json:"measuredUntil"`
+	Projects      []ProjectUsage `json:"projects"`
+	Invoice       *Invoice       `json:"invoice,omitempty"`
 }
 
 type UsageSummary struct {
@@ -684,12 +1208,16 @@ type User struct {
 	Email      *string               `json:"email,omitempty"`
 	AvatarURL  string                `json:"avatarUrl"`
 	Workspaces []WorkspaceMembership `json:"workspaces"`
+	// The chat accounts linked to you.
+	ChatAccounts []ChatAccount `json:"chatAccounts"`
 }
 
 type Variable struct {
-	ID     platform.VariableID `json:"id"`
-	Key    string              `json:"key"`
-	Source VariableSource      `json:"source"`
+	ID  platform.VariableID `json:"id"`
+	Key string              `json:"key"`
+	// The value a service linked to this variable receives, read from its source when you ask for it.
+	Value  string         `json:"value"`
+	Source VariableSource `json:"source"`
 }
 
 type VariableInput struct {
@@ -699,11 +1227,12 @@ type VariableInput struct {
 }
 
 type Volume struct {
-	ID      platform.VolumeID `json:"id"`
-	Name    string            `json:"name"`
-	Size    string            `json:"size"`
-	Mount   *Mount            `json:"mount,omitempty"`
-	Metrics []MetricSeries    `json:"metrics"`
+	ID platform.VolumeID `json:"id"`
+	// What people read. It can be changed, while `id` stays the same.
+	Name    string         `json:"name"`
+	Size    string         `json:"size"`
+	Mount   *Mount         `json:"mount,omitempty"`
+	Metrics []MetricSeries `json:"metrics"`
 }
 
 type Vulnerability struct {
@@ -744,6 +1273,8 @@ type Workspace struct {
 	Personal  bool              `json:"personal"`
 	Suspended bool              `json:"suspended"`
 	Members   []WorkspaceMember `json:"members"`
+	// What the workspace can create, how large, and what unlocks the rest. Anything it doesn't allow is refused.
+	Capabilities *Capabilities `json:"capabilities"`
 }
 
 type WorkspaceMember struct {
@@ -756,6 +1287,654 @@ type WorkspaceMember struct {
 type WorkspaceMembership struct {
 	Workspace string        `json:"workspace"`
 	Role      WorkspaceRole `json:"role"`
+}
+
+type AgentApprovalDecision string
+
+const (
+	// Allows this one call.
+	AgentApprovalDecisionAllowOnce AgentApprovalDecision = "ALLOW_ONCE"
+	AgentApprovalDecisionDeny      AgentApprovalDecision = "DENY"
+)
+
+var AllAgentApprovalDecision = []AgentApprovalDecision{
+	AgentApprovalDecisionAllowOnce,
+	AgentApprovalDecisionDeny,
+}
+
+func (e AgentApprovalDecision) IsValid() bool {
+	switch e {
+	case AgentApprovalDecisionAllowOnce, AgentApprovalDecisionDeny:
+		return true
+	}
+	return false
+}
+
+func (e AgentApprovalDecision) String() string {
+	return string(e)
+}
+
+func (e *AgentApprovalDecision) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AgentApprovalDecision(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AgentApprovalDecision", str)
+	}
+	return nil
+}
+
+func (e AgentApprovalDecision) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AgentApprovalDecision) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AgentApprovalDecision) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type AgentApprovalStatus string
+
+const (
+	AgentApprovalStatusPending AgentApprovalStatus = "PENDING"
+	AgentApprovalStatusAllowed AgentApprovalStatus = "ALLOWED"
+	AgentApprovalStatusDenied  AgentApprovalStatus = "DENIED"
+)
+
+var AllAgentApprovalStatus = []AgentApprovalStatus{
+	AgentApprovalStatusPending,
+	AgentApprovalStatusAllowed,
+	AgentApprovalStatusDenied,
+}
+
+func (e AgentApprovalStatus) IsValid() bool {
+	switch e {
+	case AgentApprovalStatusPending, AgentApprovalStatusAllowed, AgentApprovalStatusDenied:
+		return true
+	}
+	return false
+}
+
+func (e AgentApprovalStatus) String() string {
+	return string(e)
+}
+
+func (e *AgentApprovalStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AgentApprovalStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AgentApprovalStatus", str)
+	}
+	return nil
+}
+
+func (e AgentApprovalStatus) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AgentApprovalStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AgentApprovalStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type AgentAuditKind string
+
+const (
+	// A call to a model.
+	AgentAuditKindModel AgentAuditKind = "MODEL"
+	// A call to a connector.
+	AgentAuditKindTool AgentAuditKind = "TOOL"
+)
+
+var AllAgentAuditKind = []AgentAuditKind{
+	AgentAuditKindModel,
+	AgentAuditKindTool,
+}
+
+func (e AgentAuditKind) IsValid() bool {
+	switch e {
+	case AgentAuditKindModel, AgentAuditKindTool:
+		return true
+	}
+	return false
+}
+
+func (e AgentAuditKind) String() string {
+	return string(e)
+}
+
+func (e *AgentAuditKind) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AgentAuditKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AgentAuditKind", str)
+	}
+	return nil
+}
+
+func (e AgentAuditKind) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AgentAuditKind) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AgentAuditKind) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type AgentAuditResult string
+
+const (
+	AgentAuditResultOk AgentAuditResult = "OK"
+	// Refused because the agent isn't allowed to make the call.
+	AgentAuditResultDenied AgentAuditResult = "DENIED"
+	AgentAuditResultFailed AgentAuditResult = "FAILED"
+)
+
+var AllAgentAuditResult = []AgentAuditResult{
+	AgentAuditResultOk,
+	AgentAuditResultDenied,
+	AgentAuditResultFailed,
+}
+
+func (e AgentAuditResult) IsValid() bool {
+	switch e {
+	case AgentAuditResultOk, AgentAuditResultDenied, AgentAuditResultFailed:
+		return true
+	}
+	return false
+}
+
+func (e AgentAuditResult) String() string {
+	return string(e)
+}
+
+func (e *AgentAuditResult) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AgentAuditResult(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AgentAuditResult", str)
+	}
+	return nil
+}
+
+func (e AgentAuditResult) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AgentAuditResult) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AgentAuditResult) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type AgentNoticeSeverity string
+
+const (
+	AgentNoticeSeverityInfo    AgentNoticeSeverity = "INFO"
+	AgentNoticeSeverityWarning AgentNoticeSeverity = "WARNING"
+	AgentNoticeSeverityError   AgentNoticeSeverity = "ERROR"
+)
+
+var AllAgentNoticeSeverity = []AgentNoticeSeverity{
+	AgentNoticeSeverityInfo,
+	AgentNoticeSeverityWarning,
+	AgentNoticeSeverityError,
+}
+
+func (e AgentNoticeSeverity) IsValid() bool {
+	switch e {
+	case AgentNoticeSeverityInfo, AgentNoticeSeverityWarning, AgentNoticeSeverityError:
+		return true
+	}
+	return false
+}
+
+func (e AgentNoticeSeverity) String() string {
+	return string(e)
+}
+
+func (e *AgentNoticeSeverity) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AgentNoticeSeverity(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AgentNoticeSeverity", str)
+	}
+	return nil
+}
+
+func (e AgentNoticeSeverity) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AgentNoticeSeverity) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AgentNoticeSeverity) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type AgentSessionStatus string
+
+const (
+	AgentSessionStatusIdle               AgentSessionStatus = "IDLE"
+	AgentSessionStatusWorking            AgentSessionStatus = "WORKING"
+	AgentSessionStatusWaitingForApproval AgentSessionStatus = "WAITING_FOR_APPROVAL"
+)
+
+var AllAgentSessionStatus = []AgentSessionStatus{
+	AgentSessionStatusIdle,
+	AgentSessionStatusWorking,
+	AgentSessionStatusWaitingForApproval,
+}
+
+func (e AgentSessionStatus) IsValid() bool {
+	switch e {
+	case AgentSessionStatusIdle, AgentSessionStatusWorking, AgentSessionStatusWaitingForApproval:
+		return true
+	}
+	return false
+}
+
+func (e AgentSessionStatus) String() string {
+	return string(e)
+}
+
+func (e *AgentSessionStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AgentSessionStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AgentSessionStatus", str)
+	}
+	return nil
+}
+
+func (e AgentSessionStatus) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AgentSessionStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AgentSessionStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type AgentStatus string
+
+const (
+	// The agent is starting, or can't be reached yet.
+	AgentStatusStarting AgentStatus = "STARTING"
+	AgentStatusIdle     AgentStatus = "IDLE"
+	// At least one session is working.
+	AgentStatusWorking AgentStatus = "WORKING"
+	// At least one session waits for an approval.
+	AgentStatusWaitingForApproval AgentStatus = "WAITING_FOR_APPROVAL"
+	// The agent doesn't start.
+	AgentStatusFailed AgentStatus = "FAILED"
+)
+
+var AllAgentStatus = []AgentStatus{
+	AgentStatusStarting,
+	AgentStatusIdle,
+	AgentStatusWorking,
+	AgentStatusWaitingForApproval,
+	AgentStatusFailed,
+}
+
+func (e AgentStatus) IsValid() bool {
+	switch e {
+	case AgentStatusStarting, AgentStatusIdle, AgentStatusWorking, AgentStatusWaitingForApproval, AgentStatusFailed:
+		return true
+	}
+	return false
+}
+
+func (e AgentStatus) String() string {
+	return string(e)
+}
+
+func (e *AgentStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AgentStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AgentStatus", str)
+	}
+	return nil
+}
+
+func (e AgentStatus) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AgentStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AgentStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type AgentToolCallStatus string
+
+const (
+	AgentToolCallStatusRunning   AgentToolCallStatus = "RUNNING"
+	AgentToolCallStatusCompleted AgentToolCallStatus = "COMPLETED"
+	AgentToolCallStatusFailed    AgentToolCallStatus = "FAILED"
+	// Someone in the workspace denied the call.
+	AgentToolCallStatusDenied AgentToolCallStatus = "DENIED"
+)
+
+var AllAgentToolCallStatus = []AgentToolCallStatus{
+	AgentToolCallStatusRunning,
+	AgentToolCallStatusCompleted,
+	AgentToolCallStatusFailed,
+	AgentToolCallStatusDenied,
+}
+
+func (e AgentToolCallStatus) IsValid() bool {
+	switch e {
+	case AgentToolCallStatusRunning, AgentToolCallStatusCompleted, AgentToolCallStatusFailed, AgentToolCallStatusDenied:
+		return true
+	}
+	return false
+}
+
+func (e AgentToolCallStatus) String() string {
+	return string(e)
+}
+
+func (e *AgentToolCallStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AgentToolCallStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AgentToolCallStatus", str)
+	}
+	return nil
+}
+
+func (e AgentToolCallStatus) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AgentToolCallStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AgentToolCallStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type AgentTurnEndReason string
+
+const (
+	// The agent finished its turn.
+	AgentTurnEndReasonCompleted AgentTurnEndReason = "COMPLETED"
+	// Someone stopped the session.
+	AgentTurnEndReasonStopped AgentTurnEndReason = "STOPPED"
+	AgentTurnEndReasonFailed  AgentTurnEndReason = "FAILED"
+)
+
+var AllAgentTurnEndReason = []AgentTurnEndReason{
+	AgentTurnEndReasonCompleted,
+	AgentTurnEndReasonStopped,
+	AgentTurnEndReasonFailed,
+}
+
+func (e AgentTurnEndReason) IsValid() bool {
+	switch e {
+	case AgentTurnEndReasonCompleted, AgentTurnEndReasonStopped, AgentTurnEndReasonFailed:
+		return true
+	}
+	return false
+}
+
+func (e AgentTurnEndReason) String() string {
+	return string(e)
+}
+
+func (e *AgentTurnEndReason) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AgentTurnEndReason(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AgentTurnEndReason", str)
+	}
+	return nil
+}
+
+func (e AgentTurnEndReason) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AgentTurnEndReason) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AgentTurnEndReason) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// Whether an agent may use a connector's tools on its own.
+type Approval string
+
+const (
+	// The agent uses the tools without asking.
+	ApprovalAllow Approval = "ALLOW"
+	// Every tool call waits for someone in the workspace to allow it.
+	ApprovalAsk Approval = "ASK"
+)
+
+var AllApproval = []Approval{
+	ApprovalAllow,
+	ApprovalAsk,
+}
+
+func (e Approval) IsValid() bool {
+	switch e {
+	case ApprovalAllow, ApprovalAsk:
+		return true
+	}
+	return false
+}
+
+func (e Approval) String() string {
+	return string(e)
+}
+
+func (e *Approval) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = Approval(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid Approval", str)
+	}
+	return nil
+}
+
+func (e Approval) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *Approval) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e Approval) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// Whether a workspace can use something now, and what unlocks it otherwise.
+type Availability string
+
+const (
+	// It can be used.
+	AvailabilityAvailable Availability = "AVAILABLE"
+	// A higher plan unlocks it. `plan` names the cheapest one.
+	AvailabilityPlanRequired Availability = "PLAN_REQUIRED"
+	// A card on file unlocks it.
+	AvailabilityPaymentMethodRequired Availability = "PAYMENT_METHOD_REQUIRED"
+	// It isn't offered here.
+	AvailabilityUnavailable Availability = "UNAVAILABLE"
+)
+
+var AllAvailability = []Availability{
+	AvailabilityAvailable,
+	AvailabilityPlanRequired,
+	AvailabilityPaymentMethodRequired,
+	AvailabilityUnavailable,
+}
+
+func (e Availability) IsValid() bool {
+	switch e {
+	case AvailabilityAvailable, AvailabilityPlanRequired, AvailabilityPaymentMethodRequired, AvailabilityUnavailable:
+		return true
+	}
+	return false
+}
+
+func (e Availability) String() string {
+	return string(e)
+}
+
+func (e *Availability) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = Availability(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid Availability", str)
+	}
+	return nil
+}
+
+func (e Availability) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *Availability) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e Availability) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
 }
 
 type BackupStatus string
@@ -985,6 +2164,122 @@ func (e *BuildStatus) UnmarshalJSON(b []byte) error {
 }
 
 func (e BuildStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// The chat app a bot lives in.
+type ChatAppKind string
+
+const (
+	ChatAppKindTelegram   ChatAppKind = "TELEGRAM"
+	ChatAppKindMattermost ChatAppKind = "MATTERMOST"
+)
+
+var AllChatAppKind = []ChatAppKind{
+	ChatAppKindTelegram,
+	ChatAppKindMattermost,
+}
+
+func (e ChatAppKind) IsValid() bool {
+	switch e {
+	case ChatAppKindTelegram, ChatAppKindMattermost:
+		return true
+	}
+	return false
+}
+
+func (e ChatAppKind) String() string {
+	return string(e)
+}
+
+func (e *ChatAppKind) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ChatAppKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ChatAppKind", str)
+	}
+	return nil
+}
+
+func (e ChatAppKind) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *ChatAppKind) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e ChatAppKind) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// The outcome of the last check of a credential.
+type CredentialStatus string
+
+const (
+	CredentialStatusValid CredentialStatus = "VALID"
+	// The service turned the credential down.
+	CredentialStatusRejected CredentialStatus = "REJECTED"
+	// The service couldn't be reached, or didn't answer as expected.
+	CredentialStatusUnreachable CredentialStatus = "UNREACHABLE"
+)
+
+var AllCredentialStatus = []CredentialStatus{
+	CredentialStatusValid,
+	CredentialStatusRejected,
+	CredentialStatusUnreachable,
+}
+
+func (e CredentialStatus) IsValid() bool {
+	switch e {
+	case CredentialStatusValid, CredentialStatusRejected, CredentialStatusUnreachable:
+		return true
+	}
+	return false
+}
+
+func (e CredentialStatus) String() string {
+	return string(e)
+}
+
+func (e *CredentialStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = CredentialStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid CredentialStatus", str)
+	}
+	return nil
+}
+
+func (e CredentialStatus) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *CredentialStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e CredentialStatus) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil
@@ -1430,6 +2725,66 @@ func (e DNSStatus) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// How hard the model thinks before it answers.
+type Effort string
+
+const (
+	EffortLow    Effort = "LOW"
+	EffortMedium Effort = "MEDIUM"
+	EffortHigh   Effort = "HIGH"
+	EffortMax    Effort = "MAX"
+)
+
+var AllEffort = []Effort{
+	EffortLow,
+	EffortMedium,
+	EffortHigh,
+	EffortMax,
+}
+
+func (e Effort) IsValid() bool {
+	switch e {
+	case EffortLow, EffortMedium, EffortHigh, EffortMax:
+		return true
+	}
+	return false
+}
+
+func (e Effort) String() string {
+	return string(e)
+}
+
+func (e *Effort) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = Effort(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid Effort", str)
+	}
+	return nil
+}
+
+func (e Effort) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *Effort) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e Effort) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 type EndpointType string
 
 const (
@@ -1537,6 +2892,301 @@ func (e *GitHubAccountType) UnmarshalJSON(b []byte) error {
 }
 
 func (e GitHubAccountType) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// The coding agent that runs inside an agent.
+type Harness string
+
+const (
+	// Claude Code. Uses Anthropic models.
+	HarnessClaudeCode Harness = "CLAUDE_CODE"
+	// Codex. Uses OpenAI models.
+	HarnessCodex Harness = "CODEX"
+	// OpenCode. Uses the models of every provider.
+	HarnessOpencode Harness = "OPENCODE"
+)
+
+var AllHarness = []Harness{
+	HarnessClaudeCode,
+	HarnessCodex,
+	HarnessOpencode,
+}
+
+func (e Harness) IsValid() bool {
+	switch e {
+	case HarnessClaudeCode, HarnessCodex, HarnessOpencode:
+		return true
+	}
+	return false
+}
+
+func (e Harness) String() string {
+	return string(e)
+}
+
+func (e *Harness) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = Harness(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid Harness", str)
+	}
+	return nil
+}
+
+func (e Harness) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *Harness) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e Harness) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type InvoiceLineKind string
+
+const (
+	InvoiceLineKindPlan          InvoiceLineKind = "PLAN"
+	InvoiceLineKindCPU           InvoiceLineKind = "CPU"
+	InvoiceLineKindMemory        InvoiceLineKind = "MEMORY"
+	InvoiceLineKindVolumes       InvoiceLineKind = "VOLUMES"
+	InvoiceLineKindObjectStorage InvoiceLineKind = "OBJECT_STORAGE"
+	InvoiceLineKindEgress        InvoiceLineKind = "EGRESS"
+)
+
+var AllInvoiceLineKind = []InvoiceLineKind{
+	InvoiceLineKindPlan,
+	InvoiceLineKindCPU,
+	InvoiceLineKindMemory,
+	InvoiceLineKindVolumes,
+	InvoiceLineKindObjectStorage,
+	InvoiceLineKindEgress,
+}
+
+func (e InvoiceLineKind) IsValid() bool {
+	switch e {
+	case InvoiceLineKindPlan, InvoiceLineKindCPU, InvoiceLineKindMemory, InvoiceLineKindVolumes, InvoiceLineKindObjectStorage, InvoiceLineKindEgress:
+		return true
+	}
+	return false
+}
+
+func (e InvoiceLineKind) String() string {
+	return string(e)
+}
+
+func (e *InvoiceLineKind) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = InvoiceLineKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid InvoiceLineKind", str)
+	}
+	return nil
+}
+
+func (e InvoiceLineKind) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *InvoiceLineKind) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e InvoiceLineKind) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type InvoiceStatus string
+
+const (
+	InvoiceStatusPreview InvoiceStatus = "PREVIEW"
+	InvoiceStatusOpen    InvoiceStatus = "OPEN"
+	InvoiceStatusPaid    InvoiceStatus = "PAID"
+)
+
+var AllInvoiceStatus = []InvoiceStatus{
+	InvoiceStatusPreview,
+	InvoiceStatusOpen,
+	InvoiceStatusPaid,
+}
+
+func (e InvoiceStatus) IsValid() bool {
+	switch e {
+	case InvoiceStatusPreview, InvoiceStatusOpen, InvoiceStatusPaid:
+		return true
+	}
+	return false
+}
+
+func (e InvoiceStatus) String() string {
+	return string(e)
+}
+
+func (e *InvoiceStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = InvoiceStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid InvoiceStatus", str)
+	}
+	return nil
+}
+
+func (e InvoiceStatus) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *InvoiceStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e InvoiceStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// Which end of a time range a page of log entries starts from.
+type LogDirection string
+
+const (
+	// From the end of the range back in time: the newest entries.
+	LogDirectionBackward LogDirection = "BACKWARD"
+	// From the start of the range forward in time: the oldest entries.
+	LogDirectionForward LogDirection = "FORWARD"
+)
+
+var AllLogDirection = []LogDirection{
+	LogDirectionBackward,
+	LogDirectionForward,
+}
+
+func (e LogDirection) IsValid() bool {
+	switch e {
+	case LogDirectionBackward, LogDirectionForward:
+		return true
+	}
+	return false
+}
+
+func (e LogDirection) String() string {
+	return string(e)
+}
+
+func (e *LogDirection) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = LogDirection(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid LogDirection", str)
+	}
+	return nil
+}
+
+func (e LogDirection) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *LogDirection) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e LogDirection) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// Where a service wrote a line: its standard output or its error output.
+type LogStream string
+
+const (
+	LogStreamStdout LogStream = "STDOUT"
+	LogStreamStderr LogStream = "STDERR"
+)
+
+var AllLogStream = []LogStream{
+	LogStreamStdout,
+	LogStreamStderr,
+}
+
+func (e LogStream) IsValid() bool {
+	switch e {
+	case LogStreamStdout, LogStreamStderr:
+		return true
+	}
+	return false
+}
+
+func (e LogStream) String() string {
+	return string(e)
+}
+
+func (e *LogStream) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = LogStream(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid LogStream", str)
+	}
+	return nil
+}
+
+func (e LogStream) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *LogStream) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e LogStream) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil
@@ -1716,6 +3366,65 @@ func (e *MetricWindow) UnmarshalJSON(b []byte) error {
 }
 
 func (e MetricWindow) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// The API a model provider speaks.
+type ModelAPI string
+
+const (
+	ModelAPIAnthropic ModelAPI = "ANTHROPIC"
+	ModelAPIOpenai    ModelAPI = "OPENAI"
+	// Any API that speaks OpenAI's chat completions, such as Infomaniak, Scaleway or Mistral. Needs a `url`.
+	ModelAPIOpenaiCompatible ModelAPI = "OPENAI_COMPATIBLE"
+)
+
+var AllModelAPI = []ModelAPI{
+	ModelAPIAnthropic,
+	ModelAPIOpenai,
+	ModelAPIOpenaiCompatible,
+}
+
+func (e ModelAPI) IsValid() bool {
+	switch e {
+	case ModelAPIAnthropic, ModelAPIOpenai, ModelAPIOpenaiCompatible:
+		return true
+	}
+	return false
+}
+
+func (e ModelAPI) String() string {
+	return string(e)
+}
+
+func (e *ModelAPI) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ModelAPI(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ModelApi", str)
+	}
+	return nil
+}
+
+func (e ModelAPI) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *ModelAPI) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e ModelAPI) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil
@@ -2017,18 +3726,16 @@ func (e ResourceMetric) MarshalJSON() ([]byte, error) {
 type ResourceTier string
 
 const (
-	ResourceTierEco        ResourceTier = "ECO"
-	ResourceTierProduction ResourceTier = "PRODUCTION"
+	ResourceTierEco ResourceTier = "ECO"
 )
 
 var AllResourceTier = []ResourceTier{
 	ResourceTierEco,
-	ResourceTierProduction,
 }
 
 func (e ResourceTier) IsValid() bool {
 	switch e {
-	case ResourceTierEco, ResourceTierProduction:
+	case ResourceTierEco:
 		return true
 	}
 	return false
@@ -2319,6 +4026,133 @@ func (e ScanStatus) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+type ServiceInstanceState string
+
+const (
+	ServiceInstanceStateStarting ServiceInstanceState = "STARTING"
+	ServiceInstanceStateRunning  ServiceInstanceState = "RUNNING"
+	ServiceInstanceStateStopping ServiceInstanceState = "STOPPING"
+	// The instance no longer exists.
+	ServiceInstanceStateStopped ServiceInstanceState = "STOPPED"
+)
+
+var AllServiceInstanceState = []ServiceInstanceState{
+	ServiceInstanceStateStarting,
+	ServiceInstanceStateRunning,
+	ServiceInstanceStateStopping,
+	ServiceInstanceStateStopped,
+}
+
+func (e ServiceInstanceState) IsValid() bool {
+	switch e {
+	case ServiceInstanceStateStarting, ServiceInstanceStateRunning, ServiceInstanceStateStopping, ServiceInstanceStateStopped:
+		return true
+	}
+	return false
+}
+
+func (e ServiceInstanceState) String() string {
+	return string(e)
+}
+
+func (e *ServiceInstanceState) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ServiceInstanceState(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ServiceInstanceState", str)
+	}
+	return nil
+}
+
+func (e ServiceInstanceState) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *ServiceInstanceState) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e ServiceInstanceState) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// Something the platform did with an instance, listed among its lines.
+type ServiceLogEvent string
+
+const (
+	// The instance started.
+	ServiceLogEventStarted ServiceLogEvent = "STARTED"
+	// The instance started again after it exited, usually after a crash.
+	ServiceLogEventRestarted ServiceLogEvent = "RESTARTED"
+	// The instance is being stopped, for example because a newer deployment replaces it.
+	ServiceLogEventStopping ServiceLogEvent = "STOPPING"
+	// A health check of the instance failed. The entry's line says why.
+	ServiceLogEventHealthCheckFailed ServiceLogEvent = "HEALTH_CHECK_FAILED"
+	// The instance exited again and waits before the next restart.
+	ServiceLogEventRestartDelayed ServiceLogEvent = "RESTART_DELAYED"
+)
+
+var AllServiceLogEvent = []ServiceLogEvent{
+	ServiceLogEventStarted,
+	ServiceLogEventRestarted,
+	ServiceLogEventStopping,
+	ServiceLogEventHealthCheckFailed,
+	ServiceLogEventRestartDelayed,
+}
+
+func (e ServiceLogEvent) IsValid() bool {
+	switch e {
+	case ServiceLogEventStarted, ServiceLogEventRestarted, ServiceLogEventStopping, ServiceLogEventHealthCheckFailed, ServiceLogEventRestartDelayed:
+		return true
+	}
+	return false
+}
+
+func (e ServiceLogEvent) String() string {
+	return string(e)
+}
+
+func (e *ServiceLogEvent) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ServiceLogEvent(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ServiceLogEvent", str)
+	}
+	return nil
+}
+
+func (e ServiceLogEvent) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *ServiceLogEvent) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e ServiceLogEvent) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 type ServiceStatus string
 
 const (
@@ -2447,6 +4281,7 @@ const (
 	SubscriptionStatusCanceled   SubscriptionStatus = "CANCELED"
 	SubscriptionStatusIncomplete SubscriptionStatus = "INCOMPLETE"
 	SubscriptionStatusTrialing   SubscriptionStatus = "TRIALING"
+	SubscriptionStatusTrialEnded SubscriptionStatus = "TRIAL_ENDED"
 )
 
 var AllSubscriptionStatus = []SubscriptionStatus{
@@ -2455,11 +4290,12 @@ var AllSubscriptionStatus = []SubscriptionStatus{
 	SubscriptionStatusCanceled,
 	SubscriptionStatusIncomplete,
 	SubscriptionStatusTrialing,
+	SubscriptionStatusTrialEnded,
 }
 
 func (e SubscriptionStatus) IsValid() bool {
 	switch e {
-	case SubscriptionStatusActive, SubscriptionStatusPastDue, SubscriptionStatusCanceled, SubscriptionStatusIncomplete, SubscriptionStatusTrialing:
+	case SubscriptionStatusActive, SubscriptionStatusPastDue, SubscriptionStatusCanceled, SubscriptionStatusIncomplete, SubscriptionStatusTrialing, SubscriptionStatusTrialEnded:
 		return true
 	}
 	return false
@@ -2554,6 +4390,69 @@ func (e *TLSStatus) UnmarshalJSON(b []byte) error {
 }
 
 func (e TLSStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type UsageResourceKind string
+
+const (
+	UsageResourceKindService       UsageResourceKind = "SERVICE"
+	UsageResourceKindDatabase      UsageResourceKind = "DATABASE"
+	UsageResourceKindKeyValueStore UsageResourceKind = "KEY_VALUE_STORE"
+	UsageResourceKindVolume        UsageResourceKind = "VOLUME"
+	UsageResourceKindBucket        UsageResourceKind = "BUCKET"
+	UsageResourceKindAgent         UsageResourceKind = "AGENT"
+)
+
+var AllUsageResourceKind = []UsageResourceKind{
+	UsageResourceKindService,
+	UsageResourceKindDatabase,
+	UsageResourceKindKeyValueStore,
+	UsageResourceKindVolume,
+	UsageResourceKindBucket,
+	UsageResourceKindAgent,
+}
+
+func (e UsageResourceKind) IsValid() bool {
+	switch e {
+	case UsageResourceKindService, UsageResourceKindDatabase, UsageResourceKindKeyValueStore, UsageResourceKindVolume, UsageResourceKindBucket, UsageResourceKindAgent:
+		return true
+	}
+	return false
+}
+
+func (e UsageResourceKind) String() string {
+	return string(e)
+}
+
+func (e *UsageResourceKind) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = UsageResourceKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid UsageResourceKind", str)
+	}
+	return nil
+}
+
+func (e UsageResourceKind) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *UsageResourceKind) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e UsageResourceKind) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

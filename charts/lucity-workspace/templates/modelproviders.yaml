@@ -1,0 +1,72 @@
+{{- $workspace := include "lucity-workspace.workspace" . }}
+{{- range $name, $provider := .Values.modelProviders }}
+{{- $resource := printf "%s.model.%s" $workspace $name }}
+{{- $url := urlParse $provider.url }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $resource }}
+  labels:
+    {{- include "lucity-workspace.labels" $ | nindent 4 }}
+type: Opaque
+stringData:
+  Authorization: {{ $provider.credential | quote }}
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayBackend
+metadata:
+  name: {{ $resource }}
+  labels:
+    {{- include "lucity-workspace.labels" $ | nindent 4 }}
+spec:
+  ai:
+    provider:
+      {{- if eq $provider.api "anthropic" }}
+      anthropic: {}
+      {{- else if eq $provider.api "openai" }}
+      openai: {}
+      {{- else if eq $provider.api "openaiCompatible" }}
+      custom:
+        formats:
+          - type: Completions
+            path: {{ printf "%s/chat/completions" (trimSuffix "/" $url.path) | quote }}
+      host: {{ $url.hostname | quote }}
+      port: {{ include "lucity-workspace.port" $url }}
+      {{- else }}
+      {{- fail (printf "model provider %s: unsupported api %q" $name $provider.api) }}
+      {{- end }}
+  policies:
+    auth:
+      secretRef:
+        name: {{ $resource }}
+    {{- if eq $provider.api "openaiCompatible" }}
+    tls:
+      sni: {{ $url.hostname | quote }}
+    {{- end }}
+    ai:
+      routes:
+        /v1/chat/completions: Completions
+        /v1/messages: Messages
+        "*": Passthrough
+---
+{{ include "lucity-workspace.route" (dict "root" $ "resource" $resource "prefix" (printf "/%s/models/%s/" $workspace $name)) }}
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayPolicy
+metadata:
+  name: {{ $resource }}
+  labels:
+    {{- include "lucity-workspace.labels" $ | nindent 4 }}
+spec:
+  targetRefs:
+    - group: agentgateway.dev
+      kind: AgentgatewayBackend
+      name: {{ $resource }}
+  backend:
+    authorization:
+      action: Require
+      policy:
+        matchExpressions:
+          - {{ printf "apiKey.workspace == %q" $workspace | squote }}
+{{- end }}

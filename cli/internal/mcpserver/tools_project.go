@@ -2,6 +2,7 @@ package mcpserver
 
 import (
 	"context"
+	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -40,13 +41,13 @@ func (s *server) registerProject(m *mcp.Server) {
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "get_project",
-		Description: "Get a project with its environments and everything in them: services (status, replicas, endpoints, resources), databases, key-value stores, buckets, and volumes.",
+		Description: "Get a project with its environments and everything in them: services (status, replicas, endpoints, resources), databases, key-value stores, buckets (bucketName is the name S3 clients use, publicEndpoint where a public bucket's objects are readable), and volumes. A service's status describes what serves traffic; latestRelease shows a newer release that is still building or failed.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, DestructiveHint: ptr(false)},
 	}, s.getProject)
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "detect_services",
-		Description: "Inspect a source repository and detect deployable services (language, framework, context path, start command, suggested port). Pass the URL of a GitHub repository accessible to the workspace's GitHub installation, e.g. https://github.com/owner/repo.",
+		Description: "Inspect a source repository and detect deployable services (language, framework, context path, start command, suggested port). repository is owner/repo or a full https URL, as for add_service, e.g. acme/shop; the workspace's GitHub installation must be able to read it. Detection looks at the repository root. When the root has nothing to run, as in a monorepo, it returns every folder up to two levels down that can be built, each with its context_path such as apps/web. Pass that context_path to add_service, and pass context_path here to inspect one folder instead of the root.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, DestructiveHint: ptr(false)},
 	}, s.detectServices)
 
@@ -64,7 +65,7 @@ func (s *server) registerProject(m *mcp.Server) {
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "create_environment",
-		Description: "Create an environment in a project. Tier ECO is cost-optimized; PRODUCTION reserves more resources.",
+		Description: "Create an environment in a project.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(false)},
 	}, s.createEnvironment)
 }
@@ -86,7 +87,7 @@ func (s *server) listProjects(ctx context.Context, _ *mcp.CallToolRequest, _ emp
 }
 
 type getProjectInput struct {
-	Project string `json:"project" jsonschema:"project id (workspace/project) or a bare project name resolved against the active workspace"`
+	Project string `json:"project" jsonschema:"project id (workspace/project), or the bare project id resolved against the active workspace, e.g. acme/shop or shop"`
 }
 
 func (s *server) getProject(ctx context.Context, _ *mcp.CallToolRequest, input getProjectInput) (*mcp.CallToolResult, any, error) {
@@ -99,11 +100,11 @@ func (s *server) getProject(ctx context.Context, _ *mcp.CallToolRequest, input g
   project(id: $id) {
     id name
     environments {
-      id name resourceTier
-      services { id name status replicas { desired ready } port command resources { cpu memory } endpoints { host protocol type } lastDeployedAt }
-      databases { id name status version size public }
+      id name
+      services { id name status replicas { desired ready } port command resources { cpu memory } endpoints { host protocol type } lastDeployedAt latestRelease { id status build { status } } }
+      databases { id name status statusReason instances version size public }
       keyValueStores { id name status }
-      buckets { id name status public }
+      buckets { id name status public endpoint publicEndpoint }
       volumes { id name size mount { service path } }
     }
   }
@@ -113,12 +114,44 @@ func (s *server) getProject(ctx context.Context, _ *mcp.CallToolRequest, input g
 		Project any `json:"project"`
 	}
 	if err := s.query(ctx, "get_project", query, map[string]any{"id": id}, &out); err != nil {
-		if splitErr := s.getProjectSplit(ctx, id, &out); splitErr == nil {
-			return jsonResult(out.Project)
+		if splitErr := s.getProjectSplit(ctx, id, &out); splitErr != nil {
+			return nil, nil, err
 		}
-		return nil, nil, err
 	}
+	s.addBucketNames(ctx, out.Project)
 	return jsonResult(out.Project)
+}
+
+func (s *server) addBucketNames(ctx context.Context, project any) {
+	const query = `query($bucket: BucketID!) { bucketCredentials(bucket: $bucket) { bucket } }`
+	projectMap, _ := project.(map[string]any)
+	environments, _ := projectMap["environments"].([]any)
+	if environments == nil {
+		if typed, ok := projectMap["environments"].([]map[string]any); ok {
+			for _, environment := range typed {
+				environments = append(environments, environment)
+			}
+		}
+	}
+	for _, entry := range environments {
+		environment, _ := entry.(map[string]any)
+		buckets, _ := environment["buckets"].([]any)
+		for _, item := range buckets {
+			bucket, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			bucketView(bucket)
+			var out struct {
+				BucketCredentials struct {
+					Bucket string `json:"bucket"`
+				} `json:"bucketCredentials"`
+			}
+			if err := s.query(ctx, "get_project (bucket name)", query, map[string]any{"bucket": bucket["id"]}, &out); err == nil {
+				bucket["bucketName"] = out.BucketCredentials.Bucket
+			}
+		}
+	}
 }
 
 func (s *server) getProjectSplit(ctx context.Context, id string, out *struct {
@@ -128,7 +161,7 @@ func (s *server) getProjectSplit(ctx context.Context, id string, out *struct {
   project(id: $id) {
     id name
     environments {
-      id name resourceTier
+      id name
       services { id name status replicas { desired ready } port command resources { cpu memory } endpoints { host protocol type } lastDeployedAt }
     }
   }
@@ -138,9 +171,9 @@ func (s *server) getProjectSplit(ctx context.Context, id string, out *struct {
   project(id: $id) {
     environments {
       id
-      databases { id name status version size public }
+      databases { id name status statusReason instances version size public }
       keyValueStores { id name status }
-      buckets { id name status public }
+      buckets { id name status public endpoint publicEndpoint }
       volumes { id name size mount { service path } }
     }
   }
@@ -192,7 +225,8 @@ func (s *server) getProjectSplit(ctx context.Context, id string, out *struct {
 }
 
 type detectServicesInput struct {
-	RepositoryURL string `json:"repository_url" jsonschema:"URL of a GitHub repository accessible to the workspace's GitHub installation, e.g. https://github.com/owner/repo"`
+	Repository  string `json:"repository" jsonschema:"owner/repo or a full https URL, e.g. acme/shop or https://github.com/acme/shop"`
+	ContextPath string `json:"context_path,omitempty" jsonschema:"folder of the repository to inspect instead of its root, e.g. apps/web"`
 }
 
 func (s *server) detectServices(ctx context.Context, _ *mcp.CallToolRequest, input detectServicesInput) (*mcp.CallToolResult, any, error) {
@@ -200,17 +234,24 @@ func (s *server) detectServices(ctx context.Context, _ *mcp.CallToolRequest, inp
 		return nil, nil, err
 	}
 
-	const query = `query($url: String!) {
-  detectServices(repositoryUrl: $url) { name language framework contextPath startCommand suggestedPort }
+	const query = `query($url: String!, $contextPath: String) {
+  detectServices(repositoryUrl: $url, contextPath: $contextPath) { name language framework contextPath startCommand suggestedPort }
 }`
 
 	var out struct {
 		DetectServices []any `json:"detectServices"`
 	}
-	if err := s.query(ctx, "detect_services", query, map[string]any{"url": input.RepositoryURL}, &out); err != nil {
+	if err := s.query(ctx, "detect_services", query, map[string]any{"url": repositoryURL(input.Repository), "contextPath": input.ContextPath}, &out); err != nil {
 		return nil, nil, err
 	}
 	return jsonResult(map[string]any{"services": out.DetectServices})
+}
+
+func repositoryURL(repository string) string {
+	if strings.Contains(repository, "://") {
+		return repository
+	}
+	return "https://github.com/" + strings.Trim(repository, "/")
 }
 
 type listGithubReposInput struct {
@@ -249,8 +290,8 @@ func (s *server) listGithubRepos(ctx context.Context, _ *mcp.CallToolRequest, in
 }
 
 type createProjectInput struct {
-	Name string `json:"name" jsonschema:"human-readable project name (1-128 chars)"`
-	ID   string `json:"id,omitempty" jsonschema:"optional URL-safe slug (2-16 chars, lowercase alphanumeric and hyphens); derived from the name if omitted"`
+	Name string `json:"name" jsonschema:"what people read, any text up to 128 chars (e.g. 'Customer Portal'); it can be renamed later"`
+	ID   string `json:"id,omitempty" jsonschema:"optional id (2-16 chars: lowercase letters, digits and hyphens, starting and ending with a letter or digit); derived from name when omitted, with a counter added if taken. Fixed once created. Use the id this tool returns, never the name, to refer to it later"`
 }
 
 func (s *server) createProject(ctx context.Context, _ *mcp.CallToolRequest, input createProjectInput) (*mcp.CallToolResult, any, error) {
@@ -280,9 +321,9 @@ func (s *server) createProject(ctx context.Context, _ *mcp.CallToolRequest, inpu
 }
 
 type createEnvironmentInput struct {
-	Project string `json:"project" jsonschema:"project id (workspace/project) or a bare project name"`
-	Name    string `json:"name" jsonschema:"environment name (2-16 chars, lowercase alphanumeric and hyphens)"`
-	Tier    string `json:"tier,omitempty" jsonschema:"resource tier ECO or PRODUCTION; defaults to the platform default"`
+	Project string `json:"project" jsonschema:"project id (workspace/project), or the bare project id"`
+	Name    string `json:"name" jsonschema:"what people read, any text up to 128 chars (e.g. 'Staging'); it can be renamed later"`
+	ID      string `json:"id,omitempty" jsonschema:"optional id (2-16 chars: lowercase letters, digits and hyphens, starting and ending with a letter or digit); derived from name when omitted, with a counter added if taken. Fixed once created. Use the id this tool returns, never the name, to refer to it later"`
 }
 
 func (s *server) createEnvironment(ctx context.Context, _ *mcp.CallToolRequest, input createEnvironmentInput) (*mcp.CallToolResult, any, error) {
@@ -292,12 +333,12 @@ func (s *server) createEnvironment(ctx context.Context, _ *mcp.CallToolRequest, 
 	}
 
 	inputVar := map[string]any{"project": projectID, "name": input.Name}
-	if input.Tier != "" {
-		inputVar["tier"] = input.Tier
+	if input.ID != "" {
+		inputVar["id"] = input.ID
 	}
 
 	const mutation = `mutation($input: CreateEnvironmentInput!) {
-  createEnvironment(input: $input) { id name resourceTier }
+  createEnvironment(input: $input) { id name }
 }`
 
 	var out struct {

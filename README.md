@@ -1,14 +1,12 @@
-<p align="center">
+<p>
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
-    <img src="assets/logo.svg" alt="Lucity" width="200">
+    <img src="assets/logo.svg" alt="Lucity" width="230">
   </picture>
 </p>
 
-<h1 align="center">Lucity</h1>
-
 <p>
-  The Deployment Platform that is a joy to use, built to grow, and always yours to keep.
+  The Cloud that is a joy to use, built to grow, and always yours to keep.
 </p>
 
 <p>

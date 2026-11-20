@@ -20,7 +20,7 @@ Please include:
 
 - Description of the vulnerability
 - Steps to reproduce
-- Affected component (conductor, cashier, dashboard)
+- Affected component (for example conductor, stagehand, dashboard, CLI)
 - Impact assessment (e.g. data exposure, privilege escalation, RCE)
 - Any suggested fix or mitigation
 
@@ -30,12 +30,14 @@ You will receive an acknowledgment within 2 business days. We aim to provide a d
 
 The following are in scope:
 
-- Lucity core services (conductor, cashier)
+- Lucity services (conductor, stagehand, cashier, exporter, switchboard, agent runner, builder) and the dashboard
+- The `lucity` CLI and its MCP server
 - GraphQL API authentication and authorization
 - Secret and credential handling (environment variables, database credentials)
 - Build pipeline isolation (container escapes, supply chain attacks)
 - Deployment (Helm release) integrity and webhook validation
 - RBAC and multi-tenancy boundaries
+- Agent isolation (runner sandboxes, connector and channel credentials)
 
 Out of scope:
 

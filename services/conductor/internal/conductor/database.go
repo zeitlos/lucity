@@ -22,12 +22,9 @@ import (
 )
 
 var (
-	minDatabaseCPU        = resource.MustParse("250m")
-	minDatabaseMemory     = resource.MustParse("256Mi")
-	maxDatabaseCPU        = resource.MustParse("4")
-	maxDatabaseMemory     = resource.MustParse("16Gi")
-	defaultDatabaseCPU    = resources.DefaultCPULimit
-	defaultDatabaseMemory = resources.DefaultMemoryLimit
+	defaultDatabaseCPU     = resources.DefaultCPULimit
+	defaultDatabaseMemory  = resources.DefaultMemoryLimit
+	defaultDatabaseStorage = resource.MustParse("16Gi")
 )
 
 const backupRetentionDays = 30
@@ -97,7 +94,7 @@ type DatabaseCredentials struct {
 }
 
 func (c *Client) Databases(ctx context.Context, environment EnvironmentID) ([]Database, error) {
-	return c.platform.Databases(ctx, environment)
+	return c.cachedPlatform.Databases(ctx, environment)
 }
 
 func (c *Client) Database(ctx context.Context, id DatabaseID) (*Database, error) {
@@ -177,12 +174,22 @@ func (c *Client) CreateDatabaseBackup(ctx context.Context, id DatabaseID) (*plat
 	return c.platform.CreateDatabaseBackup(ctx, id)
 }
 
-func (c *Client) CreateDatabase(ctx context.Context, environment platform.EnvironmentID, name string, size, cpu, memory string) (*Database, error) {
+func (c *Client) CreateDatabase(ctx context.Context, environment platform.EnvironmentID, id, name string, size, cpu, memory string) (*Database, error) {
 	const version = "17"
-	const defaultDiskSize = "16Gi"
+
+	capabilities, err := c.Capabilities(ctx, environment.Workspace)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := capabilities.Databases.allow("Creating a database"); err != nil {
+		return nil, err
+	}
 
 	if size == "" {
-		size = defaultDiskSize
+		defaultSize := minQuantity(defaultDatabaseStorage, capabilities.Databases.Storage.Max)
+		size = defaultSize.String()
 	}
 
 	if cpu == "" {
@@ -196,33 +203,43 @@ func (c *Client) CreateDatabase(ctx context.Context, environment platform.Enviro
 	parsedSize, err := resource.ParseQuantity(size)
 
 	if err != nil {
-		return nil, fmt.Errorf("parse size: %w", err)
+		return nil, usererror.Errorf("invalid storage size %q", size)
 	}
 
-	resources, err := validateDatabaseResources(cpu, memory)
+	if err := capabilities.Databases.Storage.check("Storage", parsedSize, nil); err != nil {
+		return nil, err
+	}
+
+	resources, err := validateResources(cpu, memory, capabilities.Databases.CPU, capabilities.Databases.Memory, nil)
 
 	if err != nil {
 		return nil, err
 	}
 
-	env, err := c.platform.Environment(ctx, environment)
-
-	if err != nil {
+	if _, err := c.platform.Environment(ctx, environment); err != nil {
 		return nil, fmt.Errorf("read environment: %w", err)
 	}
 
-	if _, err := c.deployer.Databases().Create(ctx, environment, name, deployer.DatabaseSpec{
-		Version:      version,
-		Size:         parsedSize,
-		ResourceTier: env.ResourceTier,
-		Resources:    resources,
+	id, err = c.newResourceID(ctx, environment, id, name, "database")
+
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := c.deployer.Databases().Create(ctx, environment, id, deployer.DatabaseSpec{
+		DisplayName: name,
+		Version:     version,
+		Size:        parsedSize,
+		Resources:   resources,
 	}); err != nil {
 		return nil, fmt.Errorf("create database: %w", err)
 	}
 
 	return &Database{
+		ID:        platform.DatabaseID{Workspace: environment.Workspace, Project: environment.Project, Environment: environment.Name, Name: id},
 		Name:      name,
 		Version:   version,
+		Status:    platform.DatabasePending,
 		Size:      parsedSize,
 		Resources: platform.Resources{CPU: resources.CPU, Memory: resources.Memory},
 	}, nil
@@ -233,7 +250,7 @@ type RestoreResult struct {
 	Clamped  bool
 }
 
-func (c *Client) RestoreDatabase(ctx context.Context, source platform.DatabaseID, name string, targetTime *time.Time) (*RestoreResult, error) {
+func (c *Client) RestoreDatabase(ctx context.Context, source platform.DatabaseID, id, name string, targetTime *time.Time) (*RestoreResult, error) {
 	origin, err := c.platform.Database(ctx, source)
 
 	if err != nil {
@@ -286,23 +303,33 @@ func (c *Client) RestoreDatabase(ctx context.Context, source platform.DatabaseID
 		}
 	}
 
-	env, err := c.platform.Environment(ctx, source.EnvironmentID())
-
-	if err != nil {
-		return nil, fmt.Errorf("read environment: %w", err)
-	}
-
-	resources, err := validateDatabaseResources(origin.Resources.CPU.String(), origin.Resources.Memory.String())
+	capabilities, err := c.Capabilities(ctx, source.Workspace)
 
 	if err != nil {
 		return nil, err
 	}
 
-	if _, err := c.deployer.Databases().Restore(ctx, source, name, deployer.DatabaseSpec{
-		Version:      origin.Version,
-		Size:         origin.Size,
-		ResourceTier: env.ResourceTier,
-		Resources:    resources,
+	if err := capabilities.Databases.allow("Restoring into a new database"); err != nil {
+		return nil, err
+	}
+
+	resources, err := validateResources(origin.Resources.CPU.String(), origin.Resources.Memory.String(), capabilities.Databases.CPU, capabilities.Databases.Memory, &origin.Resources)
+
+	if err != nil {
+		return nil, err
+	}
+
+	id, err = c.newResourceID(ctx, source.EnvironmentID(), id, name, "database")
+
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := c.deployer.Databases().Restore(ctx, source, id, deployer.DatabaseSpec{
+		DisplayName: name,
+		Version:     origin.Version,
+		Size:        origin.Size,
+		Resources:   resources,
 	}, target); err != nil {
 		return nil, fmt.Errorf("restore database: %w", err)
 	}
@@ -310,7 +337,7 @@ func (c *Client) RestoreDatabase(ctx context.Context, source platform.DatabaseID
 	return &RestoreResult{
 		Clamped: clamped,
 		Database: Database{
-			ID:        platform.DatabaseID{Workspace: source.Workspace, Project: source.Project, Environment: source.Environment, Name: name},
+			ID:        platform.DatabaseID{Workspace: source.Workspace, Project: source.Project, Environment: source.Environment, Name: id},
 			Name:      name,
 			Version:   origin.Version,
 			Size:      origin.Size,
@@ -321,19 +348,25 @@ func (c *Client) RestoreDatabase(ctx context.Context, source platform.DatabaseID
 }
 
 func (c *Client) SetDatabaseResources(ctx context.Context, database platform.DatabaseID, cpu, memory string) (*Database, error) {
-	spec, err := validateDatabaseResources(cpu, memory)
+	capabilities, err := c.Capabilities(ctx, database.Workspace)
 
 	if err != nil {
 		return nil, err
 	}
 
-	environment, err := c.platform.Environment(ctx, database.EnvironmentID())
+	current, err := c.platform.Database(ctx, database)
 
 	if err != nil {
 		return nil, err
 	}
 
-	if _, err := c.deployer.Databases().SetResources(ctx, database, environment.ResourceTier, spec); err != nil {
+	spec, err := validateResources(cpu, memory, capabilities.Databases.CPU, capabilities.Databases.Memory, &current.Resources)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := c.deployer.Databases().SetResources(ctx, database, spec); err != nil {
 		return nil, fmt.Errorf("set resources: %w", err)
 	}
 
@@ -347,10 +380,6 @@ func (c *Client) SetDatabaseStorage(ctx context.Context, database platform.Datab
 		return nil, usererror.Errorf("invalid storage size %q", size)
 	}
 
-	if parsedSize.Cmp(resources.MaxDatabaseStorage) > 0 {
-		return nil, usererror.Errorf("storage exceeds the maximum of %s", resources.MaxDatabaseStorage.String())
-	}
-
 	current, err := c.platform.Database(ctx, database)
 
 	if err != nil {
@@ -359,6 +388,16 @@ func (c *Client) SetDatabaseStorage(ctx context.Context, database platform.Datab
 
 	if parsedSize.Cmp(current.Size) < 0 {
 		return nil, usererror.Errorf("storage can only be increased, not shrunk from %s to %s", current.Size.String(), parsedSize.String())
+	}
+
+	capabilities, err := c.Capabilities(ctx, database.Workspace)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := capabilities.Databases.Storage.check("Storage", parsedSize, &current.Size); err != nil {
+		return nil, err
 	}
 
 	if _, err := c.deployer.Databases().SetStorage(ctx, database, parsedSize); err != nil {
@@ -643,8 +682,12 @@ func (c *Client) databaseQueryClient(ctx context.Context, id platform.DatabaseID
 	return dbquery.New(databaseURI(creds) + "?sslmode=require"), nil
 }
 
-func validateDatabaseResources(cpu, memory string) (deployer.Resources, error) {
-	return validateResources(cpu, memory, minDatabaseCPU, maxDatabaseCPU, minDatabaseMemory, maxDatabaseMemory)
+func minQuantity(a, b resource.Quantity) resource.Quantity {
+	if b.Cmp(a) < 0 {
+		return b
+	}
+
+	return a
 }
 
 func databaseURI(creds *platform.DatabaseCredentials) string {

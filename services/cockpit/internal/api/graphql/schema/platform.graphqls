@@ -1,0 +1,151 @@
+"""What runs on the cluster now. Each trend holds the hourly values of the last 24 hours, oldest first."""
+type PlatformTotals {
+  runningPods: Int!
+  pendingPods: Int!
+  """Failed pods outside of Jobs. Build, deploy and scan attempts are left out."""
+  failedPods: Int!
+  runningContainers: Int!
+  """Workspaces with at least one running pod."""
+  runningWorkspaces: Int!
+  workspaces: Int!
+  """Environment releases."""
+  releases: Int!
+  """Environment releases whose newest revision failed."""
+  failedReleases: Int!
+  """Names of the alerts firing now."""
+  firingAlerts: [String!]!
+  runningPodsTrend: [Float!]!
+  runningContainersTrend: [Float!]!
+  runningWorkspacesTrend: [Float!]!
+  releasesTrend: [Float!]!
+  firingAlertsTrend: [Float!]!
+}
+
+"""A background loop of the platform, such as the release pass."""
+type Routine {
+  """The loop's name in the metrics, such as `releases`."""
+  name: String!
+  """Passes per hour over the last 24 hours, oldest first. The last hour is the current one, so far."""
+  hours: [RoutineHour!]!
+  """Average duration of a pass over the last 24 hours, in seconds. Null without passes."""
+  averageDuration: Float
+  """The average against the 7 days before the last 24 hours, as a ratio: 0.5 is 50% slower. Null without passes in either window."""
+  averageDurationChange: Float
+  """Null when it hasn't passed in the last 7 days."""
+  lastPassedAt: Time
+}
+
+type RoutineHour {
+  start: Time!
+  passed: Int!
+  failed: Int!
+}
+
+"""The limits of one provider or resource."""
+type LimitGroup {
+  name: String!
+  limits: [Limit!]!
+}
+
+"""How much of something is in use."""
+type Limit {
+  name: String!
+  unit: LimitUnit!
+  value: Float!
+  """Null when the provider's cap is unknown."""
+  cap: Float
+  """Values over the last 30 days, oldest first."""
+  history: [Point!]!
+}
+
+enum LimitUnit {
+  COUNT
+  BYTES
+}
+
+type Point {
+  time: Time!
+  value: Float!
+}
+
+"""Nodes that share a node-pool label."""
+type NodePool {
+  """Empty for nodes without a node-pool label."""
+  name: String!
+  nodes: [Node!]!
+}
+
+"""One node's room. Requests count every pod that isn't finished. Memory is in bytes, CPU in cores."""
+type Node {
+  name: String!
+  instanceType: String!
+  createdAt: Time!
+  attachedVolumes: Int!
+  volumeLimit: Int!
+  pods: Int!
+  podLimit: Int!
+  memoryAllocatable: Int!
+  memoryRequested: Int!
+  """Null when the metrics have no recent sample."""
+  memoryUsed: Int
+  cpuAllocatable: Float!
+  cpuRequested: Float!
+  """Null when the metrics have no recent sample."""
+  cpuUsed: Float
+}
+
+"""Errors and warnings of the platform services."""
+type PlatformLogs {
+  """The last 24 hours, oldest first. The last hour is the current one, so far."""
+  hours: [LogHour!]!
+  errors24h: Int!
+  errors7d: Int!
+  warnings24h: Int!
+  warnings7d: Int!
+  """Messages seen over the last 7 days, most frequent in the last 24 hours first, at most 20."""
+  messages: [LogMessage!]!
+}
+
+type LogHour {
+  start: Time!
+  errors: Int!
+  warnings: Int!
+}
+
+"""One message of one service at one level."""
+type LogMessage {
+  level: LogLevel!
+  message: String!
+  service: String!
+  count24h: Int!
+  count7d: Int!
+  """Reaches back at most 30 days."""
+  firstSeenAt: Time!
+}
+
+enum LogLevel {
+  ERROR
+  WARN
+}
+
+"""A version of the app chart and the environments that run it."""
+type ChartVersion {
+  version: String!
+  """Environments whose deployed release runs this version."""
+  releases: Int!
+  """When the oldest of those releases was deployed."""
+  since: Time!
+}
+
+extend type Query {
+  platformTotals: PlatformTotals!
+  """Loops that ran in the last 24 hours or passed in the last 7 days, by name."""
+  routines: [Routine!]!
+  """Provider limits, then the fullest platform disks."""
+  limits: [LimitGroup!]!
+  """Pools and their nodes, by name."""
+  nodePools: [NodePool!]!
+  platformLogs: PlatformLogs!
+  """Versions of the app chart that deployed environment releases run, the most recently introduced first."""
+  appChartVersions: [ChartVersion!]!
+}

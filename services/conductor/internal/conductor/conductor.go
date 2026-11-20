@@ -6,8 +6,11 @@ import (
 	"io/fs"
 	"log/slog"
 	"sync"
+	"time"
 
 	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/zeitlos/lucity/pkg/agentrunner"
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/deployer/values"
 	"github.com/zeitlos/lucity/pkg/domains"
@@ -18,6 +21,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/pipeline"
 	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/usererror"
+	"github.com/zeitlos/lucity/services/conductor/internal/agentaudit"
 	"github.com/zeitlos/lucity/services/conductor/internal/backuparchive"
 	"github.com/zeitlos/lucity/services/conductor/internal/billing"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
@@ -29,7 +33,10 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/registry"
 	"github.com/zeitlos/lucity/services/conductor/internal/scanjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/scanreport"
+	"github.com/zeitlos/lucity/services/conductor/internal/servicelogs"
 	"github.com/zeitlos/lucity/services/conductor/internal/source"
+	"github.com/zeitlos/lucity/services/conductor/internal/upstream"
+	"github.com/zeitlos/lucity/services/conductor/internal/usage"
 	"github.com/zeitlos/lucity/services/conductor/internal/vulnerabilities"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -41,6 +48,8 @@ type Client struct {
 
 	directory       directory.Interface
 	platform        platform.Interface
+	cachedPlatform  platform.Interface
+	changes         platform.Changes
 	buildjob        buildjob.Interface
 	deployjob       deployjob.Interface
 	scanjob         scanjob.Interface
@@ -54,8 +63,14 @@ type Client struct {
 	environment     environment.Interface
 	objectStorage   objectstorage.Interface
 	metrics         *metrics.Provider
+	usage           *usage.Client
 	domains         *domains.Client
 	registry        *registry.Client
+	upstream        *upstream.Client
+	agentRunner     *agentrunner.Client
+	agentAudit      *agentaudit.Client
+	serviceLogs     *servicelogs.Client
+	signups         prometheus.Counter
 
 	config Config
 
@@ -66,6 +81,9 @@ type Client struct {
 
 	orgIDCache   map[string]string
 	orgIDCacheMu sync.RWMutex
+
+	capabilitiesCache map[string]cachedCapabilities
+	capabilitiesMu    sync.Mutex
 }
 
 type Config struct {
@@ -84,31 +102,49 @@ type Config struct {
 	MaxQueuedReleases    int
 	PaidPlacement        values.Placement
 	BackupArchive        *backuparchive.Client
+	AgentsEnabled        bool
+	CardGateAccountAge   time.Duration
 }
 
-func New(billing *billing.Client, githubApp *ghpkg.App, logto *logto.Client, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, deployjob deployjob.Interface, scanjob scanjob.Interface, scanreport *scanreport.Client, vulnerabilities *vulnerabilities.Client, pipeline pipeline.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, deployer deployer.Interface, environment environment.Interface, objectStorage objectstorage.Interface, metrics *metrics.Provider, domains *domains.Client, config Config) *Client {
+func New(billing *billing.Client, githubApp *ghpkg.App, logto *logto.Client, directory directory.Interface, platform platform.Interface, cachedPlatform platform.Interface, changes platform.Changes, buildjob buildjob.Interface, deployjob deployjob.Interface, scanjob scanjob.Interface, scanreport *scanreport.Client, vulnerabilities *vulnerabilities.Client, pipeline pipeline.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, deployer deployer.Interface, environment environment.Interface, objectStorage objectstorage.Interface, metrics *metrics.Provider, usage *usage.Client, domains *domains.Client, upstream *upstream.Client, agentRunner *agentrunner.Client, agentAudit *agentaudit.Client, serviceLogs *servicelogs.Client, config Config, registerer prometheus.Registerer) *Client {
+	signups := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "lucity_signups_total",
+		Help: "Users whose personal workspace was created.",
+	})
+
+	registerer.MustRegister(signups)
+
 	return &Client{
-		billing:         billing,
-		gitHubApp:       githubApp,
-		logto:           logto,
-		config:          config,
-		orgIDCache:      make(map[string]string),
-		directory:       directory,
-		platform:        platform,
-		buildjob:        buildjob,
-		deployjob:       deployjob,
-		scanjob:         scanjob,
-		scanreport:      scanreport,
-		vulnerabilities: vulnerabilities,
-		pipeline:        pipeline,
-		planner:         planner,
-		source:          source,
-		hostname:        hostname,
-		deployer:        deployer,
-		environment:     environment,
-		objectStorage:   objectStorage,
-		metrics:         metrics,
-		domains:         domains,
+		billing:           billing,
+		gitHubApp:         githubApp,
+		logto:             logto,
+		config:            config,
+		orgIDCache:        make(map[string]string),
+		capabilitiesCache: make(map[string]cachedCapabilities),
+		directory:         directory,
+		platform:          platform,
+		cachedPlatform:    cachedPlatform,
+		changes:           changes,
+		buildjob:          buildjob,
+		deployjob:         deployjob,
+		scanjob:           scanjob,
+		scanreport:        scanreport,
+		vulnerabilities:   vulnerabilities,
+		pipeline:          pipeline,
+		planner:           planner,
+		source:            source,
+		hostname:          hostname,
+		deployer:          deployer,
+		environment:       environment,
+		objectStorage:     objectStorage,
+		metrics:           metrics,
+		usage:             usage,
+		domains:           domains,
+		upstream:          upstream,
+		agentRunner:       agentRunner,
+		agentAudit:        agentAudit,
+		serviceLogs:       serviceLogs,
+		signups:           signups,
 		registry: registry.New(registry.Config{
 			Endpoint:     config.RegistryPullURL,
 			DialEndpoint: config.RegistryPushURL,
@@ -148,7 +184,7 @@ func (c *Client) orgRoleIDs(ctx context.Context) (adminID, memberID string, err 
 	return c.adminRoleID, c.memberRoleID, nil
 }
 
-func validateResources(cpu, memory string, minCPU, maxCPU, minMemory, maxMemory resource.Quantity) (deployer.Resources, error) {
+func validateResources(cpu, memory string, cpuLimit, memoryLimit QuantityLimit, current *platform.Resources) (deployer.Resources, error) {
 	cpuQuantity, err := resource.ParseQuantity(cpu)
 
 	if err != nil {
@@ -161,20 +197,18 @@ func validateResources(cpu, memory string, minCPU, maxCPU, minMemory, maxMemory 
 		return deployer.Resources{}, usererror.Errorf("invalid memory value %q", memory)
 	}
 
-	if cpuQuantity.Cmp(minCPU) < 0 {
-		return deployer.Resources{}, usererror.Errorf("cpu must be at least %s", minCPU.String())
+	var currentCPU, currentMemory *resource.Quantity
+
+	if current != nil {
+		currentCPU, currentMemory = &current.CPU, &current.Memory
 	}
 
-	if memoryQuantity.Cmp(minMemory) < 0 {
-		return deployer.Resources{}, usererror.Errorf("memory must be at least %s", minMemory.String())
+	if err := cpuLimit.check("CPU", cpuQuantity, currentCPU); err != nil {
+		return deployer.Resources{}, err
 	}
 
-	if cpuQuantity.Cmp(maxCPU) > 0 {
-		return deployer.Resources{}, usererror.Errorf("cpu exceeds the maximum of %s", maxCPU.String())
-	}
-
-	if memoryQuantity.Cmp(maxMemory) > 0 {
-		return deployer.Resources{}, usererror.Errorf("memory exceeds the maximum of %s", maxMemory.String())
+	if err := memoryLimit.check("Memory", memoryQuantity, currentMemory); err != nil {
+		return deployer.Resources{}, err
 	}
 
 	return deployer.Resources{

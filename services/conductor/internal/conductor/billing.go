@@ -5,11 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"strings"
 	"time"
 
 	pkgbilling "github.com/zeitlos/lucity/pkg/billing"
-	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/usererror"
 	"github.com/zeitlos/lucity/services/conductor/internal/billing"
 )
@@ -34,35 +34,6 @@ type UsageSummaryResult struct {
 type PlanSelection struct {
 	Subscription *BillingSubscription
 	CheckoutURL  string
-}
-
-type ResourceTier = platform.ResourceTier
-
-const ProductionTier = platform.ProductionTier
-const EcoTier = platform.EcoTier
-
-// SetEnvironmentResources changes the environment's resource tier, which flips
-// the LimitRange's default container requests: Eco runs burstable (~50% of the
-// limit as request), Production runs guaranteed (request == limit). The
-// namespace ResourceQuota is fixed for every environment at the defaults in
-// resources.go and is not settable per environment.
-//
-// Existing services keep the requests baked into their Helm values until their
-// next deploy; the tier only reaches them through deriveRequestsAndLimits.
-func (c *Client) SetEnvironmentResources(ctx context.Context, environmentID platform.EnvironmentID, tier ResourceTier) (*Environment, error) {
-	if err := c.environment.Ensure(ctx, environmentID, tier); err != nil {
-		return nil, err
-	}
-
-	environment, err := c.Environment(ctx, environmentID)
-
-	if err != nil {
-		return nil, err
-	}
-
-	environment.ResourceTier = tier
-
-	return environment, nil
 }
 
 // Subscription returns the workspace's subscription, or nil when it never
@@ -118,6 +89,8 @@ func (c *Client) SelectPlan(ctx context.Context, ws, plan string) (*PlanSelectio
 		CancelURL:  c.config.DashboardURL + "/workspace/settings?tab=billing",
 	})
 
+	c.forgetCapabilities(ws)
+
 	if err != nil {
 		return nil, err
 	}
@@ -140,6 +113,8 @@ func (c *Client) CompletePlanCheckout(ctx context.Context, ws, sessionID string)
 
 	subscription, err := c.billing.CompleteCheckout(ctx, customerID, ws, sessionID)
 
+	c.forgetCapabilities(ws)
+
 	if err != nil {
 		return nil, err
 	}
@@ -151,6 +126,55 @@ func (c *Client) CompletePlanCheckout(ctx context.Context, ws, sessionID string)
 	c.resume(ctx, ws, customerID)
 
 	return convertSubscription(subscription), nil
+}
+
+// AddPaymentMethod starts a checkout that saves a card for the workspace
+// without charging it, and returns its URL.
+func (c *Client) AddPaymentMethod(ctx context.Context, ws, returnPath string) (string, error) {
+	customerID, err := c.billingCustomer(ctx, ws)
+
+	if err != nil {
+		return "", err
+	}
+
+	if !strings.HasPrefix(returnPath, "/") || strings.HasPrefix(returnPath, "//") {
+		returnPath = "/"
+	}
+
+	checkoutURL, err := c.billing.PaymentMethodCheckout(ctx, customerID, ws, billing.Checkout{
+		SuccessURL: c.config.DashboardURL + "/checkout/card-success?session_id={CHECKOUT_SESSION_ID}&return=" + url.QueryEscape(returnPath),
+		CancelURL:  c.config.DashboardURL + returnPath,
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	slog.InfoContext(ctx, "card checkout started", "workspace", ws)
+
+	return checkoutURL, nil
+}
+
+// CompletePaymentMethodCheckout confirms a finished card checkout. A prepaid
+// card is removed again and reported with ErrPrepaidCard.
+func (c *Client) CompletePaymentMethodCheckout(ctx context.Context, ws, sessionID string) (*WorkspaceDetails, error) {
+	customerID, err := c.billingCustomer(ctx, ws)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = c.billing.CompletePaymentMethodCheckout(ctx, customerID, sessionID)
+
+	c.forgetCapabilities(ws)
+
+	if err != nil {
+		return nil, err
+	}
+
+	slog.InfoContext(ctx, "card added", "workspace", ws)
+
+	return c.Workspace(ctx, ws)
 }
 
 func (c *Client) BillingPortalURL(ctx context.Context, ws string) (string, error) {
@@ -212,7 +236,16 @@ func (c *Client) resume(ctx context.Context, ws, customerID string) {
 	}
 
 	if abuse, _ := org.CustomData["abuse"].(bool); abuse {
-		return
+		paid, err := c.billing.Paid(ctx, customerID)
+
+		if err != nil {
+			slog.WarnContext(ctx, "resume after checkout: failed to read plan", "workspace", ws, "error", err)
+			return
+		}
+
+		if !paid {
+			return
+		}
 	}
 
 	if suspended, _ := org.CustomData["suspended"].(bool); !suspended {

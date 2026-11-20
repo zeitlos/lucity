@@ -39,7 +39,9 @@ func (c *Client) DNSStatus(ctx context.Context, workspace, host string, redirect
 		return DNSError, err
 	}
 
-	txtOK := slices.Contains(txtRecords, challenge(workspace, zone))
+	if slices.Contains(txtRecords, challenge(workspace, zone)) {
+		return DNSValid, nil
+	}
 
 	routeServers := zoneServers
 
@@ -77,15 +79,11 @@ func (c *Client) DNSStatus(ctx context.Context, workspace, host string, redirect
 		routingOK = strings.EqualFold(strings.TrimSuffix(cname, "."), c.loadBalancerHostname)
 	}
 
-	if txtOK && routingOK {
-		return DNSValid, nil
+	if routingOK {
+		return DNSMisconfigured, nil
 	}
 
-	if !txtOK && !routingOK {
-		return DNSPending, nil
-	}
-
-	return DNSMisconfigured, nil
+	return DNSPending, nil
 }
 
 func (c *Client) pointsAtTarget(ctx context.Context, addrs []string, redirect bool) (bool, error) {
@@ -203,7 +201,7 @@ func firstAnswer[T any](ctx context.Context, servers []string, lookup func(conte
 func authoritativeServers(ctx context.Context, host string) ([]string, error) {
 	sys := net.Resolver{}
 
-	for name := strings.TrimSuffix(host, "."); name != ""; name = parentDomain(name) {
+	for name := strings.TrimSuffix(host, "."); name != "" && !isRegistrySuffix(name); name = parentDomain(name) {
 		nameservers, err := sys.LookupNS(ctx, name)
 
 		if err != nil {

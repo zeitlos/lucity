@@ -29,5 +29,11 @@ dependencies:
 - name: vertical-pod-autoscaler
   repository: https://kubernetes.github.io/autoscaler
   version: 0.13.0
-digest: sha256:ce67299f2a773c236e3e44be34bde06fea48d86fe035de0ebbd6fc5a1a8b32f0
-generated: "2026-10-05T13:04:02.859185+02:00"
+- name: agentgateway-crds
+  repository: oci://cr.agentgateway.dev/charts
+  version: v1.7.0
+- name: agentgateway
+  repository: oci://cr.agentgateway.dev/charts
+  version: v1.7.0
+digest: sha256:96c4f8cdca2aff963e123b22b065ec92a6dd764314a862104fcc2a5906b37a6c
+generated: "2026-10-28T17:46:53.515581+01:00"

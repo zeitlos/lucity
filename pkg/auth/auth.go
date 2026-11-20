@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"time"
 )
 
 // WorkspaceRole represents a user's role within a workspace.
@@ -39,6 +40,7 @@ type Claims struct {
 	Email      string
 	AvatarURL  string
 	Workspaces []WorkspaceMembership
+	ExpiresAt  time.Time
 }
 
 // IsMemberOf checks if the user is a member of the given workspace.

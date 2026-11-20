@@ -1,0 +1,142 @@
+/* eslint-disable */
+import * as types from './graphql';
+import type { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/core';
+
+/**
+ * Map of all GraphQL operations in the project.
+ *
+ * This map has several performance disadvantages:
+ * 1. It is not tree-shakeable, so it will include all operations in the project.
+ * 2. It is not minifiable, so the string of a GraphQL query will be multiple times inside the bundle.
+ * 3. It does not support dead code elimination, so it will add unused operations.
+ *
+ * Therefore it is highly recommended to use the babel or swc plugin for production.
+ * Learn more about it here: https://the-guild.dev/graphql/codegen/plugins/presets/preset-client#reducing-bundle-size
+ */
+type Documents = {
+    "\n  query Environment {\n    environment\n  }\n": typeof types.EnvironmentDocument,
+    "\n  query EnvironmentLogs($id: ID!) {\n    environmentLogs(id: $id)\n  }\n": typeof types.EnvironmentLogsDocument,
+    "\n  query PlanHistory($since: Time!) {\n    workspacePlans(since: $since) { at none trial hobby pro }\n  }\n": typeof types.PlanHistoryDocument,
+    "\n  query Trends($since: Time!) {\n    signups(since: $since) { start count }\n    workspaceStandings(since: $since) { at good billing abuse }\n  }\n": typeof types.TrendsDocument,
+    "\n  query PlatformTotals {\n    platformTotals {\n      runningPods\n      pendingPods\n      failedPods\n      runningContainers\n      runningWorkspaces\n      workspaces\n      releases\n      failedReleases\n      firingAlerts\n      runningPodsTrend\n      runningContainersTrend\n      runningWorkspacesTrend\n      releasesTrend\n      firingAlertsTrend\n    }\n  }\n": typeof types.PlatformTotalsDocument,
+    "\n  query AppChartVersions {\n    appChartVersions { version releases since }\n  }\n": typeof types.AppChartVersionsDocument,
+    "\n  query Routines {\n    routines { name hours { start passed failed } averageDuration averageDurationChange lastPassedAt }\n  }\n": typeof types.RoutinesDocument,
+    "\n  query Limits {\n    limits { name limits { name unit value cap history { time value } } }\n  }\n": typeof types.LimitsDocument,
+    "\n  query NodePools {\n    nodePools {\n      name\n      nodes {\n        name\n        instanceType\n        createdAt\n        attachedVolumes\n        volumeLimit\n        pods\n        podLimit\n        memoryAllocatable\n        memoryRequested\n        memoryUsed\n        cpuAllocatable\n        cpuRequested\n        cpuUsed\n      }\n    }\n  }\n": typeof types.NodePoolsDocument,
+    "\n  query PlatformLogs {\n    platformLogs {\n      hours { start errors warnings }\n      errors24h\n      errors7d\n      warnings24h\n      warnings7d\n      messages { level message service count24h count7d firstSeenAt }\n    }\n  }\n": typeof types.PlatformLogsDocument,
+    "\n  query UserSessions($userID: ID!) {\n    userSessions(userID: $userID) {\n      url\n      sessions {\n        id\n        startedAt\n        duration\n        entryPage\n        pageviews\n        country\n        city\n        language\n        browser\n        operatingSystem\n        referrer\n        hasReplay\n      }\n    }\n  }\n": typeof types.UserSessionsDocument,
+    "\n  query SessionReplay($sessionID: ID!) {\n    sessionReplay(sessionID: $sessionID)\n  }\n": typeof types.SessionReplayDocument,
+    "\n  fragment WorkspaceFields on Workspace {\n    id\n    createdAt\n    abuse\n    abuseNote\n    suspended\n    billing { plan trialEndsAt goodStanding standingReason customerURL subscriptionURL }\n    paymentMethod\n    members { id name email avatar role signedUpAt lastSignInAt account { login createdAt } }\n    signals { kind strong detail }\n    runningPods\n    pendingPods\n    memoryRequested\n    egress7d\n    environments {\n      id\n      project\n      name\n      runningPods\n      pendingPods\n      services { name image commit repository }\n    }\n  }\n": typeof types.WorkspaceFieldsFragmentDoc,
+    "\n  query Workspaces {\n    workspaces { loadedAt workspaces { ...WorkspaceFields } }\n  }\n": typeof types.WorkspacesDocument,
+    "\n  query CachedWorkspaces {\n    cachedWorkspaces { loadedAt workspaces { ...WorkspaceFields } }\n  }\n": typeof types.CachedWorkspacesDocument,
+    "\n  mutation MarkAbuse($workspaceIDs: [ID!]!, $note: String) {\n    markAbuse(workspaceIDs: $workspaceIDs, note: $note) { workspaceID error }\n  }\n": typeof types.MarkAbuseDocument,
+    "\n  mutation ClearAbuse($workspaceIDs: [ID!]!) {\n    clearAbuse(workspaceIDs: $workspaceIDs) { workspaceID error }\n  }\n": typeof types.ClearAbuseDocument,
+};
+const documents: Documents = {
+    "\n  query Environment {\n    environment\n  }\n": types.EnvironmentDocument,
+    "\n  query EnvironmentLogs($id: ID!) {\n    environmentLogs(id: $id)\n  }\n": types.EnvironmentLogsDocument,
+    "\n  query PlanHistory($since: Time!) {\n    workspacePlans(since: $since) { at none trial hobby pro }\n  }\n": types.PlanHistoryDocument,
+    "\n  query Trends($since: Time!) {\n    signups(since: $since) { start count }\n    workspaceStandings(since: $since) { at good billing abuse }\n  }\n": types.TrendsDocument,
+    "\n  query PlatformTotals {\n    platformTotals {\n      runningPods\n      pendingPods\n      failedPods\n      runningContainers\n      runningWorkspaces\n      workspaces\n      releases\n      failedReleases\n      firingAlerts\n      runningPodsTrend\n      runningContainersTrend\n      runningWorkspacesTrend\n      releasesTrend\n      firingAlertsTrend\n    }\n  }\n": types.PlatformTotalsDocument,
+    "\n  query AppChartVersions {\n    appChartVersions { version releases since }\n  }\n": types.AppChartVersionsDocument,
+    "\n  query Routines {\n    routines { name hours { start passed failed } averageDuration averageDurationChange lastPassedAt }\n  }\n": types.RoutinesDocument,
+    "\n  query Limits {\n    limits { name limits { name unit value cap history { time value } } }\n  }\n": types.LimitsDocument,
+    "\n  query NodePools {\n    nodePools {\n      name\n      nodes {\n        name\n        instanceType\n        createdAt\n        attachedVolumes\n        volumeLimit\n        pods\n        podLimit\n        memoryAllocatable\n        memoryRequested\n        memoryUsed\n        cpuAllocatable\n        cpuRequested\n        cpuUsed\n      }\n    }\n  }\n": types.NodePoolsDocument,
+    "\n  query PlatformLogs {\n    platformLogs {\n      hours { start errors warnings }\n      errors24h\n      errors7d\n      warnings24h\n      warnings7d\n      messages { level message service count24h count7d firstSeenAt }\n    }\n  }\n": types.PlatformLogsDocument,
+    "\n  query UserSessions($userID: ID!) {\n    userSessions(userID: $userID) {\n      url\n      sessions {\n        id\n        startedAt\n        duration\n        entryPage\n        pageviews\n        country\n        city\n        language\n        browser\n        operatingSystem\n        referrer\n        hasReplay\n      }\n    }\n  }\n": types.UserSessionsDocument,
+    "\n  query SessionReplay($sessionID: ID!) {\n    sessionReplay(sessionID: $sessionID)\n  }\n": types.SessionReplayDocument,
+    "\n  fragment WorkspaceFields on Workspace {\n    id\n    createdAt\n    abuse\n    abuseNote\n    suspended\n    billing { plan trialEndsAt goodStanding standingReason customerURL subscriptionURL }\n    paymentMethod\n    members { id name email avatar role signedUpAt lastSignInAt account { login createdAt } }\n    signals { kind strong detail }\n    runningPods\n    pendingPods\n    memoryRequested\n    egress7d\n    environments {\n      id\n      project\n      name\n      runningPods\n      pendingPods\n      services { name image commit repository }\n    }\n  }\n": types.WorkspaceFieldsFragmentDoc,
+    "\n  query Workspaces {\n    workspaces { loadedAt workspaces { ...WorkspaceFields } }\n  }\n": types.WorkspacesDocument,
+    "\n  query CachedWorkspaces {\n    cachedWorkspaces { loadedAt workspaces { ...WorkspaceFields } }\n  }\n": types.CachedWorkspacesDocument,
+    "\n  mutation MarkAbuse($workspaceIDs: [ID!]!, $note: String) {\n    markAbuse(workspaceIDs: $workspaceIDs, note: $note) { workspaceID error }\n  }\n": types.MarkAbuseDocument,
+    "\n  mutation ClearAbuse($workspaceIDs: [ID!]!) {\n    clearAbuse(workspaceIDs: $workspaceIDs) { workspaceID error }\n  }\n": types.ClearAbuseDocument,
+};
+
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ *
+ *
+ * @example
+ * ```ts
+ * const query = graphql(`query GetUser($id: ID!) { user(id: $id) { name } }`);
+ * ```
+ *
+ * The query argument is unknown!
+ * Please regenerate the types.
+ */
+export function graphql(source: string): unknown;
+
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query Environment {\n    environment\n  }\n"): (typeof documents)["\n  query Environment {\n    environment\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query EnvironmentLogs($id: ID!) {\n    environmentLogs(id: $id)\n  }\n"): (typeof documents)["\n  query EnvironmentLogs($id: ID!) {\n    environmentLogs(id: $id)\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query PlanHistory($since: Time!) {\n    workspacePlans(since: $since) { at none trial hobby pro }\n  }\n"): (typeof documents)["\n  query PlanHistory($since: Time!) {\n    workspacePlans(since: $since) { at none trial hobby pro }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query Trends($since: Time!) {\n    signups(since: $since) { start count }\n    workspaceStandings(since: $since) { at good billing abuse }\n  }\n"): (typeof documents)["\n  query Trends($since: Time!) {\n    signups(since: $since) { start count }\n    workspaceStandings(since: $since) { at good billing abuse }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query PlatformTotals {\n    platformTotals {\n      runningPods\n      pendingPods\n      failedPods\n      runningContainers\n      runningWorkspaces\n      workspaces\n      releases\n      failedReleases\n      firingAlerts\n      runningPodsTrend\n      runningContainersTrend\n      runningWorkspacesTrend\n      releasesTrend\n      firingAlertsTrend\n    }\n  }\n"): (typeof documents)["\n  query PlatformTotals {\n    platformTotals {\n      runningPods\n      pendingPods\n      failedPods\n      runningContainers\n      runningWorkspaces\n      workspaces\n      releases\n      failedReleases\n      firingAlerts\n      runningPodsTrend\n      runningContainersTrend\n      runningWorkspacesTrend\n      releasesTrend\n      firingAlertsTrend\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query AppChartVersions {\n    appChartVersions { version releases since }\n  }\n"): (typeof documents)["\n  query AppChartVersions {\n    appChartVersions { version releases since }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query Routines {\n    routines { name hours { start passed failed } averageDuration averageDurationChange lastPassedAt }\n  }\n"): (typeof documents)["\n  query Routines {\n    routines { name hours { start passed failed } averageDuration averageDurationChange lastPassedAt }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query Limits {\n    limits { name limits { name unit value cap history { time value } } }\n  }\n"): (typeof documents)["\n  query Limits {\n    limits { name limits { name unit value cap history { time value } } }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query NodePools {\n    nodePools {\n      name\n      nodes {\n        name\n        instanceType\n        createdAt\n        attachedVolumes\n        volumeLimit\n        pods\n        podLimit\n        memoryAllocatable\n        memoryRequested\n        memoryUsed\n        cpuAllocatable\n        cpuRequested\n        cpuUsed\n      }\n    }\n  }\n"): (typeof documents)["\n  query NodePools {\n    nodePools {\n      name\n      nodes {\n        name\n        instanceType\n        createdAt\n        attachedVolumes\n        volumeLimit\n        pods\n        podLimit\n        memoryAllocatable\n        memoryRequested\n        memoryUsed\n        cpuAllocatable\n        cpuRequested\n        cpuUsed\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query PlatformLogs {\n    platformLogs {\n      hours { start errors warnings }\n      errors24h\n      errors7d\n      warnings24h\n      warnings7d\n      messages { level message service count24h count7d firstSeenAt }\n    }\n  }\n"): (typeof documents)["\n  query PlatformLogs {\n    platformLogs {\n      hours { start errors warnings }\n      errors24h\n      errors7d\n      warnings24h\n      warnings7d\n      messages { level message service count24h count7d firstSeenAt }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query UserSessions($userID: ID!) {\n    userSessions(userID: $userID) {\n      url\n      sessions {\n        id\n        startedAt\n        duration\n        entryPage\n        pageviews\n        country\n        city\n        language\n        browser\n        operatingSystem\n        referrer\n        hasReplay\n      }\n    }\n  }\n"): (typeof documents)["\n  query UserSessions($userID: ID!) {\n    userSessions(userID: $userID) {\n      url\n      sessions {\n        id\n        startedAt\n        duration\n        entryPage\n        pageviews\n        country\n        city\n        language\n        browser\n        operatingSystem\n        referrer\n        hasReplay\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query SessionReplay($sessionID: ID!) {\n    sessionReplay(sessionID: $sessionID)\n  }\n"): (typeof documents)["\n  query SessionReplay($sessionID: ID!) {\n    sessionReplay(sessionID: $sessionID)\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  fragment WorkspaceFields on Workspace {\n    id\n    createdAt\n    abuse\n    abuseNote\n    suspended\n    billing { plan trialEndsAt goodStanding standingReason customerURL subscriptionURL }\n    paymentMethod\n    members { id name email avatar role signedUpAt lastSignInAt account { login createdAt } }\n    signals { kind strong detail }\n    runningPods\n    pendingPods\n    memoryRequested\n    egress7d\n    environments {\n      id\n      project\n      name\n      runningPods\n      pendingPods\n      services { name image commit repository }\n    }\n  }\n"): (typeof documents)["\n  fragment WorkspaceFields on Workspace {\n    id\n    createdAt\n    abuse\n    abuseNote\n    suspended\n    billing { plan trialEndsAt goodStanding standingReason customerURL subscriptionURL }\n    paymentMethod\n    members { id name email avatar role signedUpAt lastSignInAt account { login createdAt } }\n    signals { kind strong detail }\n    runningPods\n    pendingPods\n    memoryRequested\n    egress7d\n    environments {\n      id\n      project\n      name\n      runningPods\n      pendingPods\n      services { name image commit repository }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query Workspaces {\n    workspaces { loadedAt workspaces { ...WorkspaceFields } }\n  }\n"): (typeof documents)["\n  query Workspaces {\n    workspaces { loadedAt workspaces { ...WorkspaceFields } }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query CachedWorkspaces {\n    cachedWorkspaces { loadedAt workspaces { ...WorkspaceFields } }\n  }\n"): (typeof documents)["\n  query CachedWorkspaces {\n    cachedWorkspaces { loadedAt workspaces { ...WorkspaceFields } }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation MarkAbuse($workspaceIDs: [ID!]!, $note: String) {\n    markAbuse(workspaceIDs: $workspaceIDs, note: $note) { workspaceID error }\n  }\n"): (typeof documents)["\n  mutation MarkAbuse($workspaceIDs: [ID!]!, $note: String) {\n    markAbuse(workspaceIDs: $workspaceIDs, note: $note) { workspaceID error }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation ClearAbuse($workspaceIDs: [ID!]!) {\n    clearAbuse(workspaceIDs: $workspaceIDs) { workspaceID error }\n  }\n"): (typeof documents)["\n  mutation ClearAbuse($workspaceIDs: [ID!]!) {\n    clearAbuse(workspaceIDs: $workspaceIDs) { workspaceID error }\n  }\n"];
+
+export function graphql(source: string) {
+  return (documents as any)[source] ?? {};
+}
+
+export type DocumentType<TDocumentNode extends DocumentNode<any, any>> = TDocumentNode extends DocumentNode<  infer TType,  any>  ? TType  : never;

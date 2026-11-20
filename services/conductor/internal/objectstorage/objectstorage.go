@@ -1,6 +1,7 @@
 package objectstorage
 
 import (
+	"cmp"
 	"context"
 	"crypto/rand"
 	"errors"
@@ -64,7 +65,8 @@ type Credentials struct {
 type Interface interface {
 	Buckets(ctx context.Context, environment platform.EnvironmentID, withStats bool) ([]Bucket, error)
 	Bucket(ctx context.Context, id platform.BucketID) (*Bucket, error)
-	Create(ctx context.Context, environment platform.EnvironmentID, name string) (*Bucket, error)
+	Create(ctx context.Context, environment platform.EnvironmentID, name, displayName string) (*Bucket, error)
+	SetName(ctx context.Context, id platform.BucketID, displayName string) (*Bucket, error)
 	Delete(ctx context.Context, id platform.BucketID) error
 	Credentials(ctx context.Context, id platform.BucketID) (*Credentials, error)
 	SetPublic(ctx context.Context, id platform.BucketID, public bool) (*Bucket, error)
@@ -158,7 +160,7 @@ func NewManager(backend Backend, kube kubernetes.Interface) *Manager {
 
 var _ Interface = (*Manager)(nil)
 
-func (m *Manager) Create(ctx context.Context, environment platform.EnvironmentID, name string) (*Bucket, error) {
+func (m *Manager) Create(ctx context.Context, environment platform.EnvironmentID, name, displayName string) (*Bucket, error) {
 	id := platform.BucketID{
 		Workspace:   environment.Workspace,
 		Project:     environment.Project,
@@ -203,6 +205,9 @@ func (m *Manager) Create(ctx context.Context, environment platform.EnvironmentID
 				labels.Environment:         environment.Name,
 				labels.ManagedBy:           labels.ManagedByLucity,
 			},
+			Annotations: map[string]string{
+				labels.Name: cmp.Or(displayName, name),
+			},
 		},
 		Data: map[string][]byte{
 			secretKeyName:            []byte(name),
@@ -232,7 +237,7 @@ func (m *Manager) Create(ctx context.Context, environment platform.EnvironmentID
 
 	return &Bucket{
 		ID:       id,
-		Name:     name,
+		Name:     cmp.Or(displayName, name),
 		Region:   conn.Region,
 		Endpoint: conn.Endpoint,
 	}, nil
@@ -350,6 +355,30 @@ func (m *Manager) Delete(ctx context.Context, id platform.BucketID) error {
 	}
 
 	return nil
+}
+
+func (m *Manager) SetName(ctx context.Context, id platform.BucketID, displayName string) (*Bucket, error) {
+	secret, err := m.secret(ctx, id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if secret.Annotations == nil {
+		secret.Annotations = map[string]string{}
+	}
+
+	secret.Annotations[labels.Name] = displayName
+
+	updated, err := m.kube.CoreV1().Secrets(id.Namespace()).Update(ctx, secret, metav1.UpdateOptions{})
+
+	if err != nil {
+		return nil, fmt.Errorf("update bucket secret: %w", err)
+	}
+
+	bucket := bucketFromSecret(updated)
+
+	return &bucket, nil
 }
 
 func (m *Manager) SetPublic(ctx context.Context, id platform.BucketID, public bool) (*Bucket, error) {
@@ -490,7 +519,7 @@ func bucketFromSecret(secret *corev1.Secret) Bucket {
 			Environment: secret.Labels[labels.Environment],
 			Name:        secret.Labels[labels.ObjectStorageBucket],
 		},
-		Name:           state.Name,
+		Name:           cmp.Or(secret.Annotations[labels.Name], state.Name),
 		Region:         state.Region,
 		Endpoint:       state.Endpoint,
 		PublicEndpoint: state.PublicEndpoint,

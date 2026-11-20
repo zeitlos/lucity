@@ -99,10 +99,11 @@ func (c *Client) Releases(ctx context.Context, service platform.Service) ([]Rele
 	}
 
 	type group struct {
-		build      *Build
-		deploy     *Deploy
-		scan       *Scan
-		deployment *Deployment
+		build        *Build
+		deploy       *Deploy
+		scan         *Scan
+		deployment   *Deployment
+		firstRollout time.Time
 	}
 
 	groups := map[string]*group{}
@@ -127,6 +128,10 @@ func (c *Client) Releases(ctx context.Context, service platform.Service) ([]Rele
 
 		if g.deployment == nil || deployment.CreatedAt.After(g.deployment.CreatedAt) {
 			g.deployment = deployment
+		}
+
+		if g.firstRollout.IsZero() || deployment.CreatedAt.Before(g.firstRollout) {
+			g.firstRollout = deployment.CreatedAt
 		}
 	}
 
@@ -170,7 +175,7 @@ func (c *Client) Releases(ctx context.Context, service platform.Service) ([]Rele
 	releases := make([]Release, 0, len(groups))
 
 	for key, g := range groups {
-		releases = append(releases, assembleRelease(serviceID.Workspace, key, g.build, g.deploy, g.scan, g.deployment))
+		releases = append(releases, assembleRelease(serviceID.Workspace, key, g.build, g.deploy, g.scan, g.deployment, g.firstRollout))
 	}
 
 	sort.Slice(releases, func(i, j int) bool {
@@ -196,7 +201,7 @@ func (r Release) awaitingRollout() bool {
 		r.Deploy.FinishedAt != nil
 }
 
-func assembleRelease(workspace, name string, build *Build, deploy *Deploy, scan *Scan, deployment *Deployment) Release {
+func assembleRelease(workspace, name string, build *Build, deploy *Deploy, scan *Scan, deployment *Deployment, firstRollout time.Time) Release {
 	return Release{
 		ID:         ReleaseID{Workspace: workspace, Name: name},
 		Status:     releaseStatus(build, deploy, deployment),
@@ -206,7 +211,7 @@ func assembleRelease(workspace, name string, build *Build, deploy *Deploy, scan 
 		Deploy:     deploy,
 		Scan:       scan,
 		Deployment: deployment,
-		CreatedAt:  releaseCreatedAt(build, deploy, deployment),
+		CreatedAt:  releaseCreatedAt(build, deploy, firstRollout),
 	}
 }
 
@@ -283,7 +288,7 @@ func releaseTrigger(deployment *Deployment) ReleaseTrigger {
 	return ReleaseTrigger{Kind: deployer.TriggerManual}
 }
 
-func releaseCreatedAt(build *Build, deploy *Deploy, deployment *Deployment) time.Time {
+func releaseCreatedAt(build *Build, deploy *Deploy, firstRollout time.Time) time.Time {
 	if build != nil {
 		if build.StartedAt != nil {
 			return *build.StartedAt
@@ -294,8 +299,8 @@ func releaseCreatedAt(build *Build, deploy *Deploy, deployment *Deployment) time
 		}
 	}
 
-	if deployment != nil {
-		return deployment.CreatedAt
+	if !firstRollout.IsZero() {
+		return firstRollout
 	}
 
 	if deploy != nil && deploy.StartedAt != nil {

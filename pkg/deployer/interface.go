@@ -20,18 +20,23 @@ type Interface interface {
 	KeyValueStores() KeyValueStoreClient
 	Volumes() VolumeClient
 	Environments() EnvironmentClient
+	Agents() AgentClient
+	Workspaces() WorkspaceClient
 }
 
 type ServiceClient interface {
 	Create(ctx context.Context, env platform.EnvironmentID, name string, spec ServiceSpec) (RevisionID, error)
 	Delete(ctx context.Context, id platform.ServiceID) error
+	SetDisplayName(ctx context.Context, id platform.ServiceID, displayName string) (RevisionID, error)
 
 	SetImage(ctx context.Context, id platform.ServiceID, ref image.Ref, provenance ImageProvenance, release ReleaseMeta) (RevisionID, error)
 	SetReplicas(ctx context.Context, id platform.ServiceID, replicas int) (RevisionID, error)
 	SetAutoscaling(ctx context.Context, id platform.ServiceID, config Autoscaling) (RevisionID, error)
-	SetResources(ctx context.Context, id platform.ServiceID, tier platform.ResourceTier, resources Resources) (RevisionID, error)
+	SetResources(ctx context.Context, id platform.ServiceID, resources Resources) (RevisionID, error)
 	SetCommand(ctx context.Context, id platform.ServiceID, command string) (RevisionID, error)
 	SetBranch(ctx context.Context, id platform.ServiceID, branch string) (RevisionID, error)
+	SetContextPath(ctx context.Context, id platform.ServiceID, contextPath string) (RevisionID, error)
+	Restart(ctx context.Context, id platform.ServiceID) (RevisionID, error)
 	SetAutoDeploy(ctx context.Context, id platform.ServiceID, enabled bool) (RevisionID, error)
 	SetCIDeploy(ctx context.Context, id platform.ServiceID, enabled bool) (RevisionID, error)
 	SetPort(ctx context.Context, id platform.ServiceID, port int) (RevisionID, error)
@@ -40,6 +45,7 @@ type ServiceClient interface {
 
 	Variables(ctx context.Context, id platform.ServiceID) (ServiceVariablesSpec, error)
 	SetVariables(ctx context.Context, id platform.ServiceID, spec ServiceVariablesSpec) (RevisionID, error)
+	UpdateVariables(ctx context.Context, id platform.ServiceID, spec ServiceVariablesSpec, unset []string) (RevisionID, error)
 
 	AddDomain(ctx context.Context, id platform.ServiceID, host string, options DomainOptions) (RevisionID, error)
 	RemoveDomain(ctx context.Context, id platform.ServiceID, host string) (RevisionID, error)
@@ -53,7 +59,8 @@ type DatabaseClient interface {
 	Create(ctx context.Context, env platform.EnvironmentID, name string, spec DatabaseSpec) (RevisionID, error)
 	Restore(ctx context.Context, source platform.DatabaseID, name string, spec DatabaseSpec, targetTime *time.Time) (RevisionID, error)
 	Delete(ctx context.Context, id platform.DatabaseID) error
-	SetResources(ctx context.Context, id platform.DatabaseID, tier platform.ResourceTier, resources Resources) (RevisionID, error)
+	SetDisplayName(ctx context.Context, id platform.DatabaseID, displayName string) (RevisionID, error)
+	SetResources(ctx context.Context, id platform.DatabaseID, resources Resources) (RevisionID, error)
 	SetStorage(ctx context.Context, id platform.DatabaseID, size resource.Quantity) (RevisionID, error)
 	Expose(ctx context.Context, id platform.DatabaseID, host string) error
 	Unexpose(ctx context.Context, id platform.DatabaseID) error
@@ -66,21 +73,56 @@ type DatabaseClient interface {
 type KeyValueStoreClient interface {
 	Create(ctx context.Context, env platform.EnvironmentID, name string, spec KeyValueStoreSpec) (RevisionID, error)
 	Delete(ctx context.Context, id platform.KeyValueStoreID) error
+	SetDisplayName(ctx context.Context, id platform.KeyValueStoreID, displayName string) (RevisionID, error)
 }
 
 type VolumeClient interface {
-	Create(ctx context.Context, env platform.EnvironmentID, name string, size resource.Quantity) (RevisionID, error)
+	Create(ctx context.Context, env platform.EnvironmentID, name, displayName string, size resource.Quantity) (RevisionID, error)
 	Delete(ctx context.Context, id platform.VolumeID) error
+	SetDisplayName(ctx context.Context, id platform.VolumeID, displayName string) (RevisionID, error)
 	Expand(ctx context.Context, id platform.VolumeID, size resource.Quantity) (RevisionID, error)
 }
 
 type EnvironmentClient interface {
 	Variables(ctx context.Context, id platform.EnvironmentID) (map[string]string, error)
 	SetVariables(ctx context.Context, id platform.EnvironmentID, vars map[string]string) (RevisionID, error)
+	UpdateVariables(ctx context.Context, id platform.EnvironmentID, set map[string]string, unset []string) (RevisionID, error)
 	Outdated(ctx context.Context, id platform.EnvironmentID) (bool, error)
 	State(ctx context.Context, id platform.EnvironmentID) (*EnvironmentState, error)
 	SetState(ctx context.Context, id platform.EnvironmentID, state EnvironmentState) (RevisionID, error)
 	Export(ctx context.Context, id platform.EnvironmentID) ([]byte, error)
+}
+
+// AgentClient changes the agents of an environment release.
+type AgentClient interface {
+	Agents(ctx context.Context, env platform.EnvironmentID) (map[string]values.Agent, error)
+	Create(ctx context.Context, env platform.EnvironmentID, name string, agent values.Agent) (RevisionID, error)
+	Update(ctx context.Context, id platform.AgentID, harness values.Harness, instructions string) (RevisionID, error)
+	SetConnectors(ctx context.Context, id platform.AgentID, connectors map[string]values.AgentConnector) (RevisionID, error)
+	SetNetwork(ctx context.Context, id platform.AgentID, network values.AgentNetwork) (RevisionID, error)
+	Delete(ctx context.Context, id platform.AgentID) error
+}
+
+// WorkspaceClient changes a workspace release: configuration that belongs to
+// a workspace rather than to one of its environments, such as its model
+// providers, connectors and chat apps, and the gateway keys, grants and chat
+// channels of its agents.
+type WorkspaceClient interface {
+	Workspace(ctx context.Context, workspace string) (*values.Workspace, error)
+	SetModelProvider(ctx context.Context, id platform.ModelProviderID, provider values.ModelProvider) error
+	DeleteModelProvider(ctx context.Context, id platform.ModelProviderID) error
+	SetConnector(ctx context.Context, id platform.ConnectorID, connector values.Connector) error
+	DeleteConnector(ctx context.Context, id platform.ConnectorID) error
+	SetChatApp(ctx context.Context, id platform.ChatAppID, app values.ChatApp) error
+	DeleteChatApp(ctx context.Context, id platform.ChatAppID) error
+	SetAgentGrant(ctx context.Context, id platform.AgentID, grant values.AgentGrant) error
+	SetAgentChannels(ctx context.Context, id platform.AgentID, channels []values.AgentChannel) error
+	DeleteAgentGrant(ctx context.Context, id platform.AgentID) error
+	Delete(ctx context.Context, workspace string) error
+
+	Workspaces(ctx context.Context) ([]string, error)
+	Outdated(ctx context.Context, workspace string) (bool, error)
+	Upgrade(ctx context.Context, workspace string) error
 }
 
 // EnvironmentState is what stagehand converges on a release: where its
@@ -101,6 +143,7 @@ type VariableRef struct {
 }
 
 type ServiceSpec struct {
+	DisplayName          string
 	Image                string
 	SourceURL            string
 	ContextPath          string
@@ -109,22 +152,23 @@ type ServiceSpec struct {
 	StartCommand         string
 	Port                 int
 	Resources            Resources
-	ResourceTier         platform.ResourceTier
 	Env                  map[string]string
+	Refs                 map[string]VariableRef
 	SecurityContext      SecurityContext
 }
 
 type ImageProvenance struct {
 	Commit        string
 	CommitMessage string
+	ContextPath   string
 	BuildID       string
 }
 
 type DatabaseSpec struct {
-	Version      string
-	Size         resource.Quantity
-	Resources    Resources
-	ResourceTier platform.ResourceTier
+	DisplayName string
+	Version     string
+	Size        resource.Quantity
+	Resources   Resources
 }
 
 // AllowRule lets clients from Range connect to a database's public hostname.
@@ -134,9 +178,10 @@ type AllowRule struct {
 }
 
 type KeyValueStoreSpec struct {
-	Version  string
-	Size     resource.Quantity
-	Password string
+	DisplayName string
+	Version     string
+	Size        resource.Quantity
+	Password    string
 }
 
 type Autoscaling struct {

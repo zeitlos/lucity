@@ -2,6 +2,7 @@ package edge
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
 
@@ -29,6 +30,11 @@ type Certificate struct {
 type Host struct {
 	Name        string
 	Certificate *Certificate
+}
+
+type Zone struct {
+	Workspace string
+	Hostnames []string
 }
 
 type Client struct {
@@ -71,6 +77,39 @@ func (c *Client) Unregister(ctx context.Context, workspaceID, name string) error
 	}
 
 	return nil
+}
+
+// Zones returns the zone of every workspace, with the hostnames registered on
+// it. The routing zone and zones with another origin, such as public buckets,
+// are left out.
+func (c *Client) Zones(ctx context.Context) ([]Zone, error) {
+	zones, err := c.api.PullZones(ctx)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var result []Zone
+
+	for _, zone := range zones {
+		workspaceID, ok := strings.CutPrefix(zone.Name, c.config.ZonePrefix+"-")
+
+		if !ok || workspaceID == "" || zone.OriginURL != c.config.OriginURL {
+			continue
+		}
+
+		var hostnames []string
+
+		for _, hostname := range zone.Hostnames {
+			if !hostname.IsSystemHostname {
+				hostnames = append(hostnames, hostname.Value)
+			}
+		}
+
+		result = append(result, Zone{Workspace: workspaceID, Hostnames: hostnames})
+	}
+
+	return result, nil
 }
 
 func (c *Client) DeleteZone(ctx context.Context, workspaceID string) error {

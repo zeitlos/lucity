@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import NameSettings from '@/components/NameSettings.vue';
 import CredentialField from '@/components/CredentialField.vue';
 import { formatStorage } from '@/lib/format';
 import EmptyState from '@/components/EmptyState.vue';
 import QueryError from '@/components/QueryError.vue';
-import { useGuardedTab } from '@/composables/useUnsavedChanges';
+import { usePanelTab } from '@/composables/usePanel';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import PanelShell from '@/components/PanelShell.vue';
 import { devicon } from '@/lib/devicons';
@@ -16,8 +17,17 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
+import CredentialFieldSkeleton from '@/components/CredentialFieldSkeleton.vue';
 import { failureToast } from '@/components/ui/sonner';
 
+const RenameKeyValueStoreDocument = graphql(`
+  mutation RenameKeyValueStore($keyValueStore: KeyValueStoreID!, $name: String!) {
+    renameKeyValueStore(keyValueStore: $keyValueStore, name: $name) {
+      id
+      name
+    }
+  }
+`);
 const KeyValueStoreCredentialsDocument = graphql(`
   query KeyValueStoreCredentials($keyValueStore: KeyValueStoreID!) {
     keyValueStoreCredentials(keyValueStore: $keyValueStore) {
@@ -50,7 +60,17 @@ const emit = defineEmits<{
   (e: 'store-removed'): void;
 }>();
 
-const { tab: activeTab, selectTab } = useGuardedTab('connect');
+const { mutate: renameMutate, loading: renaming } = useMutation(RenameKeyValueStoreDocument);
+
+async function handleRename(name: string) {
+  try {
+    await renameMutate({ keyValueStore: props.store.id, name });
+  } catch (e: unknown) {
+    failureToast('Failed to rename store', e);
+  }
+}
+
+const { tab: activeTab, selectTab } = usePanelTab('connect');
 
 
 const { result, loading, error, refetch } = useQuery(
@@ -115,7 +135,7 @@ async function handleDelete() {
     <!-- Tab Content -->
     <Tabs :model-value="activeTab" @update:model-value="selectTab" class="flex min-h-0 flex-1 flex-col">
       <div class="shrink-0 border-b px-4 pt-2">
-        <TabsList class="w-full border-b-0">
+        <TabsList class="w-full overflow-x-auto overflow-y-hidden border-b-0 [scrollbar-width:none]">
           <TabsTrigger value="connect">Connect</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
@@ -133,8 +153,11 @@ async function handleDelete() {
             </div>
 
             <!-- Loading -->
-            <div v-if="loading" class="space-y-2">
-              <Skeleton v-for="i in 4" :key="i" class="h-10 w-full" />
+            <div v-if="loading" class="space-y-1.5">
+              <div class="flex h-4 items-center">
+                <Skeleton class="h-3 w-28" />
+              </div>
+              <CredentialFieldSkeleton :rows="4" />
             </div>
 
             <!-- Provisioning -->
@@ -176,6 +199,18 @@ async function handleDelete() {
 
         <TabsContent value="settings" class="px-4 py-4">
           <div class="space-y-6">
+            <section class="space-y-2">
+              <h3 class="text-sm font-medium text-muted-foreground">
+                General
+              </h3>
+              <NameSettings
+                :name="store.name"
+                :id="store.id"
+                :saving="renaming"
+                @save="handleRename"
+              />
+            </section>
+
             <!-- Configuration -->
             <section class="space-y-2">
               <h3 class="text-sm font-medium text-muted-foreground">

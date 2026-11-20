@@ -14,10 +14,12 @@ import (
 type Variable struct {
 	ID     VariableID
 	Name   string
+	Value  string
 	Source VariableSource
 }
 
 type VariableSource struct {
+	Name          string
 	Database      *DatabaseID
 	KeyValueStore *KeyValueStoreID
 	Bucket        *BucketID

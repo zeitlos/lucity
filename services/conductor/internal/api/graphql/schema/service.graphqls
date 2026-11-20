@@ -1,6 +1,7 @@
 type Service
 @goExtraField(name: "PlatformService", type: "github.com/zeitlos/lucity/pkg/platform.Service"){
   id: ServiceID!
+  """What people read. It can be changed, while `id` stays the same."""
   name: String!
 
   status: ServiceStatus!
@@ -28,6 +29,8 @@ type Service
   builds: [Build!]! @goField(forceResolver: true)
 
   releases: [Release!]! @goField(forceResolver: true)
+  """The newest release, which can be newer than the one serving traffic, for example while it builds or after its build failed."""
+  latestRelease: Release @goField(forceResolver: true)
 
   metrics(metrics: [ResourceMetric!]!, range: MetricsRange!, grouping: MetricGrouping! = TOTAL): [MetricSeries!]! @goField(forceResolver: true)
 
@@ -134,11 +137,15 @@ type DetectedService {
 }
 
 input AddServiceInput {
-  name: String @constraint(constraint: "resource_name,min=2,max=16")
+  """What people read. Any text, and it can be changed later. Defaults to the repository or image name."""
+  name: String @constraint(constraint: "min=1,max=128")
+  """The id: 2 to 16 lowercase letters, digits and hyphens, fixed once created. Derived from `name` when left out, with a counter added when that id is taken. A given id that is taken is refused."""
+  id: String @constraint(constraint: "resource_name,min=2,max=16")
   repository: String @constraint(constraint: "min=3,max=200")
   contextPath: String @constraint(constraint: "max=255")
   image: String @constraint(constraint: "max=512")
-  variables: [VariableInput!]
+  """Variables the service starts with: literal values, or refs to `availableVariables` in the same environment. The first build gets the literal values only."""
+  variables: [ServiceVariableInput!]
   resources: ResourcesInput
   """The user id an image-based service runs as, which also owns its mounted volumes."""
   user: Int @constraint(constraint: "min=0,max=65535")
@@ -146,7 +153,7 @@ input AddServiceInput {
 
 input SetServiceScalingInput {
   service: ServiceID!
-  replicas: Int! @constraint(constraint: "min=1,max=20")
+  replicas: Int! @constraint(constraint: "min=0,max=20")
   autoscaling: AutoscalingInput
 }
 
@@ -175,8 +182,8 @@ input AutoscalingInput {
 extend type Query {
   """One service, with its configuration, endpoints and releases."""
   service(id: ServiceID!): Service! @hasRole(role: WORKSPACE_DEPLOYER)
-  """Inspects the default branch of a repository, given as a URL such as `https://github.com/acme/api`, and suggests a service for it with the detected language, framework and start command. The Lucity GitHub App needs access to the repository."""
-  detectServices(repositoryUrl: String! @constraint(constraint: "min=3,max=300")): [DetectedService!]! @hasRole(role: WORKSPACE_MEMBER)
+  """Inspects the default branch of a repository, given as a URL such as `https://github.com/acme/api`, and suggests services with the detected language, framework and start command. When the root has nothing to run, as in a monorepo, it suggests every folder up to two levels down that can be built, each with its folder as `contextPath`. `contextPath` inspects a folder of the repository, such as `apps/web`, instead of its root. The Lucity GitHub App needs access to the repository."""
+  detectServices(repositoryUrl: String! @constraint(constraint: "min=3,max=300"), contextPath: String @constraint(constraint: "max=255")): [DetectedService!]! @hasRole(role: WORKSPACE_MEMBER)
   """The branches of a repository, given as a URL such as `https://github.com/acme/api`. The Lucity GitHub App needs access to the repository."""
   repositoryBranches(repositoryUrl: String! @constraint(constraint: "min=3,max=300")): [String!]! @hasRole(role: WORKSPACE_MEMBER)
 }
@@ -186,10 +193,16 @@ extend type Mutation {
   addService(environment: EnvironmentID!, input: AddServiceInput!): Service! @hasRole(role: WORKSPACE_MEMBER)
   """Removes a service from its environment."""
   removeService(service: ServiceID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
-  """Sets the command a service starts with, run through a shell. An empty string goes back to the image's default."""
+  """Changes the name of a service. Its id stays the same, and nothing restarts."""
+  renameService(service: ServiceID!, name: String! @constraint(constraint: "min=1,max=128")): Service! @hasRole(role: WORKSPACE_MEMBER)
+  """Sets the command a service starts with, in place of the image's entrypoint and command. It is split into words like a shell would, quotes included, and runs without one: write variables as `$(NAME)`, and use `sh -c '…'` for shell features such as `&&`. An empty string goes back to the image's default."""
   setCustomStartCommand(service: ServiceID!, command: String!): Service! @hasRole(role: WORKSPACE_MEMBER)
   """Sets the branch a service builds from, starting with its next deploy. Leave it out to follow the repository's default branch."""
   setServiceBranch(service: ServiceID!, branch: String @constraint(constraint: "min=1,max=250")): Service! @hasRole(role: WORKSPACE_MEMBER)
+  """Sets the folder of the repository a service builds from, such as `apps/web`, starting with its next deploy. An empty string builds from the repository root. Only services built from a repository have one."""
+  setServiceContextPath(service: ServiceID!, contextPath: String! @constraint(constraint: "max=255")): Service! @hasRole(role: WORKSPACE_MEMBER)
+  """Replaces the instances of a service with fresh ones, on the image and settings it already runs."""
+  restartService(service: ServiceID!): Service! @hasRole(role: WORKSPACE_MEMBER)
   """Turns deploying on every push to the tracked branch on or off."""
   setAutoDeploy(service: ServiceID!, enabled: Boolean!): Service! @hasRole(role: WORKSPACE_MEMBER)
   """Turns keyless deploys from GitHub Actions workflows in the service's repository on or off."""
@@ -198,9 +211,9 @@ extend type Mutation {
   setServicePort(service: ServiceID!, port: Int @constraint(constraint: "min=1,max=65535")): Service! @hasRole(role: WORKSPACE_MEMBER)
   """Sets an HTTP health check on a path. Leave it out to go back to checking that the port accepts connections."""
   setServiceHealthCheck(service: ServiceID!, healthCheck: HealthCheckInput): Service! @hasRole(role: WORKSPACE_MEMBER)
-  """Runs a fixed number of `replicas`, or with `autoscaling` enabled, scales between a minimum and a maximum to hold CPU at the target percentage. A service with a mounted volume runs a single instance."""
+  """Runs a fixed number of `replicas`, or with `autoscaling` enabled, scales between a minimum and a maximum to hold CPU at the target percentage. Zero `replicas` stops the service until it is scaled up again; its volumes, variables and domains stay. A service with a mounted volume runs a single instance."""
   setServiceScaling(input: SetServiceScalingInput!): Service! @hasRole(role: WORKSPACE_MEMBER)
-  """Sets the CPU (250m to 4) and memory (256Mi to 16Gi) of a service. The service rolls out again on the image it is already running."""
+  """Sets the CPU and memory of a service, within the limits in `Workspace.capabilities`. The service rolls out again on the image it is already running."""
   setServiceResources(service: ServiceID!, resources: ResourcesInput!): Service! @hasRole(role: WORKSPACE_MEMBER)
   """Sets the user id an image-based service runs as, which also becomes its group and the owner of its mounted volumes. Leave it out to go back to the image's default. Services built from source can't set it."""
   setServiceUser(service: ServiceID!, user: Int @constraint(constraint: "min=0,max=65535")): Service! @hasRole(role: WORKSPACE_MEMBER)

@@ -2,6 +2,7 @@ package helm
 
 import (
 	"context"
+	"time"
 
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/deployer/values"
@@ -19,16 +20,24 @@ func (s *serviceClient) Create(ctx context.Context, env platform.EnvironmentID, 
 		return "", err
 	}
 
+	refs := make(map[string]values.SecretRef, len(spec.Refs))
+
+	for key, ref := range spec.Refs {
+		refs[key] = values.SecretRef{Secret: ref.Secret, Key: ref.Key}
+	}
+
 	return s.client.applyEnv(ctx, env, func(e *values.Env) error {
 		spec := values.ServiceSpec{
+			DisplayName:          spec.DisplayName,
 			Image:                spec.Image,
 			SourceURL:            spec.SourceURL,
 			ContextPath:          spec.ContextPath,
 			GitHubInstallationID: spec.GitHubInstallationID,
 			AutoDeploy:           spec.AutoDeploy,
 			Port:                 spec.Port,
-			Resources:            deriveRequestsAndLimtis(spec.Resources, spec.ResourceTier),
+			Resources:            deriveRequestsAndLimtis(spec.Resources),
 			Env:                  spec.Env,
+			Refs:                 refs,
 			RunAsUser:            spec.SecurityContext.RunAsUser,
 			RunAsGroup:           spec.SecurityContext.RunAsGroup,
 			FsGroup:              spec.SecurityContext.FsGroup,
@@ -46,11 +55,18 @@ func (s *serviceClient) Delete(ctx context.Context, id platform.ServiceID) error
 	return err
 }
 
+func (s *serviceClient) SetDisplayName(ctx context.Context, id platform.ServiceID, displayName string) (deployer.RevisionID, error) {
+	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
+		return values.SetServiceDisplayName(e, id.Name, displayName)
+	})
+}
+
 func (s *serviceClient) SetImage(ctx context.Context, id platform.ServiceID, ref image.Ref, provenance deployer.ImageProvenance, release deployer.ReleaseMeta) (deployer.RevisionID, error) {
 	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
 		return values.SetServiceImage(e, id.Name, ref, values.ImageProvenance{
 			Commit:        provenance.Commit,
 			CommitMessage: provenance.CommitMessage,
+			ContextPath:   provenance.ContextPath,
 			BuildID:       provenance.BuildID,
 		}, values.ReleaseMeta{
 			ID:      release.ID,
@@ -76,13 +92,13 @@ func (s *serviceClient) SetAutoscaling(ctx context.Context, id platform.ServiceI
 	})
 }
 
-func (s *serviceClient) SetResources(ctx context.Context, id platform.ServiceID, tier platform.ResourceTier, res deployer.Resources) (deployer.RevisionID, error) {
+func (s *serviceClient) SetResources(ctx context.Context, id platform.ServiceID, res deployer.Resources) (deployer.RevisionID, error) {
 	if err := validateResources(res); err != nil {
 		return "", err
 	}
 
 	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
-		return values.SetServiceResources(e, id.Name, deriveRequestsAndLimtis(res, tier))
+		return values.SetServiceResources(e, id.Name, deriveRequestsAndLimtis(res))
 	})
 }
 
@@ -95,6 +111,18 @@ func (s *serviceClient) SetCommand(ctx context.Context, id platform.ServiceID, c
 func (s *serviceClient) SetBranch(ctx context.Context, id platform.ServiceID, branch string) (deployer.RevisionID, error) {
 	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
 		return values.SetServiceBranch(e, id.Name, branch)
+	})
+}
+
+func (s *serviceClient) SetContextPath(ctx context.Context, id platform.ServiceID, contextPath string) (deployer.RevisionID, error) {
+	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
+		return values.SetServiceContextPath(e, id.Name, contextPath)
+	})
+}
+
+func (s *serviceClient) Restart(ctx context.Context, id platform.ServiceID) (deployer.RevisionID, error) {
+	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
+		return values.RestartService(e, id.Name, time.Now())
 	})
 }
 
@@ -182,6 +210,21 @@ func (s *serviceClient) SetVariables(ctx context.Context, id platform.ServiceID,
 
 	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
 		return values.SetServiceVariables(e, id.Name, spec.Literals, refs)
+	})
+}
+
+func (s *serviceClient) UpdateVariables(ctx context.Context, id platform.ServiceID, spec deployer.ServiceVariablesSpec, unset []string) (deployer.RevisionID, error) {
+	refs := make(map[string]values.SecretRef, len(spec.Refs))
+
+	for k, ref := range spec.Refs {
+		refs[k] = values.SecretRef{
+			Secret: ref.Secret,
+			Key:    ref.Key,
+		}
+	}
+
+	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
+		return values.UpdateServiceVariables(e, id.Name, spec.Literals, refs, unset)
 	})
 }
 

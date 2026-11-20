@@ -5,19 +5,21 @@ import (
 	"maps"
 	"slices"
 	"strconv"
+	"time"
 
 	"github.com/zeitlos/lucity/pkg/image"
+	"github.com/zeitlos/lucity/pkg/shellwords"
 	"github.com/zeitlos/lucity/pkg/usererror"
 )
 
 type Service struct {
 	Image          ImageRef             `yaml:"image"`
 	Port           int                  `yaml:"port,omitempty"`
-	Replicas       int                  `yaml:"replicas,omitempty"`
+	Replicas       *int                 `yaml:"replicas,omitempty"`
 	Autoscaling    *Autoscaling         `yaml:"autoscaling,omitempty"`
 	Resources      Resources            `yaml:"resources,omitempty"`
 	Domains        []Domain             `yaml:"domains,omitempty"`
-	Command        string               `yaml:"command,omitempty"`
+	Command        []string             `yaml:"command,omitempty"`
 	HealthCheck    *HealthCheck         `yaml:"healthCheck,omitempty"`
 	RunAsUser      *int64               `yaml:"runAsUser,omitempty"`
 	RunAsGroup     *int64               `yaml:"runAsGroup,omitempty"`
@@ -97,6 +99,7 @@ type IssuerRef struct {
 }
 
 type ServiceSpec struct {
+	DisplayName          string
 	Image                string
 	SourceURL            string
 	ContextPath          string
@@ -105,6 +108,7 @@ type ServiceSpec struct {
 	Port                 int
 	Resources            Resources
 	Env                  map[string]string
+	Refs                 map[string]SecretRef
 	RunAsUser            *int64
 	RunAsGroup           *int64
 	FsGroup              *int64
@@ -154,11 +158,12 @@ func CreateService(env *Env, name string, spec ServiceSpec) error {
 		},
 		Port:           spec.Port,
 		Labels:         labels,
-		Annotations:    annotations,
+		Annotations:    withDisplayName(annotations, spec.DisplayName),
 		PodLabels:      podLabels,
 		PodAnnotations: podAnnotations,
 		Resources:      spec.Resources,
 		Env:            maps.Clone(spec.Env),
+		Refs:           maps.Clone(spec.Refs),
 		RunAsUser:      spec.RunAsUser,
 		RunAsGroup:     spec.RunAsGroup,
 		FsGroup:        spec.FsGroup,
@@ -180,6 +185,7 @@ func DeleteService(env *Env, name string) error {
 type ImageProvenance struct {
 	Commit        string
 	CommitMessage string
+	ContextPath   string
 	BuildID       string
 }
 
@@ -201,6 +207,7 @@ func SetServiceImage(env *Env, name string, ref image.Ref, provenance ImageProve
 
 		setOrDelete(s.PodAnnotations, annotationSourceCommit, provenance.Commit)
 		setOrDelete(s.PodAnnotations, annotationSourceMessage, provenance.CommitMessage)
+		setOrDelete(s.PodAnnotations, annotationSourceContext, provenance.ContextPath)
 		setOrDelete(s.PodAnnotations, annotationBuildID, provenance.BuildID)
 
 		setOrDelete(s.PodAnnotations, annotationRelease, release.ID)
@@ -219,7 +226,7 @@ func setOrDelete(m map[string]string, key, value string) {
 
 func SetServiceReplicas(env *Env, name string, replicas int) error {
 	return mutateService(env, name, func(s *Service) {
-		s.Replicas = replicas
+		s.Replicas = &replicas
 		s.Autoscaling = nil
 	})
 }
@@ -239,8 +246,14 @@ func SetServiceResources(env *Env, name string, resources Resources) error {
 }
 
 func SetServiceCommand(env *Env, name, command string) error {
+	words, err := shellwords.Split(command)
+
+	if err != nil {
+		return usererror.Errorf("start command: %v", err)
+	}
+
 	return mutateService(env, name, func(s *Service) {
-		s.Command = command
+		s.Command = words
 	})
 }
 
@@ -251,6 +264,26 @@ func SetServiceBranch(env *Env, name, branch string) error {
 		}
 
 		setOrDelete(s.Annotations, annotationSourceBranch, branch)
+	})
+}
+
+func SetServiceContextPath(env *Env, name, contextPath string) error {
+	return mutateService(env, name, func(s *Service) {
+		if s.Annotations == nil {
+			s.Annotations = map[string]string{}
+		}
+
+		setOrDelete(s.Annotations, annotationSourceContext, contextPath)
+	})
+}
+
+func RestartService(env *Env, name string, at time.Time) error {
+	return mutateService(env, name, func(s *Service) {
+		if s.PodAnnotations == nil {
+			s.PodAnnotations = map[string]string{}
+		}
+
+		s.PodAnnotations[annotationRestartedAt] = at.UTC().Format(time.RFC3339)
 	})
 }
 
@@ -312,6 +345,36 @@ func SetServiceVariables(env *Env, name string, literals map[string]string, refs
 	return mutateService(env, name, func(s *Service) {
 		s.Env = maps.Clone(literals)
 		s.Refs = maps.Clone(refs)
+	})
+}
+
+// UpdateServiceVariables sets and removes individual variables, keeping every
+// key it is not given. Setting a key replaces it, whether it held a literal
+// value or a secret-key reference.
+func UpdateServiceVariables(env *Env, name string, literals map[string]string, refs map[string]SecretRef, unset []string) error {
+	return mutateService(env, name, func(s *Service) {
+		if s.Env == nil {
+			s.Env = make(map[string]string)
+		}
+
+		if s.Refs == nil {
+			s.Refs = make(map[string]SecretRef)
+		}
+
+		for _, key := range unset {
+			delete(s.Env, key)
+			delete(s.Refs, key)
+		}
+
+		for key, value := range literals {
+			delete(s.Refs, key)
+			s.Env[key] = value
+		}
+
+		for key, ref := range refs {
+			delete(s.Env, key)
+			s.Refs[key] = ref
+		}
 	})
 }
 

@@ -1,46 +1,10 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { useQuery } from '@vue/apollo-composable';
+import { environmentRoute, projectRoute } from '@/lib/routes';
+import { ref } from 'vue';
 import { Check, ChevronDown, Plus } from '@lucide/vue';
-import Spinner from '@/components/LoadingSpinner.vue';
-import { useAuth } from '@/composables/useAuth';
-import { useEnvironment } from '@/composables/useEnvironment';
+import { useContextSwitch } from '@/composables/useContextSwitch';
 import { useWorkspaceColor } from '@/composables/useWorkspaceColor';
-import { graphql } from '@/gql';
-import { ResourceTier } from '@/gql/graphql';
-
-const WorkspacesDocument = graphql(`
-  query Workspaces {
-    workspaces {
-      id
-      name
-      personal
-    }
-  }
-`);
-
-const ProjectsForNavDocument = graphql(`
-  query ProjectsForNav {
-    projects {
-      id
-      name
-      environments {
-        id
-        name
-        resourceTier
-      }
-    }
-  }
-`);
-import { apolloClient } from '@/lib/apollo';
-import { preferredEnvironment } from '@/lib/lastEnvironment';
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import WorkspaceSwitchDialog from '@/components/WorkspaceSwitchDialog.vue';
 import CreateWorkspaceDialog from '@/components/CreateWorkspaceDialog.vue';
 import CreateEnvironmentDialog from '@/components/CreateEnvironmentDialog.vue';
 import {
@@ -52,93 +16,35 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { darkTooltipClass } from '@/lib/tooltip';
 
-const route = useRoute();
-const router = useRouter();
-const { activeWorkspace, setActiveWorkspace } = useAuth();
-const { activeEnvironment, environments } = useEnvironment();
+const {
+  activeWorkspace,
+  activeEnvironment,
+  workspaces,
+  activeWs,
+  projects,
+  isEnvironmentRoute,
+  activeProjectId,
+  activeProjectName,
+  projectEnvironments,
+  workspaceSwitch,
+  handleWorkspaceSwitch,
+  finishWorkspaceSwitch,
+  handleProjectSwitch,
+  handleEnvironmentSwitch,
+  handleEnvironmentCreated,
+  handleNewProject,
+} = useContextSwitch();
 const { workspaceColor } = useWorkspaceColor();
-
-const { result: wsResult } = useQuery(WorkspacesDocument);
-const workspaces = computed(() => wsResult.value?.workspaces ?? []);
-const activeWs = computed(() => workspaces.value.find(w => w.id === activeWorkspace.value));
-
-const { result: projResult } = useQuery(ProjectsForNavDocument);
-const projects = computed(() => projResult.value?.projects ?? []);
-
-const isEnvironmentRoute = computed(() => route.name === 'environment');
-
-const activeProjectId = computed<string | undefined>(() => {
-  const id = route.params.projectId;
-  return Array.isArray(id) ? id[0] : (id as string | undefined);
-});
-
-const activeProject = computed(() => projects.value.find(p => p.id === activeProjectId.value));
-const activeProjectName = computed(() => activeProject.value?.name ?? activeProjectId.value ?? '');
-
-const projectEnvironments = computed(() => {
-  if (environments.value.length > 0) return environments.value;
-  return activeProject.value?.environments ?? [];
-});
 
 const wsDialogOpen = ref(false);
 const envDialogOpen = ref(false);
-const switchingWorkspace = ref(false);
-const switchingWorkspaceName = ref('');
-
-async function handleWorkspaceSwitch(id: string) {
-  if (id === activeWorkspace.value) return;
-  const ws = workspaces.value.find(w => w.id === id);
-  switchingWorkspaceName.value = ws?.name ?? id;
-  switchingWorkspace.value = true;
-  setActiveWorkspace(id);
-  await router.push('/');
-  await apolloClient.resetStore();
-  switchingWorkspace.value = false;
-}
-
-function handleProjectSwitch(id: string) {
-  if (id === activeProjectId.value) return;
-  const project = projects.value.find(p => p.id === id);
-  const target = preferredEnvironment(id, project?.environments ?? []);
-  if (target) {
-    router.push({ name: 'environment', params: { projectId: id, environmentId: target.id } });
-  } else {
-    router.push({ name: 'project', params: { projectId: id } });
-  }
-}
-
-function handleEnvironmentSwitch(envId: string) {
-  if (envId === activeEnvironment.value?.id) return;
-  if (!activeProjectId.value) return;
-  router.push({
-    name: 'environment',
-    params: { projectId: activeProjectId.value, environmentId: envId, drawer: route.params.drawer },
-  });
-}
-
-function handleEnvironmentCreated(environmentId: string) {
-  if (!activeProjectId.value) return;
-  router.push({
-    name: 'environment',
-    params: { projectId: activeProjectId.value, environmentId },
-  });
-}
-
-function handleNewProject() {
-  router.push({ name: 'projects', query: { new: 'project' } });
-}
-
-function tierLabel(tier?: string | null) {
-  if (tier === ResourceTier.Production) return 'Production';
-  return 'Eco';
-}
 
 function initial(name: string) {
   return name.charAt(0).toUpperCase();
 }
 
-const titleClass = 'inline-flex h-7 items-center gap-1.5 rounded-l-md px-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted';
-const arrowClass = 'flex h-7 w-5 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground data-[state=open]:bg-muted data-[state=open]:text-foreground';
+const titleClass = 'inline-flex h-7 min-w-0 items-center gap-1.5 rounded-l-md px-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted';
+const arrowClass = 'flex h-7 w-5 shrink-0 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground data-[state=open]:bg-muted data-[state=open]:text-foreground';
 const contentClass = 'w-65 rounded-xl p-1';
 const rowClass = 'h-8 gap-2 rounded-lg px-1 text-sm';
 const letterClass = 'flex size-6 shrink-0 items-center justify-center rounded bg-background text-xs font-semibold text-foreground ring-1 ring-inset ring-border';
@@ -148,10 +54,10 @@ const newBoxClass = 'flex size-6 shrink-0 items-center justify-center rounded bo
 </script>
 
 <template>
-    <nav class="flex items-center gap-1">
-      <span class="inline-flex items-center">
+    <nav class="flex min-w-0 items-center gap-1">
+      <span class="inline-flex min-w-0 items-center">
         <RouterLink :to="{ name: 'projects' }" :class="titleClass">
-          <span class="flex size-4 items-center justify-center rounded text-xs font-semibold" :style="workspaceColor(activeWorkspace)">
+          <span class="flex size-4 shrink-0 items-center justify-center rounded text-xs font-semibold" :style="workspaceColor(activeWorkspace)">
             {{ initial(activeWs?.name ?? activeWorkspace) }}
           </span>
           <span class="max-w-35 truncate">{{ activeWs?.name ?? activeWorkspace }}</span>
@@ -189,8 +95,8 @@ const newBoxClass = 'flex size-6 shrink-0 items-center justify-center rounded bo
 
       <template v-if="activeProjectId">
         <span class="text-sm text-border">/</span>
-        <span class="inline-flex items-center">
-          <RouterLink :to="{ name: 'project', params: { projectId: activeProjectId } }" :class="titleClass">
+        <span class="inline-flex min-w-0 items-center">
+          <RouterLink :to="projectRoute(activeProjectId)" :class="titleClass">
             <span class="max-w-40 truncate">{{ activeProjectName }}</span>
           </RouterLink>
           <Tooltip>
@@ -226,12 +132,12 @@ const newBoxClass = 'flex size-6 shrink-0 items-center justify-center rounded bo
 
       <template v-if="isEnvironmentRoute && activeEnvironment && activeProjectId">
         <span class="text-sm text-border">/</span>
-        <span class="inline-flex items-center">
+        <span class="inline-flex min-w-0 items-center">
           <RouterLink
-            :to="{ name: 'environment', params: { projectId: activeProjectId, environmentId: activeEnvironment.id } }"
+            :to="environmentRoute(activeEnvironment.id)"
             :class="titleClass"
           >
-            {{ activeEnvironment.name }}
+            <span class="truncate">{{ activeEnvironment.name }}</span>
           </RouterLink>
           <Tooltip>
             <TooltipTrigger as-child>
@@ -248,7 +154,6 @@ const newBoxClass = 'flex size-6 shrink-0 items-center justify-center rounded bo
                       @select="handleEnvironmentSwitch(env.id)"
                     >
                       <span class="truncate" :class="env.id === activeEnvironment.id ? 'font-medium' : ''">{{ env.name }}</span>
-                      <span class="text-xs text-muted-foreground">{{ tierLabel(env.resourceTier) }}</span>
                       <Check v-if="env.id === activeEnvironment.id" class="ml-auto" />
                     </DropdownMenuItem>
                     <DropdownMenuItem :class="[plainRowClass, 'text-muted-foreground']" @select="envDialogOpen = true">
@@ -274,13 +179,5 @@ const newBoxClass = 'flex size-6 shrink-0 items-center justify-center rounded bo
     @created="handleEnvironmentCreated"
   />
 
-  <AlertDialog :open="switchingWorkspace">
-    <AlertDialogContent class="flex flex-col items-center gap-4 sm:max-w-sm">
-      <AlertDialogTitle class="sr-only">Switching workspace</AlertDialogTitle>
-      <Spinner :size="32" class="animate-spin text-muted-foreground" />
-      <AlertDialogDescription class="text-center text-sm">
-        Switching to <span class="font-medium text-foreground">{{ switchingWorkspaceName }}</span>... hang tight
-      </AlertDialogDescription>
-    </AlertDialogContent>
-  </AlertDialog>
+  <WorkspaceSwitchDialog :workspace-switch="workspaceSwitch" @finished="finishWorkspaceSwitch" />
 </template>

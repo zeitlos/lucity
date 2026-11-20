@@ -18,10 +18,20 @@ const (
 	BuiltBy             = Prefix + "built-by"
 	ManagedBy           = "app.kubernetes.io/managed-by"
 	ResourceType        = Prefix + "resource-type"
-	ResourceTier        = Prefix + "resource-tier"
 	GitHubInstallation  = Prefix + "github-installation"
 	ObjectStorageBucket = Prefix + "object-storage-bucket"
 	CustomDomain        = Prefix + "custom-domain"
+	Agent               = Prefix + "agent"
+	AgentKey            = Prefix + "agent-key"
+	ChatApp             = Prefix + "chat-app"
+	AgentChannels       = Prefix + "agent-channels"
+)
+
+// Annotation keys for readable names. A resource without one is named by its id.
+const (
+	Name            = Prefix + "name"
+	ProjectName     = Prefix + "project-name"
+	EnvironmentName = Prefix + "environment-name"
 )
 
 // OCI image label constants.

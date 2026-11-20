@@ -1,0 +1,148 @@
+"""A tenant of the platform, with what it runs and what points at abuse."""
+type Workspace {
+  id: ID!
+  createdAt: Time!
+  """Set by an operator. Stagehand keeps a workspace with this flag suspended."""
+  abuse: Boolean!
+  abuseNote: String
+  """Set by stagehand once the workspace's environments are suspended."""
+  suspended: Boolean!
+  """Null when the workspace has no subscription."""
+  billing: Billing
+  paymentMethod: PaymentMethod!
+  members: [Member!]!
+  signals: [Signal!]!
+  runningPods: Int!
+  pendingPods: Int!
+  """Memory requested by running and pending pods, in bytes."""
+  memoryRequested: Int!
+  """Bytes served through the gateway over the last seven days."""
+  egress7d: Int!
+  environments: [Environment!]!
+}
+
+type Billing {
+  plan: Plan!
+  """When the trial expires, for a workspace without a plan."""
+  trialEndsAt: Time
+  goodStanding: Boolean!
+  standingReason: String
+  """The workspace's customer in the billing provider's dashboard."""
+  customerURL: String!
+  """The workspace's subscription in the billing provider's dashboard."""
+  subscriptionURL: String!
+}
+
+enum Plan {
+  NONE
+  HOBBY
+  PRO
+}
+
+enum PaymentMethod {
+  """The customer or its subscription has a default payment method, or a card lifts the card gate."""
+  ON_FILE
+  """The card gate holds the workspace back until it adds a card that isn't prepaid. It applies to a personal workspace without a paid plan whose owner's source-control account was under 90 days old at signup. Workspaces flagged as abuse or suspended are never checked."""
+  REQUIRED
+  """Nothing is on file, and nothing is required."""
+  NONE
+}
+
+type Member {
+  """The user's ID in the identity provider, the same in every workspace they belong to."""
+  id: ID!
+  name: String
+  email: String
+  """The user's picture, taken from their source-control account."""
+  avatar: String
+  role: String
+  signedUpAt: Time!
+  """Null when the user never signed in."""
+  lastSignInAt: Time
+  """The member's source-control account. Null when there is none or it no longer exists."""
+  account: Account
+}
+
+type Account {
+  login: String!
+  createdAt: Time!
+}
+
+type Signal {
+  kind: SignalKind!
+  strong: Boolean!
+  detail: String!
+}
+
+enum SignalKind {
+  SHARED_COMMIT
+  IMAGE
+  FORK
+  YOUNG_ACCOUNT
+}
+
+type Environment {
+  """The environment as `workspace/project/environment`."""
+  id: ID!
+  project: String!
+  name: String!
+  runningPods: Int!
+  pendingPods: Int!
+  services: [Service!]!
+}
+
+type Service {
+  name: String!
+  image: String
+  commit: String
+  repository: String
+}
+
+"""The workspaces as loaded at one point in time."""
+type WorkspaceList {
+  loadedAt: Time!
+  workspaces: [Workspace!]!
+}
+
+type WorkspaceResult {
+  workspaceID: ID!
+  """Why the change failed. Null when it succeeded."""
+  error: String
+}
+
+extend type Query {
+  """Loads every workspace fresh, newest first, and keeps the result as the cached list."""
+  workspaces: WorkspaceList!
+  """The workspaces of the last load, kept across restarts. Null before the first load."""
+  cachedWorkspaces: WorkspaceList
+  """The last lines of every running pod in the environment."""
+  environmentLogs(id: ID!, lines: Int! = 100 @constraint(constraint: "min=1,max=1000")): [String!]!
+  """Workspaces per standing at every full hour after `since` and once more now, oldest first, reaching back at most 100 days. Hours without metrics are left out."""
+  workspaceStandings(since: Time!): [WorkspaceStanding!]!
+  """Workspaces per plan at every full hour after `since` and once more now, oldest first, reaching back at most 100 days. Hours without metrics are left out."""
+  workspacePlans(since: Time!): [WorkspacePlan!]!
+}
+
+"""How many workspaces were on each plan at `at`. `none` has no subscription, `trial` has one without a plan."""
+type WorkspacePlan {
+  at: Time!
+  none: Int!
+  trial: Int!
+  hobby: Int!
+  pro: Int!
+}
+
+"""How many workspaces were in each billing standing at `at`."""
+type WorkspaceStanding {
+  at: Time!
+  good: Int!
+  billing: Int!
+  abuse: Int!
+}
+
+extend type Mutation {
+  """Flags the workspaces as abuse. Stagehand suspends them on its next pass."""
+  markAbuse(workspaceIDs: [ID!]!, note: String @constraint(constraint: "max=500")): [WorkspaceResult!]!
+  """Removes the abuse flag. Stagehand resumes the workspaces in good standing."""
+  clearAbuse(workspaceIDs: [ID!]!): [WorkspaceResult!]!
+}

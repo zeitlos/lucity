@@ -9,8 +9,9 @@ description: >-
   (the maintainer writes the opening in their own voice) followed by grouped,
   user-facing, use-case-oriented bullets, with the social-preview image header,
   then writes the result straight into a draft GitHub release for the next
-  CalVer tag. Internal-only changes are omitted unless they change day-to-day
-  platform usage.
+  CalVer tag, and adds the release's headline features to the "Recently
+  shipped" log on the landing page. Internal-only changes are omitted unless
+  they change day-to-day platform usage.
 ---
 
 # Lucity release notes
@@ -175,20 +176,70 @@ gh release edit <typo-tag> --tag <correct-tag> --draft=true --title "<correct-ta
 After writing, print the release URL (`gh release view <tag> --json url -q .url`) and remind
 the maintainer of the two manual steps left: the social image and the intro paragraph.
 
+### 6. Update "Recently shipped" on the site
+
+The landing page, the Resources menu in the site header and the blog all show a short
+"Recently shipped" log. Add this release to it in the same pass, as uncommitted edits to two
+files:
+
+- [docs/app/assets/landing/releases.json](docs/app/assets/landing/releases.json): the newest
+  releases, newest first. The landing page renders every entry, so keep it at **three**.
+- [docs/app/components/blog/releases.ts](docs/app/components/blog/releases.ts): the `tags` map
+  (date to tag for each entry in the JSON) and `earlier`, the older releases the blog keeps
+  listing.
+
+Steps:
+
+1. Prepend an entry to `releases.json`:
+   ```json
+   {
+     "date": "11 Nov",
+     "items": [
+       { "name": "A log explorer", "text": "Search by keyword, go back up to 14 days and filter by instance, including ones that already crashed." }
+     ]
+   }
+   ```
+   `date` is the day the maintainer publishes, as `D Mon` (no leading zero, three-letter
+   month). Use today unless they say otherwise. Two releases on the same day share one entry.
+2. Add `'<date>': '<tag>'` to `tags` in `releases.ts`.
+3. If the JSON now holds four entries, move the oldest into `earlier` (at the top, with its
+   `tag` from the map) and drop its line from `tags`.
+
+Writing the items, which is a much harder cut than the release notes:
+
+- **One to three items**, the biggest of the intro highlights. Bug fixes, polish and ops work
+  never make it here. If nothing in the release would make a visitor stop scrolling, say so
+  and ask whether to skip the entry.
+- **`name`**: a short noun phrase naming the capability, sentence case, no period ("A log
+  explorer", "Allowed addresses for public databases", "Jump anywhere with ⌘K").
+- **`text`**: one sentence of about 8 to 16 words on what you can now do, ending in a period.
+  A second, very short sentence is fine ("No reload.").
+- This is landing copy for visitors who may never have heard of Kubernetes: no PR numbers,
+  links, version numbers or engine names. The release notes credit
+  [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/); the site just says "a log
+  explorer". Standard interfaces users pick (PostgreSQL, Redis, S3-compatible) are fine. No em
+  dashes, no infra vendor names.
+- Match the tone and length of the entries already in the file.
+
+Show the maintainer the new entry next to the release-notes handoff. Don't commit; they
+commit the site change with the release.
+
 ## The social-preview image
 
 Every release opens with a 1280×640 social card. It is generated in the dashboard, not by
 this skill:
 
 1. Open the dashboard **/brand** page ([services/dashboard/src/pages/BrandPage.vue](services/dashboard/src/pages/BrandPage.vue)),
-   scroll to the **Social Preview** section.
-2. Pick a background wallpaper, and optionally tailor the **Headline** / **Tagline** to the
-   release theme (the default is "The PaaS you can leave." / "Open-source · Kubernetes-native
-   · Ejectable"). A headline that nods at the release's theme is a nice touch but optional.
-3. Click **PNG** (or **JPG**) to download `lucity-social-preview.png` (1280×640).
-4. In the GitHub release editor, drag the downloaded file into the description box. GitHub
-   uploads it and inserts the `<img ... src="https://github.com/user-attachments/assets/…" />`
-   tag automatically — that replaces the `PASTE_IMAGE_URL` placeholder in the draft.
+   scroll to the **Social image** section.
+2. Keep the **Wide** format (1280×640, the default). Pick a background (a wallpaper or a
+   brand color) and put the release in **Kicker**, like
+   `Release 26.11.2`. Optionally tailor the **Headline** / **Tagline** to the release theme
+   (the default is "The PaaS you can leave." / "Made in Switzerland · Hosted in the EU ·
+   Open source"). Enter starts a new headline line, and the text shrinks to fit.
+3. Click **Copy image** and paste it into the description box of the GitHub release editor.
+   GitHub uploads it and inserts the `<img ... src="https://github.com/user-attachments/assets/…" />`
+   tag, which replaces the `PASTE_IMAGE_URL` placeholder in the draft. **PNG** and **JPG**
+   download `lucity-social-preview.png` instead, to drag in.
 
 Remind the maintainer of these steps when you hand off the draft, since the URL only exists
 after the upload.

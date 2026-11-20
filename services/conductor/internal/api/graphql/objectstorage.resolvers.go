@@ -33,7 +33,7 @@ func (r *environmentResolver) Buckets(ctx context.Context, obj *model.Environmen
 
 // CreateBucket is the resolver for the createBucket field.
 func (r *mutationResolver) CreateBucket(ctx context.Context, input model.CreateBucketInput) (*model.Bucket, error) {
-	bucket, err := r.Conductor.CreateBucket(ctx, input.Environment, input.Name)
+	bucket, err := r.Conductor.CreateBucket(ctx, input.Environment, to.Val(input.ID), input.Name)
 
 	if err != nil {
 		return nil, err
@@ -47,6 +47,17 @@ func (r *mutationResolver) CreateBucket(ctx context.Context, input model.CreateB
 // DeleteBucket is the resolver for the deleteBucket field.
 func (r *mutationResolver) DeleteBucket(ctx context.Context, bucket platform.BucketID) (bool, error) {
 	return r.Conductor.DeleteBucket(ctx, bucket)
+}
+
+// RenameBucket is the resolver for the renameBucket field.
+func (r *mutationResolver) RenameBucket(ctx context.Context, bucket platform.BucketID, name string) (*model.Bucket, error) {
+	result, err := r.Conductor.RenameBucket(ctx, bucket, name)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertBucket(*result)), nil
 }
 
 // SetBucketPublic is the resolver for the setBucketPublic field.

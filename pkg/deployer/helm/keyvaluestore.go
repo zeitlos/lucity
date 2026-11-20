@@ -15,10 +15,17 @@ type keyValueStoreClient struct {
 func (k *keyValueStoreClient) Create(ctx context.Context, env platform.EnvironmentID, name string, spec deployer.KeyValueStoreSpec) (deployer.RevisionID, error) {
 	return k.client.applyEnv(ctx, env, func(e *values.Env) error {
 		return values.CreateKeyValueStore(e, name, values.KeyValueStoreSpec{
-			Version:  spec.Version,
-			Size:     spec.Size,
-			Password: spec.Password,
+			DisplayName: spec.DisplayName,
+			Version:     spec.Version,
+			Size:        spec.Size,
+			Password:    spec.Password,
 		})
+	})
+}
+
+func (k *keyValueStoreClient) SetDisplayName(ctx context.Context, id platform.KeyValueStoreID, displayName string) (deployer.RevisionID, error) {
+	return k.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
+		return values.SetKeyValueStoreDisplayName(e, id.Name, displayName)
 	})
 }
 

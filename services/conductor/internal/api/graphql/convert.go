@@ -1,20 +1,29 @@
 package graphql
 
 import (
+	"cmp"
 	"fmt"
 	"log/slog"
+	"strings"
+	"time"
 
 	"github.com/zeitlos/lucity/pkg/auth"
+	"github.com/zeitlos/lucity/pkg/billing"
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/hostname"
 	"github.com/zeitlos/lucity/pkg/platform"
+	"github.com/zeitlos/lucity/pkg/to"
+	"github.com/zeitlos/lucity/pkg/usererror"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
+	internalbilling "github.com/zeitlos/lucity/services/conductor/internal/billing"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/metrics"
 	"github.com/zeitlos/lucity/services/conductor/internal/planner"
 	"github.com/zeitlos/lucity/services/conductor/internal/scanjob"
+	"github.com/zeitlos/lucity/services/conductor/internal/servicelogs"
+	"github.com/zeitlos/lucity/services/conductor/internal/usage"
 	"github.com/zeitlos/lucity/services/conductor/internal/vulnerabilities"
 )
 
@@ -363,7 +372,7 @@ func convertEnvironment(e conductor.Environment) model.Environment {
 	result := model.Environment{
 		ID:           e.ID,
 		Name:         e.Name,
-		ResourceTier: convertResourceTier(e.ResourceTier),
+		ResourceTier: model.ResourceTierEco,
 	}
 
 	return result
@@ -454,6 +463,112 @@ func convertWorkspaceDetails(ws *conductor.WorkspaceDetails) *model.Workspace {
 
 	for _, m := range ws.Members {
 		result.Members = append(result.Members, *convertWorkspaceMember(&m))
+	}
+
+	return result
+}
+
+func convertCapabilities(c conductor.Capabilities) *model.Capabilities {
+	return &model.Capabilities{
+		Services: &model.ComputeCapability{
+			Availability: model.Availability(c.Services.Availability),
+			Plan:         convertGatePlan(c.Services.Gate),
+			CPU:          convertQuantityLimit(c.Services.CPU),
+			Memory:       convertQuantityLimit(c.Services.Memory),
+			Replicas:     c.Services.Replicas,
+		},
+		Databases: &model.DatabaseCapability{
+			Availability: model.Availability(c.Databases.Availability),
+			Plan:         convertGatePlan(c.Databases.Gate),
+			CPU:          convertQuantityLimit(c.Databases.CPU),
+			Memory:       convertQuantityLimit(c.Databases.Memory),
+			Storage:      convertQuantityLimit(c.Databases.Storage),
+		},
+		KeyValueStores: convertStorageCapability(c.KeyValueStores),
+		Volumes:        convertStorageCapability(c.Volumes),
+		Buckets:        convertBasicCapability(c.Buckets),
+		Agents:         convertBasicCapability(c.Agents),
+		Members:        convertCountCapability(c.Members),
+		CustomDomains:  convertCountCapability(c.CustomDomains),
+	}
+}
+
+func convertBasicCapability(gate conductor.Gate) *model.BasicCapability {
+	return &model.BasicCapability{Availability: model.Availability(gate.Availability), Plan: convertGatePlan(gate)}
+}
+
+func convertStorageCapability(c conductor.StorageCapability) *model.StorageCapability {
+	return &model.StorageCapability{
+		Availability: model.Availability(c.Availability),
+		Plan:         convertGatePlan(c.Gate),
+		Size:         convertQuantityLimit(c.Size),
+	}
+}
+
+func convertCountCapability(c conductor.CountCapability) *model.CountCapability {
+	upgrades := make([]model.CountUpgrade, 0, len(c.Upgrades))
+
+	for _, upgrade := range c.Upgrades {
+		upgrades = append(upgrades, model.CountUpgrade{Plan: convertBillingPlan(upgrade.Plan), Limit: convertCount(upgrade.Limit)})
+	}
+
+	return &model.CountCapability{
+		Availability: model.Availability(c.Availability),
+		Plan:         convertGatePlan(c.Gate),
+		Limit:        convertCount(c.Limit),
+		Upgrades:     upgrades,
+	}
+}
+
+func convertQuantityLimit(l conductor.QuantityLimit) *model.QuantityLimit {
+	upgrades := make([]model.QuantityUpgrade, 0, len(l.Upgrades))
+
+	for _, upgrade := range l.Upgrades {
+		upgrades = append(upgrades, model.QuantityUpgrade{Plan: convertBillingPlan(upgrade.Plan), Max: upgrade.Max.String()})
+	}
+
+	return &model.QuantityLimit{Min: l.Min.String(), Max: l.Max.String(), Upgrades: upgrades}
+}
+
+func convertGatePlan(gate conductor.Gate) *model.Plan {
+	if gate.Availability != conductor.PlanRequired || !gate.Plan.Paid() {
+		return nil
+	}
+
+	return new(convertBillingPlan(gate.Plan))
+}
+
+func convertBillingPlan(plan billing.Plan) model.Plan {
+	return convertPlan(strings.ToUpper(string(plan)))
+}
+
+func convertCount(count int) *int {
+	if count == billing.Unlimited {
+		return nil
+	}
+
+	return new(count)
+}
+
+func convertPlanOffer(offer conductor.PlanOffer) model.PlanOffer {
+	result := model.PlanOffer{
+		PriceCents: int(offer.Price.AmountCents),
+		Currency:   strings.ToUpper(offer.Price.Currency),
+		Limits: &model.PlanLimits{
+			CPU:               offer.Limits.CPU.String(),
+			Memory:            offer.Limits.Memory.String(),
+			Replicas:          offer.Limits.Replicas,
+			Volumes:           offer.Limits.Volumes,
+			VolumeSize:        offer.Limits.VolumeSize.String(),
+			DatabaseStorage:   offer.Limits.DatabaseStorage.String(),
+			KeyValueStoreSize: offer.Limits.KeyValueStoreSize.String(),
+			Members:           convertCount(offer.Limits.Members),
+			CustomDomains:     convertCount(offer.Limits.CustomDomains),
+		},
+	}
+
+	if offer.Plan.Paid() {
+		result.Plan = new(convertBillingPlan(offer.Plan))
 	}
 
 	return result
@@ -831,11 +946,11 @@ func convertDatabaseAllowRules(rules []conductor.DatabaseAllowRule) []model.Data
 	return result
 }
 
-func convertDatabaseBackups(b platform.DatabaseBackups) model.DatabaseBackups {
+func convertDatabaseBackups(database platform.DatabaseID, b platform.DatabaseBackups) model.DatabaseBackups {
 	backups := make([]model.DatabaseBackup, 0, len(b.Backups))
 
 	for _, backup := range b.Backups {
-		backups = append(backups, convertDatabaseBackup(backup))
+		backups = append(backups, convertDatabaseBackup(database, backup))
 	}
 
 	return model.DatabaseBackups{
@@ -849,9 +964,9 @@ func convertDatabaseBackups(b platform.DatabaseBackups) model.DatabaseBackups {
 	}
 }
 
-func convertDatabaseBackup(b platform.DatabaseBackup) model.DatabaseBackup {
+func convertDatabaseBackup(database platform.DatabaseID, b platform.DatabaseBackup) model.DatabaseBackup {
 	backup := model.DatabaseBackup{
-		ID:         b.Name,
+		ID:         database.String() + "/" + b.Name,
 		CreatedAt:  b.CreatedAt,
 		Status:     convertBackupStatus(b.Status),
 		Trigger:    convertBackupTrigger(b.Trigger),
@@ -1236,30 +1351,6 @@ func convertDNSRecordType(t hostname.RecordType) model.DNSRecordType {
 	return model.DNSRecordTypeTxt
 }
 
-func convertResourceTier(tier platform.ResourceTier) model.ResourceTier {
-	switch tier {
-	case platform.EcoTier:
-		return model.ResourceTierEco
-	case platform.ProductionTier:
-		return model.ResourceTierProduction
-	}
-
-	slog.Warn("unknown resource tier", "tier", tier)
-
-	return model.ResourceTierEco
-}
-
-func parseResourceTier(tier model.ResourceTier) (platform.ResourceTier, error) {
-	switch tier {
-	case model.ResourceTierEco:
-		return platform.EcoTier, nil
-	case model.ResourceTierProduction:
-		return platform.ProductionTier, nil
-	}
-
-	return "", fmt.Errorf("invalid resource tier %q", tier)
-}
-
 func convertGitHubAccountType(accountType string) model.GitHubAccountType {
 	switch accountType {
 	case "ORGANIZATION":
@@ -1285,6 +1376,8 @@ func convertSubscriptionStatus(status string) model.SubscriptionStatus {
 		return model.SubscriptionStatusIncomplete
 	case "TRIALING":
 		return model.SubscriptionStatusTrialing
+	case "TRIAL_ENDED":
+		return model.SubscriptionStatusTrialEnded
 	}
 
 	slog.Warn("unknown subscription status", "status", status)
@@ -1380,6 +1473,7 @@ func convertVariable(variable conductor.Variable) model.Variable {
 	return model.Variable{
 		ID:     variable.ID,
 		Key:    variable.Name,
+		Value:  variable.Value,
 		Source: convertVariableSource(variable.Source),
 	}
 }
@@ -1387,11 +1481,11 @@ func convertVariable(variable conductor.Variable) model.Variable {
 func convertVariableSource(source platform.VariableSource) model.VariableSource {
 	switch {
 	case source.Database != nil:
-		return model.DatabaseSource{ID: *source.Database, Name: source.Database.Name}
+		return model.DatabaseSource{ID: *source.Database, Name: cmp.Or(source.Name, source.Database.Name)}
 	case source.KeyValueStore != nil:
-		return model.KeyValueStoreSource{ID: *source.KeyValueStore, Name: source.KeyValueStore.Name}
+		return model.KeyValueStoreSource{ID: *source.KeyValueStore, Name: cmp.Or(source.Name, source.KeyValueStore.Name)}
 	case source.Bucket != nil:
-		return model.BucketSource{ID: *source.Bucket, Name: source.Bucket.Name}
+		return model.BucketSource{ID: *source.Bucket, Name: cmp.Or(source.Name, source.Bucket.Name)}
 	default:
 		return model.SharedSource{}
 	}
@@ -1435,9 +1529,196 @@ func convertUsageSummary(summary conductor.UsageSummaryResult) model.UsageSummar
 	}
 }
 
-func convertServiceLogEntry(entry platform.LogEntry) *model.ServiceLogEntry {
-	return &model.ServiceLogEntry{
-		Line: entry.Line,
-		Pod:  entry.Pod,
+var (
+	logStreams = map[servicelogs.Stream]model.LogStream{
+		servicelogs.Stdout: model.LogStreamStdout,
+		servicelogs.Stderr: model.LogStreamStderr,
 	}
+	serviceLogEvents = map[servicelogs.Event]model.ServiceLogEvent{
+		servicelogs.Started:           model.ServiceLogEventStarted,
+		servicelogs.Restarted:         model.ServiceLogEventRestarted,
+		servicelogs.Stopping:          model.ServiceLogEventStopping,
+		servicelogs.HealthCheckFailed: model.ServiceLogEventHealthCheckFailed,
+		servicelogs.RestartDelayed:    model.ServiceLogEventRestartDelayed,
+	}
+	serviceInstanceStates = map[platform.InstanceState]model.ServiceInstanceState{
+		platform.InstanceStarting: model.ServiceInstanceStateStarting,
+		platform.InstanceRunning:  model.ServiceInstanceStateRunning,
+		platform.InstanceStopping: model.ServiceInstanceStateStopping,
+		platform.InstanceStopped:  model.ServiceInstanceStateStopped,
+	}
+)
+
+func convertServiceLogEntry(entry conductor.ServiceLogEntry) *model.ServiceLogEntry {
+	result := &model.ServiceLogEntry{
+		Time: entry.Time,
+		Line: entry.Line,
+		Pod:  entry.Instance,
+	}
+
+	if stream, ok := logStreams[entry.Stream]; ok {
+		result.Stream = &stream
+	}
+
+	if event, ok := serviceLogEvents[entry.Event]; ok {
+		result.Event = &event
+	}
+
+	return result
+}
+
+func convertServiceLogInstance(instance conductor.ServiceLogInstance) model.ServiceLogInstance {
+	return model.ServiceLogInstance{
+		Pod:       instance.Name,
+		FirstSeen: instance.FirstSeen,
+		LastSeen:  instance.LastSeen,
+		Restarts:  instance.Restarts,
+		State:     serviceInstanceStates[instance.State],
+	}
+}
+
+func convertServiceLogFilter(filter *model.ServiceLogFilter) conductor.ServiceLogFilter {
+	if filter == nil {
+		return conductor.ServiceLogFilter{}
+	}
+
+	return conductor.ServiceLogFilter{
+		Search:   to.Val(filter.Search),
+		Instance: to.Val(filter.Pod),
+	}
+}
+
+func convertLogDirection(direction *model.LogDirection) conductor.ServiceLogDirection {
+	if direction != nil && *direction == model.LogDirectionForward {
+		return servicelogs.Forward
+	}
+
+	return servicelogs.Backward
+}
+
+func logsUntil(until *time.Time) time.Time {
+	if until == nil {
+		return time.Now()
+	}
+
+	return *until
+}
+
+func claimVariableKey(seen map[string]struct{}, key string) error {
+	if _, ok := seen[key]; ok {
+		return usererror.Errorf("variable %q appears more than once", key)
+	}
+
+	seen[key] = struct{}{}
+
+	return nil
+}
+
+var usageResourceKinds = map[usage.Kind]model.UsageResourceKind{
+	usage.KindService:       model.UsageResourceKindService,
+	usage.KindDatabase:      model.UsageResourceKindDatabase,
+	usage.KindKeyValueStore: model.UsageResourceKindKeyValueStore,
+	usage.KindVolume:        model.UsageResourceKindVolume,
+	usage.KindBucket:        model.UsageResourceKindBucket,
+	usage.KindAgent:         model.UsageResourceKindAgent,
+}
+
+func convertBillingPeriod(period internalbilling.Period) model.BillingPeriod {
+	return model.BillingPeriod{
+		Start:   period.Start,
+		End:     period.End,
+		Current: period.Current,
+	}
+}
+
+func convertUsage(report *conductor.UsageReport) *model.Usage {
+	result := &model.Usage{
+		Period:        new(convertBillingPeriod(report.Period)),
+		MeasuredUntil: report.MeasuredUntil,
+		Projects:      make([]model.ProjectUsage, 0, len(report.Projects)),
+		Invoice:       convertInvoice(report.Invoice),
+	}
+
+	for _, project := range report.Projects {
+		converted := model.ProjectUsage{
+			ProjectID:    project.ID,
+			Name:         project.Name,
+			DeletedAt:    project.DeletedAt,
+			AmountCents:  project.Cents,
+			Daily:        project.Daily,
+			Environments: make([]model.EnvironmentUsage, 0, len(project.Environments)),
+		}
+
+		for _, environment := range project.Environments {
+			resources := make([]model.ResourceUsage, 0, len(environment.Resources))
+
+			for _, resource := range environment.Resources {
+				resources = append(resources, model.ResourceUsage{
+					ResourceID:  resource.ID,
+					Name:        resource.Name,
+					Kind:        usageResourceKinds[resource.Kind],
+					AmountCents: resource.Cents,
+					Daily:       resource.Daily,
+				})
+			}
+
+			converted.Environments = append(converted.Environments, model.EnvironmentUsage{
+				EnvironmentID: environment.ID,
+				Name:          environment.Name,
+				DeletedAt:     environment.DeletedAt,
+				AmountCents:   environment.Cents,
+				Daily:         environment.Daily,
+				Resources:     resources,
+			})
+		}
+
+		result.Projects = append(result.Projects, converted)
+	}
+
+	return result
+}
+
+func convertInvoice(invoice *conductor.InvoiceView) *model.Invoice {
+	if invoice == nil {
+		return nil
+	}
+
+	result := &model.Invoice{
+		Status:        model.InvoiceStatus(invoice.Status),
+		IssuedAt:      invoice.IssuedAt,
+		PaidAt:        invoice.PaidAt,
+		Lines:         make([]model.InvoiceLine, 0, len(invoice.Lines)),
+		SubtotalCents: invoice.SubtotalCents,
+		CreditCents:   invoice.CreditCents,
+		TotalCents:    invoice.TotalCents,
+	}
+
+	if invoice.Number != "" {
+		result.Number = new(invoice.Number)
+	}
+
+	if invoice.PDFURL != "" {
+		result.PDFURL = new(invoice.PDFURL)
+	}
+
+	for _, line := range invoice.Lines {
+		converted := model.InvoiceLine{
+			Kind:            model.InvoiceLineKind(line.Kind),
+			Proration:       line.Proration,
+			PeriodStart:     line.PeriodStart,
+			PeriodEnd:       line.PeriodEnd,
+			Quantity:        line.Quantity,
+			Unit:            line.Unit,
+			UnitAmountCents: line.UnitAmountCents,
+			AmountCents:     line.AmountCents,
+		}
+
+		if line.Plan != nil {
+			converted.Plan = new(convertBillingPlan(*line.Plan))
+		}
+
+		result.Lines = append(result.Lines, converted)
+	}
+
+	return result
 }

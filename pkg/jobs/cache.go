@@ -87,13 +87,59 @@ func (c *Cache) Start(ctx context.Context) {
 	}
 }
 
-// OnChange calls notify after every add, update or delete either informer
-// sees.
-func (c *Cache) OnChange(notify func()) error {
+// OnChange calls notify with the Job after every add, update or delete either
+// informer sees.
+func (c *Cache) OnChange(notify func(*batch.Job)) error {
+	handle := func(object any) {
+		if tombstone, ok := object.(cache.DeletedFinalStateUnknown); ok {
+			object = tombstone.Obj
+		}
+
+		if job, ok := object.(*batch.Job); ok {
+			notify(job)
+		}
+	}
+
 	handler := cache.ResourceEventHandlerFuncs{
-		AddFunc:    func(any) { notify() },
-		UpdateFunc: func(any, any) { notify() },
-		DeleteFunc: func(any) { notify() },
+		AddFunc:    handle,
+		UpdateFunc: func(_, object any) { handle(object) },
+		DeleteFunc: handle,
+	}
+
+	for _, informer := range []cache.SharedIndexInformer{c.builds, c.deploys} {
+		if _, err := informer.AddEventHandler(handler); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// OnFinished calls observe once for every Job either informer sees complete or
+// fail. Jobs that had already finished when the cache started are skipped.
+func (c *Cache) OnFinished(observe func(*batch.Job)) error {
+	handler := cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(oldObject, newObject any) {
+			previous, ok := oldObject.(*batch.Job)
+
+			if !ok {
+				return
+			}
+
+			job, ok := newObject.(*batch.Job)
+
+			if !ok {
+				return
+			}
+
+			if _, _, done := Finished(previous); done {
+				return
+			}
+
+			if _, _, done := Finished(job); done {
+				observe(job)
+			}
+		},
 	}
 
 	for _, informer := range []cache.SharedIndexInformer{c.builds, c.deploys} {
@@ -207,6 +253,25 @@ func (c *Cache) forgetMessage(object any) {
 	c.mu.Lock()
 	delete(c.messages, job.UID)
 	c.mu.Unlock()
+}
+
+// Finished reports when a Job completed or failed and whether it failed. done
+// is false while the Job has neither.
+func Finished(job *batch.Job) (at time.Time, failed, done bool) {
+	for _, condition := range job.Status.Conditions {
+		if condition.Status != core.ConditionTrue {
+			continue
+		}
+
+		switch condition.Type {
+		case batch.JobComplete:
+			return condition.LastTransitionTime.Time, false, true
+		case batch.JobFailed:
+			return condition.LastTransitionTime.Time, true, true
+		}
+	}
+
+	return time.Time{}, false, false
 }
 
 // SortNewestFirst orders Jobs by creation time, newest first, then by name.

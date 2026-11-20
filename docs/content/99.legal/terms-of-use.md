@@ -4,7 +4,7 @@ description: Terms governing your use of Lucity.
 ---
 
 **Effective date:** March 16, 2026
-**Last updated:** July 24, 2026
+**Last updated:** October 29, 2026
 
 These terms govern your use of lucity.cloud ("Lucity", "the platform", "the service"). By creating an account, you agree to these terms. If you use the service on behalf of an organization, you represent that you are authorized to bind that organization, and "you" refers to that organization.
 
@@ -61,13 +61,13 @@ You agree not to use the platform, and not to allow anyone using your account or
 - Store, host, or distribute content that is unlawful, including child sexual abuse material
 - Distribute malware, spam, or phishing content, or operate botnets, command-and-control infrastructure, or open mail relays
 - Originate denial-of-service attacks, port scanning, or intrusion attempts against any system
-- Operate anonymizing proxies or services intended to conceal the origin of abusive traffic
+- Run VPN, proxy, or tunnel services that relay internet traffic for anyone other than your own application, including for your own personal use, such as VLESS, VMess, Trojan, Shadowsocks, or MTProto relays and panels like 3x-ui, Marzban, or Hiddify, renamed copies included. Reverse proxies in front of your own services are fine.
 - Perform cryptocurrency mining
 - Run workloads that consume excessive shared resources in a way that degrades service for others
 - Attempt to access other users' data or workloads, or to circumvent tenant isolation
 - Reverse-engineer, attack, or probe the platform's infrastructure
 
-We reserve the right to suspend or terminate accounts that violate these terms.
+We may block builds or deployments that break these rules, and we reserve the right to suspend or terminate accounts that violate these terms.
 
 ### Reporting Abuse
 
@@ -128,6 +128,7 @@ We will notify you of any such claim, and you may control its defense, provided 
 
 - **By you:** Cancel your subscription at any time through the billing portal or by contacting us.
 - **By us:** We may suspend or terminate your account for violation of these terms or for non-payment, with notice where reasonably possible. In cases of severe abuse or legal risk, we may act immediately.
+- **Evasion:** Getting around a suspension or a block, for example by renaming or re-uploading a workload or by signing up again with a new account, leads to termination of every account we can attribute to you. Unused trial credit is forfeited.
 - **Effect:** Upon termination, your workloads will be stopped and data deleted within 30 days. We recommend ejecting your configuration before cancellation.
 
 ## 12. Data Protection

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { environmentRoute } from '@/lib/routes';
 import { computed } from 'vue';
 import type { RouteLocationRaw } from 'vue-router';
 import { FolderGit2 } from '@lucide/vue';
@@ -76,7 +77,7 @@ const rows = computed(() => props.project.environments.map(environment => ({
       <RouterLink
         v-for="row in rows"
         :key="row.environment.id"
-        :to="{ name: 'environment', params: { projectId: project.id, environmentId: row.environment.id } }"
+        :to="environmentRoute(row.environment.id)"
         class="relative z-10 -mx-1.5 grid min-h-7.5 grid-cols-[104px_minmax(0,1fr)] items-center gap-2.5 rounded-md px-1.5 py-1 transition-colors hover:bg-muted/60"
       >
         <span class="truncate text-xs text-foreground">{{ row.environment.name }}</span>
@@ -84,7 +85,7 @@ const rows = computed(() => props.project.environments.map(environment => ({
         <span v-else class="flex flex-wrap items-center gap-1">
           <template v-for="(group, index) in [row.services, row.data]" :key="index">
             <span v-if="index === 1 && row.services.length && row.data.length" class="w-1" />
-            <ResourceTile v-for="tile in group" :key="tile.id" :kind="tile.kind" :name="tile.name" />
+            <ResourceTile v-for="tile in group" :key="`${tile.kind}:${tile.id}`" :kind="tile.kind" :name="tile.name" />
           </template>
         </span>
       </RouterLink>

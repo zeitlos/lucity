@@ -1,6 +1,8 @@
 <script setup lang="ts">
 definePageMeta({
-  layout: 'default',
+  layout: 'landing',
+  header: false,
+  footer: false,
 });
 
 useSeo({
@@ -12,53 +14,30 @@ useSeo({
 
 <template>
   <div class="pricing-page">
-    <section class="mx-auto max-w-page px-6 pt-24 pb-12 text-center">
-      <h1 class="font-display text-6xl leading-tight text-neutral-800 md:text-7xl dark:text-neutral-100">
-        Simple, transparent pricing
-      </h1>
-      <p class="mx-auto mt-8 max-w-3xl text-2xl leading-relaxed text-neutral-700 dark:text-neutral-300">
-        Two plans, usage-based resources: pay only for what you use. Each plan includes a monthly credit allowance applied automatically to your bill everymonth.
-      </p>
-    </section>
+    <PricingHero />
 
-    <section class="mx-auto max-w-page px-6">
-      <PricingCards />
-    </section>
+    <PricingPlans class="mt-24 sm:mt-38" />
 
-    <section class="mx-auto max-w-page px-6 mt-28 md:mt-36">
-      <div class="mx-auto mb-16 max-w-3xl text-center">
-        <h2 class="font-display text-5xl leading-tight text-neutral-800 md:text-6xl dark:text-neutral-100">
-          Resource pricing
-        </h2>
-        <p class="mt-6 text-xl leading-relaxed text-neutral-600 dark:text-neutral-400">
-          Two ways to pay for compute. <strong class="font-semibold text-neutral-800 dark:text-neutral-200">On-demand</strong> is fully metered, so you pay only for what you use, with burstable resources that suit development and spiky workloads. <strong class="font-semibold text-neutral-800 dark:text-neutral-200">Guaranteed</strong> reserves your capacity for consistent performance with no noisy neighbors, predictable billing, and 20% off vCPU and memory.
-        </p>
-      </div>
+    <PricingRates class="mt-24 sm:mt-38" />
 
-      <PricingMenuBoard />
-    </section>
+    <PricingEstimator class="mt-24 sm:mt-38" />
 
-    <section class="mx-auto max-w-page px-6 mt-28 md:mt-36">
-      <div class="mx-auto mb-16 max-w-3xl text-center">
-        <h2 class="font-display text-5xl leading-tight text-neutral-800 md:text-6xl dark:text-neutral-100">
-          Sample monthly bill
-        </h2>
-        <p class="mt-6 text-xl leading-relaxed text-neutral-600 dark:text-neutral-400">
-          Here's what a typical Hobby plan bill looks like.
-        </p>
-      </div>
+    <PricingBills class="mt-24 sm:mt-38" />
 
-      <PricingReceipt />
-    </section>
+    <PricingSelfHosted class="mt-24 sm:mt-38" />
 
-    <section class="mx-auto max-w-page px-6 mt-28 mb-28 md:mt-36 md:mb-36">
-      <PricingSelfHost />
-    </section>
+    <PricingFaq class="mt-24 sm:mt-34" />
+
+    <PricingEnding class="mt-24 pb-20 sm:mt-38 sm:pb-26" />
   </div>
 </template>
 
 <style scoped>
 .pricing-page {
   overflow-x: clip;
+}
+
+.pricing-page :deep(.beats) {
+  display: none;
 }
 </style>

@@ -53,9 +53,15 @@ spec:
             capabilities:
               drop: [ALL]
             readOnlyRootFilesystem: true
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.stagehand.metricsPort }}
+              protocol: TCP
           env:
             - name: HOME
               value: /tmp
+            - name: METRICS_PORT
+              value: {{ .Values.stagehand.metricsPort | quote }}
             - name: SYSTEM_NAMESPACE
               value: {{ .Release.Namespace | quote }}
             - name: BUILD_NAMESPACE
@@ -71,6 +77,18 @@ spec:
             {{- with include "lucity.placementJSON" .Values.workloadPlacement.paid }}
             - name: WORKLOAD_PAID_PLACEMENT
               value: {{ . | quote }}
+            {{- end }}
+            {{- if .Values.agents.enabled }}
+            - name: AGENTS_ENABLED
+              value: "true"
+            - name: AGENTS_NAMESPACE
+              value: {{ .Values.agents.namespace | quote }}
+            - name: SWITCHBOARD_NAMESPACE
+              value: {{ .Values.switchboard.namespace | quote }}
+            - name: AGENT_IMAGE
+              value: "{{ .Values.agents.image.repository }}:{{ .Values.agents.image.tag | default .Chart.AppVersion }}"
+            - name: AGENT_GATEWAY_URL
+              value: "http://lucity-agent-gateway.{{ .Values.agents.namespace }}.svc.cluster.local"
             {{- end }}
             {{- range $key := $shared }}
             {{- with index $.Values.conductor.env $key }}

@@ -29,6 +29,7 @@ const (
 	StatusCanceled   Status = "CANCELED"
 	StatusIncomplete Status = "INCOMPLETE"
 	StatusTrialing   Status = "TRIALING"
+	StatusTrialEnded Status = "TRIAL_ENDED"
 )
 
 // Prices are the Stripe price IDs of the two plans and of every metered
@@ -36,7 +37,15 @@ const (
 type Prices struct {
 	Hobby   string
 	Pro     string
-	Metered []string
+	CPU     string
+	Memory  string
+	Disk    string
+	Storage string
+	Egress  string
+}
+
+func (p Prices) metered() []string {
+	return []string{p.CPU, p.Memory, p.Disk, p.Storage, p.Egress}
 }
 
 type Client struct {
@@ -157,7 +166,7 @@ func (c *Client) Subscription(ctx context.Context, customerID string) (*Subscrip
 	plan := c.billing.Plan(current)
 	view := &Subscription{
 		Plan:             plan,
-		Status:           status(current, plan),
+		Status:           status(current, plan, c.billing.Standing(current, hasPaymentMethod, time.Now())),
 		CurrentPeriodEnd: periodEnd(current),
 		CreditCents:      credit,
 		HasPaymentMethod: hasPaymentMethod,
@@ -192,15 +201,21 @@ func (c *Client) Usage(ctx context.Context, customerID string) (*Usage, error) {
 
 	if err != nil {
 		slog.DebugContext(ctx, "billing: no invoice preview", "customer", customerID, "error", err)
-	} else if preview.Lines != nil {
-		for _, line := range preview.Lines.Data {
+	} else {
+		lines, err := c.allLines(ctx, preview)
+
+		if err != nil {
+			return nil, err
+		}
+
+		for _, line := range lines {
 			if line.Pricing == nil || line.Pricing.PriceDetails == nil || line.Pricing.PriceDetails.Price == nil {
 				continue
 			}
 
 			switch line.Pricing.PriceDetails.Price.ID {
 			case c.prices.Hobby, c.prices.Pro:
-				plan = line.Amount
+				plan += line.Amount
 			default:
 				resource += line.Amount
 			}
@@ -255,6 +270,18 @@ func (c *Client) Paid(ctx context.Context, customerID string) (bool, error) {
 	return c.billing.Paid(current), nil
 }
 
+// Renews reports whether the customer pays for a plan that keeps renewing,
+// that is a paid subscription with no cancellation scheduled.
+func (c *Client) Renews(ctx context.Context, customerID string) (bool, error) {
+	current, err := c.billing.Subscription(ctx, customerID)
+
+	if err != nil || current == nil {
+		return false, err
+	}
+
+	return c.billing.Paid(current) && !current.CancelAtPeriodEnd && current.CancelAt == 0, nil
+}
+
 // Standing reports whether the customer is in good standing, by the same rule
 // stagehand suspends on. The second result is false when the customer never
 // had a subscription, which stagehand leaves alone.
@@ -281,7 +308,7 @@ func (c *Client) items(planPrice string) []*stripe.SubscriptionCreateItemParams 
 		items = append(items, &stripe.SubscriptionCreateItemParams{Price: stripe.String(planPrice)})
 	}
 
-	for _, price := range c.prices.Metered {
+	for _, price := range c.prices.metered() {
 		items = append(items, &stripe.SubscriptionCreateItemParams{Price: stripe.String(price)})
 	}
 
@@ -397,7 +424,11 @@ func invoiceDefault(customer *stripe.Customer) bool {
 	return customer.InvoiceSettings != nil && customer.InvoiceSettings.DefaultPaymentMethod != nil
 }
 
-func status(subscription *stripe.Subscription, plan billing.Plan) Status {
+func status(subscription *stripe.Subscription, plan billing.Plan, standing billing.Standing) Status {
+	if standing.TrialEnded {
+		return StatusTrialEnded
+	}
+
 	switch subscription.Status {
 	case stripe.SubscriptionStatusActive:
 		if !plan.Paid() {

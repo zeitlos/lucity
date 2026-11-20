@@ -25,10 +25,11 @@ func (d *databaseClient) Create(ctx context.Context, env platform.EnvironmentID,
 
 	return d.client.applyEnv(ctx, env, func(e *values.Env) error {
 		return values.CreateDatabase(e, name, values.DatabaseSpec{
-			Version:    spec.Version,
-			Size:       spec.Size,
-			Resources:  deriveRequestsAndLimtis(spec.Resources, spec.ResourceTier),
-			Parameters: postgresParameters(spec.Resources.CPU, spec.Resources.Memory),
+			DisplayName: spec.DisplayName,
+			Version:     spec.Version,
+			Size:        spec.Size,
+			Resources:   deriveRequestsAndLimtis(spec.Resources),
+			Parameters:  postgresParameters(spec.Resources.CPU, spec.Resources.Memory),
 		})
 	})
 }
@@ -40,21 +41,28 @@ func (d *databaseClient) Restore(ctx context.Context, source platform.DatabaseID
 
 	return d.client.applyEnv(ctx, source.EnvironmentID(), func(e *values.Env) error {
 		return values.RestoreDatabase(e, source.Name, name, values.DatabaseSpec{
-			Version:    spec.Version,
-			Size:       spec.Size,
-			Resources:  deriveRequestsAndLimtis(spec.Resources, spec.ResourceTier),
-			Parameters: postgresParameters(spec.Resources.CPU, spec.Resources.Memory),
+			DisplayName: spec.DisplayName,
+			Version:     spec.Version,
+			Size:        spec.Size,
+			Resources:   deriveRequestsAndLimtis(spec.Resources),
+			Parameters:  postgresParameters(spec.Resources.CPU, spec.Resources.Memory),
 		}, targetTime)
 	})
 }
 
-func (d *databaseClient) SetResources(ctx context.Context, id platform.DatabaseID, tier platform.ResourceTier, res deployer.Resources) (deployer.RevisionID, error) {
+func (d *databaseClient) SetDisplayName(ctx context.Context, id platform.DatabaseID, displayName string) (deployer.RevisionID, error) {
+	return d.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
+		return values.SetDatabaseDisplayName(e, id.Name, displayName)
+	})
+}
+
+func (d *databaseClient) SetResources(ctx context.Context, id platform.DatabaseID, res deployer.Resources) (deployer.RevisionID, error) {
 	if err := validateResources(res); err != nil {
 		return "", err
 	}
 
 	return d.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
-		if err := values.SetDatabaseResources(e, id.Name, deriveRequestsAndLimtis(res, tier)); err != nil {
+		if err := values.SetDatabaseResources(e, id.Name, deriveRequestsAndLimtis(res)); err != nil {
 			return err
 		}
 

@@ -5,7 +5,6 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/deployer/values"
-	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/resources"
 )
 
@@ -21,7 +20,7 @@ func validateResources(res deployer.Resources) error {
 	return nil
 }
 
-func deriveRequestsAndLimtis(res deployer.Resources, tier platform.ResourceTier) values.Resources {
+func deriveRequestsAndLimtis(res deployer.Resources) values.Resources {
 	cpuLimit := res.CPU
 	memoryLimit := res.Memory
 
@@ -31,8 +30,8 @@ func deriveRequestsAndLimtis(res deployer.Resources, tier platform.ResourceTier)
 	}
 
 	requests := values.ResourceList{
-		CPU:    resources.Request(tier, cpuLimit).String(),
-		Memory: resources.Request(tier, memoryLimit).String(),
+		CPU:    resources.Request(cpuLimit).String(),
+		Memory: resources.Request(memoryLimit).String(),
 	}
 
 	return values.Resources{

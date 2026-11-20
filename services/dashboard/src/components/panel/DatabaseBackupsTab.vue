@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import NameIdField from '@/components/NameIdField.vue';
+import { isValidId } from '@/lib/id';
+import { useResourceIds } from '@/composables/useResourceIds';
 import QueryError from '@/components/QueryError.vue';
 import { ref, computed, watch } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
@@ -141,21 +144,19 @@ const inputMax = computed(() => toLocalInput(latest.value));
 const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 const restoreName = ref('');
+const restoreId = ref('');
+const takenIds = useResourceIds(() => props.databaseId.split('/').slice(0, 3).join('/'));
 
 watch(
   () => props.databaseName,
   name => {
-    const suffix = '-r1';
-    restoreName.value = `${name.slice(0, 16 - suffix.length)}${suffix}`;
+    restoreName.value = `${name} restored`;
   },
   { immediate: true },
 );
 
 const nameValid = computed(
-  () =>
-    /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(restoreName.value)
-    && restoreName.value.length >= 2
-    && restoreName.value.length <= 16,
+  () => restoreName.value.trim().length > 0 && isValidId(restoreId.value) && !takenIds.value.has(restoreId.value),
 );
 
 const { mutate: createBackup, loading: backingUp } = useMutation(CreateDatabaseBackupDocument);
@@ -189,14 +190,15 @@ async function handleRestore() {
     const response = await restoreMutate({
       input: {
         database: props.databaseId,
-        name: restoreName.value,
+        name: restoreName.value.trim(),
+        id: restoreId.value,
         targetTime,
       },
     });
 
     const clamped = response?.data?.restoreDatabase.clampedToLatest;
 
-    successToast(`Restoring into ${restoreName.value}`, {
+    successToast(`Restoring into "${restoreName.value.trim()}"`, {
       description: clamped
         ? 'Nothing was written after the most recent archived point, so it restores to there.'
         : 'It appears on the canvas as soon as the data is back.',
@@ -236,10 +238,96 @@ const visibleEntries = computed(() => (showAll.value ? entries.value : entries.v
 
 <template>
   <div class="space-y-8">
-    <div v-if="loading && !backups" class="space-y-2">
-      <Skeleton class="h-16 w-full" />
-      <Skeleton class="h-16 w-full" />
-    </div>
+    <template v-if="loading && !backups">
+      <section class="space-y-4">
+        <div class="space-y-1">
+          <h3 class="text-sm font-medium text-muted-foreground">Restore to a point in time</h3>
+          <div v-for="lines in [['w-full max-w-lg', 'w-40'], ['w-full max-w-md', 'w-24']]" :key="lines[0]">
+            <div v-for="width in lines" :key="width" class="flex h-5 items-center">
+              <Skeleton :class="['h-3', width]" />
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-4">
+          <div class="space-y-3">
+            <div class="flex items-start gap-2.5 text-sm">
+              <Skeleton class="mt-1 size-3.5 shrink-0 rounded-full" />
+              <div class="flex-1">
+                <span class="font-medium text-foreground">A specific moment</span>
+                <div class="flex h-4 items-center">
+                  <Skeleton class="h-2.5 w-56" />
+                </div>
+              </div>
+            </div>
+            <div class="space-y-4 pl-6">
+              <div class="space-y-1.5">
+                <div class="flex h-4 items-center justify-between">
+                  <Skeleton class="h-2.5 w-12" />
+                  <Skeleton class="h-2.5 w-10" />
+                </div>
+                <Skeleton class="h-8 w-full" />
+                <div class="flex h-4 items-center justify-between">
+                  <Skeleton class="h-2.5 w-20" />
+                  <Skeleton class="h-2.5 w-20" />
+                </div>
+              </div>
+              <div class="h-9 max-w-sm rounded-md border border-input bg-background" />
+            </div>
+            <div class="flex items-start gap-2.5 text-sm">
+              <Skeleton class="mt-1 size-3.5 shrink-0 rounded-full" />
+              <div class="flex-1">
+                <span class="font-medium text-foreground">The most recent state</span>
+                <div class="flex h-4 items-center">
+                  <Skeleton class="h-2.5 w-48" />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="space-y-1.5">
+            <p class="text-sm font-medium text-foreground">New database name</p>
+            <div class="h-9 max-w-xs rounded-md border border-input bg-background" />
+            <p class="text-xs text-muted-foreground">
+              Up to 16 characters. Lowercase letters, numbers and dashes.
+            </p>
+          </div>
+          <div class="flex justify-end">
+            <Skeleton class="h-9 w-20 rounded-none" />
+          </div>
+        </div>
+      </section>
+
+      <section class="space-y-4">
+        <div class="flex items-start justify-between gap-4">
+          <div class="flex-1 space-y-1">
+            <h3 class="text-sm font-medium text-muted-foreground">Base backups</h3>
+            <div class="flex h-5 items-center">
+              <Skeleton class="h-3 w-full max-w-sm" />
+            </div>
+            <div class="flex h-5 items-center">
+              <Skeleton class="h-3 w-48" />
+            </div>
+          </div>
+          <Skeleton class="h-9 w-28 shrink-0 rounded-none" />
+        </div>
+        <div class="-mx-4 divide-y border-y">
+          <div v-for="row in 3" :key="row" class="flex items-start justify-between gap-4 px-4 py-3">
+            <div class="space-y-1">
+              <div class="flex h-5 items-center">
+                <Skeleton class="h-3 w-28" />
+              </div>
+              <div class="flex h-4 items-center gap-3">
+                <Skeleton class="h-2.5 w-16" />
+                <Skeleton class="h-2.5 w-20" />
+              </div>
+            </div>
+            <div class="flex h-5 items-center">
+              <Skeleton class="h-3 w-16" />
+            </div>
+          </div>
+        </div>
+      </section>
+    </template>
 
     <QueryError
       v-else-if="error"
@@ -329,21 +417,17 @@ const visibleEntries = computed(() => (showAll.value ? entries.value : entries.v
               </label>
             </div>
 
-            <div class="space-y-1.5">
-              <label for="restore-name" class="text-sm font-medium text-foreground">
-                New database name
-              </label>
-              <Input
-                id="restore-name"
-                v-model="restoreName"
-                :disabled="!hasWindow"
-                maxlength="16"
-                class="h-9 max-w-xs"
-              />
-              <p class="text-xs text-muted-foreground">
-                Up to 16 characters. Lowercase letters, numbers and dashes.
-              </p>
-            </div>
+            <NameIdField
+              v-model:name="restoreName"
+              v-model:id="restoreId"
+              fallback="database"
+              :taken="takenIds"
+              scope="environment"
+              :disabled="!hasWindow"
+              name-label="New database name"
+              name-placeholder="e.g. Orders restored"
+              class="max-w-sm"
+            />
 
             <div class="flex justify-end">
               <Button :pending="restoring" :disabled="!canRestore" @click="handleRestore">

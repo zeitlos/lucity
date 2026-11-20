@@ -15,7 +15,9 @@ import (
 // A kind added to the chart must be added here, or every apply fails.
 var releaseKinds = map[schema.GroupKind]bool{
 	{Kind: "Secret"}:                                             true,
+	{Kind: "ConfigMap"}:                                          true,
 	{Kind: "Service"}:                                            true,
+	{Kind: "ServiceAccount"}:                                     true,
 	{Kind: "PersistentVolumeClaim"}:                              true,
 	{Group: "apps", Kind: "Deployment"}:                          true,
 	{Group: "apps", Kind: "StatefulSet"}:                         true,
@@ -29,11 +31,28 @@ var releaseKinds = map[schema.GroupKind]bool{
 	{Group: "barmancloud.cnpg.io", Kind: "ObjectStore"}:          true,
 	{Group: "traefik.io", Kind: "IngressRouteTCP"}:               true,
 	{Group: "traefik.io", Kind: "MiddlewareTCP"}:                 true,
+	{Group: "cilium.io", Kind: "CiliumNetworkPolicy"}:            true,
+}
+
+// workspaceKinds are the kinds the lucity-workspace chart renders.
+var workspaceKinds = map[schema.GroupKind]bool{
+	{Kind: "Secret"}:    true,
+	{Kind: "ConfigMap"}: true,
+	{Group: "gateway.networking.k8s.io", Kind: "HTTPRoute"}:  true,
+	{Group: "agentgateway.dev", Kind: "AgentgatewayBackend"}: true,
+	{Group: "agentgateway.dev", Kind: "AgentgatewayPolicy"}:  true,
+}
+
+// switchboardKinds are the kinds the lucity-workspace chart renders into
+// switchboard's namespace: chat apps and agent channels.
+var switchboardKinds = map[schema.GroupKind]bool{
+	{Kind: "Secret"}:    true,
+	{Kind: "ConfigMap"}: true,
 }
 
 // releaseGuard is a post-renderer that rejects a render containing a list,
 // an object of a kind the chart does not render, or an object outside the
-// release namespace. It decodes each document the way Helm does before
+// release namespace, unless elsewhere allows its kind in that namespace. It decodes each document the way Helm does before
 // applying it, and returns the manifests unchanged.
 //
 // It is a stopgap until tenant releases are applied by impersonating a
@@ -41,6 +60,8 @@ var releaseKinds = map[schema.GroupKind]bool{
 // same limits. Remove it once that lands.
 type releaseGuard struct {
 	namespace string
+	kinds     map[schema.GroupKind]bool
+	elsewhere map[string]map[schema.GroupKind]bool
 }
 
 func (g releaseGuard) Run(manifests *bytes.Buffer) (*bytes.Buffer, error) {
@@ -65,11 +86,11 @@ func (g releaseGuard) Run(manifests *bytes.Buffer) (*bytes.Buffer, error) {
 
 		kind := object.GroupVersionKind().GroupKind()
 
-		if object.IsList() || !releaseKinds[kind] {
+		if object.IsList() || !g.kinds[kind] {
 			return nil, fmt.Errorf("release renders a disallowed object: %s %q", kind, object.GetName())
 		}
 
-		if namespace := object.GetNamespace(); namespace != "" && namespace != g.namespace {
+		if namespace := object.GetNamespace(); namespace != "" && namespace != g.namespace && !g.elsewhere[namespace][kind] {
 			return nil, fmt.Errorf("release renders %s %q into namespace %q", kind, object.GetName(), namespace)
 		}
 	}

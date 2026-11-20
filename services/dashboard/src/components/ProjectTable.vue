@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { lastSegment } from '@/lib/id';
 import { computed } from 'vue';
 import type { RouteLocationRaw } from 'vue-router';
 import { FolderGit2 } from '@lucide/vue';
 import ResourceTile from '@/components/ResourceTile.vue';
+import { Skeleton } from '@/components/ui/skeleton';
 import { repositoryName, type ResourceKind } from '@/lib/resources';
 
 interface NamedResource {
@@ -27,9 +29,18 @@ interface Project {
 const props = defineProps<{
   projects: Project[];
   linkTo: (project: Project) => RouteLocationRaw;
+  loading?: boolean;
 }>();
 
-const columns = 'grid grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_minmax(0,1.2fr)_minmax(0,1.6fr)] items-center gap-6 px-4';
+const skeletonRows = [
+  { name: 'w-20', repository: 'w-36', environments: ['w-24'], tiles: 3 },
+  { name: 'w-28', repository: 'w-32', environments: ['w-24'], tiles: 3 },
+  { name: 'w-16', repository: 'w-28', environments: ['w-24'], tiles: 1 },
+  { name: 'w-24', repository: 'w-24', environments: ['w-24'], tiles: 7 },
+  { name: 'w-14', repository: 'w-20', environments: ['w-24', 'w-16'], tiles: 3 },
+];
+
+const columns = 'grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)] items-center gap-3 px-4 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_minmax(0,1.2fr)_minmax(0,1.6fr)] sm:gap-6';
 
 interface Tile {
   key: string;
@@ -38,8 +49,8 @@ interface Tile {
 }
 
 function uniqueTiles(kind: ResourceKind, items: NamedResource[]): Tile[] {
-  const names = [...new Set(items.map(item => item.name))];
-  return names.map(name => ({ key: `${kind}/${name}`, kind, name }));
+  const byId = new Map(items.map(item => [lastSegment(item.id), item.name]));
+  return [...byId].map(([id, name]) => ({ key: `${kind}/${id}`, kind, name }));
 }
 
 function tiles(project: Project) {
@@ -80,11 +91,26 @@ const rows = computed(() => props.projects.map(project => ({
     <div class="sticky top-0 z-10 border-b bg-card">
       <div :class="[columns, 'h-8 bg-muted/40 text-xs font-medium text-muted-foreground']">
         <span>Project</span>
-        <span>Repository</span>
+        <span class="max-sm:hidden">Repository</span>
         <span>Environments</span>
         <span>Resources</span>
       </div>
     </div>
+    <template v-if="loading">
+      <div v-for="(row, index) in skeletonRows" :key="index" :class="[columns, 'min-h-13 border-b py-2']">
+        <Skeleton :class="['h-3', row.name]" />
+        <span class="flex items-center gap-1.5 max-sm:hidden">
+          <Skeleton class="size-3 rounded-sm" />
+          <Skeleton :class="['h-3', row.repository]" />
+        </span>
+        <span class="flex flex-wrap gap-1.5">
+          <Skeleton v-for="width in row.environments" :key="width" :class="['h-5.5', width]" />
+        </span>
+        <span class="flex flex-wrap gap-1">
+          <Skeleton v-for="tile in row.tiles" :key="tile" class="size-6 rounded-sm" />
+        </span>
+      </div>
+    </template>
     <RouterLink
       v-for="{ project, repositories: repositoryNames, tiles: resourceTiles } in rows"
       :key="project.id"
@@ -92,7 +118,7 @@ const rows = computed(() => props.projects.map(project => ({
       :class="[columns, 'min-h-13 border-b py-2 transition-colors hover:bg-muted/50']"
     >
       <span class="truncate text-sm font-semibold text-foreground">{{ project.name }}</span>
-      <span class="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+      <span class="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground max-sm:hidden">
         <template v-if="repositoryNames">
           <FolderGit2 :size="13" class="shrink-0" />
           <span class="truncate">{{ repositoryNames }}</span>
@@ -102,9 +128,9 @@ const rows = computed(() => props.projects.map(project => ({
         <span
           v-for="environment in project.environments"
           :key="environment.id"
-          class="inline-flex h-5.5 items-center rounded-md bg-muted px-2 text-xs text-foreground"
+          class="inline-flex h-5.5 max-w-full items-center rounded-md bg-muted px-2 text-xs text-foreground"
         >
-          {{ environment.name }}
+          <span class="truncate">{{ environment.name }}</span>
         </span>
       </span>
       <span class="flex flex-wrap items-center gap-1">

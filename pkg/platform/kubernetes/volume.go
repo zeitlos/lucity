@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	pkglabels "github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/usererror"
 
@@ -44,7 +45,7 @@ func (c *Client) Volumes(ctx context.Context, environmentID platform.Environment
 	for _, pvc := range list.Items {
 		volume := toVolume(pvc, environmentID)
 
-		if mount, ok := mounts[volume.Name]; ok {
+		if mount, ok := mounts[volume.ID.Name]; ok {
 			volume.Mount = &mount
 		}
 
@@ -79,7 +80,7 @@ func (c *Client) Volume(ctx context.Context, id platform.VolumeID) (*platform.Vo
 		return nil, err
 	}
 
-	if mount, ok := mounts[volume.Name]; ok {
+	if mount, ok := mounts[volume.ID.Name]; ok {
 		volume.Mount = &mount
 	}
 
@@ -150,7 +151,7 @@ func deploymentVolumeMounts(deployment apps.Deployment) map[string]string {
 func toVolume(pvc core.PersistentVolumeClaim, environmentID platform.EnvironmentID) platform.Volume {
 	return platform.Volume{
 		ID:        volumeID(pvc, environmentID),
-		Name:      pvc.Labels[volumeLabel],
+		Name:      readableName(pvc.Annotations, pkglabels.Name, pvc.Labels[volumeLabel]),
 		Size:      pvc.Spec.Resources.Requests[core.ResourceStorage],
 		Status:    volumeStatus(pvc),
 		CreatedAt: pvc.CreationTimestamp.Time,

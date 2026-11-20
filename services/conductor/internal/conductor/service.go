@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 
 	containername "github.com/google/go-containerregistry/pkg/name"
@@ -27,8 +28,6 @@ import (
 var (
 	minServiceCPU        = resource.MustParse("250m")
 	minServiceMemory     = resource.MustParse("256Mi")
-	maxServiceCPU        = resource.MustParse("4")
-	maxServiceMemory     = resource.MustParse("16Gi")
 	defaultServiceCPU    = resources.DefaultCPULimit
 	defaultServiceMemory = resources.DefaultMemoryLimit
 )
@@ -58,14 +57,59 @@ type Plan = planner.Plan
 const defaultAutoDeployEnvironment = "development"
 
 func (c *Client) Services(ctx context.Context, environmentID EnvironmentID) ([]Service, error) {
-	return c.platform.Services(ctx, environmentID)
+	cached, err := c.cachedPlatform.Services(ctx, environmentID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	services := slices.Clone(cached)
+
+	for i := range services {
+		c.settleFirstBuildStatus(ctx, &services[i])
+	}
+
+	return services, nil
 }
 
 func (c *Client) Service(ctx context.Context, id ServiceID) (*Service, error) {
-	return c.platform.Service(ctx, id)
+	service, err := c.platform.Service(ctx, id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	c.settleFirstBuildStatus(ctx, service)
+
+	return service, nil
 }
 
-func (c *Client) DetectServices(ctx context.Context, repositoryURL string) ([]Plan, error) {
+func (c *Client) settleFirstBuildStatus(ctx context.Context, service *Service) {
+	if service.Status != platform.ServiceBuilding || service.SourceURL == "" {
+		return
+	}
+
+	builds, err := c.buildjob.List(ctx, service.ID)
+
+	if err != nil {
+		slog.WarnContext(ctx, "first build lookup failed", "service", service.ID, "error", err)
+		return
+	}
+
+	var newest *Build
+
+	for i := range builds {
+		if newest == nil || builds[i].CreatedAt.After(newest.CreatedAt) {
+			newest = &builds[i]
+		}
+	}
+
+	if newest != nil && (newest.Status == buildjob.StatusFailed || newest.Status == buildjob.StatusCancelled) {
+		service.Status = platform.ServiceFailed
+	}
+}
+
+func (c *Client) DetectServices(ctx context.Context, repositoryURL, contextPath string) ([]Plan, error) {
 	repository, err := repositoryFromURL(repositoryURL)
 
 	if err != nil {
@@ -96,7 +140,7 @@ func (c *Client) DetectServices(ctx context.Context, repositoryURL string) ([]Pl
 		return nil, err
 	}
 
-	return c.planner.Plan(ctx, sourceURL, commit.SHA, token)
+	return c.planner.Plan(ctx, sourceURL, commit.SHA, token, contextPath)
 }
 
 func (c *Client) RepositoryBranches(ctx context.Context, repositoryURL string) ([]string, error) {
@@ -123,7 +167,7 @@ func repositoryFromURL(repositoryURL string) (string, error) {
 	return strings.TrimSuffix(strings.Trim(parsed.Path, "/"), ".git"), nil
 }
 
-func (c *Client) AddService(ctx context.Context, environmentID platform.EnvironmentID, name, repository, contextPath string, externalImage string, variables map[string]string, cpu, memory string, user *int64) (*Service, error) {
+func (c *Client) AddService(ctx context.Context, environmentID platform.EnvironmentID, id, name, repository, contextPath string, externalImage string, variables map[string]string, refs map[string]platform.VariableID, cpu, memory string, user *int64) (*Service, error) {
 	if cpu == "" {
 		cpu = defaultServiceCPU.String()
 	}
@@ -132,7 +176,17 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 		memory = defaultServiceMemory.String()
 	}
 
-	resources, err := validateServiceResources(cpu, memory)
+	capabilities, err := c.Capabilities(ctx, environmentID.Workspace)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := capabilities.Services.allow("Creating a service"); err != nil {
+		return nil, err
+	}
+
+	resources, err := validateResources(cpu, memory, capabilities.Services.CPU, capabilities.Services.Memory, nil)
 
 	if err != nil {
 		return nil, err
@@ -140,28 +194,51 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 
 	workspace := environmentID.Workspace
 	projectID := environmentID.Project
-	id := platform.ServiceID{
-		Workspace:   workspace,
-		Project:     projectID,
-		Environment: environmentID.Name,
-		Name:        name,
+
+	if _, err := c.platform.Environment(ctx, environmentID); err != nil {
+		return nil, err
 	}
 
-	environment, err := c.platform.Environment(ctx, environmentID)
+	if name == "" && repository != "" {
+		name = strings.TrimSuffix(repository[strings.LastIndex(repository, "/")+1:], ".git")
+	}
+
+	if name == "" && externalImage != "" {
+		name = deriveServiceName(externalImage)
+	}
+
+	id, err = c.newResourceID(ctx, environmentID, id, name, "service")
 
 	if err != nil {
 		return nil, err
 	}
 
-	serviceName := name
+	serviceID := platform.ServiceID{
+		Workspace:   workspace,
+		Project:     projectID,
+		Environment: environmentID.Name,
+		Name:        id,
+	}
+
+	specRefs, err := c.variableRefs(ctx, serviceID, refs)
+
+	if err != nil {
+		return nil, err
+	}
+
 	spec := deployer.ServiceSpec{
-		ContextPath:  contextPath,
-		ResourceTier: environment.ResourceTier,
-		Env:          variables,
-		Resources:    resources,
+		DisplayName: name,
+		ContextPath: contextPath,
+		Env:         variables,
+		Refs:        specRefs,
+		Resources:   resources,
 	}
 
 	if repository != "" {
+		if err := c.checkQueue(ctx, workspace); err != nil {
+			return nil, err
+		}
+
 		spec.Port = 8080
 		spec.AutoDeploy = environmentID.Name == defaultAutoDeployEnvironment
 
@@ -178,7 +255,7 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 			return nil, err
 		}
 
-		spec.Image = c.config.RegistryPullURL + "/" + id.ImageRepository()
+		spec.Image = c.config.RegistryPullURL + "/" + serviceID.ImageRepository()
 	} else if externalImage != "" {
 		if _, err := containername.ParseReference(externalImage); err != nil {
 			return nil, usererror.Errorf("invalid image reference %q: %v", externalImage, err)
@@ -190,10 +267,6 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 
 		spec.Image = ensureImageTag(externalImage)
 		spec.Port = c.imageExposedPort(ctx, spec.Image)
-
-		if serviceName == "" {
-			serviceName = deriveServiceName(externalImage)
-		}
 	} else {
 		return nil, usererror.New("either repository or external image must be set to create a new service")
 	}
@@ -206,13 +279,13 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 		spec.SecurityContext = securityContextFor(user)
 	}
 
-	if _, err := c.deployer.Services().Create(ctx, environmentID, serviceName, spec); err != nil {
+	if _, err := c.deployer.Services().Create(ctx, environmentID, id, spec); err != nil {
 		return nil, fmt.Errorf("create service: %w", err)
 	}
 
 	service := &platform.Service{
-		ID:          id,
-		Name:        serviceName,
+		ID:          serviceID,
+		Name:        name,
 		Status:      platform.ServiceDeploying,
 		SourceURL:   spec.SourceURL,
 		ContextPath: spec.ContextPath,
@@ -225,24 +298,24 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 		commit, err := c.source.Commit(ctx, spec.SourceURL, "")
 
 		if err != nil {
-			slog.Warn("initial commit lookup failed", "project", projectID, "service", name, "error", err)
+			slog.Warn("initial commit lookup failed", "project", projectID, "service", id, "error", err)
 			return service, nil
 		}
 
 		token, err := c.source.Token(ctx, spec.SourceURL)
 
 		if err != nil {
-			slog.Warn("source token mint failed", "project", projectID, "service", name, "error", err)
+			slog.Warn("source token mint failed", "project", projectID, "service", id, "error", err)
 			return service, nil
 		}
 
 		claims, _ := auth.FromContext(ctx)
 		release := deployer.NewRelease(deployer.TriggerManual, actorFromClaims(claims))
 
-		imageName := id.ImageRepository()
+		imageName := serviceID.ImageRepository()
 
 		build, err := c.buildjob.Start(ctx, buildjob.StartOptions{
-			Service:          id,
+			Service:          serviceID,
 			RepoURL:          spec.SourceURL,
 			Commit:           commit.SHA,
 			CommitMessage:    commit.Message,
@@ -254,12 +327,12 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 		})
 
 		if err != nil {
-			slog.Warn("initial build start failed", "project", projectID, "service", name, "error", err)
+			slog.Warn("initial build start failed", "project", projectID, "service", id, "error", err)
 			return service, nil
 		}
 
 		if _, err := c.startDeploy(ctx, service.ID, build.ID.Name, commit.Message, release); err != nil {
-			slog.Warn("initial deploy start failed", "project", projectID, "service", name, "error", err)
+			slog.Warn("initial deploy start failed", "project", projectID, "service", id, "error", err)
 		}
 
 		c.startScan(ctx, service.ID, build.ID.Name, spec.SourceURL, commit.SHA, token, release.ID)
@@ -312,6 +385,32 @@ func (c *Client) SetServiceBranch(ctx context.Context, svc platform.ServiceID, b
 	return c.Service(ctx, svc)
 }
 
+func (c *Client) SetServiceContextPath(ctx context.Context, svc platform.ServiceID, contextPath string) (*Service, error) {
+	current, err := c.platform.Service(ctx, svc)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if current.SourceURL == "" {
+		return nil, usererror.New("only a service built from a repository has a build directory")
+	}
+
+	if _, err := c.deployer.Services().SetContextPath(ctx, svc, contextPath); err != nil {
+		return nil, fmt.Errorf("set context path: %w", err)
+	}
+
+	return c.Service(ctx, svc)
+}
+
+func (c *Client) RestartService(ctx context.Context, svc platform.ServiceID) (*Service, error) {
+	if _, err := c.deployer.Services().Restart(ctx, svc); err != nil {
+		return nil, fmt.Errorf("restart service: %w", err)
+	}
+
+	return c.Service(ctx, svc)
+}
+
 func (c *Client) SetAutoDeploy(ctx context.Context, svc platform.ServiceID, enabled bool) (*Service, error) {
 	if _, err := c.deployer.Services().SetAutoDeploy(ctx, svc, enabled); err != nil {
 		return nil, fmt.Errorf("set autodeploy: %w", err)
@@ -329,19 +428,25 @@ func (c *Client) SetCIDeploy(ctx context.Context, svc platform.ServiceID, enable
 }
 
 func (c *Client) SetServiceResources(ctx context.Context, service platform.ServiceID, cpu, memory string) (*Service, error) {
-	spec, err := validateServiceResources(cpu, memory)
+	capabilities, err := c.Capabilities(ctx, service.Workspace)
 
 	if err != nil {
 		return nil, err
 	}
 
-	environment, err := c.platform.Environment(ctx, service.EnvironmentID())
+	current, err := c.platform.Service(ctx, service)
 
 	if err != nil {
 		return nil, err
 	}
 
-	if _, err := c.deployer.Services().SetResources(ctx, service, environment.ResourceTier, spec); err != nil {
+	spec, err := validateResources(cpu, memory, capabilities.Services.CPU, capabilities.Services.Memory, &current.Resources)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := c.deployer.Services().SetResources(ctx, service, spec); err != nil {
 		return nil, fmt.Errorf("set resources: %w", err)
 	}
 
@@ -398,6 +503,7 @@ func (c *Client) Rollback(ctx context.Context, deploymentID DeploymentID) (bool,
 	provenance := deployer.ImageProvenance{
 		Commit:        deployment.Commit,
 		CommitMessage: deployment.CommitMessage,
+		ContextPath:   deployment.ContextPath,
 		BuildID:       deployment.BuildID,
 	}
 
@@ -454,6 +560,26 @@ func (c *Client) AddCustomDomain(ctx context.Context, serviceID platform.Service
 		}
 	}
 
+	current, err := c.platform.Service(ctx, serviceID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !slices.ContainsFunc(current.Endpoints, func(endpoint platform.Endpoint) bool { return endpoint.Host == hostname }) {
+		capabilities, err := c.freshCapabilities(ctx, serviceID.Workspace)
+
+		if err != nil {
+			return nil, err
+		}
+
+		if err := capabilities.CustomDomains.allow("Another custom domain"); err != nil {
+			return nil, err
+		}
+	}
+
+	defer c.forgetCapabilities(serviceID.Workspace)
+
 	if _, err := c.deployer.Services().AddDomain(ctx, serviceID, hostname, deployer.DomainOptions{RedirectTo: redirectTo, OwnListener: true}); err != nil {
 		return nil, err
 	}
@@ -482,12 +608,9 @@ func (c *Client) RemoveDomain(ctx context.Context, serviceID platform.ServiceID,
 	}
 
 	c.domains.Unregister(ctx, serviceID.Workspace, hostname)
+	c.forgetCapabilities(serviceID.Workspace)
 
 	return c.Service(ctx, serviceID)
-}
-
-func validateServiceResources(cpu, memory string) (deployer.Resources, error) {
-	return validateResources(cpu, memory, minServiceCPU, maxServiceCPU, minServiceMemory, maxServiceMemory)
 }
 
 // deriveServiceName extracts a service name from an image reference.

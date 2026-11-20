@@ -52,6 +52,17 @@ func New(secretKey, hobbyPriceID, proPriceID string) *Client {
 	}
 }
 
+// Account returns the ID of the Stripe account the key belongs to.
+func (c *Client) Account(ctx context.Context) (string, error) {
+	account, err := c.stripe.V1Accounts.Retrieve(ctx, nil)
+
+	if err != nil {
+		return "", fmt.Errorf("retrieve account: %w", err)
+	}
+
+	return account.ID, nil
+}
+
 // Subscription returns the subscription a customer is billed through: the
 // best current one, or the newest ended one when every subscription has
 // ended. It returns nil only for a customer that never had a subscription.
@@ -153,14 +164,37 @@ func (c *Client) PaymentMethods(ctx context.Context) (map[string]bool, error) {
 	return methods, nil
 }
 
+// UsableCard reports whether the customer has a card attached that isn't
+// prepaid. It doesn't need to be the default payment method.
+func (c *Client) UsableCard(ctx context.Context, customerID string) (bool, error) {
+	params := &stripe.PaymentMethodListParams{
+		Customer: stripe.String(customerID),
+		Type:     stripe.String(string(stripe.PaymentMethodTypeCard)),
+	}
+	params.Limit = stripe.Int64(10)
+
+	for card, err := range c.stripe.V1PaymentMethods.List(ctx, params).All(ctx) {
+		if err != nil {
+			return false, fmt.Errorf("list cards of customer %s: %w", customerID, err)
+		}
+
+		if card.Card == nil || card.Card.Funding != stripe.CardFundingPrepaid {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
 // Paid reports whether a subscription is live and carries a plan price.
 func (c *Client) Paid(subscription *stripe.Subscription) bool {
 	return live(subscription.Status) && c.Plan(subscription).Paid()
 }
 
 type Standing struct {
-	Good   bool
-	Reason string
+	Good       bool
+	Reason     string
+	TrialEnded bool
 }
 
 // Standing reports whether a workspace billed through the subscription is in
@@ -187,11 +221,11 @@ func (c *Client) Standing(subscription *stripe.Subscription, hasPaymentMethod bo
 	}
 
 	if subscription.Status == stripe.SubscriptionStatusPastDue {
-		return Standing{Reason: "trial credit used up"}
+		return Standing{Reason: "trial credit used up", TrialEnded: true}
 	}
 
-	if end := trialEnd(subscription); !end.IsZero() && !now.Before(end) {
-		return Standing{Reason: "trial ended"}
+	if end := TrialEnd(subscription); !end.IsZero() && !now.Before(end) {
+		return Standing{Reason: "trial ended", TrialEnded: true}
 	}
 
 	return Standing{Good: true}
@@ -209,7 +243,9 @@ func periodStart(subscription *stripe.Subscription) time.Time {
 	return time.Time{}
 }
 
-func trialEnd(subscription *stripe.Subscription) time.Time {
+// TrialEnd returns when the subscription's trial expires, or the zero time
+// when it has no trial interval.
+func TrialEnd(subscription *stripe.Subscription) time.Time {
 	interval := subscription.PendingInvoiceItemInterval
 
 	if interval == nil || interval.Interval != stripe.SubscriptionPendingInvoiceItemIntervalIntervalDay {

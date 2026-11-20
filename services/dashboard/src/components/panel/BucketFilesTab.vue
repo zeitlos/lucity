@@ -2,6 +2,7 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import QueryError from '@/components/QueryError.vue';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
+import CopyButton from '@/components/CopyButton.vue';
 import { ref, computed, useTemplateRef } from 'vue';
 import { useQuery, useMutation, useApolloClient } from '@vue/apollo-composable';
 import { useDropZone } from '@vueuse/core';
@@ -60,6 +61,7 @@ const DeleteBucketObjectDocument = graphql(`
 
 const props = defineProps<{
   bucketId: string;
+  publicEndpoint?: string;
 }>();
 
 const prefix = ref('');
@@ -73,6 +75,14 @@ const { result, loading, error, refetch } = useQuery(
 const folders = computed(() => result.value?.bucketObjects.folders ?? []);
 const objects = computed(() => result.value?.bucketObjects.objects ?? []);
 const isEmpty = computed(() => folders.value.length === 0 && objects.value.length === 0);
+
+const skeletonRows = [
+  { name: 'w-24', file: false },
+  { name: 'w-16', file: false },
+  { name: 'w-40', file: true },
+  { name: 'w-28', file: true },
+  { name: 'w-36', file: true },
+];
 
 const segments = computed(() => prefix.value.split('/').filter(Boolean));
 
@@ -94,6 +104,10 @@ function baseName(key: string): string {
 
 function folderName(folderPrefix: string): string {
   return baseName(folderPrefix);
+}
+
+function publicUrl(key: string): string {
+  return `${props.publicEndpoint}/${key.split('/').map(encodeURIComponent).join('/')}`;
 }
 
 // --- Upload -------------------------------------------------------------
@@ -335,14 +349,9 @@ async function confirmDelete() {
         </span>
       </div>
 
-      <!-- Loading -->
-      <div v-if="loading" class="space-y-1.5 py-1">
-        <Skeleton v-for="i in 6" :key="i" class="h-7 w-full" />
-      </div>
-
       <!-- Error -->
       <QueryError
-        v-else-if="error"
+        v-if="error && !loading"
         title="Couldn't load files"
         :error="error"
         @retry="refetch()"
@@ -351,7 +360,7 @@ async function confirmDelete() {
       <!-- Content -->
       <template v-else>
         <EmptyState
-          v-if="isEmpty && !creatingFolder"
+          v-if="!loading && isEmpty && !creatingFolder"
           size="compact"
           :icon="Folder"
           title="This folder is empty"
@@ -365,10 +374,27 @@ async function confirmDelete() {
                 <TableHead>Name</TableHead>
                 <TableHead class="w-24 text-right">Size</TableHead>
                 <TableHead class="w-32 text-right">Modified</TableHead>
-                <TableHead class="w-20"><span class="sr-only">Actions</span></TableHead>
+                <TableHead :class="publicEndpoint ? 'w-26' : 'w-20'"><span class="sr-only">Actions</span></TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <TableBody v-if="loading">
+              <TableRow v-for="row in skeletonRows" :key="row.name" class="h-9 hover:bg-transparent">
+                <TableCell>
+                  <div class="flex items-center gap-3">
+                    <Skeleton class="size-4 rounded-sm" />
+                    <Skeleton :class="['h-3', row.name]" />
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Skeleton v-if="row.file" class="ml-auto h-3 w-12" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton v-if="row.file" class="ml-auto h-3 w-20" />
+                </TableCell>
+                <TableCell />
+              </TableRow>
+            </TableBody>
+            <TableBody v-else>
               <TableRow v-if="creatingFolder" class="hover:bg-transparent">
                 <TableCell :colspan="4" class="py-1.5">
                   <div class="flex items-center gap-2">
@@ -428,6 +454,7 @@ async function confirmDelete() {
                 </TableCell>
                 <TableCell class="py-1">
                   <div class="flex items-center justify-end gap-0.5">
+                    <CopyButton v-if="publicEndpoint" label="Copy URL" :value="publicUrl(object.key)" />
                     <IconButton label="Download" size="icon-xs" @click="download(object.key)">
                       <Download />
                     </IconButton>

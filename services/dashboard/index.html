@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="">
+<html lang="en">
   <head>
     <meta charset="UTF-8">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=3">
@@ -11,15 +11,29 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Sora:wght@300..700&display=swap" rel="stylesheet">
     <title>Lucity</title>
+    <link rel="canonical" href="%BASE_URL%login">
+    <meta name="description" content="Sign in to Lucity to deploy your apps, databases and domains. The European platform for running apps in production, without the lock-in.">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Lucity">
+    <meta property="og:title" content="Lucity">
+    <meta property="og:description" content="Sign in to Lucity to deploy your apps, databases and domains. The European platform for running apps in production, without the lock-in.">
+    <meta property="og:image" content="https://lucity.cloud/img/og.jpg?v=4">
+    <meta property="og:image:width" content="1280">
+    <meta property="og:image:height" content="640">
+    <meta property="og:image:alt" content="Lucity: Deploy anything. Own your stack.">
+    <meta name="twitter:card" content="summary_large_image">
     <script>
       ;(function() {
-        var sites = {'lucity.cloud': '42cfa77ed96d'};
-        var id = sites[location.hostname];
-        if (!id) return;
+        var sites = {
+          'lucity.cloud': { origin: 'https://p.lucity.cloud', id: '42cfa77ed96d' },
+          'lucity.dev': { origin: 'https://p.lucity.dev', id: 'c16a48b0ce9e' },
+        };
+        var site = sites[location.hostname];
+        if (!site) return;
         var el = document.createElement('script');
         el.defer = true;
-        el.src = 'https://p.lucity.cloud/api/script.js';
-        el.dataset.siteId = id;
+        el.src = site.origin + '/api/script.js';
+        el.dataset.siteId = site.id;
         document.head.appendChild(el);
       })();
     </script>

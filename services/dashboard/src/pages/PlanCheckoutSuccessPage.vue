@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useMutation } from '@vue/apollo-composable';
 import { graphql } from '@/gql';
@@ -33,9 +33,12 @@ import { AlertCircle } from '@lucide/vue';
 import Spinner from '@/components/LoadingSpinner.vue';
 import { Button } from '@/components/ui/button';
 import { errorMessage } from '@/lib/utils';
+import { useAuth } from '@/composables/useAuth';
 
 const route = useRoute();
 const router = useRouter();
+const { activeWorkspace } = useAuth();
+const billingRoute = computed(() => ({ name: 'workspace', params: { workspace: activeWorkspace.value, drawer: 'billing' } }));
 
 const error = ref('');
 const { mutate } = useMutation(CompletePlanCheckoutDocument);
@@ -57,7 +60,7 @@ onMounted(async () => {
 
     // Refetch subscription data so the billing page reflects the new plan.
     await apolloClient.refetchQueries({ include: [SubscriptionDocument] });
-    router.push({ name: 'workspace', params: { drawer: 'billing' } });
+    router.push(billingRoute.value);
   } catch (e: unknown) {
     error.value = errorMessage(e);
   }
@@ -76,7 +79,7 @@ onMounted(async () => {
       />
       <h1 class="text-lg font-medium">Something went wrong</h1>
       <p class="text-sm text-muted-foreground">{{ error }}</p>
-      <Button @click="router.push({ name: 'workspace', params: { drawer: 'billing' } })">
+      <Button @click="router.push(billingRoute)">
         Back to billing
       </Button>
     </div>

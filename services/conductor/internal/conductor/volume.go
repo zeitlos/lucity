@@ -19,21 +19,41 @@ func (c *Client) VolumeStorageUsed(ctx context.Context, id VolumeID, window metr
 }
 
 func (c *Client) Volumes(ctx context.Context, environment EnvironmentID) ([]Volume, error) {
-	return c.platform.Volumes(ctx, environment)
+	return c.cachedPlatform.Volumes(ctx, environment)
 }
 
 func (c *Client) Volume(ctx context.Context, id VolumeID) (*Volume, error) {
 	return c.platform.Volume(ctx, id)
 }
 
-func (c *Client) CreateVolume(ctx context.Context, environment platform.EnvironmentID, name, size string) (*Volume, error) {
+func (c *Client) CreateVolume(ctx context.Context, environment platform.EnvironmentID, id, name, size string) (*Volume, error) {
+	capabilities, err := c.Capabilities(ctx, environment.Workspace)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := capabilities.Volumes.allow("Volumes"); err != nil {
+		return nil, err
+	}
+
 	parsedSize, err := resource.ParseQuantity(size)
 
 	if err != nil {
-		return nil, fmt.Errorf("parse size: %w", err)
+		return nil, usererror.Errorf("invalid storage size %q", size)
 	}
 
-	if _, err := c.deployer.Volumes().Create(ctx, environment, name, parsedSize); err != nil {
+	if err := capabilities.Volumes.Size.check("Size", parsedSize, nil); err != nil {
+		return nil, err
+	}
+
+	id, err = c.newResourceID(ctx, environment, id, name, "volume")
+
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := c.deployer.Volumes().Create(ctx, environment, id, name, parsedSize); err != nil {
 		return nil, fmt.Errorf("create volume: %w", err)
 	}
 
@@ -42,7 +62,7 @@ func (c *Client) CreateVolume(ctx context.Context, environment platform.Environm
 			Workspace:   environment.Workspace,
 			Project:     environment.Project,
 			Environment: environment.Name,
-			Name:        name,
+			Name:        id,
 		},
 		Name:   name,
 		Size:   parsedSize,
@@ -65,6 +85,16 @@ func (c *Client) ExpandVolume(ctx context.Context, volume platform.VolumeID, siz
 
 	if current.Status != platform.VolumeReady {
 		return nil, usererror.Errorf("volume %q can't grow until a running service uses it, because its disk is only created then. To change the size now, delete the volume and create it again", volume.Name)
+	}
+
+	capabilities, err := c.Capabilities(ctx, volume.Workspace)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := capabilities.Volumes.Size.check("Size", parsedSize, &current.Size); err != nil {
+		return nil, err
 	}
 
 	if _, err := c.deployer.Volumes().Expand(ctx, volume, parsedSize); err != nil {

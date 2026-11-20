@@ -8,25 +8,30 @@ import (
 	"time"
 
 	"github.com/zeitlos/lucity/pkg/jobs"
+	"github.com/zeitlos/lucity/pkg/metrics"
 	"github.com/zeitlos/lucity/pkg/pipeline"
+
+	batch "k8s.io/api/batch/v1"
 )
 
 const fallbackInterval = 30 * time.Second
 
 type Worker struct {
 	pipeline pipeline.Interface
+	loops    *metrics.Loops
 	trigger  chan struct{}
 }
 
 // New returns a worker that runs admission whenever a Job or a builder pod
 // changes, and at least every 30 seconds.
-func New(cache *jobs.Cache, builders *jobs.Builders, pipeline pipeline.Interface) (*Worker, error) {
+func New(cache *jobs.Cache, builders *jobs.Builders, pipeline pipeline.Interface, loops *metrics.Loops) (*Worker, error) {
 	w := &Worker{
 		pipeline: pipeline,
+		loops:    loops,
 		trigger:  make(chan struct{}, 1),
 	}
 
-	if err := cache.OnChange(w.notify); err != nil {
+	if err := cache.OnChange(func(*batch.Job) { w.notify() }); err != nil {
 		return nil, err
 	}
 
@@ -49,7 +54,11 @@ func (w *Worker) Run(ctx context.Context) {
 	defer ticker.Stop()
 
 	for {
-		if err := w.pipeline.Reconcile(ctx); err != nil && ctx.Err() == nil {
+		start := time.Now()
+		err := w.pipeline.Reconcile(ctx)
+		w.loops.Observe("admission", start, err)
+
+		if err != nil && ctx.Err() == nil {
 			slog.Error("release admission failed", "error", err)
 		}
 

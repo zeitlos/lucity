@@ -1,19 +1,18 @@
 <script setup lang="ts">
-import FormFooter from '@/components/FormFooter.vue';
-import { useUnsavedChanges } from '@/composables/useUnsavedChanges';
+import { projectRoute } from '@/lib/routes';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
-import { ref, watch, computed } from 'vue';
+import BlockingResources from '@/components/BlockingResources.vue';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useMutation } from '@vue/apollo-composable';
 import { Trash2 } from '@lucide/vue';
 import { graphql } from '@/gql';
-import { ResourceTier } from '@/gql/graphql';
 
-const SetEnvironmentResourcesDocument = graphql(`
-  mutation SetEnvironmentResources($input: SetEnvironmentResourcesInput!) {
-    setEnvironmentResources(input: $input) {
+const RenameEnvironmentDocument = graphql(`
+  mutation RenameEnvironment($environment: EnvironmentID!, $name: String!) {
+    renameEnvironment(environment: $environment, name: $name) {
       id
-      resourceTier
+      name
     }
   }
 `);
@@ -25,17 +24,19 @@ const DeleteEnvironmentDocument = graphql(`
 `);
 import { apolloClient } from '@/lib/apollo';
 import ContextDrawer from '@/components/drawer/ContextDrawer.vue';
+import NameSettings from '@/components/NameSettings.vue';
 import { Button } from '@/components/ui/button';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { failureToast, successToast } from '@/components/ui/sonner';
+import { usePanel } from '@/composables/usePanel';
+import { describeResources, environmentResources, type EnvironmentContents, type ResourceRow } from '@/lib/resources';
 
 const props = defineProps<{
   projectId: string;
-  environment: {
+  environment: EnvironmentContents & {
     id: string;
     name: string;
-    resourceTier: ResourceTier;
   };
+  only: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -44,41 +45,51 @@ const emit = defineEmits<{
 
 const router = useRouter();
 
-const tier = ref<ResourceTier>(props.environment.resourceTier);
+const { mutate: renameMutate, loading: renaming } = useMutation(RenameEnvironmentDocument);
 
-watch(
-  () => [props.environment.id, props.environment.resourceTier] as const,
-  ([, current]) => {
-    tier.value = current;
-  },
-);
-
-const { mutate: setResourcesMutate, loading: savingTier } = useMutation(SetEnvironmentResourcesDocument);
-
-const tierOptions = [
-  { value: ResourceTier.Eco, label: 'Eco', description: 'Pay for what you use. Best for development, staging, and side projects.' },
-  { value: ResourceTier.Production, label: 'Production', description: 'Reserved resources. Best for production workloads with predictable load.' },
-];
-
-const tierChanged = computed(() => tier.value !== props.environment.resourceTier);
-
-useUnsavedChanges(tierChanged);
-
-async function handleSaveTier() {
+async function handleRename(name: string) {
   try {
-    await setResourcesMutate({
-      input: {
-        environment: props.environment.id,
-        tier: tier.value,
-      },
-    });
+    await renameMutate({ environment: props.environment.id, name });
   } catch (e: unknown) {
-    failureToast('Failed to update resource tier', e);
+    failureToast('Failed to rename environment', e);
   }
 }
 
 const { mutate: deleteEnvironmentMutate, loading: deleting } = useMutation(DeleteEnvironmentDocument);
 const confirmOpen = ref(false);
+
+const resources = computed(() => environmentResources(props.environment));
+
+const hint = computed(() => {
+  if (props.only) return "It's the only environment in this project, which needs at least one.";
+  if (resources.value.length) return `It still holds ${describeResources(props.environment)}.`;
+  return 'Permanently delete this environment and its deployment history.';
+});
+
+const dialog = computed(() => {
+  const name = props.environment.name;
+
+  if (resources.value.length) {
+    return {
+      title: `Environment "${name}" isn't empty`,
+      description: 'Delete these first, then the environment.',
+    };
+  }
+
+  return {
+    title: `Delete environment "${name}"?`,
+    description: "Its deployment history goes with it. This can't be undone.",
+  };
+});
+
+const { openPanel } = usePanel();
+
+function openResource(resource: ResourceRow) {
+  const type = resource.kind === 'repositoryService' || resource.kind === 'imageService' ? 'service' : resource.kind;
+  confirmOpen.value = false;
+  emit('close');
+  openPanel({ type, id: resource.id, label: resource.name, tab: 'settings' });
+}
 
 async function handleDelete() {
   const { id, name } = props.environment;
@@ -90,7 +101,7 @@ async function handleDelete() {
     apolloClient.cache.gc();
 
     confirmOpen.value = false;
-    router.push({ name: 'project', params: { projectId: props.projectId } });
+    router.push(projectRoute(props.projectId));
     successToast(`Environment "${name}" deleted`);
   } catch (e: unknown) {
     failureToast('Failed to delete environment', e);
@@ -105,71 +116,34 @@ async function handleDelete() {
   >
     <div class="flex min-h-full flex-col gap-6">
       <section class="space-y-2.5">
-        <h3 class="text-sm font-medium text-muted-foreground">Resource tier</h3>
-        <div class="overflow-hidden rounded-lg border">
-          <fieldset :disabled="savingTier" class="min-w-0">
-            <RadioGroup
-              :model-value="tier"
-              class="gap-0 divide-y"
-              @update:model-value="tier = $event as ResourceTier"
-            >
-              <label
-                v-for="option in tierOptions"
-                :key="option.value"
-                class="flex cursor-pointer items-start gap-3 p-3 transition-colors"
-                :class="{ 'bg-primary/5': tier === option.value }"
-              >
-                <RadioGroupItem :value="option.value" class="mt-0.5" />
-                <span class="space-y-0.5">
-                  <span class="block text-sm font-medium">{{ option.label }}</span>
-                  <span class="block text-xs text-muted-foreground">{{ option.description }}</span>
-                </span>
-              </label>
-            </RadioGroup>
-          </fieldset>
-          <FormFooter
-            :dirty="tierChanged"
-            :saving="savingTier"
-            hint="Each service picks up the change on its next deploy."
-            @save="handleSaveTier"
-            @discard="tier = environment.resourceTier"
-          />
-        </div>
-      </section>
-
-      <section class="space-y-2.5">
         <h3 class="text-sm font-medium text-muted-foreground">General</h3>
-        <div class="space-y-2.5 rounded-lg border p-3">
-          <div class="flex items-center justify-between gap-4">
-            <span class="text-sm text-muted-foreground">Name</span>
-            <span class="text-sm font-medium text-foreground">{{ environment.name }}</span>
-          </div>
-          <div class="flex items-center justify-between gap-4">
-            <span class="text-sm text-muted-foreground">ID</span>
-            <span class="truncate font-mono text-xs text-foreground">{{ environment.id }}</span>
-          </div>
-        </div>
+        <NameSettings
+          :name="environment.name"
+          :id="environment.id"
+          :saving="renaming"
+          @save="handleRename"
+        />
       </section>
 
       <div class="mt-auto flex items-center justify-between gap-4 rounded-lg border border-destructive/30 p-3">
         <div>
           <p class="text-sm font-medium text-foreground">Delete environment</p>
-          <p class="text-xs text-muted-foreground">
-            It has to be empty, and the last environment of a project can't be deleted.
-          </p>
+          <p class="text-xs text-muted-foreground">{{ hint }}</p>
         </div>
         <ConfirmDialog
           v-model:open="confirmOpen"
-          :title="`Delete environment &quot;${environment.name}&quot;?`"
-          description="Its deployment history goes with it. This can't be undone."
+          :title="dialog.title"
+          :description="dialog.description"
           confirm-label="Delete environment"
           pending-label="Deleting…"
           :pending="deleting"
+          :blocked="resources.length > 0"
           destructive
           @confirm="handleDelete"
         >
+          <BlockingResources v-if="resources.length" :items="resources" @select="openResource" />
           <template #trigger>
-            <Button variant="destructive" class="shrink-0">
+            <Button variant="destructive" class="shrink-0" :disabled="only">
               <Trash2 />
               Delete
             </Button>

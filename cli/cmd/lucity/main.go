@@ -52,20 +52,25 @@ Commands:
   workspace [<workspace>]  Show or switch the active workspace
   deploy <service>         Build and roll out a service
   status <service>         Show the latest rollout status of a service
+  restart <service>        Replace the instances of a service with fresh ones
   vars <command>           Manage service variables (list, available, set)
   db <command>             Manage databases (create, list, credentials, expose, unexpose, delete)
   token [--account]        Print a bearer token for scripting
   mcp                      Serve the Lucity MCP server on stdio
+  claude plugin            Write the plugin for Claude Code and print its path
+  update                   Update the CLI to the latest release
   version                  Print the CLI version
 
 Run 'lucity help <command>' for the details of a command.
 
 Environment:
-  LUCITY_API_URL     Platform URL, in place of the one you signed in to
-  LUCITY_WORKSPACE   Workspace to use, in place of the active one
-  LUCITY_API_TOKEN   Workspace API token, used in place of the stored session
-  LUCITY_CONFIG_DIR  Directory holding the session (default: '$XDG_CONFIG_HOME/lucity'
-                     or '~/.config/lucity')
+  LUCITY_API_URL          Platform URL, in place of the one you signed in to
+  LUCITY_WORKSPACE        Workspace to use, in place of the active one
+  LUCITY_API_TOKEN        Workspace API token, used in place of the stored session
+  LUCITY_CONFIG_DIR       Directory holding the session (default: '$XDG_CONFIG_HOME/lucity'
+                          or '~/.config/lucity')
+  LUCITY_NO_AUTO_UPDATE   Set to 1 to only be told about new releases, not install them
+  LUCITY_NO_UPDATE_CHECK  Set to 1 to stop looking for new releases, and updating to them
 `
 
 const loginUsage = `lucity login — sign in through your browser
@@ -168,10 +173,13 @@ var commandUsage = map[string]string{
 	"workspace": workspaceUsage,
 	"deploy":    deployUsage,
 	"status":    statusUsage,
+	"restart":   restartUsage,
 	"vars":      varsUsage,
 	"db":        dbUsage,
 	"token":     tokenUsage,
 	"mcp":       mcpUsage,
+	"update":    updateUsage,
+	"claude":    claudeUsage,
 	"version":   versionUsage,
 }
 
@@ -189,6 +197,8 @@ func main() {
 		fmt.Print(text)
 		return
 	}
+
+	updateCheck := startUpdateCheck(ctx, command)
 
 	var err error
 	switch command {
@@ -208,10 +218,16 @@ func main() {
 		err = cmdVars(ctx, args)
 	case "status":
 		err = cmdStatus(ctx, args)
+	case "restart":
+		err = cmdRestart(ctx, args)
 	case "token":
 		err = cmdToken(ctx, args)
+	case "update":
+		err = cmdUpdate(ctx, args)
 	case "mcp":
 		err = cmdMCP(ctx)
+	case "claude":
+		err = cmdClaude(args)
 	case "version", "--version", "-v":
 		fmt.Println("lucity " + version)
 	case "help", "--help", "-h":
@@ -225,6 +241,9 @@ func main() {
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
+	}
+	printUpdateNotice(updateCheck)
+	if err != nil {
 		os.Exit(1)
 	}
 }
@@ -247,7 +266,7 @@ func cmdLogin(ctx context.Context, args []string) error {
 	flags.SetOutput(os.Stderr)
 	flags.Usage = func() { fmt.Fprint(os.Stderr, loginUsage) }
 	apiURL := flags.String("api", "", "platform URL (e.g. https://lucity.cloud)")
-	if err := flags.Parse(args); err != nil {
+	if err := parseFlags(flags, args); err != nil {
 		return err
 	}
 
@@ -414,7 +433,7 @@ func cmdToken(ctx context.Context, args []string) error {
 	flags.SetOutput(os.Stderr)
 	flags.Usage = func() { fmt.Fprint(os.Stderr, tokenUsage) }
 	account := flags.Bool("account", false, "print the account token used for GitHub-backed calls")
-	if err := flags.Parse(args); err != nil {
+	if err := parseFlags(flags, args); err != nil {
 		return err
 	}
 

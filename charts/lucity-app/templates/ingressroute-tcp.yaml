@@ -47,7 +47,6 @@ spec:
       services:
         - name: {{ include "lucity-app.fullname" $ }}-pg-{{ $name }}-rw
           port: 5432
-  tls:
-    passthrough: true
+  tls: {}
 {{- end }}
 {{- end }}

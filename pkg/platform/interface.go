@@ -17,6 +17,7 @@ type Interface interface {
 	Service(ctx context.Context, id ServiceID) (*Service, error)
 	ServicesByRepo(ctx context.Context, repoURL string) ([]RepoService, error)
 	PendingDomains(ctx context.Context) ([]PendingDomain, error)
+	RoutedWorkspaces(ctx context.Context) (map[string]bool, error)
 	BuildVariables(ctx context.Context, id ServiceID) (map[string]string, error)
 
 	Deployments(ctx context.Context, serviceID ServiceID) ([]Deployment, error)
@@ -37,26 +38,28 @@ type Interface interface {
 	Volumes(ctx context.Context, environmentID EnvironmentID) ([]Volume, error)
 	Volume(ctx context.Context, id VolumeID) (*Volume, error)
 
-	Logs(ctx context.Context, id ServiceID, tail int) (<-chan LogEntry, error)
-
-	ResourceAllocations(ctx context.Context) ([]ResourceAllocation, error)
+	Instances(ctx context.Context, id ServiceID) ([]Instance, error)
 }
 
-// ResourceAllocation reports the actual resource usage of a single
-// environment, summed across all pods (requests) and PVCs. Used by the
-// billing pipeline (Cashier) to meter consumption.
-type ResourceAllocation struct {
-	EnvironmentID EnvironmentID
-	Namespace     string
-	Tier          ResourceTier
-	CPUMillicores int
-	MemoryMB      int
-	DiskMB        int
+type Changes interface {
+	// Watch signals every change to the objects behind the environment until
+	// ctx is done. A burst of changes arrives as one signal.
+	Watch(ctx context.Context, environment EnvironmentID) <-chan struct{}
 }
 
-type LogEntry struct {
-	Pod  string
-	Line string
+type InstanceState string
+
+const (
+	InstanceStarting InstanceState = "starting"
+	InstanceRunning  InstanceState = "running"
+	InstanceStopping InstanceState = "stopping"
+	InstanceStopped  InstanceState = "stopped"
+)
+
+// Instance is a pod of a service that exists right now.
+type Instance struct {
+	Name  string
+	State InstanceState
 }
 
 type DatabaseCredentials struct {

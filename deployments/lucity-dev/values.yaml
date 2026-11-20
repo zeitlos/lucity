@@ -25,7 +25,7 @@ conductor:
     storageSize: 50Gi
   env:
     OIDC_ISSUER_URL: https://id.lucity.dev/oidc
-    OIDC_CLIENT_ID: tra6m86tjgolnq6ubifd0
+    OIDC_CLIENT_ID: x7e4yb5vqqx0pfwcmqly5
     OIDC_AUDIENCE: https://api.lucity.dev
     OIDC_CLI_CLIENT_ID: ifzsbmxdp02kaycalc81r
     OIDC_CALLBACK_URL: https://lucity.dev/auth/callback
@@ -44,9 +44,6 @@ conductor:
     STRIPE_ECO_CPU_PRICE_ID: price_1USdNKAczm59y8RPBPjvI7pN
     STRIPE_ECO_MEM_PRICE_ID: price_1USdNLAczm59y8RPG4kbNhu5
     STRIPE_ECO_DISK_PRICE_ID: price_1USdNLAczm59y8RPgnBW0BEG
-    STRIPE_PROD_CPU_PRICE_ID: price_1USdNMAczm59y8RPiJHefikh
-    STRIPE_PROD_MEM_PRICE_ID: price_1USdNNAczm59y8RPdeDMpXtS
-    STRIPE_PROD_DISK_PRICE_ID: price_1USdNOAczm59y8RPvke3Og3S
     STRIPE_STORAGE_PRICE_ID: price_1USdNPAczm59y8RPMUYnmHfj
     STRIPE_EGRESS_PRICE_ID: price_1USdNPAczm59y8RPyFgdLdK9
 
@@ -61,6 +58,7 @@ conductor:
     GATEWAY_HTTPS_LISTENER: workload-https
 
     VICTORIA_METRICS_URL: http://lucity-infra-victoria-metrics-single-server.lucity-system.svc.cluster.local:8428
+    VICTORIA_LOGS_URL: http://lucity-infra-victoria-logs-single-server.lucity-system.svc.cluster.local:9428
 
     OVH_PROJECT_ID: "2eb456d1d19d4e30982a0d261743e2f3"
     OVH_ENDPOINT: ovh-eu
@@ -74,6 +72,7 @@ conductor:
 
     DATABASE_BACKUP_ENABLED: "false"
   envSecret:
+    OIDC_CLIENT_SECRET: OIDC_CLIENT_SECRET
     STRIPE_SECRET_KEY: CONDUCTOR_STRIPE_SECRET_KEY
     SESSION_SECRET: SESSION_SECRET
     GITHUB_CLIENT_SECRET: GITHUB_CLIENT_SECRET
@@ -122,3 +121,7 @@ exporter:
     OVH_APPLICATION_KEY: EXPORTER_OVH_APPLICATION_KEY
     OVH_APPLICATION_SECRET: EXPORTER_OVH_APPLICATION_SECRET
     OVH_CONSUMER_KEY: EXPORTER_OVH_CONSUMER_KEY
+    BUNNY_API_KEY: BUNNY_API_KEY
+
+agents:
+  enabled: true

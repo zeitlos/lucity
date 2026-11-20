@@ -46,3 +46,11 @@ dependencies:
     version: "0.13.0"
     repository: "https://kubernetes.github.io/autoscaler"
     condition: vertical-pod-autoscaler.enabled
+  - name: agentgateway-crds
+    version: "v1.7.0"
+    repository: "oci://cr.agentgateway.dev/charts"
+    condition: agentgateway-crds.enabled
+  - name: agentgateway
+    version: "v1.7.0"
+    repository: "oci://cr.agentgateway.dev/charts"
+    condition: agentgateway.enabled

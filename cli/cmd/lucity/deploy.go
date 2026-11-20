@@ -26,6 +26,7 @@ Arguments:
 
 Flags:
   --ref <ref>       Branch, tag, or commit to build (default: the service's branch)
+  --no-cache        Build every step from scratch, e.g. for a site that fetches content at build time
   --wait            Block until the release is live or failed, and exit non-zero on failure
   --timeout <dur>   Give up waiting after this long (default 20m, only with --wait)
   --interval <dur>  Poll interval while waiting (default 4s)
@@ -111,6 +112,7 @@ func cmdDeploy(ctx context.Context, args []string) error {
 	flags.SetOutput(os.Stderr)
 	flags.Usage = func() { fmt.Fprint(os.Stderr, deployUsage) }
 	ref := flags.String("ref", "", "branch, tag, or commit to build")
+	noCache := flags.Bool("no-cache", false, "build every step from scratch")
 	wait := flags.Bool("wait", false, "block until the release is live or failed")
 	timeout := flags.Duration("timeout", 20*time.Minute, "give up waiting after this long")
 	interval := flags.Duration("interval", 4*time.Second, "poll interval while waiting")
@@ -122,7 +124,7 @@ func cmdDeploy(ctx context.Context, args []string) error {
 		serviceArg = rest[0]
 		rest = rest[1:]
 	}
-	if err := flags.Parse(rest); err != nil {
+	if err := parseFlags(flags, rest); err != nil {
 		return err
 	}
 	if serviceArg == "" {
@@ -151,7 +153,7 @@ func cmdDeploy(ctx context.Context, args []string) error {
 
 	client := manager.Client()
 
-	started, err := startDeploy(ctx, client, serviceID, *ref)
+	started, err := startDeploy(ctx, client, serviceID, *ref, *noCache)
 	if err != nil {
 		return deployError("deploy", err)
 	}
@@ -186,18 +188,25 @@ func cmdDeploy(ctx context.Context, args []string) error {
 	return nil
 }
 
-func startDeploy(ctx context.Context, client *api.Client, serviceID, ref string) (releaseView, error) {
-	const mutation = `mutation($service: ServiceID!, $gitRef: String) {
-  deploy(service: $service, gitRef: $gitRef) {
+func startDeploy(ctx context.Context, client *api.Client, serviceID, ref string, noCache bool) (releaseView, error) {
+	parameters := "$service: ServiceID!, $gitRef: String"
+	arguments := "service: $service, gitRef: $gitRef"
+	variables := map[string]any{"service": serviceID}
+	if ref != "" {
+		variables["gitRef"] = ref
+	}
+	if noCache {
+		parameters += ", $noCache: Boolean"
+		arguments += ", noCache: $noCache"
+		variables["noCache"] = true
+	}
+	mutation := `mutation(` + parameters + `) {
+  deploy(` + arguments + `) {
     id status
     source { ref commit { sha message } }
     build { id status }
   }
 }`
-	variables := map[string]any{"service": serviceID}
-	if ref != "" {
-		variables["gitRef"] = ref
-	}
 
 	var out struct {
 		Deploy releaseView `json:"deploy"`
@@ -288,6 +297,9 @@ func rolloutProgress(release releaseView) string {
 	rollout := release.Deployment.Rollout
 	switch rollout.Status {
 	case "PROGRESSING":
+		if rollout.Reason == "NOT_READY" && rollout.Message != "" {
+			return "rollout progressing, not ready yet: " + rollout.Message
+		}
 		if rollout.Restarts > 0 {
 			return fmt.Sprintf("rollout progressing (restarts: %d)", rollout.Restarts)
 		}
@@ -308,6 +320,9 @@ func failureReason(release releaseView) string {
 	if release.Deployment != nil && release.Deployment.Rollout != nil {
 		rollout := release.Deployment.Rollout
 		if rollout.Status == "DEGRADED" || rollout.Status == "FAILED" {
+			if rollout.Message != "" {
+				return "rollout " + strings.ToLower(rollout.Status) + ": " + rollout.Message + " — " + rolloutReasonHint(rollout.Reason)
+			}
 			return "rollout " + strings.ToLower(rollout.Status) + ": " + rolloutReasonHint(rollout.Reason)
 		}
 	}
@@ -334,7 +349,7 @@ func rolloutReasonHint(reason string) string {
 	case "DEADLINE_EXCEEDED":
 		return "the rollout timed out becoming ready — check the service's runtime logs and readiness"
 	case "NOT_READY":
-		return "not ready yet"
+		return "the container runs but never became ready — make the app listen on the port in PORT, or change the service's port"
 	default:
 		return "check the service's runtime logs in the dashboard"
 	}

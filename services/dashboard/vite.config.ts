@@ -1,4 +1,3 @@
-import { execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { fileURLToPath, URL } from 'node:url';
 
@@ -8,14 +7,6 @@ import vueDevTools from 'vite-plugin-vue-devtools';
 import tailwindcss from '@tailwindcss/vite';
 
 // https://vite.dev/config/
-const appVersion = process.env.APP_VERSION || (() => {
-  try {
-    return execSync('git describe --always --dirty', { encoding: 'utf-8' }).trim();
-  } catch {
-    return 'dev';
-  }
-})();
-
 const studioEntry = new URL('../../../ui-studio/src/vite.ts', import.meta.url);
 const studioPlugins = existsSync(studioEntry)
   ? [(await import(studioEntry.href)).studioCanvasPlugin()]
@@ -23,9 +14,6 @@ const studioPlugins = existsSync(studioEntry)
 
 export default defineConfig({
   base: process.env.VITE_BASE_PATH || '/',
-  define: {
-    __APP_VERSION__: JSON.stringify(appVersion),
-  },
   plugins: [
     vue(),
     vueDevTools(),
@@ -58,10 +46,6 @@ export default defineConfig({
         ws: true,
       },
       '/auth': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-      },
-      '/version': {
         target: 'http://localhost:8080',
         changeOrigin: true,
       },

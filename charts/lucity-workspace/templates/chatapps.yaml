@@ -1,0 +1,19 @@
+{{- $workspace := include "lucity-workspace.workspace" . }}
+{{- range $name, $app := .Values.chatApps }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ printf "%s.chatapp.%s" $workspace $name }}
+  namespace: {{ required "switchboard.namespace is required for chat apps" $.Values.switchboard.namespace }}
+  labels:
+    {{- include "lucity-workspace.labels" $ | nindent 4 }}
+    lucity.dev/chat-app: "true"
+type: Opaque
+stringData:
+  name: {{ $name | quote }}
+  kind: {{ $app.kind | quote }}
+  url: {{ $app.url | default "" | quote }}
+  token: {{ $app.credential | quote }}
+  account: {{ $app.account | quote }}
+{{- end }}

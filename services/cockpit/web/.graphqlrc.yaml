@@ -1,0 +1,16 @@
+overwrite: true
+schema: "../internal/api/graphql/schema/*.graphqls"
+documents:
+  - "./src/**/*.vue"
+  - "./src/**/*.ts"
+generates:
+  src/gql/:
+    preset: "client"
+    plugins: []
+    config:
+      useTypeImports: true
+      enumType: native
+      scalars:
+        Time: string
+    presetConfig:
+      fragmentMasking: false

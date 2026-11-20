@@ -18,14 +18,8 @@ const (
 	databaseLabel           = "lucity.dev/database"
 	keyValueStoreLabel      = "lucity.dev/keyvaluestore"
 	podTemplateHashLabel    = apps.DefaultDeploymentUniqueLabelKey
-	resourceTierLabel       = "lucity.dev/resource-tier"
 	gitHubInstallationLabel = "lucity.dev/github-installation"
 	httpsRedirectLabel      = "lucity.dev/https-redirect"
-)
-
-const (
-	resourceTierEco  = "eco"
-	resourceTierProd = "production"
 )
 
 const (
@@ -44,6 +38,14 @@ const (
 	annotationRevision       = "deployment.kubernetes.io/revision"
 	annotationDatabaseHost   = "lucity.dev/db-host"
 )
+
+func readableName(annotations map[string]string, key, id string) string {
+	if name := annotations[key]; name != "" {
+		return name
+	}
+
+	return id
+}
 
 type Client struct {
 	kubernetes      kubernetes.Interface

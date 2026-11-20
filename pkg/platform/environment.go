@@ -14,18 +14,10 @@ import (
 )
 
 type Environment struct {
-	ID           EnvironmentID
-	Name         string
-	ResourceTier ResourceTier
-	CreatedAt    time.Time
+	ID        EnvironmentID
+	Name      string
+	CreatedAt time.Time
 }
-
-type ResourceTier string
-
-const (
-	EcoTier        ResourceTier = "eco"
-	ProductionTier ResourceTier = "prod"
-)
 
 type EnvironmentID struct {
 	Workspace string
@@ -61,12 +53,21 @@ func (e EnvironmentID) ProjectID() ProjectID {
 	return ProjectID{Workspace: e.Workspace, Name: e.Project}
 }
 
-const namespaceHashLen = 10
+const (
+	namespaceHashLen     = 10
+	namespaceReadableLen = 63 - 1 - namespaceHashLen
+)
 
 func (e EnvironmentID) Namespace() string {
 	// Suffixing with hash of canonical env id to avoid namespace collisions which could result in a takeover.
 	sum := sha256.Sum256([]byte(e.String()))
-	return e.Workspace + "-" + e.Project + "-" + e.Name + "-" + hex.EncodeToString(sum[:])[:namespaceHashLen]
+	readable := e.Workspace + "-" + e.Project + "-" + e.Name
+
+	if len(readable) > namespaceReadableLen {
+		readable = strings.TrimRight(readable[:namespaceReadableLen], "-")
+	}
+
+	return readable + "-" + hex.EncodeToString(sum[:])[:namespaceHashLen]
 }
 
 func (e EnvironmentID) WorkspaceID() string {

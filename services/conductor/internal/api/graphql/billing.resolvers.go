@@ -7,27 +7,11 @@ package graphql
 
 import (
 	"context"
+	"time"
 
 	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 )
-
-// SetEnvironmentResources is the resolver for the setEnvironmentResources field.
-func (r *mutationResolver) SetEnvironmentResources(ctx context.Context, input model.SetEnvironmentResourcesInput) (*model.Environment, error) {
-	tier, err := parseResourceTier(input.Tier)
-
-	if err != nil {
-		return nil, err
-	}
-
-	result, err := r.Conductor.SetEnvironmentResources(ctx, input.Environment, tier)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return new(convertEnvironment(*result)), nil
-}
 
 // SelectPlan is the resolver for the selectPlan field.
 func (r *mutationResolver) SelectPlan(ctx context.Context, plan model.Plan) (*model.PlanSelection, error) {
@@ -72,6 +56,32 @@ func (r *mutationResolver) CompletePlanCheckout(ctx context.Context, sessionID s
 	return convertBillingSubscription(res), nil
 }
 
+// AddPaymentMethod is the resolver for the addPaymentMethod field.
+func (r *mutationResolver) AddPaymentMethod(ctx context.Context, returnPath string) (*model.CheckoutSession, error) {
+	ws, err := tenant.FromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	url, err := r.Conductor.AddPaymentMethod(ctx, ws, returnPath)
+	if err != nil {
+		return nil, err
+	}
+	return &model.CheckoutSession{URL: url}, nil
+}
+
+// CompletePaymentMethodCheckout is the resolver for the completePaymentMethodCheckout field.
+func (r *mutationResolver) CompletePaymentMethodCheckout(ctx context.Context, sessionID string) (*model.Workspace, error) {
+	ws, err := tenant.FromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	res, err := r.Conductor.CompletePaymentMethodCheckout(ctx, ws, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	return convertWorkspaceDetails(res), nil
+}
+
 // Subscription is the resolver for the subscription field.
 func (r *queryResolver) Subscription(ctx context.Context) (*model.BillingSubscription, error) {
 	ws, err := tenant.FromContext(ctx)
@@ -96,4 +106,47 @@ func (r *queryResolver) UsageSummary(ctx context.Context) (*model.UsageSummary, 
 		return nil, err
 	}
 	return new(convertUsageSummary(*res)), nil
+}
+
+// Plans is the resolver for the plans field.
+func (r *queryResolver) Plans(ctx context.Context) ([]model.PlanOffer, error) {
+	offers, err := r.Conductor.PlanOffers(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]model.PlanOffer, 0, len(offers))
+	for _, offer := range offers {
+		result = append(result, convertPlanOffer(offer))
+	}
+	return result, nil
+}
+
+// BillingPeriods is the resolver for the billingPeriods field.
+func (r *queryResolver) BillingPeriods(ctx context.Context) ([]model.BillingPeriod, error) {
+	ws, err := tenant.FromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	periods, err := r.Conductor.BillingPeriods(ctx, ws)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]model.BillingPeriod, 0, len(periods))
+	for _, period := range periods {
+		result = append(result, convertBillingPeriod(period))
+	}
+	return result, nil
+}
+
+// Usage is the resolver for the usage field.
+func (r *queryResolver) Usage(ctx context.Context, periodStart time.Time) (*model.Usage, error) {
+	ws, err := tenant.FromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	report, err := r.Conductor.Usage(ctx, ws, periodStart)
+	if err != nil || report == nil {
+		return nil, err
+	}
+	return convertUsage(report), nil
 }

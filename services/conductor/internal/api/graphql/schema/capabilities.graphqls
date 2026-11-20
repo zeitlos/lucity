@@ -1,0 +1,91 @@
+"""Whether a workspace can use something now, and what unlocks it otherwise."""
+enum Availability {
+  """It can be used."""
+  AVAILABLE
+  """A higher plan unlocks it. `plan` names the cheapest one."""
+  PLAN_REQUIRED
+  """A card on file unlocks it."""
+  PAYMENT_METHOD_REQUIRED
+  """It isn't offered here."""
+  UNAVAILABLE
+}
+
+"""Something a workspace may use, and what unlocks it when it can't yet."""
+interface Capability {
+  availability: Availability!
+  """The cheapest plan that unlocks it, when `availability` is `PLAN_REQUIRED`."""
+  plan: Plan
+}
+
+"""A higher maximum that another plan allows."""
+type QuantityUpgrade {
+  plan: Plan!
+  max: String!
+}
+
+"""The smallest and largest value the workspace may set, as quantities such as `250m` or `16Gi`, with the plans that allow more."""
+type QuantityLimit {
+  min: String!
+  max: String!
+  """Higher maximums on other plans, cheapest first. Empty on the top plan and without billing."""
+  upgrades: [QuantityUpgrade!]!
+}
+
+"""A higher count that another plan allows."""
+type CountUpgrade {
+  plan: Plan!
+  """Null means unlimited."""
+  limit: Int
+}
+
+type BasicCapability implements Capability {
+  availability: Availability!
+  plan: Plan
+}
+
+"""Creating services, and the CPU, memory and replicas of one."""
+type ComputeCapability implements Capability {
+  availability: Availability!
+  plan: Plan
+  cpu: QuantityLimit!
+  memory: QuantityLimit!
+  """The most replicas one service may run, the autoscaling maximum included."""
+  replicas: Int!
+}
+
+"""Creating databases, and the CPU, memory and storage of one."""
+type DatabaseCapability implements Capability {
+  availability: Availability!
+  plan: Plan
+  cpu: QuantityLimit!
+  memory: QuantityLimit!
+  storage: QuantityLimit!
+}
+
+"""Creating volumes or key-value stores, and the size of one."""
+type StorageCapability implements Capability {
+  availability: Availability!
+  plan: Plan
+  size: QuantityLimit!
+}
+
+"""Something counted across the workspace. `availability` already accounts for how many exist."""
+type CountCapability implements Capability {
+  availability: Availability!
+  plan: Plan
+  """How many the plan allows. Null means unlimited."""
+  limit: Int
+  upgrades: [CountUpgrade!]!
+}
+
+"""What a workspace can create, how large, and what unlocks the rest."""
+type Capabilities {
+  services: ComputeCapability!
+  databases: DatabaseCapability!
+  keyValueStores: StorageCapability!
+  volumes: StorageCapability!
+  buckets: BasicCapability!
+  agents: BasicCapability!
+  members: CountCapability!
+  customDomains: CountCapability!
+}

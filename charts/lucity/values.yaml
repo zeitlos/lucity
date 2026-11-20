@@ -69,6 +69,8 @@ conductor:
   httpPort: 8080
   # GitHub webhook receiver
   webhookPort: 9004
+  # Prometheus metrics, scraped by the otel agents only
+  metricsPort: 9008
   # -- Namespace for BuildKit and build Jobs (isolated from platform services)
   buildNamespace: lucity-builds
   # -- Registry host for BuildKit config (used in buildkitd.toml for build Jobs)
@@ -132,6 +134,7 @@ cashier:
     repository: ghcr.io/zeitlos/lucity/cashier
     tag: ""
     pullPolicy: IfNotPresent
+  metricsPort: 9009
   serviceAccount:
     create: true
   env: {}
@@ -182,6 +185,7 @@ stagehand:
     repository: ghcr.io/zeitlos/lucity/stagehand
     tag: ""
     pullPolicy: IfNotPresent
+  metricsPort: 9010
   interval: 2m
   # Only log what would move
   dryRun: false
@@ -226,7 +230,7 @@ networkPolicy:
 
 # -- Docs
 docs:
-  replicaCount: 1
+  replicaCount: 2
   image:
     repository: ghcr.io/zeitlos/lucity/docs
     tag: ""
@@ -238,6 +242,57 @@ docs:
       memory: 64Mi
     limits:
       memory: 128Mi
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# -- Agent workspaces: the shared gateway that agents reach models and
+#    connectors through, and the runner image of agent pods. Needs the
+#    agentgateway controller and CRDs from lucity-infra.
+agents:
+  enabled: false
+  namespace: lucity-agents
+  image:
+    repository: ghcr.io/zeitlos/lucity/agent
+    tag: ""
+  gateway:
+    replicas: 2
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    # -- Address ranges the gateway never connects to, so a connector URL
+    #    can't reach into the cluster or the cloud metadata service
+    privateCIDRs:
+      - 10.0.0.0/8
+      - 172.16.0.0/12
+      - 192.168.0.0/16
+      - 100.64.0.0/10
+      - 169.254.0.0/16
+      - 127.0.0.0/8
+      - fc00::/7
+      - fe80::/10
+      - ::1/128
+
+# -- Switchboard, part of agent workspaces: runs every workspace's chat apps
+#    (Telegram and Mattermost bots) and bridges them to agents.
+switchboard:
+  # -- The namespace workspace releases render chat apps and agent channels
+  #    into, and the only one switchboard can read
+  namespace: lucity-switchboard
+  image:
+    repository: ghcr.io/zeitlos/lucity/switchboard
+    tag: ""
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
   nodeSelector: {}
   tolerations: []
   affinity: {}

@@ -59,6 +59,13 @@ const { result, loading, error, refetch } = useQuery(
 
 const report = computed(() => result.value?.service?.vulnerabilityReport ?? null);
 
+const skeletonRows = [
+  { id: 'w-32', package: 'w-48', title: 'w-64' },
+  { id: 'w-28', package: 'w-40', title: 'w-56' },
+  { id: 'w-36', package: 'w-52', title: 'w-48' },
+  { id: 'w-28', package: 'w-36', title: 'w-60' },
+];
+
 const summaryBadges = computed(() => {
   const summary = report.value?.summary;
 
@@ -90,12 +97,30 @@ function sourceLabel(source: string): string {
 
     <ScrollArea class="flex-1">
       <div class="space-y-4 px-4 py-4">
-        <div v-if="loading && !report" class="space-y-2">
-          <Skeleton class="h-12 w-full" />
-          <Skeleton class="h-12 w-full" />
-          <Skeleton class="h-12 w-full" />
-          <Skeleton class="h-12 w-full" />
-        </div>
+        <template v-if="loading && !report">
+          <div class="flex flex-wrap gap-2">
+            <Skeleton v-for="width in ['w-20', 'w-16', 'w-24', 'w-14', 'w-24']" :key="width" :class="['h-7 rounded-full', width]" />
+          </div>
+          <div class="-mx-4 divide-y border-y">
+            <div v-for="row in skeletonRows" :key="row.id" class="flex items-start gap-3 px-4 py-3">
+              <Skeleton class="mt-0.5 h-5 w-16 shrink-0 rounded" />
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex h-5 items-center">
+                    <Skeleton :class="['h-3', row.id]" />
+                  </div>
+                  <Skeleton class="h-5 w-20 rounded" />
+                </div>
+                <div class="mt-0.5 flex h-4 items-center">
+                  <Skeleton :class="['h-2.5', row.package]" />
+                </div>
+                <div class="mt-1 flex h-4 items-center">
+                  <Skeleton :class="['h-2.5', row.title]" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
 
         <QueryError
           v-else-if="error && !report"

@@ -113,6 +113,8 @@ const dataRows = ref<(string | null)[][]>([]);
 const totalEstimatedRows = ref(0);
 const dataError = ref<unknown>(null);
 
+const skeletonColumns = ['w-8', 'w-24', 'w-32', 'w-20'];
+
 function openTable(tableName: string, schema: string) {
   selectedTable.value = tableName;
   selectedSchema.value = schema;
@@ -190,12 +192,28 @@ watch(() => props.databaseId, () => {
         </IconButton>
         <Table2 :size="16" class="text-muted-foreground" />
         <span class="text-sm font-medium">{{ selectedSchema }}.{{ selectedTable }}</span>
-        <Badge variant="outline" class="text-xs tabular-nums">~{{ formatCount(totalEstimatedRows) }} rows</Badge>
+        <Skeleton v-if="dataLoading && dataColumns.length === 0" class="h-5.5 w-20 rounded-full" />
+        <Badge v-else variant="outline" class="text-xs tabular-nums">~{{ formatCount(totalEstimatedRows) }} rows</Badge>
       </div>
 
       <!-- Loading -->
-      <div v-if="dataLoading" class="space-y-2">
-        <Skeleton v-for="i in 5" :key="i" class="h-8 w-full" />
+      <div v-if="dataLoading && dataColumns.length === 0" class="-mx-4 border-y">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead v-for="width in skeletonColumns" :key="width">
+                <Skeleton :class="['h-2.5', width]" />
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow v-for="row in 6" :key="row" class="h-9 hover:bg-transparent">
+              <TableCell v-for="width in skeletonColumns" :key="width">
+                <Skeleton :class="['h-2.5', width]" />
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
       </div>
 
       <!-- Error -->
@@ -271,8 +289,20 @@ watch(() => props.databaseId, () => {
     <!-- Table list -->
     <template v-else>
       <!-- Loading -->
-      <div v-if="tablesLoading" class="space-y-2">
-        <Skeleton v-for="i in 4" :key="i" class="h-12 w-full" />
+      <div v-if="tablesLoading" class="-mx-4 divide-y border-y">
+        <div v-for="width in ['w-28', 'w-20', 'w-36', 'w-24']" :key="width" class="flex items-center gap-3 px-4 py-2.5">
+          <Skeleton class="size-4 shrink-0 rounded-sm" />
+          <div class="min-w-0 flex-1">
+            <div class="flex h-5 items-center">
+              <Skeleton :class="['h-3', width]" />
+            </div>
+            <div class="flex h-4 items-center gap-3">
+              <Skeleton class="h-2.5 w-14" />
+              <Skeleton class="h-2.5 w-16" />
+              <Skeleton class="h-2.5 w-6" />
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Provisioning -->

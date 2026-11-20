@@ -1,0 +1,11 @@
+directive @constraint(constraint: String!) on INPUT_FIELD_DEFINITION | ARGUMENT_DEFINITION
+
+"""A point in time as an RFC 3339 string, such as `2026-09-28T14:05:00Z`."""
+scalar Time
+
+type Query {
+  """The platform environment the cockpit is connected to, `dev` or `prod`."""
+  environment: String!
+}
+
+type Mutation

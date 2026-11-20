@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { RouterLink, RouterView, useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
-import { BookOpen, Bug, Lightbulb, LogOut } from '@lucide/vue';
+import { BookOpen, Bug, Download, Lightbulb, Link2, LogOut } from '@lucide/vue';
 import { useAuth } from '@/composables/useAuth';
 import { useWorkspaceColor } from '@/composables/useWorkspaceColor';
 import { useReportBug } from '@/composables/useReportBug';
 import { useLogoFlex } from '@/composables/useLogoFlex';
-import { workspaceNavItems } from '@/lib/workspaceNav';
+import { useCapabilities } from '@/composables/useCapabilities';
+import { workspaceNavItems } from '@/lib/contextNav';
 import { graphql } from '@/gql';
 
 const WorkspaceDocument = graphql(`
@@ -27,12 +28,16 @@ const WorkspaceDocument = graphql(`
   }
 `);
 import BaseLogo from '@/components/BaseLogo.vue';
+import CommandPalette from '@/components/CommandPalette.vue';
+import ContextBar from '@/components/ContextBar.vue';
 import ContextNav from '@/components/ContextNav.vue';
+import LinkedAccountsDialog from '@/components/LinkedAccountsDialog.vue';
 import MenuIcon from '@/components/MenuIcon.vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 import SuspensionBanner from '@/components/SuspensionBanner.vue';
 import TrialIndicator from '@/components/TrialIndicator.vue';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,12 +51,14 @@ const { user, logout, isWorkspaceAdmin } = useAuth();
 const { workspaceColor } = useWorkspaceColor();
 const { report, requestFeature } = useReportBug();
 const { flex: logoFlex, flexTo: flexLogo } = useLogoFlex();
+const { agents } = useCapabilities();
+const linkedAccountsOpen = ref(false);
 const { result: wsResult } = useQuery(WorkspaceDocument, null, { fetchPolicy: 'cache-and-network' });
 const workspace = computed(() => wsResult.value?.workspace ?? null);
 const suspended = computed(() => workspace.value?.suspended ?? false);
 
 const menuWorkspaceItems = computed(() =>
-  workspaceNavItems(isWorkspaceAdmin.value).filter(item => item.key !== 'projects'),
+  workspaceNavItems(isWorkspaceAdmin.value, agents.value).filter(item => item.key !== 'projects'),
 );
 
 const trayItemClass = 'h-8.5 gap-2 whitespace-nowrap rounded-lg px-2.5 text-xs text-muted-foreground focus:text-foreground [&_svg]:size-3.5';
@@ -63,32 +70,44 @@ async function handleLogout() {
 </script>
 
 <template>
-  <div class="relative z-1 flex min-h-[calc(100vh-var(--banner-height))] flex-col">
+  <div class="relative z-1 flex h-[calc(100dvh-var(--banner-height))] flex-col">
     <SuspensionBanner v-if="suspended" />
 
-    <div class="relative z-1 flex flex-1 flex-col overflow-hidden p-3 pb-0">
-      <header class="flex h-13 shrink-0 items-center justify-between rounded-lg border bg-card px-4 shadow-sm">
+    <div class="relative z-1 flex min-h-0 flex-1 flex-col overflow-hidden p-3 pb-0 max-md:p-0">
+      <header class="flex h-13 shrink-0 items-center justify-between rounded-lg border bg-card px-4 shadow-sm max-md:hidden">
         <!-- Left: Logo + Context Nav -->
-        <div class="flex items-center gap-3">
-          <RouterLink
-            to="/"
-            class="flex items-center"
-            @mouseenter="flexLogo(1)"
-            @mouseleave="flexLogo(0)"
-            @focus="flexLogo(1)"
-            @blur="flexLogo(0)"
-          >
-            <BaseLogo :size="20" :flex="logoFlex" />
-          </RouterLink>
+        <div class="flex min-w-0 items-center gap-3">
+          <ContextMenu>
+            <ContextMenuTrigger as-child>
+              <RouterLink
+                to="/"
+                class="flex shrink-0 items-center"
+                @mouseenter="flexLogo(1)"
+                @mouseleave="flexLogo(0)"
+                @focus="flexLogo(1)"
+                @blur="flexLogo(0)"
+              >
+                <BaseLogo :size="20" :flex="logoFlex" />
+              </RouterLink>
+            </ContextMenuTrigger>
+            <ContextMenuContent>
+              <ContextMenuItem as-child class="gap-2">
+                <RouterLink :to="{ name: 'brand' }">
+                  <Download class="size-4" />
+                  Download logos
+                </RouterLink>
+              </ContextMenuItem>
+            </ContextMenuContent>
+          </ContextMenu>
 
           <template v-if="user">
-            <div class="h-4 w-px bg-border" />
+            <div class="h-4 w-px shrink-0 bg-border" />
             <ContextNav />
           </template>
         </div>
 
         <!-- Right: User menu -->
-        <div class="flex items-center gap-2">
+        <div class="flex shrink-0 items-center gap-2">
           <TrialIndicator v-if="user && !suspended" />
 
           <ThemeToggle />
@@ -119,6 +138,15 @@ async function handleLogout() {
                     <p v-if="user.name" class="truncate text-xs text-muted-foreground">{{ user.email }}</p>
                   </div>
                 </div>
+
+                <DropdownMenuItem
+                  v-if="agents"
+                  class="h-9 gap-2.5 rounded-xl px-1.5 text-sm"
+                  @select="linkedAccountsOpen = true"
+                >
+                  <MenuIcon :icon="Link2" />
+                  Linked accounts
+                </DropdownMenuItem>
 
                 <template v-if="workspace">
                   <DropdownMenuSeparator class="mx-1 mb-1.5 mt-0" />
@@ -179,10 +207,15 @@ async function handleLogout() {
         </div>
       </header>
 
-      <main class="flex-1">
+      <LinkedAccountsDialog v-if="agents" v-model:open="linkedAccountsOpen" />
+
+      <main class="flex min-h-0 flex-1 flex-col pb-2 max-md:pb-0">
         <RouterView />
       </main>
     </div>
+
+    <ContextBar v-if="user" :suspended="suspended" />
+    <CommandPalette v-if="user" />
   </div>
 </template>
 

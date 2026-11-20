@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import RelativeTime from '@/components/RelativeTime.vue';
 import { formatDuration } from '@/lib/format';
-import { computed, onMounted, watch } from 'vue';
+import { computed, watch } from 'vue';
 import {
   Rocket, Check, AlertCircle, Terminal,
   ExternalLink, RefreshCw,
@@ -12,7 +12,7 @@ import { useIntervalFn, useNow } from '@vueuse/core';
 import { useDeploy } from '@/composables/useDeploy';
 import { useBuildLogsPanel, type LogsPanelKind } from '@/composables/useBuildLogsPanel';
 import { DeploymentStatus, ReleaseStatus, RolloutReason, RolloutStatus, ScanStatus } from '@/gql/graphql';
-import { activeBuild, type Deployment, type Release, type Rollout, type Scan } from '@/composables/useEnvironment';
+import type { Deployment, Release, Rollout, Scan } from '@/composables/useEnvironment';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { darkTooltipClass } from '@/lib/tooltip';
@@ -31,11 +31,7 @@ const props = defineProps<{
   service: Service;
 }>();
 
-const emit = defineEmits<{
-  (e: 'refetch'): void;
-}>();
-
-const deploy = useDeploy();
+const deploy = useDeploy(() => props.service);
 const logsPanel = useBuildLogsPanel();
 
 const activeDeployment = computed(() => props.service.activeDeployment ?? null);
@@ -54,32 +50,14 @@ const activeRelease = computed(() =>
   sortedReleases.value.find(r => r.deployment && r.deployment.id === activeDeployment.value?.id) ?? null,
 );
 
-const inFlightBuild = computed(() => activeBuild(props.service));
-
-onMounted(() => {
-  const build = inFlightBuild.value;
-  if (build && build.id !== deploy.buildId) {
-    deploy.pollBuild(build.id);
-  }
-});
-
-// If the env refetch reveals a new in-flight build, pick it up.
-watch(inFlightBuild, (build) => {
-  if (build && build.id !== deploy.buildId && !deploy.isDeploying) {
-    deploy.pollBuild(build.id);
-  }
-});
-
 const isImageBased = computed(() => !props.service.sourceUrl);
 
 async function handleDeploy() {
-  await deploy.startDeploy(props.service.id, props.service.name);
-  emit('refetch');
+  await deploy.startDeploy();
 }
 
 async function handleRedeploy() {
-  await deploy.startDeploy(props.service.id, props.service.name);
-  emit('refetch');
+  await deploy.startDeploy();
 }
 
 function shortCommit(commit?: string | null): string | null {
@@ -422,9 +400,9 @@ watch(
               {{ activeDeployment.commitMessage || shortCommit(activeDeployment.commit) || activeDeployment.image }}
             </p>
             <div class="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-              <RelativeTime v-if="activeDeployment.createdAt" :value="activeDeployment.createdAt" />
-              <span v-if="activeRelease?.source">&middot; via {{ providerLabels[activeRelease.source.provider] ?? activeRelease.source.provider }}</span>
-              <span v-if="activeRelease?.trigger.actor">&middot; by {{ activeRelease.trigger.actor }}</span>
+              <span v-if="activeDeployment.createdAt" class="shrink-0 whitespace-nowrap"><RelativeTime :value="activeDeployment.createdAt" /></span>
+              <span v-if="activeRelease?.source" class="shrink-0 whitespace-nowrap">&middot; via {{ providerLabels[activeRelease.source.provider] ?? activeRelease.source.provider }}</span>
+              <span v-if="activeRelease?.trigger.actor" class="truncate">&middot; by {{ activeRelease.trigger.actor }}</span>
             </div>
           </div>
 
@@ -477,14 +455,14 @@ watch(
           <div
             v-for="step in activeSteps"
             :key="step.key"
-            class="flex items-center gap-3 py-2"
+            class="flex items-center gap-2 py-2 sm:gap-3"
           >
-            <div class="flex w-21 shrink-0 flex-col">
+            <div class="flex w-16 shrink-0 flex-col sm:w-21">
               <span class="text-sm font-medium text-foreground">{{ step.label }}</span>
               <span v-if="stepDuration(step)" class="text-xs text-muted-foreground">{{ stepDuration(step) }}</span>
             </div>
             <span
-              class="flex w-36 shrink-0 items-center gap-1.5 text-sm"
+              class="flex shrink-0 items-center gap-1.5 text-sm sm:w-36"
               :style="{ color: stepColor(step.status) }"
             >
               <component
@@ -494,7 +472,7 @@ watch(
               />
               {{ stepLabels[step.status] }}
             </span>
-            <span class="flex-1 truncate text-sm text-muted-foreground">{{ step.detail }}</span>
+            <span class="min-w-0 flex-1 text-sm break-words text-muted-foreground">{{ step.detail }}</span>
             <Button
               v-if="step.logId && step.logKind"
               variant="outline"
@@ -512,7 +490,7 @@ watch(
 
     <!-- Release history -->
     <div v-if="historyReleases.length > 0" class="space-y-2">
-      <h3 class="text-sm font-medium text-muted-foreground">
+      <h3 v-if="activeDeployment" class="text-sm font-medium text-muted-foreground">
         History
       </h3>
 
@@ -543,9 +521,9 @@ watch(
                   {{ releaseTitle(release) }}
                 </p>
                 <div class="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <RelativeTime v-if="release.createdAt" :value="release.createdAt" />
+                  <span v-if="release.createdAt" class="shrink-0 whitespace-nowrap"><RelativeTime :value="release.createdAt" /></span>
                   <span v-else>Queued</span>
-                  <span v-if="releaseMeta(release)">&middot; {{ releaseMeta(release) }}</span>
+                  <span v-if="releaseMeta(release)" class="truncate">&middot; {{ releaseMeta(release) }}</span>
                 </div>
               </div>
 
@@ -593,14 +571,14 @@ watch(
               <div
                 v-for="step in releaseSteps(release)"
                 :key="step.key"
-                class="flex items-center gap-3 py-2"
+                class="flex items-center gap-2 py-2 sm:gap-3"
               >
-                <div class="flex w-21 shrink-0 flex-col">
+                <div class="flex w-16 shrink-0 flex-col sm:w-21">
                   <span class="text-sm font-medium text-foreground">{{ step.label }}</span>
                   <span v-if="stepDuration(step)" class="text-xs text-muted-foreground">{{ stepDuration(step) }}</span>
                 </div>
                 <span
-                  class="flex w-36 shrink-0 items-center gap-1.5 text-sm"
+                  class="flex shrink-0 items-center gap-1.5 text-sm sm:w-36"
                   :style="{ color: stepColor(step.status) }"
                 >
                   <component
@@ -610,7 +588,7 @@ watch(
                   />
                   {{ stepLabels[step.status] }}
                 </span>
-                <span class="flex-1 truncate text-sm text-muted-foreground">{{ step.detail }}</span>
+                <span class="min-w-0 flex-1 text-sm break-words text-muted-foreground">{{ step.detail }}</span>
                 <Button
                   v-if="step.logId && step.logKind"
                   variant="outline"

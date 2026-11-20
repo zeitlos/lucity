@@ -2,11 +2,14 @@ package kubernetes
 
 import (
 	"context"
+	"sync"
+	"time"
 
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/environment"
 	"github.com/zeitlos/lucity/pkg/platform"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 )
@@ -21,6 +24,8 @@ const (
 	BackupAccessKeyIDKey     = deployer.BackupAccessKeyIDKey
 	BackupSecretAccessKeyKey = deployer.BackupSecretAccessKeyKey
 	BackupRegionKey          = deployer.BackupRegionKey
+
+	pullSecretMaxAge = time.Minute
 )
 
 type Client struct {
@@ -31,6 +36,10 @@ type Client struct {
 	podCIDR          string
 	serviceCIDR      string
 	backups          BackupCredentials
+
+	mu             sync.Mutex
+	pullSecret     *corev1.Secret
+	pullSecretRead time.Time
 }
 
 type BackupCredentials struct {
@@ -55,8 +64,8 @@ func New(k8s kubernetes.Interface, dyn dynamic.Interface, systemNamespace, syste
 // must exist before everything else, and the NetworkPolicies must land
 // before quotas/limit-ranges/pull-secrets so the wall is up the moment any
 // workload could be scheduled.
-func (c *Client) Ensure(ctx context.Context, id platform.EnvironmentID, tier platform.ResourceTier) error {
-	if err := c.ensureNamespace(ctx, id, tier); err != nil {
+func (c *Client) Ensure(ctx context.Context, id platform.EnvironmentID) error {
+	if err := c.ensureNamespace(ctx, id); err != nil {
 		return err
 	}
 
@@ -72,7 +81,7 @@ func (c *Client) Ensure(ctx context.Context, id platform.EnvironmentID, tier pla
 		return err
 	}
 
-	if err := c.ensureLimitRange(ctx, id, tier); err != nil {
+	if err := c.ensureLimitRange(ctx, id); err != nil {
 		return err
 	}
 

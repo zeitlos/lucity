@@ -11,6 +11,8 @@ import (
 	"github.com/zeitlos/lucity/pkg/usererror"
 )
 
+var maxDatabaseSize = resource.MustParse("128Gi")
+
 type Databases struct {
 	Postgres    map[string]Postgres `yaml:"postgres"`
 	Valkey      map[string]Valkey   `yaml:"valkey"`
@@ -38,17 +40,15 @@ type BackupSecretKeys struct {
 }
 
 type Postgres struct {
-	Instances        int               `yaml:"instances,omitempty"`
-	Size             string            `yaml:"size,omitempty"`
-	Version          string            `yaml:"version,omitempty"`
-	PublicAccess     *PublicAccess     `yaml:"publicAccess,omitempty"`
-	LegacyPublicHost string            `yaml:"publicHost,omitempty"`
-	Resources        Resources         `yaml:"resources,omitempty"`
-	Parameters       map[string]string `yaml:"parameters,omitempty"`
-	Labels           map[string]string `yaml:"labels,omitempty"`
-	Annotations      map[string]string `yaml:"annotations,omitempty"`
-	Backup           *PostgresBackup   `yaml:"backup,omitempty"`
-	Restore          *PostgresRestore  `yaml:"restore,omitempty"`
+	Size         string            `yaml:"size,omitempty"`
+	Version      string            `yaml:"version,omitempty"`
+	PublicAccess *PublicAccess     `yaml:"publicAccess,omitempty"`
+	Resources    Resources         `yaml:"resources,omitempty"`
+	Parameters   map[string]string `yaml:"parameters,omitempty"`
+	Labels       map[string]string `yaml:"labels,omitempty"`
+	Annotations  map[string]string `yaml:"annotations,omitempty"`
+	Backup       *PostgresBackup   `yaml:"backup,omitempty"`
+	Restore      *PostgresRestore  `yaml:"restore,omitempty"`
 }
 
 // PublicAccess makes a database reachable from the internet under Host. Only
@@ -64,8 +64,6 @@ type AllowRule struct {
 	Description string `yaml:"description,omitempty"`
 }
 
-const anyAddress = "0.0.0.0/0"
-
 type PostgresBackup struct {
 	ServerName string `yaml:"serverName"`
 }
@@ -76,11 +74,12 @@ type PostgresRestore struct {
 }
 
 type DatabaseSpec struct {
-	Version    string
-	Size       resource.Quantity
-	Resources  Resources
-	Parameters map[string]string
-	Restore    *PostgresRestore
+	DisplayName string
+	Version     string
+	Size        resource.Quantity
+	Resources   Resources
+	Parameters  map[string]string
+	Restore     *PostgresRestore
 }
 
 func CreateDatabase(env *Env, name string, spec DatabaseSpec) error {
@@ -94,12 +93,13 @@ func CreateDatabase(env *Env, name string, spec DatabaseSpec) error {
 	}
 
 	env.Databases.Postgres[name] = Postgres{
-		Version:    spec.Version,
-		Size:       spec.Size.String(),
-		Resources:  spec.Resources,
-		Parameters: spec.Parameters,
-		Labels:     map[string]string{labelDatabase: name},
-		Restore:    spec.Restore,
+		Version:     spec.Version,
+		Size:        spec.Size.String(),
+		Resources:   spec.Resources,
+		Parameters:  spec.Parameters,
+		Labels:      map[string]string{labelDatabase: name},
+		Annotations: withDisplayName(nil, spec.DisplayName),
+		Restore:     spec.Restore,
 	}
 
 	return nil
@@ -243,24 +243,6 @@ func RemoveDatabaseAllowRule(env *Env, name, ipRange string) error {
 	postgres.PublicAccess.Allow = slices.DeleteFunc(postgres.PublicAccess.Allow, func(r AllowRule) bool { return r.Range == ipRange })
 
 	return nil
-}
-
-func migrateLegacyPublicHost(env *Env) {
-	for name, postgres := range env.Databases.Postgres {
-		if postgres.LegacyPublicHost == "" {
-			continue
-		}
-
-		if postgres.PublicAccess == nil {
-			postgres.PublicAccess = &PublicAccess{
-				Host:  postgres.LegacyPublicHost,
-				Allow: []AllowRule{{Range: anyAddress, Description: "Any address"}},
-			}
-		}
-
-		postgres.LegacyPublicHost = ""
-		env.Databases.Postgres[name] = postgres
-	}
 }
 
 func mutateDatabase(env *Env, name string, mutate func(*Postgres)) error {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useGuardedTab } from '@/composables/useUnsavedChanges';
+import { usePanelTab } from '@/composables/usePanel';
 import PanelShell from '@/components/PanelShell.vue';
 
 import BucketIcon from '@/components/BucketIcon.vue';
@@ -26,7 +26,7 @@ const emit = defineEmits<{
   (e: 'bucket-removed'): void;
 }>();
 
-const { tab: activeTab, selectTab } = useGuardedTab('files');
+const { tab: activeTab, selectTab } = usePanelTab('files');
 
 </script>
 
@@ -39,7 +39,7 @@ const { tab: activeTab, selectTab } = useGuardedTab('files');
     <!-- Tab Content -->
     <Tabs :model-value="activeTab" @update:model-value="selectTab" class="flex min-h-0 flex-1 flex-col">
       <div class="shrink-0 border-b px-4 pt-2">
-        <TabsList class="w-full border-b-0">
+        <TabsList class="w-full overflow-x-auto overflow-y-hidden border-b-0 [scrollbar-width:none]">
           <TabsTrigger value="files">Files</TabsTrigger>
           <TabsTrigger value="connect">Connect</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
@@ -49,7 +49,10 @@ const { tab: activeTab, selectTab } = useGuardedTab('files');
       <ScrollArea class="min-h-0 flex-1 [&>[data-reka-scroll-area-viewport]>div]:h-full">
         <div class="flex h-full flex-col">
           <TabsContent value="files" class="flex-1 px-4 py-4">
-            <BucketFilesTab :bucket-id="props.bucket.id" />
+            <BucketFilesTab
+              :bucket-id="props.bucket.id"
+              :public-endpoint="props.bucket.public ? props.bucket.publicEndpoint : undefined"
+            />
           </TabsContent>
 
           <TabsContent value="connect" class="px-4 py-4">

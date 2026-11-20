@@ -10,6 +10,7 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/tenant"
+	"github.com/zeitlos/lucity/pkg/to"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 )
 
@@ -19,16 +20,23 @@ func (r *mutationResolver) CreateProject(ctx context.Context, input model.Create
 	if err != nil {
 		return nil, err
 	}
-	slug := ""
-	if input.ID != nil {
-		slug = *input.ID
-	}
-	p, err := r.Conductor.CreateProject(ctx, ws, slug, input.Name)
+	p, err := r.Conductor.CreateProject(ctx, ws, to.Val(input.ID), input.Name)
 	if err != nil {
 		return nil, err
 	}
 	result := convertProject(*p)
 	return &result, nil
+}
+
+// RenameProject is the resolver for the renameProject field.
+func (r *mutationResolver) RenameProject(ctx context.Context, project platform.ProjectID, name string) (*model.Project, error) {
+	result, err := r.Conductor.RenameProject(ctx, project, name)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertProject(*result)), nil
 }
 
 // DeleteProject is the resolver for the deleteProject field.

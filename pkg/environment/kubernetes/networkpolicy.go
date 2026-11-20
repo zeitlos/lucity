@@ -2,12 +2,14 @@ package kubernetes
 
 import (
 	"context"
+	"maps"
 
 	pkglabels "github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/pkg/platform"
 
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -36,6 +38,10 @@ func (c *Client) ensureNetworkPolicy(ctx context.Context, id platform.Environmen
 		return err
 	}
 
+	if apiequality.Semantic.DeepEqual(existing.Spec, policy.Spec) && maps.Equal(existing.Labels, policy.Labels) {
+		return nil
+	}
+
 	existing.Spec = policy.Spec
 	existing.Labels = policy.Labels
 
@@ -60,7 +66,11 @@ func buildNetworkPolicy(namespace, platformNamespace, podCIDR, serviceCIDR strin
 			},
 		},
 		Spec: networkingv1.NetworkPolicySpec{
-			PodSelector: metav1.LabelSelector{},
+			PodSelector: metav1.LabelSelector{
+				MatchExpressions: []metav1.LabelSelectorRequirement{
+					{Key: pkglabels.Agent, Operator: metav1.LabelSelectorOpDoesNotExist},
+				},
+			},
 			PolicyTypes: []networkingv1.PolicyType{
 				networkingv1.PolicyTypeIngress,
 				networkingv1.PolicyTypeEgress,

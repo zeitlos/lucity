@@ -1,4 +1,4 @@
-.PHONY: build dev dev-conductor dev-cashier dev-dashboard dev-docs dev-logs dev-stop dev-agent generate-graphql generate-cli-docs lint minikube dns infra infra-down infra-forward infra-forward-stop db-forward deploy-prod deploy-prod-infra
+.PHONY: build dev dev-conductor dev-cashier dev-dashboard dev-docs dev-logs dev-stop cockpit cockpit-dev generate-graphql generate-cli-docs lint minikube dns infra infra-down infra-forward infra-forward-stop db-forward deploy-prod deploy-prod-infra
 
 # Build all Go services
 build:
@@ -44,6 +44,17 @@ dev-dashboard:
 
 dev-docs:
 	cd docs && npm run dev
+
+# Ops cockpit desktop window, opens on the environment used last (or ENV=dev|prod) and switches in the window
+cockpit:
+	cd services/cockpit/web && npm run build
+	cd services/cockpit && go run ./cmd/cockpit $(if $(ENV),-env $(ENV)) -deployments $(CURDIR)/deployments
+
+# Same window with the UI served by Vite: web/ edits hot reload, Go edits need a restart
+cockpit-dev:
+	cd services/cockpit/web && (test -d dist || npm run build)
+	(cd services/cockpit/web && exec node_modules/.bin/vite) & pid=$$!; trap "kill $$pid 2>/dev/null" EXIT; \
+	cd services/cockpit && FRONTEND_DEVSERVER_URL=http://127.0.0.1:5175 go run ./cmd/cockpit $(if $(ENV),-env $(ENV)) -deployments $(CURDIR)/deployments
 
 # Lint
 lint:
@@ -97,17 +108,18 @@ infra-down:
 
 # Port-forward infrastructure services for local development
 infra-forward: infra-forward-stop
-	@echo "Port-forwarding Zot (5000), Gateway (8880), VictoriaMetrics (8428), Logto Admin (3002), Grafana (3000)..."
+	@echo "Port-forwarding Zot (5000), Gateway (8880), VictoriaMetrics (8428), VictoriaLogs (9428), Logto Admin (3002), Grafana (3000)..."
 	@kubectl port-forward svc/lucity-infra-zot 5000:5000 -n lucity-system &
 	@(GATEWAY_SVC=$$(kubectl get svc -n envoy-gateway-system -l gateway.envoyproxy.io/owning-gateway-name=lucity-gateway -o name 2>/dev/null) && \
 		[ -n "$$GATEWAY_SVC" ] && kubectl port-forward $$GATEWAY_SVC 8880:80 -n envoy-gateway-system &) 2>/dev/null || true
 	@kubectl port-forward svc/lucity-infra-logto 3002:3002 -n lucity-system &
 	@kubectl port-forward svc/lucity-infra-victoria-metrics-single-server 8428:8428 -n lucity-system &
+	@kubectl port-forward svc/lucity-infra-victoria-logs-single-server 9428:9428 -n lucity-system &
 	@kubectl port-forward svc/lucity-infra-grafana 3000:80 -n lucity-system &
 	@echo "Ready. Use 'make infra-forward-stop' to stop."
 
 infra-forward-stop:
-	@for port in 5000 8880 3002 8428 3000; do \
+	@for port in 5000 8880 3002 8428 9428 3000; do \
 		lsof -ti :$$port | xargs kill 2>/dev/null || true; \
 	done
 
@@ -171,26 +183,6 @@ deploy-dev:
 		-f deployments/lucity-dev/values.yaml \
 		-f deployments/lucity-dev/secrets.yaml \
 		$(HELM_ARGS)
-
-# One release of charts/lucity-agent per agent, configured by deployments/lucity-dev/<agent>-values.yaml
-# Usage: make deploy-dev-agent VERSION=26.9.2 AGENT=ops-agent
-AGENT ?= ops-agent
-
-deploy-dev-agent:
-	@test -f deployments/lucity-dev/$(AGENT)-secrets.yaml || { echo "Error: deployments/lucity-dev/$(AGENT)-secrets.yaml not found. Copy deployments/$(AGENT)-secrets.yaml.example and fill in values."; exit 1; }
-	helm upgrade --install $(AGENT) \
-		oci://ghcr.io/zeitlos/lucity/charts/lucity-agent \
-		$(if $(VERSION),--version $(VERSION)) \
-		--kube-context $(DEV_CONTEXT) \
-		-n lucity-agents --create-namespace \
-		-f deployments/lucity-dev/$(AGENT)-values.yaml \
-		-f deployments/lucity-dev/$(AGENT)-secrets.yaml \
-		$(HELM_ARGS)
-
-# The same agent from the working tree, run locally in Docker against lucity-dev with a temporary ServiceAccount that carries its RBAC
-# Usage: make dev-agent AGENT=ops-agent
-dev-agent:
-	@AGENT=$(AGENT) DEV_CONTEXT=$(DEV_CONTEXT) bash scripts/dev-agent.sh
 
 # Sync workspace
 sync:

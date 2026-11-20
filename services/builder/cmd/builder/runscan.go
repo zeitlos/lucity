@@ -33,7 +33,7 @@ import (
 type ScanConfig struct {
 	ScanID      string `envconfig:"SCAN_ID" required:"true"`
 	SourceURL   string `envconfig:"SCAN_SOURCE_URL" required:"true"`
-	Commit      string `envconfig:"SCAN_COMMIT"`
+	Commit      string `envconfig:"SCAN_COMMIT" required:"true"`
 	ReportRepo  string `envconfig:"SCAN_REPORT_REPO" required:"true"`
 	GitHubToken string `envconfig:"GITHUB_TOKEN"`
 
@@ -106,13 +106,15 @@ func executeScan(config ScanConfig) ([]scanFinding, error) {
 
 	previous := fetchPreviousReport(ctx, config)
 
-	repoPath, commit, err := cloneForScan(ctx, config)
+	repoPath, err := cloneForScan(ctx, config)
 
 	if err != nil {
 		return nil, fmt.Errorf("clone failed: %w", err)
 	}
 
 	defer os.RemoveAll(repoPath)
+
+	commit := config.Commit
 
 	base := scanBase(ctx, repoPath, previous, commit)
 
@@ -240,11 +242,11 @@ func scanBase(ctx context.Context, repoPath string, previous *scanReport, head s
 	return previous.Commit
 }
 
-func cloneForScan(ctx context.Context, config ScanConfig) (string, string, error) {
+func cloneForScan(ctx context.Context, config ScanConfig) (string, error) {
 	tmpDir, err := os.MkdirTemp("", "scan-*")
 
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
 
 	env := os.Environ()
@@ -259,40 +261,12 @@ func cloneForScan(ctx context.Context, config ScanConfig) (string, string, error
 		)
 	}
 
-	clone := exec.CommandContext(ctx, "git", "clone", "--single-branch", "--no-tags", config.SourceURL, tmpDir)
-	clone.Env = env
-	clone.Stderr = os.Stderr
-
-	if err := clone.Run(); err != nil {
+	if err := checkoutCommit(ctx, env, tmpDir, config.SourceURL, config.Commit); err != nil {
 		os.RemoveAll(tmpDir)
-		return "", "", fmt.Errorf("git clone: %w", err)
+		return "", err
 	}
 
-	commit := config.Commit
-
-	if commit != "" {
-		checkout := exec.CommandContext(ctx, "git", "-C", tmpDir, "checkout", "--quiet", commit)
-		checkout.Env = env
-		checkout.Stderr = os.Stderr
-
-		if err := checkout.Run(); err != nil {
-			slog.Warn("checkout failed, scanning default branch head", "commit", commit, "error", err)
-			commit = ""
-		}
-	}
-
-	if commit == "" {
-		out, err := exec.CommandContext(ctx, "git", "-C", tmpDir, "rev-parse", "HEAD").Output()
-
-		if err != nil {
-			os.RemoveAll(tmpDir)
-			return "", "", fmt.Errorf("resolve HEAD: %w", err)
-		}
-
-		commit = strings.TrimSpace(string(out))
-	}
-
-	return tmpDir, commit, nil
+	return tmpDir, nil
 }
 
 type gitleaksFinding struct {

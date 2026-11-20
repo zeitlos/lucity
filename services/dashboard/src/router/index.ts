@@ -1,7 +1,9 @@
-import { createRouter, createWebHistory } from 'vue-router';
+import { createRouter, createWebHistory, type RouteLocationNormalized } from 'vue-router';
 import { confirmDiscard } from '@/composables/useUnsavedChanges';
 import DefaultLayout from '@/layouts/DefaultLayout.vue';
 import { useAuth } from '@/composables/useAuth';
+import { apolloClient } from '@/lib/apollo';
+import { environmentRoute, projectRoute } from '@/lib/routes';
 
 const legacyWorkspaceTabs: Record<string, string> = {
   general: 'settings',
@@ -13,6 +15,14 @@ const legacyWorkspaceTabs: Record<string, string> = {
 
 const ProjectsPage = () => import('@/pages/ProjectsPage.vue');
 
+function activeWorkspaceId() {
+  return useAuth().activeWorkspace.value;
+}
+
+function legacyDrawer(to: RouteLocationNormalized) {
+  return typeof to.params.drawer === 'string' && to.params.drawer ? to.params.drawer : undefined;
+}
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -23,29 +33,71 @@ const router = createRouter({
       children: [
         {
           path: '',
+          name: 'home',
+          component: ProjectsPage,
+          beforeEnter: to => ({ name: 'projects', params: { workspace: activeWorkspaceId() }, query: to.query }),
+        },
+        {
+          path: ':workspace',
           name: 'projects',
           component: ProjectsPage,
         },
         {
-          path: ':drawer(members|api-tokens|billing|settings)',
+          path: ':workspace/~/usage',
+          name: 'usage',
+          component: () => import('@/pages/UsagePage.vue'),
+        },
+        {
+          path: ':workspace/~/:drawer(members|connections|api-tokens|billing|settings)',
           name: 'workspace',
           component: ProjectsPage,
         },
         {
-          path: 'projects/:projectId/:drawer(settings)?',
+          path: ':workspace/~/connections/:kind(model-providers|connectors|chat-apps)/:name',
+          name: 'connection',
+          component: ProjectsPage,
+        },
+        {
+          path: ':workspace/~/add-channel',
+          name: 'add-channel',
+          component: ProjectsPage,
+        },
+        {
+          path: ':workspace/:project/:tilde(~)?/:drawer(settings)?',
           name: 'project',
           component: () => import('@/pages/ProjectPage.vue'),
         },
         {
-          path: 'projects/:projectId/environments/:environmentId/:drawer(variables|settings)?',
+          path: ':workspace/:project/:environment/:tilde(~)?/:drawer(variables|settings)?',
           name: 'environment',
           component: () => import('@/pages/EnvironmentPage.vue'),
         },
         {
+          path: 'projects/:projectId/:drawer(settings)?',
+          component: ProjectsPage,
+          beforeEnter: to => projectRoute(String(to.params.projectId), legacyDrawer(to)),
+        },
+        {
+          path: 'projects/:projectId/environments/:environmentId/:drawer(variables|settings)?',
+          component: ProjectsPage,
+          beforeEnter: to => environmentRoute(String(to.params.environmentId), legacyDrawer(to)),
+        },
+        {
+          path: ':drawer(members|connections|api-tokens|billing|settings)',
+          component: ProjectsPage,
+          beforeEnter: to => ({ name: 'workspace', params: { workspace: activeWorkspaceId(), drawer: legacyDrawer(to) } }),
+        },
+        {
+          path: 'connections/:kind(model-providers|connectors|chat-apps)/:name',
+          component: ProjectsPage,
+          beforeEnter: to => ({ name: 'connection', params: { workspace: activeWorkspaceId(), kind: String(to.params.kind), name: String(to.params.name) } }),
+        },
+        {
           path: 'workspace/settings',
-          redirect: to => ({
+          component: ProjectsPage,
+          beforeEnter: to => ({
             name: 'workspace',
-            params: { drawer: legacyWorkspaceTabs[String(to.query.tab)] ?? 'settings' },
+            params: { workspace: activeWorkspaceId(), drawer: legacyWorkspaceTabs[String(to.query.tab)] ?? 'settings' },
           }),
         },
       ],
@@ -63,6 +115,12 @@ const router = createRouter({
       component: () => import('@/pages/PlanCheckoutSuccessPage.vue'),
     },
     {
+      path: '/checkout/card-success',
+      name: 'card-checkout-success',
+      meta: { requiresAuth: true },
+      component: () => import('@/pages/CardCheckoutSuccessPage.vue'),
+    },
+    {
       path: '/login',
       name: 'login',
       component: () => import('@/pages/LoginPage.vue'),
@@ -77,7 +135,54 @@ const router = createRouter({
 
 router.beforeEach(() => confirmDiscard());
 
+router.beforeEach((to) => {
+  if (!to.params.drawer || to.params.tilde) return;
+
+  if (to.name === 'project') {
+    return { name: 'environment', params: { workspace: to.params.workspace, project: to.params.project, environment: to.params.drawer } };
+  }
+
+  if (to.name === 'environment') {
+    return { name: 'environment', params: { workspace: to.params.workspace, project: to.params.project, environment: to.params.environment } };
+  }
+});
+
+let workspaceChanged = false;
+
+const returnKey = 'lucity_return_to';
+
+function rememberReturn(path: string) {
+  if (path === '/') return;
+  try {
+    sessionStorage.setItem(returnKey, path);
+  } catch {
+    return;
+  }
+}
+
+function takeReturn(): string | null {
+  try {
+    const path = sessionStorage.getItem(returnKey);
+    sessionStorage.removeItem(returnKey);
+    return path;
+  } catch {
+    return null;
+  }
+}
+
 router.beforeEach(async (to) => {
+  if (to.name === 'login' && !to.query.error) {
+    const { isAuthenticated, fetchUser, activeWorkspace } = useAuth();
+
+    await fetchUser();
+
+    if (isAuthenticated.value && activeWorkspace.value) {
+      return { path: '/' };
+    }
+
+    return;
+  }
+
   if (!to.meta.requiresAuth) return;
 
   const { isAuthenticated, loading, fetchUser, activeWorkspace } = useAuth();
@@ -87,12 +192,70 @@ router.beforeEach(async (to) => {
   }
 
   if (!isAuthenticated.value) {
+    rememberReturn(to.fullPath);
     return { name: 'login' };
   }
 
   if (!activeWorkspace.value) {
     return { name: 'login', query: { error: 'no_workspace' } };
   }
+
+  const returnTo = takeReturn();
+
+  if (returnTo && returnTo !== to.fullPath) {
+    return returnTo;
+  }
+
+  const workspace = to.params.workspace;
+
+  if (typeof workspace === 'string' && workspace && workspace !== activeWorkspace.value) {
+    const { user, setActiveWorkspace } = useAuth();
+
+    if (!user.value?.workspaces.some(membership => membership.workspace === workspace)) {
+      return { name: 'projects', params: { workspace: activeWorkspace.value } };
+    }
+
+    setActiveWorkspace(workspace);
+    workspaceChanged = true;
+  }
+});
+
+router.afterEach(() => {
+  if (!workspaceChanged) return;
+  workspaceChanged = false;
+  apolloClient.resetStore();
+});
+
+const reloadKey = 'lucity_stale_reload';
+const staleModule = /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|Unable to preload CSS/;
+
+let pendingPath: string | null = null;
+
+router.beforeEach((to) => {
+  pendingPath = router.resolve(to).href;
+});
+
+router.afterEach(() => {
+  pendingPath = null;
+});
+
+function reloadOnce(path: string) {
+  try {
+    const last = Number(sessionStorage.getItem(reloadKey) ?? 0);
+    if (Date.now() - last < 10_000) return;
+    sessionStorage.setItem(reloadKey, String(Date.now()));
+  } catch {
+    return;
+  }
+  window.location.assign(path);
+}
+
+window.addEventListener('vite:preloadError', () => {
+  reloadOnce(pendingPath ?? window.location.href);
+});
+
+router.onError((error: Error, to) => {
+  if (staleModule.test(error.message)) reloadOnce(router.resolve(to).href);
 });
 
 export default router;

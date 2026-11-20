@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import NameSettings from '@/components/NameSettings.vue';
 import { formatStorage } from '@/lib/format';
 import FormFooter from '@/components/FormFooter.vue';
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges';
@@ -11,7 +12,20 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { failureToast } from '@/components/ui/sonner';
 import type { Service } from '@/composables/useEnvironment';
+import { useCapabilities } from '@/composables/useCapabilities';
+import { useGate } from '@/composables/useGate';
+import GateTag from '@/components/GateTag.vue';
+import { nextUpgrade, planTitle, stepState } from '@/lib/capabilities';
+import { Availability } from '@/gql/graphql';
 
+const RenameVolumeDocument = graphql(`
+  mutation RenameVolume($volume: VolumeID!, $name: String!) {
+    renameVolume(volume: $volume, name: $name) {
+      id
+      name
+    }
+  }
+`);
 const DeleteVolumeDocument = graphql(`
   mutation DeleteVolume($volume: VolumeID!) {
     deleteVolume(volume: $volume)
@@ -56,12 +70,40 @@ const emit = defineEmits<{
   (e: 'expanded'): void;
 }>();
 
+const { mutate: renameMutate, loading: renaming } = useMutation(RenameVolumeDocument);
+
+async function handleRename(name: string) {
+  try {
+    await renameMutate({ volume: props.volumeId, name });
+  } catch (e: unknown) {
+    failureToast('Failed to rename volume', e);
+  }
+}
+
 const mountedServiceName = computed(() => {
   if (!props.volume.mount) return null;
   return props.services.find(s => s.id === props.volume.mount!.service)?.name ?? 'Unknown service';
 });
 
-const volumeSizes = ['10Gi', '16Gi', '32Gi', '64Gi', '128Gi', '256Gi', '512Gi', '1Ti'];
+const { capabilities } = useCapabilities();
+const { openFor } = useGate();
+
+const volumeSizes = computed(() => {
+  const all = ['10Gi', '16Gi', '32Gi', '64Gi', '128Gi'];
+  const allowed = all.filter(size => stepState(capabilities.value?.volumes.size, size, props.volume.size).kind === 'available');
+  return allowed.length ? allowed : all.slice(0, 1);
+});
+
+const sizeUpgrade = computed(() => {
+  const upgrade = nextUpgrade(capabilities.value?.volumes.size);
+  if (!upgrade || parseGib(upgrade.max) <= parseGib(volumeSizes.value[volumeSizes.value.length - 1]!)) return undefined;
+  return upgrade;
+});
+
+function upgradeSize() {
+  const upgrade = sizeUpgrade.value;
+  if (upgrade) openFor({ availability: Availability.PlanRequired, plan: upgrade.plan }, `Larger volumes need the ${planTitle(upgrade.plan)} plan`);
+}
 
 const parseGib = (size: string) => {
   const match = /^(\d+)(Gi|Ti)$/.exec(size);
@@ -71,14 +113,14 @@ const parseGib = (size: string) => {
 const currentSize = computed(() => props.volume.size);
 
 const minIndex = computed(() => {
-  const index = volumeSizes.findIndex(size => parseGib(size) >= parseGib(currentSize.value));
-  return index === -1 ? volumeSizes.length - 1 : index;
+  const index = volumeSizes.value.findIndex(size => parseGib(size) >= parseGib(currentSize.value));
+  return index === -1 ? volumeSizes.value.length - 1 : index;
 });
 
 const selectedSize = ref(props.volume.size);
 
 function discardStorage() {
-  selectedSize.value = volumeSizes[minIndex.value]!;
+  selectedSize.value = volumeSizes.value[minIndex.value]!;
 }
 
 watch(currentSize, discardStorage, { immediate: true });
@@ -132,6 +174,18 @@ async function handleDelete() {
 
 <template>
   <div class="space-y-6">
+    <section class="space-y-2">
+      <h3 class="text-sm font-medium text-muted-foreground">
+        General
+      </h3>
+      <NameSettings
+        :name="volume.name"
+        :id="volumeId"
+        :saving="renaming"
+        @save="handleRename"
+      />
+    </section>
+
     <!-- Mount -->
     <section class="space-y-2">
       <h3 class="text-sm font-medium text-muted-foreground">
@@ -216,9 +270,14 @@ async function handleDelete() {
                 :step="1"
                 @update:model-value="selectedSize = volumeSizes[$event?.[0] ?? minIndex]!"
               />
-              <div class="flex justify-between text-xs text-muted-foreground tabular-nums">
+              <div class="flex items-center justify-between text-xs text-muted-foreground tabular-nums">
                 <span>{{ formatStorage(volume.size) }}</span>
-                <span>{{ formatStorage(volumeSizes[volumeSizes.length - 1]!) }}</span>
+                <span class="flex items-center gap-2">
+                  {{ formatStorage(volumeSizes[volumeSizes.length - 1]!) }}
+                  <button v-if="sizeUpgrade" type="button" @click="upgradeSize">
+                    <GateTag :plan="sizeUpgrade.plan" :label="`${formatStorage(sizeUpgrade.max)} on ${planTitle(sizeUpgrade.plan)}`" />
+                  </button>
+                </span>
               </div>
             </div>
           </fieldset>
@@ -236,14 +295,14 @@ async function handleDelete() {
     <div class="flex items-center justify-between gap-4 rounded-lg border border-destructive/30 p-3">
       <div>
         <p class="text-sm font-medium text-foreground">Delete volume</p>
-        <p class="text-xs text-muted-foreground">Permanently delete this volume and all its data.</p>
+        <p class="text-xs text-muted-foreground">
+          {{ volume.mount ? `Unmount it from "${mountedServiceName}" first.` : 'Permanently delete this volume and all its data.' }}
+        </p>
       </div>
       <ConfirmDialog
         v-model:open="deleteDialogOpen"
         :title="`Delete volume &quot;${volume.name}&quot;?`"
-        :description="volume.mount
-          ? 'All data on it is deleted with it. To keep the data, unmount it instead. This can\'t be undone.'
-          : 'All data on it is deleted with it. This can\'t be undone.'"
+        description="All data on it is deleted with it. This can't be undone."
         confirm-label="Delete volume"
         pending-label="Deleting…"
         :pending="deleting"
@@ -252,7 +311,7 @@ async function handleDelete() {
         @confirm="handleDelete"
       >
         <template #trigger>
-          <Button variant="destructive">
+          <Button variant="destructive" :disabled="!!volume.mount">
             <Trash2 />
             Delete
           </Button>

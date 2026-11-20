@@ -8,6 +8,7 @@ export type FlowStep = {
   validate?: (value: string) => boolean;
   invalidHint?: string;
   required?: boolean;
+  idField?: { key: string; fallback: string; taken: ReadonlySet<string>; scope?: string };
 };
 
 export type CommandFlowConfig = {

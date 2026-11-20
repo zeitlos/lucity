@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { mobileSheetClass } from '@/lib/dialog';
 import DialogIcon from '@/components/DialogIcon.vue';
 import { Building2 } from '@lucide/vue';
 import { ref, computed } from 'vue';
@@ -24,8 +25,8 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { failureToast } from '@/components/ui/sonner';
-import { isValidSlug } from '@/lib/slug';
-import NameSlugField from '@/components/NameSlugField.vue';
+import NameIdField from '@/components/NameIdField.vue';
+import { RESERVED_WORKSPACE_IDS } from '@/lib/routes';
 import PlanPicker from '@/components/PlanPicker.vue';
 
 defineProps<{
@@ -40,7 +41,8 @@ const name = ref('');
 const id = ref('');
 const selectedPlan = ref<Plan>(Plan.Hobby);
 
-const isValid = computed(() => name.value.trim().length > 0 && isValidSlug(id.value));
+const nameIdRef = ref<InstanceType<typeof NameIdField> | null>(null);
+const isValid = computed(() => nameIdRef.value?.isValid ?? false);
 
 const { mutate, loading } = useMutation(CreateWorkspaceCheckoutDocument);
 
@@ -67,7 +69,7 @@ async function handleCheckout() {
     :open="open"
     @update:open="emit('update:open', $event)"
   >
-    <DialogContent class="sm:max-w-xl">
+    <DialogContent :class="[mobileSheetClass, 'sm:max-w-xl']">
       <DialogHeader>
         <DialogIcon :icon="Building2" />
         <DialogTitle>New workspace</DialogTitle>
@@ -80,12 +82,15 @@ async function handleCheckout() {
         class="space-y-4"
         @submit.prevent="handleCheckout"
       >
-        <NameSlugField
+        <NameIdField
+          ref="nameIdRef"
           v-model:name="name"
-          v-model:slug="id"
+          v-model:id="id"
+          fallback="team"
+          :taken="RESERVED_WORKSPACE_IDS"
+          reserved
           :disabled="loading"
           name-placeholder="e.g. My Team"
-          slug-description="Used in URLs and API calls. Auto-generated from the name."
         />
 
         <div class="space-y-2">

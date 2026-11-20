@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/zeitlos/lucity/pkg/auth"
 	ghpkg "github.com/zeitlos/lucity/pkg/github"
 	"github.com/zeitlos/lucity/pkg/platform"
@@ -26,11 +28,18 @@ type Server struct {
 	port   string
 }
 
-func NewServer(port, webhookSecret string, handler *Handler) *Server {
+func NewServer(port, webhookSecret string, handler *Handler, registry prometheus.Registerer) *Server {
 	secret := []byte(webhookSecret)
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/webhooks/github", handleGitHub(secret, handler))
+	events := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "lucity_webhook_events_total",
+		Help: "GitHub webhook events by type and what came of them.",
+	}, []string{"event", "outcome"})
+
+	registry.MustRegister(events)
+
+	mux.HandleFunc("/webhooks/github", handleGitHub(secret, handler, events))
 
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -45,7 +54,7 @@ func NewServer(port, webhookSecret string, handler *Handler) *Server {
 	}
 }
 
-func handleGitHub(secret []byte, h *Handler) http.HandlerFunc {
+func handleGitHub(secret []byte, h *Handler, events *prometheus.CounterVec) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -56,6 +65,7 @@ func handleGitHub(secret []byte, h *Handler) http.HandlerFunc {
 
 		if err != nil {
 			slog.Warn("webhook validation failed", "error", err)
+			events.WithLabelValues("unknown", "rejected").Inc()
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -70,7 +80,9 @@ func handleGitHub(secret []byte, h *Handler) http.HandlerFunc {
 		)
 
 		if event.Type == "push" && h != nil {
-			go h.handlePush(event)
+			go func() { events.WithLabelValues("push", h.handlePush(event)).Inc() }()
+		} else {
+			events.WithLabelValues(eventLabel(event.Type), "ignored").Inc()
 		}
 
 		w.WriteHeader(http.StatusOK)
@@ -78,12 +90,12 @@ func handleGitHub(secret []byte, h *Handler) http.HandlerFunc {
 	}
 }
 
-func (h *Handler) handlePush(event *github.Event) {
+func (h *Handler) handlePush(event *github.Event) string {
 	pushedBranch := strings.TrimPrefix(event.Ref, "refs/heads/")
 
 	if event.InstallationID == 0 {
 		slog.Warn("push: no installation ID in event, cannot mint token")
-		return
+		return "failed"
 	}
 
 	ctx := context.Background()
@@ -92,7 +104,7 @@ func (h *Handler) handlePush(event *github.Event) {
 
 	if err != nil {
 		slog.Error("push: failed to mint installation token", "error", err)
-		return
+		return "failed"
 	}
 
 	ctx = auth.NewContext(ctx, &auth.Claims{
@@ -106,10 +118,11 @@ func (h *Handler) handlePush(event *github.Event) {
 
 	if err != nil {
 		slog.Error("push: failed to find services by repo", "repo", repoURL, "error", err)
-		return
+		return "failed"
 	}
 
 	matched := 0
+	failed := false
 	suspended := map[string]bool{}
 
 	for _, match := range matches {
@@ -158,12 +171,28 @@ func (h *Handler) handlePush(event *github.Event) {
 
 		if _, err := h.Conductor.DeployPush(ctx, match.ID, event.CommitSHA); err != nil {
 			slog.Warn("push: deploy failed", "service", match.ID, "error", err)
+			failed = true
 		}
 	}
 
-	if matched == 0 {
+	switch {
+	case failed:
+		return "failed"
+	case matched == 0:
 		slog.Info("push: no matching services", "repo", repoURL, "branch", pushedBranch)
+		return "ignored"
 	}
+
+	return "deployed"
+}
+
+func eventLabel(eventType string) string {
+	switch eventType {
+	case "push", "pull_request", "installation", "installation_repositories":
+		return eventType
+	}
+
+	return "other"
 }
 
 func pushActor(event *github.Event) string {

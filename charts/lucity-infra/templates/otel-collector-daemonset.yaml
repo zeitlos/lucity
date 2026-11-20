@@ -109,6 +109,16 @@ spec:
                   action: keep
                 - target_label: instance
                   replacement: kube-state-metrics.kube-system.svc.cluster.local:8080
+              metric_relabel_configs:
+                - source_labels: [__name__]
+                  regex: kube_pod_(spec_volumes_persistentvolumeclaims_info|status_phase|status_scheduled|container_status_restarts_total|container_status_waiting_reason|container_status_last_terminated_reason|container_resource_requests|init_container_resource_requests|init_container_info)
+                  target_label: __tmp_keep
+                  replacement: "1"
+                - source_labels: [__name__, __tmp_keep]
+                  regex: kube_(pod|job)_.+;
+                  action: drop
+                - regex: __tmp_keep
+                  action: labeldrop
             - job_name: cilium-agent
               scrape_interval: 30s
               {{- include "lucity-infra.otel.nodeLocalPods" "kube-system" | nindent 14 }}
@@ -129,6 +139,17 @@ spec:
               relabel_configs:
                 - source_labels: [__meta_kubernetes_pod_label_k8s_app, __meta_kubernetes_pod_container_port_name]
                   regex: cilium;hubble-metrics
+                  action: keep
+            - job_name: cilium-operator
+              scrape_interval: 30s
+              {{- include "lucity-infra.otel.nodeLocalPods" "kube-system" | nindent 14 }}
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_pod_label_io_cilium_app, __meta_kubernetes_pod_container_port_name]
+                  regex: operator;prometheus
+                  action: keep
+              metric_relabel_configs:
+                - source_labels: [__name__]
+                  regex: cilium_hive_status
                   action: keep
             - job_name: cert-manager
               scrape_interval: 60s
@@ -166,6 +187,15 @@ spec:
                 - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name, __meta_kubernetes_pod_container_port_name]
                   regex: exporter;metrics
                   action: keep
+            {{- range list "conductor" "stagehand" "cashier" }}
+            - job_name: {{ . }}
+              scrape_interval: 60s
+              {{- include "lucity-infra.otel.nodeLocalPods" $.Release.Namespace | nindent 14 }}
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name, __meta_kubernetes_pod_container_port_name]
+                  regex: {{ . }};metrics
+                  action: keep
+            {{- end }}
             - job_name: otel-agent
               scrape_interval: 30s
               {{- include "lucity-infra.otel.nodeLocalPods" .Release.Namespace | nindent 14 }}

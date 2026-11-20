@@ -77,6 +77,9 @@ export default defineNuxtConfig({
             'yaml',
           ],
         },
+        rehypePlugins: {
+          'rehype-external-links': false,
+        },
       },
     },
   },
@@ -91,7 +94,7 @@ export default defineNuxtConfig({
             '@id': 'https://lucity.cloud/#organization',
             name: 'Lucity',
             url: 'https://lucity.cloud',
-            logo: 'https://lucity.cloud/logo-light.png?v=3',
+            logo: 'https://lucity.cloud/logo-light.png?v=4',
             description: 'The European open source alternative to Vercel, Heroku, and Railway. Deploy anything, own your stack.',
             sameAs: [
               'https://github.com/zeitlos/lucity',
@@ -121,7 +124,7 @@ export default defineNuxtConfig({
             publisher: { '@id': 'https://lucity.cloud/#organization' },
             offers: {
               '@type': 'AggregateOffer',
-              priceCurrency: 'CHF',
+              priceCurrency: 'EUR',
               lowPrice: '0',
               highPrice: '25',
               offerCount: '3'
@@ -140,7 +143,7 @@ export default defineNuxtConfig({
         { rel: 'manifest', href: '/site.webmanifest' }
       ],
       meta: [
-        { property: 'og:image', content: 'https://lucity.cloud/img/og.jpg?v=3' },
+        { property: 'og:image', content: 'https://lucity.cloud/img/og.jpg?v=4' },
         { property: 'og:image:width', content: '1280' },
         { property: 'og:image:height', content: '640' },
         { property: 'og:image:type', content: 'image/jpeg' },
@@ -149,7 +152,7 @@ export default defineNuxtConfig({
         { property: 'og:site_name', content: 'Lucity' },
         { property: 'og:locale', content: 'en' },
         { name: 'twitter:card', content: 'summary_large_image' },
-        { name: 'twitter:image', content: 'https://lucity.cloud/img/og.jpg?v=3' },
+        { name: 'twitter:image', content: 'https://lucity.cloud/img/og.jpg?v=4' },
         { name: 'twitter:image:alt', content: 'Lucity: Deploy anything. Own your stack.' },
         { name: 'theme-color', content: '#301c0e' }
       ]
