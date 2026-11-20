@@ -181,6 +181,7 @@ func (c *Client) newBuildJob(id string, opts buildjob.StartOptions, repoURL url.
 		{Name: "BUILD_CONTEXT_PATH", Value: opts.ContextPath},
 		{Name: "BUILD_TARGET_REFS", Value: strings.Join(targetRefs, ",")},
 		{Name: "BUILD_CACHE_KEY", Value: cacheKey(opts.Service.Workspace)},
+		{Name: "BUILDKIT_BUILDER", ValueFrom: &core.EnvVarSource{FieldRef: &core.ObjectFieldSelector{FieldPath: "metadata.annotations['" + labels.Builder + "']"}}},
 		{Name: "BUILDKIT_ADDR", Value: c.buildKitAddr},
 		{Name: "GITHUB_TOKEN", Value: opts.Token},
 		{Name: "DOCKER_CONFIG", Value: "/etc/registry-auth"},
@@ -272,10 +273,9 @@ func (c *Client) newBuildJob(id string, opts buildjob.StartOptions, repoURL url.
 						Resources: core.ResourceRequirements{
 							Requests: core.ResourceList{
 								core.ResourceCPU:    resource.MustParse("250m"),
-								core.ResourceMemory: resource.MustParse("512Mi"),
+								core.ResourceMemory: resource.MustParse("128Mi"),
 							},
 							Limits: core.ResourceList{
-								core.ResourceCPU:    resource.MustParse("2"),
 								core.ResourceMemory: resource.MustParse("4Gi"),
 							},
 						},

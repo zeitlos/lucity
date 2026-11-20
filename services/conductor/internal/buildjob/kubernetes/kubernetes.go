@@ -23,8 +23,8 @@ const (
 )
 
 const (
-	annotationSourceRepo    = "lucity.dev/source-repo"
-	annotationContext       = "lucity.dev/source-context"
+	annotationSourceRepo    = labels.SourceRepo
+	annotationContext       = labels.SourceContext
 	annotationTargets       = "lucity.dev/target-image-refs"
 	annotationTriggeredBy   = "lucity.dev/triggered-by"
 	annotationCancelledAt   = "lucity.dev/cancelled-at"
@@ -51,7 +51,7 @@ func New(kubernetes kubernetes.Interface, jobs *jobs.Cache, namespace, registry,
 		namespace:          namespace,
 		registry:           registry,
 		registryAuthSecret: registryAuthSecret,
-		buildKitAddr:       "tcp://lucity-buildkit:1234",
+		buildKitAddr:       "tcp://$(BUILDKIT_BUILDER).lucity-buildkit-pool:1234",
 		buildRunnerImage:   buildRunnerImage,
 		buildKitTLSSecret:  buildKitTLSSecret,
 		buildKitServerName: buildKitServerName,

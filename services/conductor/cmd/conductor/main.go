@@ -120,7 +120,6 @@ type Config struct {
 	RegistryPushURL    string         `envconfig:"REGISTRY_PUSH_URL" required:"true"`
 	RegistryAuthSecret string         `envconfig:"REGISTRY_AUTH_SECRET" required:"true"`
 	BuildImage         string         `envconfig:"BUILD_IMAGE"`
-	BuildkitAddr       string         `envconfig:"BUILDKIT_ADDR"`
 	BuildNamespace     string         `envconfig:"BUILD_NAMESPACE" default:"lucity-builds"`
 	BuildJobPlacement  jobs.Placement `envconfig:"BUILD_JOB_PLACEMENT"`
 	BuildkitTLSSecret  string         `envconfig:"BUILDKIT_TLS_SECRET"`
@@ -142,7 +141,6 @@ type Config struct {
 	ScanTrufflehogConcurrency int           `envconfig:"SCAN_TRUFFLEHOG_CONCURRENCY" default:"2"`
 
 	MaxConcurrentReleases int `envconfig:"MAX_CONCURRENT_RELEASES" default:"5"`
-	MaxConcurrentBuilds   int `envconfig:"MAX_CONCURRENT_BUILDS" default:"2"`
 	MaxQueuedReleases     int `envconfig:"MAX_QUEUED_RELEASES" default:"10"`
 
 	SystemNamespace string `envconfig:"SYSTEM_NAMESPACE" default:"lucity-system"`
@@ -373,7 +371,7 @@ func main() {
 		WorkloadPlacement: config.WorkloadDefaultPlacement,
 	})
 
-	pipelineClient := pipeline.New(k8sClient, jobsCache, config.MaxConcurrentReleases, config.MaxConcurrentBuilds)
+	pipelineClient := pipeline.New(k8sClient, jobsCache, nil, config.MaxConcurrentReleases)
 
 	scanJobsClient := scanjobK8s.New(k8sClient, jobsCache, scanjobK8s.Config{
 		Namespace:             config.BuildNamespace,

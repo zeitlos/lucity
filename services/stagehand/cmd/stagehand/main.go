@@ -61,7 +61,6 @@ type Config struct {
 	BuildNamespace  string `envconfig:"BUILD_NAMESPACE" default:"lucity-builds"`
 
 	MaxConcurrentReleases int `envconfig:"MAX_CONCURRENT_RELEASES" default:"5"`
-	MaxConcurrentBuilds   int `envconfig:"MAX_CONCURRENT_BUILDS" default:"2"`
 
 	LogtoEndpoint     string `envconfig:"LOGTO_ENDPOINT" required:"true"`
 	LogtoM2MAppID     string `envconfig:"LOGTO_M2M_APP_ID" required:"true"`
@@ -253,8 +252,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	pipelineClient := pipeline.New(k8sClient, jobsCache, config.MaxConcurrentReleases, config.MaxConcurrentBuilds)
-	admissionWorker, err := admission.New(jobsCache, pipelineClient, loops)
+	builders := jobs.NewBuilders(k8sClient, config.BuildNamespace)
+
+	pipelineClient := pipeline.New(k8sClient, jobsCache, builders, config.MaxConcurrentReleases)
+	admissionWorker, err := admission.New(jobsCache, builders, pipelineClient, loops)
 
 	if err != nil {
 		slog.Error("failed to create admission worker", "error", err)
@@ -269,6 +270,7 @@ func main() {
 	registry.MustRegister(&collector{appReleases: releaseCache, workspaceReleases: workspaceStatuses, pipeline: pipelineClient})
 
 	jobsCache.Start(ctx)
+	builders.Start(ctx.Done())
 
 	directory := workspaces.New(logto.New(config.LogtoEndpoint, config.LogtoM2MAppID, config.LogtoM2MAppSecret), platformClient, workspaceMaxAge)
 
@@ -281,7 +283,7 @@ func main() {
 	releaseWorker := releases.New(environmentClient, deployerClient.Environments(), workspaceReleases, directory, billingClient, config.WorkloadDefaultPlacement, config.WorkloadPaidPlacement, config.Interval, config.DryRun, loops, registry)
 	domainWorker := customdomains.New(domainsClient, directory, loops, pendingDomainInterval, domainSyncInterval)
 
-	slog.Info("stagehand started", "version", Version, "interval", config.Interval, "dry_run", config.DryRun, "max_concurrent_releases", config.MaxConcurrentReleases, "max_concurrent_builds", config.MaxConcurrentBuilds)
+	slog.Info("stagehand started", "version", Version, "interval", config.Interval, "dry_run", config.DryRun, "max_concurrent_releases", config.MaxConcurrentReleases)
 
 	var workers sync.WaitGroup
 

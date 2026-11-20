@@ -106,7 +106,6 @@ func (c *Client) newDeployJob(name string, opts deployjob.StartOptions) *batch.J
 								core.ResourceMemory: resource.MustParse("64Mi"),
 							},
 							Limits: core.ResourceList{
-								core.ResourceCPU:    resource.MustParse("500m"),
 								core.ResourceMemory: resource.MustParse("256Mi"),
 							},
 						},

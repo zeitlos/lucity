@@ -86,12 +86,13 @@ conductor:
   builderImage:
     repository: ghcr.io/zeitlos/lucity/builder
     tag: ""
-  # -- Persistent BuildKit daemon settings (shared across all builds).
-  # buildkit.enabled gates the BuildKit Deployment + Build Job RBAC
-  # in the lucity-builds namespace. Disable in dev to skip the
-  # BuildKit infrastructure entirely.
+  # -- BuildKit daemon pool: a StatefulSet of `replicas` builders, each with
+  # its own cache volume. Builds of one source are routed to the same builder.
+  # buildkit.enabled gates the pool and the build Job RBAC in the
+  # lucity-builds namespace. Disable to skip the BuildKit infrastructure entirely.
   buildkit:
     enabled: false
+    replicas: 1
     userNamespaces: true
     tls:
       enabled: true
@@ -105,12 +106,12 @@ conductor:
         cpu: 500m
         memory: 2Gi
       limits:
-        cpu: "4"
         memory: 4Gi
     # -- Scheduling for BuildKit and the build and scan Jobs
     nodeSelector: {}
     tolerations: []
     affinity: {}
+    topologySpreadConstraints: []
   env: {}
   envSecret: {}
   resources:
