@@ -6,7 +6,7 @@
 </p>
 
 <p>
-  The Deployment Platform that is a joy to use, built to grow, and always yours to keep.
+  The Cloud that is a joy to use, built to grow, and always yours to keep.
 </p>
 
 <p>

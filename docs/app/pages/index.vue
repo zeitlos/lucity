@@ -23,14 +23,14 @@ const trialPoints = [
   <section class="mx-auto px-6 mt-48 max-sm:mt-12 flex flex-col gap-16 3xl:grid 3xl:grid-cols-12 3xl:items-end 3xl:gap-24">
     <div class="3xl:col-span-5 3xl:mb-24">
       <h1 class="load-in font-display text-4xl/[1.15] sm:text-5xl/[1.1] md:text-6xl/[1.1] lg:text-7xl/22 text-neutral-800 max-sm:text-balance dark:text-neutral-100" style="--load-order: 0">
-        The Deployment Platform <br class="max-sm:hidden">
+        The Cloud <br class="max-sm:hidden">
         that is a <span class="squiggle squiggle-joy">joy to use</span>, <br class="max-sm:hidden">
-        <span class="squiggle squiggle-grow">built to grow</span>, and always <br class="max-sm:hidden">
+        <span class="squiggle squiggle-grow">built to grow</span>, and&nbsp;always <br class="max-sm:hidden">
         <span class="squiggle squiggle-keep">yours to keep</span>.
       </h1>
 
-      <p class="load-in mt-8 max-w-3xl text-xl leading-relaxed text-stone-700 sm:text-2xl sm:leading-relaxed dark:text-stone-300" style="--load-order: 1">
-        Connect a repo and Lucity runs it, with databases, domains, backups and scaling built in. A cloud platform made in Switzerland and hosted in the EU.
+      <p class="load-in mt-8 max-w-3xl text-pretty text-xl leading-relaxed text-stone-700 sm:text-2xl sm:leading-relaxed dark:text-stone-300" style="--load-order: 1">
+        Connect a repo and Lucity runs it, with databases, domains, backups and scaling built in. Made in Switzerland, hosted in the EU.
       </p>
 
       <div class="load-in mt-8 flex flex-col gap-3 sm:mt-11 sm:flex-row sm:items-center sm:gap-4" style="--load-order: 2">
