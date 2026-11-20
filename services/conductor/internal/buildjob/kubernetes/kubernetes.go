@@ -36,7 +36,6 @@ type Client struct {
 	registry           string
 	registryAuthSecret string
 	buildKitAddr       string
-	buildKitPoolAddr   string
 	buildRunnerImage   string
 	buildKitTLSSecret  string
 	buildKitServerName string
@@ -52,8 +51,7 @@ func New(kubernetes kubernetes.Interface, jobs *jobs.Cache, namespace, registry,
 		namespace:          namespace,
 		registry:           registry,
 		registryAuthSecret: registryAuthSecret,
-		buildKitAddr:       "tcp://lucity-buildkit:1234",
-		buildKitPoolAddr:   "tcp://$(BUILDKIT_BUILDER).lucity-buildkit-pool:1234",
+		buildKitAddr:       "tcp://$(BUILDKIT_BUILDER).lucity-buildkit-pool:1234",
 		buildRunnerImage:   buildRunnerImage,
 		buildKitTLSSecret:  buildKitTLSSecret,
 		buildKitServerName: buildKitServerName,

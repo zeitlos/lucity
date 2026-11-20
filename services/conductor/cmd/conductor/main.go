@@ -120,7 +120,6 @@ type Config struct {
 	RegistryPushURL    string         `envconfig:"REGISTRY_PUSH_URL" required:"true"`
 	RegistryAuthSecret string         `envconfig:"REGISTRY_AUTH_SECRET" required:"true"`
 	BuildImage         string         `envconfig:"BUILD_IMAGE"`
-	BuildkitAddr       string         `envconfig:"BUILDKIT_ADDR"`
 	BuildNamespace     string         `envconfig:"BUILD_NAMESPACE" default:"lucity-builds"`
 	BuildJobPlacement  jobs.Placement `envconfig:"BUILD_JOB_PLACEMENT"`
 	BuildkitTLSSecret  string         `envconfig:"BUILDKIT_TLS_SECRET"`
