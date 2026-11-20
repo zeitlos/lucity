@@ -48,7 +48,6 @@ import (
 	"github.com/zeitlos/lucity/pkg/bunny"
 	ghpkg "github.com/zeitlos/lucity/pkg/github"
 	"github.com/zeitlos/lucity/pkg/graceful"
-	"github.com/zeitlos/lucity/pkg/kvstore"
 	"github.com/zeitlos/lucity/pkg/logger"
 	"github.com/zeitlos/lucity/pkg/logto"
 	"github.com/zeitlos/lucity/pkg/oidc"
@@ -317,7 +316,7 @@ func main() {
 	loadBalancerHostname := "lb." + config.WorkloadDomain
 
 	secure := secureCookies(config.DashboardURL)
-	sessionStore := newSessionStore(kvstore.NewMemory[sessionValue](), oidcProvider, logtoClient)
+	sessionTokens := newSessionTokens(oidcProvider, logtoClient)
 	sessionCodec := session.NewCodec(config.SessionSecret, sessionCookieName, secure, int(sessionTTL.Seconds()))
 
 	platformClient := platformK8s.New(k8sClient, dynClient)
@@ -596,7 +595,7 @@ func main() {
 		githubActionsAudience = originFromURL(config.OIDCCallbackURL)
 	}
 
-	graphqlServer := NewGraphQLServer(config.Port, conductor, oidcProvider, sessionStore, sessionCodec, verifier, logtoClient, config.OIDCCallbackURL, config.DashboardURL, config.GitHubAppSlug, githubActionsAudience, config.OIDCIssuerURL, apiAudience, config.OIDCCLIClientID)
+	graphqlServer := NewGraphQLServer(config.Port, conductor, oidcProvider, sessionTokens, sessionCodec, verifier, logtoClient, config.OIDCCallbackURL, config.DashboardURL, config.GitHubAppSlug, githubActionsAudience, config.OIDCIssuerURL, apiAudience, config.OIDCCLIClientID)
 
 	servers := []graceful.Server{graphqlServer, metricsHTTP.NewServer(config.MetricsPort, registry)}
 

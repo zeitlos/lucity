@@ -54,7 +54,7 @@ const maxSubscriptionsPerConnection = 20
 
 type openSubscriptionsKey struct{}
 
-func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvider *oidc.Provider, store *sessionStore, codec *session.Codec, verifier *auth.Verifier, logtoClient *logto.Client, callbackURL, dashboardURL, githubAppSlug, githubActionsAudience, oidcIssuer, oidcAudience, oidcCLIClientID string) *GraphQLServer {
+func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvider *oidc.Provider, tokens *sessionTokens, codec *session.Codec, verifier *auth.Verifier, logtoClient *logto.Client, callbackURL, dashboardURL, githubAppSlug, githubActionsAudience, oidcIssuer, oidcAudience, oidcCLIClientID string) *GraphQLServer {
 	resolver := gatewaygraphql.Resolver{
 		Conductor: conductorClient,
 	}
@@ -192,8 +192,8 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 
 				// Cookie clients have no per-workspace token yet; mint it
 				// from the session and fold the role into the claims.
-				if sid, ok := sessionIDFromContext(ctx); ok {
-					if orgToken, err := store.orgToken(ctx, sid, ws); err == nil {
+				if data, ok := sessionFromContext(ctx); ok {
+					if orgToken, err := tokens.workspaceToken(ctx, data, ws); err == nil {
 						if tokenClaims, err := verifier.ValidateToken(ctx, orgToken); err == nil {
 							if claims, err := auth.FromContext(ctx); err == nil {
 								claims.Workspaces = tokenClaims.Workspaces
@@ -380,13 +380,13 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 	if githubActionsAudience != "" {
 		ciVerifier = newGitHubActionsVerifier(githubActionsAudience)
 	}
-	registerAuthRoutes(mux, oidcProvider, store, codec, conductorClient, logtoClient, callbackURL, dashboardURL, githubAppSlug, oidcIssuer, oidcAudience, oidcCLIClientID, ciVerifier)
+	registerAuthRoutes(mux, oidcProvider, tokens, codec, conductorClient, logtoClient, callbackURL, dashboardURL, githubAppSlug, oidcIssuer, oidcAudience, oidcCLIClientID, ciVerifier)
 
 	// GraphQL endpoints
 	mux.Handle("/playground", playground.Handler("GraphQL playground", "/graphql"))
 	mux.Handle("/graphql", srv)
 
-	authMiddleware := sessionAuth(store, codec, verifier)
+	authMiddleware := sessionAuth(tokens, codec, verifier)
 
 	// TODO: Validate if CORS is even needed. Dashboard and conductor run under the same hostname.
 	corsHandler := cors.New(cors.Options{
