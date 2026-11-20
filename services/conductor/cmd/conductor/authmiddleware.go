@@ -13,10 +13,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/tenant"
 )
 
-const (
-	sessionCookieMaxAge = 30 * 24 * 3600
-	accountTokenHeader  = "X-Lucity-Account-Token"
-)
+const accountTokenHeader = "X-Lucity-Account-Token"
 
 type sessionIDContextKey struct{}
 

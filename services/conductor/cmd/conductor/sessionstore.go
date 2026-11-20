@@ -16,7 +16,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/oidc"
 )
 
-const sessionTTL = 30 * 24 * time.Hour
+const sessionTTL = 14 * 24 * time.Hour
 
 var (
 	errNoSession           = errors.New("session not found")

@@ -318,7 +318,7 @@ func main() {
 
 	secure := secureCookies(config.DashboardURL)
 	sessionStore := newSessionStore(kvstore.NewMemory[sessionValue](), oidcProvider, logtoClient)
-	sessionCodec := session.NewCodec(config.SessionSecret, sessionCookieName, secure, sessionCookieMaxAge)
+	sessionCodec := session.NewCodec(config.SessionSecret, sessionCookieName, secure, int(sessionTTL.Seconds()))
 
 	platformClient := platformK8s.New(k8sClient, dynClient)
 
