@@ -24,6 +24,7 @@ spec:
         app.kubernetes.io/part-of: lucity
         {{- include "lucity.selectorLabels" (dict "name" "buildkit" "release" .Release.Name) | nindent 8 }}
     spec:
+      terminationGracePeriodSeconds: 1800
       {{- if .Values.conductor.buildkit.userNamespaces }}
       hostUsers: false
       {{- end }}
