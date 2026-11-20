@@ -24,7 +24,7 @@ conductor:
     storageSize: 50Gi
   env:
     OIDC_ISSUER_URL: https://id.lucity.dev/oidc
-    OIDC_CLIENT_ID: tra6m86tjgolnq6ubifd0
+    OIDC_CLIENT_ID: x7e4yb5vqqx0pfwcmqly5
     OIDC_AUDIENCE: https://api.lucity.dev
     OIDC_CLI_CLIENT_ID: ifzsbmxdp02kaycalc81r
     OIDC_CALLBACK_URL: https://lucity.dev/auth/callback
@@ -71,6 +71,7 @@ conductor:
 
     DATABASE_BACKUP_ENABLED: "false"
   envSecret:
+    OIDC_CLIENT_SECRET: OIDC_CLIENT_SECRET
     STRIPE_SECRET_KEY: CONDUCTOR_STRIPE_SECRET_KEY
     SESSION_SECRET: SESSION_SECRET
     GITHUB_CLIENT_SECRET: GITHUB_CLIENT_SECRET
