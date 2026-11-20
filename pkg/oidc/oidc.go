@@ -18,6 +18,7 @@ var ErrInvalidGrant = errors.New("invalid grant")
 type Provider struct {
 	Endpoint     string
 	ClientID     string
+	ClientSecret string
 	Audience     string
 	DirectSignIn string
 	Scopes       []string
@@ -105,11 +106,16 @@ func (p *Provider) Refresh(ctx context.Context, refreshToken, resource, organiza
 }
 
 func (p *Provider) token(ctx context.Context, form url.Values) (*Tokens, error) {
-	form.Set("client_id", p.ClientID)
+	if p.ClientSecret == "" {
+		form.Set("client_id", p.ClientID)
+	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.tokenEndpoint(), strings.NewReader(form.Encode()))
 	if err != nil {
 		return nil, err
+	}
+	if p.ClientSecret != "" {
+		req.SetBasicAuth(url.QueryEscape(p.ClientID), url.QueryEscape(p.ClientSecret))
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
