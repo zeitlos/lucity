@@ -13,23 +13,20 @@ import (
 	"github.com/zeitlos/lucity/pkg/tenant"
 )
 
-const (
-	sessionCookieMaxAge = 30 * 24 * 3600
-	accountTokenHeader  = "X-Lucity-Account-Token"
-)
+const accountTokenHeader = "X-Lucity-Account-Token"
 
-type sessionIDContextKey struct{}
+type sessionContextKey struct{}
 
-func withSessionID(ctx context.Context, sid string) context.Context {
-	return context.WithValue(ctx, sessionIDContextKey{}, sid)
+func withSession(ctx context.Context, data sessionData) context.Context {
+	return context.WithValue(ctx, sessionContextKey{}, data)
 }
 
-func sessionIDFromContext(ctx context.Context) (string, bool) {
-	sid, ok := ctx.Value(sessionIDContextKey{}).(string)
-	return sid, ok
+func sessionFromContext(ctx context.Context) (sessionData, bool) {
+	data, ok := ctx.Value(sessionContextKey{}).(sessionData)
+	return data, ok
 }
 
-func sessionAuth(store *sessionStore, codec *session.Codec, verifier *auth.Verifier) func(http.Handler) http.Handler {
+func sessionAuth(tokens *sessionTokens, codec *session.Codec, verifier *auth.Verifier) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
@@ -58,8 +55,7 @@ func sessionAuth(store *sessionStore, codec *session.Codec, verifier *auth.Verif
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
-			store.ensure(ctx, data.SID, data.RefreshToken)
-			ctx = withSessionID(ctx, data.SID)
+			ctx = withSession(ctx, data)
 
 			signOut := func(err error) {
 				slog.InfoContext(ctx, "session ended; signing out", "subject", data.Sub, "error", err)
@@ -70,7 +66,7 @@ func sessionAuth(store *sessionStore, codec *session.Codec, verifier *auth.Verif
 			claims := &auth.Claims{Subject: data.Sub, Name: data.Name, Email: data.Email, AvatarURL: data.Picture}
 
 			if workspace := r.Header.Get(tenant.Header); workspace != "" {
-				orgToken, err := store.orgToken(ctx, data.SID, workspace)
+				orgToken, err := tokens.workspaceToken(ctx, data, workspace)
 				if errors.Is(err, errNoSession) {
 					signOut(err)
 					return
@@ -85,19 +81,19 @@ func sessionAuth(store *sessionStore, codec *session.Codec, verifier *auth.Verif
 				}
 			}
 
-			account, err := store.accountAPIToken(ctx, data.SID)
-			if errors.Is(err, errNoSession) {
+			if err := tokens.check(ctx, data); errors.Is(err, errNoSession) {
 				signOut(err)
 				return
 			}
-			if err == nil {
-				ctx = auth.WithToken(ctx, account)
-			}
 
-			if rotated, ok := store.refreshToken(ctx, data.SID); ok && rotated != data.RefreshToken {
-				data.RefreshToken = rotated
-				_ = codec.Save(w, data)
-			}
+			ctx = auth.WithTokenSource(ctx, func(ctx context.Context) string {
+				account, err := tokens.accountToken(ctx, data)
+				if err != nil {
+					slog.WarnContext(ctx, "account token unavailable", "subject", data.Sub, "error", err)
+					return ""
+				}
+				return account
+			})
 
 			ctx = auth.NewContext(ctx, claims)
 			next.ServeHTTP(w, r.WithContext(ctx))

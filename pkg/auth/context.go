@@ -8,13 +8,22 @@ type githubTokenContextKey struct{}
 
 // WithToken attaches a raw JWT token to the context.
 func WithToken(ctx context.Context, token string) context.Context {
-	return context.WithValue(ctx, tokenContextKey{}, token)
+	return WithTokenSource(ctx, func(context.Context) string { return token })
 }
 
-// TokenFrom extracts the raw JWT token from the context.
+// WithTokenSource attaches a function that obtains the token only when
+// TokenFrom asks for it.
+func WithTokenSource(ctx context.Context, source func(context.Context) string) context.Context {
+	return context.WithValue(ctx, tokenContextKey{}, source)
+}
+
+// TokenFrom returns the context's token, or an empty string if it has none.
 func TokenFrom(ctx context.Context) string {
-	token, _ := ctx.Value(tokenContextKey{}).(string)
-	return token
+	source, ok := ctx.Value(tokenContextKey{}).(func(context.Context) string)
+	if !ok {
+		return ""
+	}
+	return source(ctx)
 }
 
 // WithGitHubToken attaches a GitHub token to the context.

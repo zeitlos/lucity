@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
@@ -11,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/logto"
@@ -64,13 +66,13 @@ func secureCookies(dashboardURL string) bool {
 	return strings.HasPrefix(dashboardURL, "https://")
 }
 
-func registerAuthRoutes(mux *http.ServeMux, provider *oidc.Provider, store *sessionStore, codec *session.Codec, conductorClient *conductor.Client, logtoClient *logto.Client, callbackURL, dashboardURL, githubAppSlug, oidcIssuer, oidcAudience, oidcCLIClientID string, ciVerifier *githubActionsVerifier) {
+func registerAuthRoutes(mux *http.ServeMux, provider *oidc.Provider, tokens *sessionTokens, codec *session.Codec, conductorClient *conductor.Client, logtoClient *logto.Client, callbackURL, dashboardURL, githubAppSlug, oidcIssuer, oidcAudience, oidcCLIClientID string, ciVerifier *githubActionsVerifier) {
 	secure := secureCookies(dashboardURL)
 	mux.HandleFunc("/auth/config", handleAuthConfig(oidcIssuer, oidcAudience, oidcCLIClientID))
 	mux.HandleFunc("/auth/login", handleLogin(provider, callbackURL, secure))
-	mux.HandleFunc("/auth/callback", handleCallback(provider, store, codec, conductorClient, callbackURL, dashboardURL, secure))
+	mux.HandleFunc("/auth/callback", handleCallback(provider, codec, conductorClient, callbackURL, dashboardURL, secure))
 	mux.HandleFunc("/auth/me", handleMe(logtoClient))
-	mux.HandleFunc("/auth/logout", handleLogout(store, codec, dashboardURL))
+	mux.HandleFunc("/auth/logout", handleLogout(provider, tokens, codec, dashboardURL))
 	mux.HandleFunc("/auth/github/install", handleGitHubInstall(githubAppSlug))
 	mux.HandleFunc("/auth/github/setup", handleGitHubSetup(dashboardURL))
 
@@ -102,7 +104,7 @@ func handleLogin(provider *oidc.Provider, callbackURL string, secure bool) http.
 	}
 }
 
-func handleCallback(provider *oidc.Provider, store *sessionStore, codec *session.Codec, conductorClient *conductor.Client, callbackURL, dashboardURL string, secure bool) http.HandlerFunc {
+func handleCallback(provider *oidc.Provider, codec *session.Codec, conductorClient *conductor.Client, callbackURL, dashboardURL string, secure bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		stateCookie, err := r.Cookie(stateCookieName)
 		if err != nil || stateCookie.Value != r.URL.Query().Get("state") {
@@ -159,13 +161,7 @@ func handleCallback(provider *oidc.Provider, store *sessionStore, codec *session
 		}
 		clearCookie(w, bootstrapCookieName)
 
-		sid, err := store.create(r.Context(), tokens.RefreshToken)
-		if err != nil {
-			slog.Error("failed to create session", "error", err)
-			http.Error(w, "authentication failed", http.StatusInternalServerError)
-			return
-		}
-		if err := codec.Save(w, sessionData{SID: sid, Sub: info.Subject, Name: info.Name, Email: info.Email, Picture: info.Picture, RefreshToken: tokens.RefreshToken}); err != nil {
+		if err := codec.Save(w, sessionData{SID: generateSessionID(), Sub: info.Subject, Name: info.Name, Email: info.Email, Picture: info.Picture, RefreshToken: tokens.RefreshToken}); err != nil {
 			slog.Error("failed to save session", "error", err)
 			http.Error(w, "authentication failed", http.StatusInternalServerError)
 			return
@@ -217,11 +213,16 @@ func handleMe(logtoClient *logto.Client) http.HandlerFunc {
 	}
 }
 
-func handleLogout(store *sessionStore, codec *session.Codec, dashboardURL string) http.HandlerFunc {
+func handleLogout(provider *oidc.Provider, tokens *sessionTokens, codec *session.Codec, dashboardURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var data sessionData
 		if err := codec.Load(r, &data); err == nil {
-			store.delete(r.Context(), data.SID)
+			ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+			if err := provider.Revoke(ctx, data.RefreshToken); err != nil {
+				slog.WarnContext(ctx, "refresh token revocation failed", "subject", data.Sub, "error", err)
+			}
+			cancel()
+			tokens.forget(data.SID)
 		}
 		codec.Clear(w)
 
@@ -229,7 +230,7 @@ func handleLogout(store *sessionStore, codec *session.Codec, dashboardURL string
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		http.Redirect(w, r, dashboardURL+"/login", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, provider.EndSessionURL(dashboardURL+"/login"), http.StatusTemporaryRedirect)
 	}
 }
 

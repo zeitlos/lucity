@@ -6,6 +6,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { Undo2 } from '@lucide/vue';
 import { useTheme } from '@/composables/useTheme';
 import { useDiscardPrompt } from '@/composables/useUnsavedChanges';
+import { useNewVersion } from '@/composables/useNewVersion';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import GateDialog from '@/components/GateDialog.vue';
 import AnnouncementBanner from '@/components/AnnouncementBanner.vue';
@@ -13,6 +14,8 @@ import AnnouncementBanner from '@/components/AnnouncementBanner.vue';
 const { theme } = useTheme();
 const discardPrompt = useDiscardPrompt();
 const toastsClearBar = useMediaQuery('(width < 48rem)');
+
+useNewVersion();
 </script>
 
 <template>

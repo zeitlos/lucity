@@ -48,7 +48,6 @@ import (
 	"github.com/zeitlos/lucity/pkg/bunny"
 	ghpkg "github.com/zeitlos/lucity/pkg/github"
 	"github.com/zeitlos/lucity/pkg/graceful"
-	"github.com/zeitlos/lucity/pkg/kvstore"
 	"github.com/zeitlos/lucity/pkg/logger"
 	"github.com/zeitlos/lucity/pkg/logto"
 	"github.com/zeitlos/lucity/pkg/oidc"
@@ -75,6 +74,7 @@ type Config struct {
 	OIDCIssuerURL    string `envconfig:"OIDC_ISSUER_URL" required:"true"`
 	OIDCDiscoveryURL string `envconfig:"OIDC_DISCOVERY_URL"`
 	OIDCClientID     string `envconfig:"OIDC_CLIENT_ID" required:"true"`
+	OIDCClientSecret string `envconfig:"OIDC_CLIENT_SECRET" required:"true"`
 	OIDCCallbackURL  string `envconfig:"OIDC_CALLBACK_URL" default:"http://localhost:8080/auth/callback"`
 	OIDCAudience     string `envconfig:"OIDC_AUDIENCE"`
 	OIDCCLIClientID  string `envconfig:"OIDC_CLI_CLIENT_ID"`
@@ -251,6 +251,7 @@ func main() {
 	oidcProvider := &oidc.Provider{
 		Endpoint:     strings.TrimSuffix(config.OIDCIssuerURL, "/oidc"),
 		ClientID:     config.OIDCClientID,
+		ClientSecret: config.OIDCClientSecret,
 		Audience:     apiAudience,
 		DirectSignIn: directSignIn,
 		Scopes:       loginScopes,
@@ -315,8 +316,8 @@ func main() {
 	loadBalancerHostname := "lb." + config.WorkloadDomain
 
 	secure := secureCookies(config.DashboardURL)
-	sessionStore := newSessionStore(kvstore.NewMemory[sessionValue](), oidcProvider, logtoClient)
-	sessionCodec := session.NewCodec(config.SessionSecret, sessionCookieName, secure, sessionCookieMaxAge)
+	sessionTokens := newSessionTokens(oidcProvider, logtoClient)
+	sessionCodec := session.NewCodec(config.SessionSecret, sessionCookieName, secure, int(sessionTTL.Seconds()))
 
 	platformClient := platformK8s.New(k8sClient, dynClient)
 
@@ -594,7 +595,7 @@ func main() {
 		githubActionsAudience = originFromURL(config.OIDCCallbackURL)
 	}
 
-	graphqlServer := NewGraphQLServer(config.Port, conductor, oidcProvider, sessionStore, sessionCodec, verifier, logtoClient, config.OIDCCallbackURL, config.DashboardURL, config.GitHubAppSlug, githubActionsAudience, config.OIDCIssuerURL, apiAudience, config.OIDCCLIClientID)
+	graphqlServer := NewGraphQLServer(config.Port, conductor, oidcProvider, sessionTokens, sessionCodec, verifier, logtoClient, config.OIDCCallbackURL, config.DashboardURL, config.GitHubAppSlug, githubActionsAudience, config.OIDCIssuerURL, apiAudience, config.OIDCCLIClientID)
 
 	servers := []graceful.Server{graphqlServer, metricsHTTP.NewServer(config.MetricsPort, registry)}
 
