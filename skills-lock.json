@@ -1,105 +1,112 @@
 {
-  "version": 1,
+  "version": 2,
   "skills": {
     "ai-seo": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
-      "computedHash": "5f7ce5ccdb2b0dce5e1ea7f3ed8bf17070b790865e91725ca8908e6ec829e164"
+      "computedHash": "7d78508471dc875630568a90d4737f59ef763c0c0691752a8cae5bfe8eaa482e"
     },
     "competitor-alternatives": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
-      "computedHash": "bbaf0d378114c7f1581ec63218c9061da983afc1e30887af69ba6ce7ce9cd4c1"
+      "computedHash": "08b1ad4e5f59fd6bc20757570324622fec873724a3bf69aa07c15cfe1fcf9953"
     },
     "content-strategy": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
-      "computedHash": "c07914262b7fb32e0a379fd5b8b2d0dc92078c543af2d0914006f2e1d61bc1b4"
+      "computedHash": "e5313afcbd80629d6829748f1e3a1ae2b401ad4d3022d46a3337c7d60dc4da3c"
     },
     "copy-editing": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
-      "computedHash": "3c6241215420e69b36814270a47413b2de9593b5516f5942b7481092f6c63382"
+      "computedHash": "c22557324b6da577dad64a9803c1d42be9d053876dac773f329a68834d700b75"
     },
     "copywriting": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
-      "computedHash": "2e83eda2221e97166172a0798e9b0379e34080595e107e2fc0cf580e9b3bbf7b"
+      "computedHash": "ace5eac36a584f4d66fab8b8b6d0a3c1b6b171100bac5ca8443528da1a3487bb"
     },
     "create-docs": {
       "source": "nuxt-content/docus",
       "sourceType": "github",
-      "computedHash": "3c6d7d6f6084ff5ebbd59fe8b348f99bced0d303da45cd61069a0f6dac8199f6"
+      "computedHash": "3855ebd71cd7eff5132aa2b8d244b4f9a41c96eb2fa20769441256b6689439e7"
     },
     "launch-strategy": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
-      "computedHash": "5d74a25820c4f36d58dd90bafa2f3bfe0350806b699d6a16d2afad53ec7a02fe"
+      "computedHash": "8741f38712efdbcc8529a8838f3c638b8857552810b74a44e0efeda262704320"
     },
     "marketing-ideas": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
-      "computedHash": "6463f11419704994d58248c398b99c6b097eac24f72f4c86bea1565e435e222e"
+      "computedHash": "1e21872d978e37aa83f4e343c8c28787287d6f586cce0eb972e66a03ada8255f"
     },
     "marketing-psychology": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
-      "computedHash": "ddec844d01d102687f89749e1d3a9f7a9019010dce1039a7d442189f39726ad4"
+      "computedHash": "f53f7a50b469311c6922df0aa7aa0c41219dbcf8cb8c97d799d9886a51804423"
     },
     "onboarding-cro": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
-      "computedHash": "9d935c024e0768c8b805852fbf9419c2e8c56be2b9e62e89d43a390008bd1229"
+      "computedHash": "c1225024c57b0c77476fc4db0167295d342dfb86c1db859934fdb198d3cfd1cc"
     },
     "page-cro": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
-      "computedHash": "9505748dba2319487b285f8ab8c1e5417fce38a512d596e1c9e2e87b34b196e1"
+      "computedHash": "fef49d21c2682178871ce26ca81bb0779e79503f7c51cb190dae01ddf7131376"
     },
     "pricing-strategy": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
-      "computedHash": "4312095789cc328883428b1f9bd61549ca44b376aeda8d62bb977efad017e594"
+      "computedHash": "bdc6629320c8e81c566f217771cbc5c76d4d0d78b6acbc58aef55df5ae99c381"
     },
     "product-marketing-context": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
-      "computedHash": "21dd05f970ba54406d7405f92240853f809d0fed09ef6ca2a9204abcdd21548a"
+      "computedHash": "07af1dd065ef764af9645d364cbe6740e0a6b0e55e890e7de14c4721b4a85126"
     },
     "programmatic-seo": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
-      "computedHash": "40b8fe29a6c9cb0606e6fa77aff227cf275e3808adf66e5ef69e02dcf60a7303"
+      "computedHash": "f7256715cf5e90c3d6481dfaaeaf1409350346954936df47da23c9958e29095b"
+    },
+    "security-audit": {
+      "source": "cloudflare/security-audit-skill",
+      "commit": "c1c8a8c1471069fb0e188eeaff69b8e8db6564a8",
+      "sourceType": "github",
+      "skillPath": "skills/security-audit/SKILL.md",
+      "computedHash": "8513eb3b2c39b8d05ef4f47b32ef4d18280b93a5efb91d8df6272f7435034af5"
     },
     "seo-audit": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
-      "computedHash": "ec3109d213dde1747614ad1112ef0e498e04b24e464538968e156dfbfadb2121"
+      "computedHash": "270298e829b26b8d84f164242f7983112cefb4b8a19556e1cb2652a1263aff00"
     },
     "signup-flow-cro": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
-      "computedHash": "8c4b9ce342ccb721eed9a4c1eb0d1ea647e5f1a77db8609509181c62636acf61"
+      "computedHash": "4d5bd9397adb6eb6eb976f6031a43e81f7fe9d933ebf8099741ca3ed365a9249"
     },
     "site-architecture": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
-      "computedHash": "4cdfd1ba49925184462a7524586a5ec0b127668498e7bf2972ef0d4c112e9585"
+      "computedHash": "3fb18e155d6fa0b102a42302242f82fd55659a992c2dfbfa8b89a9ebd2b04576"
     },
     "social-content": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
-      "computedHash": "85ffbc05cf88939ba3ff643a315928185af16181470349dfbaad2880047c9900"
+      "computedHash": "0c236d7745db3ca9e1cb871e7bed713c8d16646f02f2d5942f97a6fb0ee241be"
     },
     "stripe-best-practices": {
       "source": "docs.stripe.com",
       "sourceType": "well-known",
-      "computedHash": "7b886129e39257cd1c3b885cb7e5bdcb04973598acc421fb7418c32fb1690dc2"
+      "computedHash": ""
     },
     "upgrade-stripe": {
       "source": "docs.stripe.com",
       "sourceType": "well-known",
-      "computedHash": "32fe96a1d9933d2d0a1bb99c8328b01284b018dcbae850f069556c82c07b8c7e"
+      "computedHash": "5da00464d86fcddeb336b5b100aa44c0ff481d5386f7f8663ff50ef631cf8290"
     }
   }
 }
