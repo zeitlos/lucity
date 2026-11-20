@@ -6,6 +6,16 @@ metadata:
   labels:
     {{- include "lucity.labels" . | nindent 4 }}
     app.kubernetes.io/component: conductor
+{{- if .Values.stagehand.enabled }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "lucity.fullname" . }}-stagehand
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+    app.kubernetes.io/component: stagehand
+{{- end }}
 ---
 # Cluster-wide permissions: conductor manages workload namespaces and
 # the resources living inside them across the cluster. Inherited from
@@ -94,6 +104,11 @@ subjects:
   - kind: ServiceAccount
     name: {{ include "lucity.fullname" . }}-conductor
     namespace: {{ .Release.Namespace }}
+  {{- if .Values.stagehand.enabled }}
+  - kind: ServiceAccount
+    name: {{ include "lucity.fullname" . }}-stagehand
+    namespace: {{ .Release.Namespace }}
+  {{- end }}
 ---
 # Namespace-scoped permissions in lucity-builds: conductor creates
 # build Jobs and reads their pods/logs.
@@ -127,6 +142,11 @@ subjects:
   - kind: ServiceAccount
     name: {{ include "lucity.fullname" . }}-conductor
     namespace: {{ .Release.Namespace }}
+  {{- if .Values.stagehand.enabled }}
+  - kind: ServiceAccount
+    name: {{ include "lucity.fullname" . }}-stagehand
+    namespace: {{ .Release.Namespace }}
+  {{- end }}
 ---
 # Namespace-scoped permissions in the platform namespace: conductor
 # creates deploy Jobs (which run the conductor image's run-deploy
@@ -158,3 +178,8 @@ subjects:
   - kind: ServiceAccount
     name: {{ include "lucity.fullname" . }}-conductor
     namespace: {{ .Release.Namespace }}
+  {{- if .Values.stagehand.enabled }}
+  - kind: ServiceAccount
+    name: {{ include "lucity.fullname" . }}-stagehand
+    namespace: {{ .Release.Namespace }}
+  {{- end }}

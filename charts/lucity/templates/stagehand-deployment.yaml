@@ -39,7 +39,7 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "lucity.fullname" . }}-conductor
+      serviceAccountName: {{ include "lucity.fullname" . }}-stagehand
       securityContext:
         runAsNonRoot: true
         runAsUser: 65534
