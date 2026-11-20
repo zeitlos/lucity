@@ -171,6 +171,18 @@ function takeReturn(): string | null {
 }
 
 router.beforeEach(async (to) => {
+  if (to.name === 'login' && !to.query.error) {
+    const { isAuthenticated, fetchUser, activeWorkspace } = useAuth();
+
+    await fetchUser();
+
+    if (isAuthenticated.value && activeWorkspace.value) {
+      return { path: '/' };
+    }
+
+    return;
+  }
+
   if (!to.meta.requiresAuth) return;
 
   const { isAuthenticated, loading, fetchUser, activeWorkspace } = useAuth();
