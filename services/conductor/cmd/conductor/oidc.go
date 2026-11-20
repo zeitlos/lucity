@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
@@ -11,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/logto"
@@ -70,7 +72,7 @@ func registerAuthRoutes(mux *http.ServeMux, provider *oidc.Provider, store *sess
 	mux.HandleFunc("/auth/login", handleLogin(provider, callbackURL, secure))
 	mux.HandleFunc("/auth/callback", handleCallback(provider, store, codec, conductorClient, callbackURL, dashboardURL, secure))
 	mux.HandleFunc("/auth/me", handleMe(logtoClient))
-	mux.HandleFunc("/auth/logout", handleLogout(store, codec, dashboardURL))
+	mux.HandleFunc("/auth/logout", handleLogout(provider, store, codec, dashboardURL))
 	mux.HandleFunc("/auth/github/install", handleGitHubInstall(githubAppSlug))
 	mux.HandleFunc("/auth/github/setup", handleGitHubSetup(dashboardURL))
 
@@ -217,10 +219,15 @@ func handleMe(logtoClient *logto.Client) http.HandlerFunc {
 	}
 }
 
-func handleLogout(store *sessionStore, codec *session.Codec, dashboardURL string) http.HandlerFunc {
+func handleLogout(provider *oidc.Provider, store *sessionStore, codec *session.Codec, dashboardURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var data sessionData
 		if err := codec.Load(r, &data); err == nil {
+			ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+			if err := provider.Revoke(ctx, data.RefreshToken); err != nil {
+				slog.WarnContext(ctx, "refresh token revocation failed", "subject", data.Sub, "error", err)
+			}
+			cancel()
 			store.delete(r.Context(), data.SID)
 		}
 		codec.Clear(w)
@@ -229,7 +236,7 @@ func handleLogout(store *sessionStore, codec *session.Codec, dashboardURL string
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		http.Redirect(w, r, dashboardURL+"/login", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, provider.EndSessionURL(dashboardURL+"/login"), http.StatusTemporaryRedirect)
 	}
 }
 

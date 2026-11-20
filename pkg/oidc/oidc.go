@@ -57,6 +57,12 @@ func (p *Provider) httpClient() *http.Client {
 func (p *Provider) authEndpoint() string     { return strings.TrimRight(p.Endpoint, "/") + "/oidc/auth" }
 func (p *Provider) tokenEndpoint() string    { return strings.TrimRight(p.Endpoint, "/") + "/oidc/token" }
 func (p *Provider) userInfoEndpoint() string { return strings.TrimRight(p.Endpoint, "/") + "/oidc/me" }
+func (p *Provider) revocationEndpoint() string {
+	return strings.TrimRight(p.Endpoint, "/") + "/oidc/token/revocation"
+}
+func (p *Provider) endSessionEndpoint() string {
+	return strings.TrimRight(p.Endpoint, "/") + "/oidc/session/end"
+}
 
 func (p *Provider) AuthCodeURL(redirectURI, state, challenge string) string {
 	query := url.Values{
@@ -105,12 +111,43 @@ func (p *Provider) Refresh(ctx context.Context, refreshToken, resource, organiza
 	return p.token(ctx, form)
 }
 
-func (p *Provider) token(ctx context.Context, form url.Values) (*Tokens, error) {
+// EndSessionURL is where the browser ends its session at the provider, which
+// then sends it on to postLogoutRedirectURI.
+func (p *Provider) EndSessionURL(postLogoutRedirectURI string) string {
+	query := url.Values{
+		"client_id":                {p.ClientID},
+		"post_logout_redirect_uri": {postLogoutRedirectURI},
+	}
+	return p.endSessionEndpoint() + "?" + query.Encode()
+}
+
+// Revoke invalidates a refresh token at the provider. A token that is already
+// invalid counts as revoked.
+func (p *Provider) Revoke(ctx context.Context, refreshToken string) error {
+	form := url.Values{
+		"token":           {refreshToken},
+		"token_type_hint": {"refresh_token"},
+	}
+
+	resp, err := p.post(ctx, p.revocationEndpoint(), form)
+	if err != nil {
+		return fmt.Errorf("revocation request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		payload, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+		return fmt.Errorf("revocation request returned %d: %s", resp.StatusCode, strings.TrimSpace(string(payload)))
+	}
+	return nil
+}
+
+func (p *Provider) post(ctx context.Context, endpoint string, form url.Values) (*http.Response, error) {
 	if p.ClientSecret == "" {
 		form.Set("client_id", p.ClientID)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.tokenEndpoint(), strings.NewReader(form.Encode()))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(form.Encode()))
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +157,11 @@ func (p *Provider) token(ctx context.Context, form url.Values) (*Tokens, error) 
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
 
-	resp, err := p.httpClient().Do(req)
+	return p.httpClient().Do(req)
+}
+
+func (p *Provider) token(ctx context.Context, form url.Values) (*Tokens, error) {
+	resp, err := p.post(ctx, p.tokenEndpoint(), form)
 	if err != nil {
 		return nil, fmt.Errorf("token request failed: %w", err)
 	}
