@@ -276,7 +276,6 @@ func (c *Client) newBuildJob(id string, opts buildjob.StartOptions, repoURL url.
 								core.ResourceMemory: resource.MustParse("128Mi"),
 							},
 							Limits: core.ResourceList{
-								core.ResourceCPU:    resource.MustParse("2"),
 								core.ResourceMemory: resource.MustParse("4Gi"),
 							},
 						},
