@@ -800,6 +800,7 @@ const scalingSummary = computed(() => {
     return `${svc.autoscaling.minReplicas}–${svc.autoscaling.maxReplicas} replicas · autoscaling`;
   }
   const r = svc.replicas.desired ?? 1;
+  if (r === 0) return 'Stopped';
   return `${r} replica${r !== 1 ? 's' : ''} · manual`;
 });
 
@@ -1745,8 +1746,8 @@ async function handleRemoveService() {
                       label="Fewer replicas"
                       variant="outline"
                       class="shrink-0"
-                      :disabled="autoscalingEnabled || scalingReplicas <= 1"
-                      @click="scalingReplicas = clamp(scalingReplicas - 1, 1, replicaMax)"
+                      :disabled="autoscalingEnabled || scalingReplicas <= 0"
+                      @click="scalingReplicas = clamp(scalingReplicas - 1, 0, replicaMax)"
                     >
                       <Minus />
                     </IconButton>
@@ -1754,17 +1755,17 @@ async function handleRemoveService() {
                       v-model.number="scalingReplicas"
                       type="number"
                       class="h-8 w-16 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                      :min="1"
+                      :min="0"
                       :max="replicaMax"
-                      :disabled="autoscalingEnabled || !!mountedVolume"
-                      @blur="scalingReplicas = clamp(scalingReplicas, 1, replicaMax)"
+                      :disabled="autoscalingEnabled"
+                      @blur="scalingReplicas = clamp(scalingReplicas, 0, replicaMax)"
                     />
                     <IconButton
                       label="More replicas"
                       variant="outline"
                       class="shrink-0"
                       :disabled="autoscalingEnabled || scalingReplicas >= replicaMax"
-                      @click="scalingReplicas = clamp(scalingReplicas + 1, 1, replicaMax)"
+                      @click="scalingReplicas = clamp(scalingReplicas + 1, 0, replicaMax)"
                     >
                       <Plus />
                     </IconButton>
@@ -1772,8 +1773,11 @@ async function handleRemoveService() {
                   <p v-if="autoscalingEnabled" class="text-xs text-muted-foreground">
                     Managed by autoscaler.
                   </p>
+                  <p v-else-if="scalingReplicas === 0" class="text-xs text-muted-foreground">
+                    Stops the service. Its volumes, variables and domains stay.
+                  </p>
                   <p v-else-if="mountedVolume" class="text-xs text-muted-foreground">
-                    Runs a single replica while volume "{{ mountedVolume.name }}" is mounted.
+                    Runs at most one replica while volume "{{ mountedVolume.name }}" is mounted.
                   </p>
                 </div>
 

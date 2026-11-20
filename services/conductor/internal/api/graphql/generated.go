@@ -39179,7 +39179,7 @@ func (ec *executionContext) unmarshalInputSetServiceScalingInput(ctx context.Con
 			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNInt2int(ctx, v) }
 
 			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=20")
+				constraint, err := ec.unmarshalNString2string(ctx, "min=0,max=20")
 				if err != nil {
 					var zeroVal int
 					return zeroVal, err

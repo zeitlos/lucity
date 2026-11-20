@@ -209,7 +209,7 @@ func Validate(env *Env, workspace, registry string) error {
 			return usererror.Errorf("service %q: port must be in [0, 65535]", svcName)
 		}
 
-		if svc.Replicas < 0 {
+		if svc.Replicas != nil && *svc.Replicas < 0 {
 			return usererror.Errorf("service %q: replicas must be non-negative", svcName)
 		}
 
@@ -270,7 +270,7 @@ func Validate(env *Env, workspace, registry string) error {
 		}
 
 		if len(svc.VolumeMounts) > 0 {
-			if svc.Replicas > 1 {
+			if svc.Replicas != nil && *svc.Replicas > 1 {
 				return usererror.Errorf("service %q mounts a volume and cannot scale beyond a single replica", svcName)
 			}
 

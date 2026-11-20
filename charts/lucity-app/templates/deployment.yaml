@@ -22,7 +22,7 @@ spec:
   {{- else if and (not $svc.image.tag) (not $svc.image.digest) }}
   replicas: 0
   {{- else if not (and $svc.autoscaling $svc.autoscaling.enabled) }}
-  replicas: {{ $svc.replicas | default 1 }}
+  replicas: {{ hasKey $svc "replicas" | ternary $svc.replicas 1 }}
   {{- end }}
   {{- if $svc.volumeMounts }}
   strategy:

@@ -13072,7 +13072,7 @@
           },
           {
             "name": "setServiceScaling",
-            "description": "Runs a fixed number of `replicas`, or with `autoscaling` enabled, scales between a minimum and a maximum to hold CPU at the target percentage. A service with a mounted volume runs a single instance.",
+            "description": "Runs a fixed number of `replicas`, or with `autoscaling` enabled, scales between a minimum and a maximum to hold CPU at the target percentage. Zero `replicas` stops the service until it is scaled up again; its volumes, variables and domains stay. A service with a mounted volume runs a single instance.",
             "args": [
               {
                 "name": "input",
