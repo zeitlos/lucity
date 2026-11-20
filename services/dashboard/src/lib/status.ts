@@ -16,20 +16,33 @@ import {
 
 export type StatusTone = 'ok' | 'warn' | 'danger' | 'progress' | 'neutral';
 
+export type StatusGlyph =
+  | 'online'
+  | 'degraded'
+  | 'failed'
+  | 'stopped'
+  | 'idle'
+  | 'dot'
+  | 'unknown'
+  | 'snake'
+  | 'ripple'
+  | 'build';
+
 export interface StatusView {
   tone: StatusTone;
   label: string;
+  glyph?: StatusGlyph;
 }
 
-const unknown: StatusView = { tone: 'neutral', label: 'Unknown' };
+const unknown: StatusView = { tone: 'neutral', label: 'Unknown', glyph: 'unknown' };
 
 const service: Record<ServiceStatus, StatusView> = {
-  [ServiceStatus.Healthy]: { tone: 'ok', label: 'Online' },
-  [ServiceStatus.Building]: { tone: 'progress', label: 'Building' },
-  [ServiceStatus.Deploying]: { tone: 'progress', label: 'Deploying' },
-  [ServiceStatus.Degraded]: { tone: 'warn', label: 'Degraded' },
-  [ServiceStatus.Failed]: { tone: 'danger', label: 'Failed' },
-  [ServiceStatus.Stopped]: { tone: 'neutral', label: 'Stopped' },
+  [ServiceStatus.Healthy]: { tone: 'ok', label: 'Online', glyph: 'online' },
+  [ServiceStatus.Building]: { tone: 'progress', label: 'Building', glyph: 'build' },
+  [ServiceStatus.Deploying]: { tone: 'progress', label: 'Deploying', glyph: 'snake' },
+  [ServiceStatus.Degraded]: { tone: 'warn', label: 'Degraded', glyph: 'degraded' },
+  [ServiceStatus.Failed]: { tone: 'danger', label: 'Failed', glyph: 'failed' },
+  [ServiceStatus.Stopped]: { tone: 'neutral', label: 'Stopped', glyph: 'stopped' },
 };
 
 const instance: Record<ServiceInstanceState, StatusView> = {
@@ -40,18 +53,18 @@ const instance: Record<ServiceInstanceState, StatusView> = {
 };
 
 const database: Record<DatabaseStatus, StatusView> = {
-  [DatabaseStatus.Healthy]: { tone: 'ok', label: 'Online' },
-  [DatabaseStatus.Pending]: { tone: 'progress', label: 'Starting' },
-  [DatabaseStatus.Updating]: { tone: 'progress', label: 'Updating' },
-  [DatabaseStatus.Degraded]: { tone: 'warn', label: 'Degraded' },
-  [DatabaseStatus.Failed]: { tone: 'danger', label: 'Failed' },
-  [DatabaseStatus.Stopped]: { tone: 'neutral', label: 'Stopped' },
+  [DatabaseStatus.Healthy]: { tone: 'ok', label: 'Online', glyph: 'online' },
+  [DatabaseStatus.Pending]: { tone: 'progress', label: 'Starting', glyph: 'ripple' },
+  [DatabaseStatus.Updating]: { tone: 'progress', label: 'Updating', glyph: 'snake' },
+  [DatabaseStatus.Degraded]: { tone: 'warn', label: 'Degraded', glyph: 'degraded' },
+  [DatabaseStatus.Failed]: { tone: 'danger', label: 'Failed', glyph: 'failed' },
+  [DatabaseStatus.Stopped]: { tone: 'neutral', label: 'Stopped', glyph: 'stopped' },
 };
 
 const bucket: Record<BucketStatus, StatusView> = {
-  [BucketStatus.Ready]: { tone: 'ok', label: 'Online' },
-  [BucketStatus.Pending]: { tone: 'progress', label: 'Provisioning' },
-  [BucketStatus.Failed]: { tone: 'danger', label: 'Failed' },
+  [BucketStatus.Ready]: { tone: 'ok', label: 'Online', glyph: 'online' },
+  [BucketStatus.Pending]: { tone: 'progress', label: 'Provisioning', glyph: 'build' },
+  [BucketStatus.Failed]: { tone: 'danger', label: 'Failed', glyph: 'failed' },
 };
 
 export type JobState = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'skipped';
@@ -82,11 +95,11 @@ const subscription: Record<SubscriptionStatus, StatusView> = {
 };
 
 const agent: Record<AgentStatus, StatusView> = {
-  [AgentStatus.Starting]: { tone: 'progress', label: 'Starting' },
-  [AgentStatus.Idle]: { tone: 'neutral', label: 'Idle' },
-  [AgentStatus.Working]: { tone: 'progress', label: 'Working' },
-  [AgentStatus.WaitingForApproval]: { tone: 'progress', label: 'Working' },
-  [AgentStatus.Failed]: { tone: 'danger', label: 'Failed' },
+  [AgentStatus.Starting]: { tone: 'progress', label: 'Starting', glyph: 'ripple' },
+  [AgentStatus.Idle]: { tone: 'neutral', label: 'Idle', glyph: 'idle' },
+  [AgentStatus.Working]: { tone: 'progress', label: 'Working', glyph: 'snake' },
+  [AgentStatus.WaitingForApproval]: { tone: 'progress', label: 'Working', glyph: 'snake' },
+  [AgentStatus.Failed]: { tone: 'danger', label: 'Failed', glyph: 'failed' },
 };
 
 const agentSession: Record<AgentSessionStatus, StatusView> = {

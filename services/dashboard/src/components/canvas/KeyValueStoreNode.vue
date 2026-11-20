@@ -61,7 +61,7 @@ const status = computed(() => databaseStatus(props.data.status));
       <div class="grow basis-3" />
       <!-- Status row -->
       <div class="mt-1 flex items-center justify-between border-t border-border/50 pt-4">
-        <Status :tone="status.tone" size="sm">{{ status.label }}</Status>
+        <Status :tone="status.tone" :glyph="status.glyph" size="sm">{{ status.label }}</Status>
         <span class="text-xs text-muted-foreground tabular-nums">{{ formatStorage(data.size) }}</span>
       </div>
     </div>

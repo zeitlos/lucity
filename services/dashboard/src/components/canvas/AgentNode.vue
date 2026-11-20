@@ -72,7 +72,7 @@ const waiting = computed(() => props.data.status === AgentStatus.WaitingForAppro
 
       <div class="grow basis-3" />
       <div class="mt-1 flex items-center justify-between gap-3 border-t border-border/50 pt-4">
-        <Status :tone="status.tone" size="sm">{{ status.label }}</Status>
+        <Status :tone="status.tone" :glyph="status.glyph" size="sm">{{ status.label }}</Status>
         <div v-if="data.connectors.length" class="flex min-w-0 items-center -space-x-1">
           <Tooltip v-for="connector in data.connectors" :key="connector">
             <TooltipTrigger as-child>

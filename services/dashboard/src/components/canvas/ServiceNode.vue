@@ -55,7 +55,7 @@ const isFromRepo = computed(() => !!props.data.sourceUrl);
 const gitMask = `url("${devicon('git')}")`;
 
 const status = computed(() => (props.data.activeReleasePhase && !props.data.live
-  ? { tone: 'neutral' as const, label: 'Not live yet' }
+  ? { tone: 'neutral' as const, label: 'Not live yet', glyph: 'dot' as const }
   : serviceStatus(props.data.status)));
 
 const logsPanel = useBuildLogsPanel();
@@ -230,7 +230,7 @@ const hostUrl = computed(() => {
       <div class="grow basis-3" />
       <!-- Status row -->
       <div class="mt-1 flex items-center justify-between border-t border-border/50 pt-4">
-        <Status :tone="status.tone" size="sm">{{ status.label }}</Status>
+        <Status :tone="status.tone" :glyph="status.glyph" size="sm">{{ status.label }}</Status>
       </div>
 
       <!-- Vue Flow handles (invisible, for potential edges) -->
