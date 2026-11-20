@@ -188,7 +188,8 @@ func (c *Client) Reconcile(ctx context.Context) error {
 			}
 
 			if err := c.resume(ctx, r, builder); err != nil {
-				return fmt.Errorf("resume partially admitted run %q: %w", r.key, err)
+				slog.Warn("failed to resume partially admitted run", "run", r.key, "error", err)
+				continue
 			}
 
 			if builder != "" {
@@ -232,7 +233,8 @@ func (c *Client) Reconcile(ctx context.Context) error {
 		}
 
 		if err := c.resume(ctx, candidate, builder); err != nil {
-			return fmt.Errorf("admit run %q: %w", candidate.key, err)
+			slog.Warn("failed to admit run", "run", candidate.key, "error", err)
+			continue
 		}
 
 		active++
