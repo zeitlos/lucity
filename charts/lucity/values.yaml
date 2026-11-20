@@ -106,7 +106,6 @@ conductor:
         cpu: 500m
         memory: 2Gi
       limits:
-        cpu: "4"
         memory: 4Gi
     # -- Scheduling for BuildKit and the build and scan Jobs
     nodeSelector: {}
