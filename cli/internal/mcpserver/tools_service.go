@@ -186,7 +186,7 @@ type configureServiceInput struct {
 	Service      string  `json:"service" jsonschema:"service id (workspace/project/environment/service)"`
 	StartCommand *string `json:"start_command,omitempty" jsonschema:"command the service starts with, replacing the image's entrypoint and command. Split into words like a shell would but run without one, so it works on images without a shell: write variables as $(PORT), not $PORT, and wrap shell features in sh -c '...', e.g. sh -c 'npm run migrate && exec npm start'. An empty string goes back to the default"`
 	Port         *int    `json:"port,omitempty" jsonschema:"container port (1-65535)"`
-	Replicas     *int    `json:"replicas,omitempty" jsonschema:"desired replica count (1-20)"`
+	Replicas     *int    `json:"replicas,omitempty" jsonschema:"desired replica count (0-20), 0 stops the service and keeps its volumes, variables and domains"`
 	CPU          string  `json:"cpu,omitempty" jsonschema:"CPU request as a Kubernetes quantity (e.g. 500m)"`
 	Memory       string  `json:"memory,omitempty" jsonschema:"memory request as a Kubernetes quantity (e.g. 512Mi)"`
 	User         *int    `json:"user,omitempty" jsonschema:"run-as user id (0-65535) for image-based services; the same id owns mounted volumes; -1 clears it back to the image default. Rejected for source builds"`

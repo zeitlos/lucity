@@ -15,7 +15,7 @@ import (
 type Service struct {
 	Image          ImageRef             `yaml:"image"`
 	Port           int                  `yaml:"port,omitempty"`
-	Replicas       int                  `yaml:"replicas,omitempty"`
+	Replicas       *int                 `yaml:"replicas,omitempty"`
 	Autoscaling    *Autoscaling         `yaml:"autoscaling,omitempty"`
 	Resources      Resources            `yaml:"resources,omitempty"`
 	Domains        []Domain             `yaml:"domains,omitempty"`
@@ -226,7 +226,7 @@ func setOrDelete(m map[string]string, key, value string) {
 
 func SetServiceReplicas(env *Env, name string, replicas int) error {
 	return mutateService(env, name, func(s *Service) {
-		s.Replicas = replicas
+		s.Replicas = &replicas
 		s.Autoscaling = nil
 	})
 }

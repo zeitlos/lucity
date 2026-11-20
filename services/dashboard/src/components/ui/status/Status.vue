@@ -10,7 +10,7 @@ export const statusVariants = cva(
         warn: '[&_.status-dot]:text-status-warn',
         danger: '[&_.status-dot]:text-status-danger',
         progress: '[&_.status-dot]:text-status-progress',
-        neutral: '[&_.status-dot]:text-status-neutral [&_.status-dot]:shadow-none',
+        neutral: '[&_.status-dot]:text-status-neutral',
       },
       variant: {
         pill: 'rounded-full border border-border bg-muted font-medium text-muted-foreground',
@@ -40,20 +40,33 @@ type StatusVariants = VariantProps<typeof statusVariants>;
 </script>
 
 <script setup lang="ts">
-import type { HTMLAttributes } from 'vue';
+import { computed, type HTMLAttributes } from 'vue';
 import { cn } from '@/lib/utils';
+import type { StatusGlyph as Glyph, StatusTone } from '@/lib/status';
+import StatusGlyph from './StatusGlyph.vue';
 
 const props = defineProps<{
   class?: HTMLAttributes['class'];
   tone?: StatusVariants['tone'];
   variant?: StatusVariants['variant'];
   size?: StatusVariants['size'];
+  glyph?: Glyph;
 }>();
+
+const toneGlyphs: Record<StatusTone, Glyph> = {
+  ok: 'online',
+  warn: 'degraded',
+  danger: 'failed',
+  progress: 'snake',
+  neutral: 'dot',
+};
+
+const resolvedGlyph = computed(() => props.glyph ?? toneGlyphs[props.tone ?? 'neutral']);
 </script>
 
 <template>
   <div :class="cn(statusVariants({ tone, variant, size }), props.class)">
-    <span v-if="variant !== 'text'" class="status-dot size-1.5 shrink-0 rounded-full bg-current shadow-glow" />
+    <StatusGlyph v-if="variant !== 'text'" :glyph="resolvedGlyph" :glow="(tone ?? 'neutral') !== 'neutral'" class="status-dot" />
     <slot />
   </div>
 </template>

@@ -153,7 +153,7 @@ input AddServiceInput {
 
 input SetServiceScalingInput {
   service: ServiceID!
-  replicas: Int! @constraint(constraint: "min=1,max=20")
+  replicas: Int! @constraint(constraint: "min=0,max=20")
   autoscaling: AutoscalingInput
 }
 
@@ -211,7 +211,7 @@ extend type Mutation {
   setServicePort(service: ServiceID!, port: Int @constraint(constraint: "min=1,max=65535")): Service! @hasRole(role: WORKSPACE_MEMBER)
   """Sets an HTTP health check on a path. Leave it out to go back to checking that the port accepts connections."""
   setServiceHealthCheck(service: ServiceID!, healthCheck: HealthCheckInput): Service! @hasRole(role: WORKSPACE_MEMBER)
-  """Runs a fixed number of `replicas`, or with `autoscaling` enabled, scales between a minimum and a maximum to hold CPU at the target percentage. A service with a mounted volume runs a single instance."""
+  """Runs a fixed number of `replicas`, or with `autoscaling` enabled, scales between a minimum and a maximum to hold CPU at the target percentage. Zero `replicas` stops the service until it is scaled up again; its volumes, variables and domains stay. A service with a mounted volume runs a single instance."""
   setServiceScaling(input: SetServiceScalingInput!): Service! @hasRole(role: WORKSPACE_MEMBER)
   """Sets the CPU and memory of a service, within the limits in `Workspace.capabilities`. The service rolls out again on the image it is already running."""
   setServiceResources(service: ServiceID!, resources: ResourcesInput!): Service! @hasRole(role: WORKSPACE_MEMBER)
