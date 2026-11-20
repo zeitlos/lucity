@@ -226,4 +226,36 @@ router.afterEach(() => {
   apolloClient.resetStore();
 });
 
+const reloadKey = 'lucity_stale_reload';
+const staleModule = /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|Unable to preload CSS/;
+
+let pendingPath: string | null = null;
+
+router.beforeEach((to) => {
+  pendingPath = router.resolve(to).href;
+});
+
+router.afterEach(() => {
+  pendingPath = null;
+});
+
+function reloadOnce(path: string) {
+  try {
+    const last = Number(sessionStorage.getItem(reloadKey) ?? 0);
+    if (Date.now() - last < 10_000) return;
+    sessionStorage.setItem(reloadKey, String(Date.now()));
+  } catch {
+    return;
+  }
+  window.location.assign(path);
+}
+
+window.addEventListener('vite:preloadError', () => {
+  reloadOnce(pendingPath ?? window.location.href);
+});
+
+router.onError((error: Error, to) => {
+  if (staleModule.test(error.message)) reloadOnce(router.resolve(to).href);
+});
+
 export default router;
