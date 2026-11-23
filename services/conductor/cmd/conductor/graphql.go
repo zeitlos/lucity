@@ -504,6 +504,10 @@ func requestClientAddress(r *http.Request) (netip.Addr, bool) {
 		return address, true
 	}
 
+	return gatewayClientAddress(r)
+}
+
+func gatewayClientAddress(r *http.Request) (netip.Addr, bool) {
 	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
 		entries := strings.Split(forwarded, ",")
 
@@ -558,9 +562,8 @@ func rateLimitMiddleware(next http.Handler) http.Handler {
 		}
 
 		ip := r.RemoteAddr
-		if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
-			ip = strings.Split(fwd, ",")[0]
-			ip = strings.TrimSpace(ip)
+		if address, ok := gatewayClientAddress(r); ok {
+			ip = address.String()
 		}
 
 		mu.Lock()
