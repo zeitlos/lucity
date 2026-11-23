@@ -123,6 +123,7 @@ interface ReleaseStep {
 const RELEASE_STATUSES_WITHOUT_ROLLOUT = new Set<ReleaseStatus>([
   ReleaseStatus.Failed,
   ReleaseStatus.Cancelled,
+  ReleaseStatus.Superseded,
 ]);
 
 function rolloutStep(deployment: Deployment | null | undefined, releaseStatus?: ReleaseStatus): ReleaseStep {

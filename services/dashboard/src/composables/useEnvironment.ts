@@ -226,7 +226,7 @@ export interface Environment {
 const activeEnvironment = ref<Environment | null>(null);
 const environments = ref<Environment[]>([]);
 
-const TERMINAL_BUILD_STATUSES = new Set<string>(['SUCCEEDED', 'FAILED', 'CANCELLED']);
+const TERMINAL_BUILD_STATUSES = new Set<string>(['SUCCEEDED', 'FAILED', 'CANCELLED', 'SUPERSEDED']);
 
 export function activeBuild(service: Pick<Service, 'builds'>): Build | null {
   const list = service.builds ?? [];
