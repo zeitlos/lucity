@@ -40,8 +40,14 @@ func (c *Client) ensureZone(ctx context.Context, name string, zone *bunny.PullZo
 	}
 
 	for _, rule := range c.edgeRules() {
-		if hasEdgeRule(zone, rule.Description) {
+		existing := edgeRule(zone, rule.Description)
+
+		if existing != nil && existing.ActionParameter1 == rule.ActionParameter1 && existing.ActionParameter2 == rule.ActionParameter2 {
 			continue
+		}
+
+		if existing != nil {
+			rule.GUID = existing.GUID
 		}
 
 		if err := c.api.AddEdgeRule(ctx, zone.ID, rule); err != nil {
@@ -102,14 +108,14 @@ func (c *Client) edgeRules() []bunny.EdgeRule {
 	}
 }
 
-func hasEdgeRule(zone *bunny.PullZone, description string) bool {
-	for _, rule := range zone.EdgeRules {
-		if rule.Description == description {
-			return true
+func edgeRule(zone *bunny.PullZone, description string) *bunny.EdgeRule {
+	for i := range zone.EdgeRules {
+		if zone.EdgeRules[i].Description == description {
+			return &zone.EdgeRules[i]
 		}
 	}
 
-	return false
+	return nil
 }
 
 func hostnameOn(zone *bunny.PullZone, name string) *bunny.Hostname {
