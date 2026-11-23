@@ -96,6 +96,7 @@ gateway:
       load-balancer.hetzner.cloud/location: nbg1
       load-balancer.hetzner.cloud/name: flexplane-lucity-prod-gateway
       load-balancer.hetzner.cloud/uses-proxyprotocol: "true"
+      load-balancer.hetzner.cloud/use-private-ip: "true"
       load-balancer.hetzner.cloud/ipv6-disabled: "true"
       load-balancer.hetzner.cloud/node-selector: lucity.dev/node-pool=platform
   listeners:

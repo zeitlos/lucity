@@ -74,6 +74,11 @@ func buildCiliumNetworkPolicy(namespace string) *unstructured.Unstructured {
 						"fromEntities": []any{"ingress"},
 					},
 				},
+				"egressDeny": []any{
+					map[string]any{
+						"toEntities": []any{"ingress"},
+					},
+				},
 			},
 		},
 	}
