@@ -2,9 +2,13 @@ package dbquery
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgproto3"
+
+	"github.com/zeitlos/lucity/pkg/usererror"
 )
 
 func (c *Client) Query(ctx context.Context, sql string) (Result, error) {
@@ -52,6 +56,8 @@ func columnNames(rows pgx.Rows) []string {
 func collectRows(rows pgx.Rows) ([][]*string, error) {
 	var out [][]*string
 
+	size := 0
+
 	for rows.Next() {
 		if len(out) >= maxQueryRows {
 			break
@@ -72,15 +78,30 @@ func collectRows(rows pgx.Rows) ([][]*string, error) {
 			}
 
 			s := fmt.Sprintf("%v", v)
+			size += len(s)
 			cells[i] = &s
+		}
+
+		if size > maxResultBytes {
+			return nil, usererror.New("the result is larger than 8 MiB; add a LIMIT or select fewer columns")
 		}
 
 		out = append(out, cells)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, rowTooLarge(err)
 	}
 
 	return out, nil
+}
+
+func rowTooLarge(err error) error {
+	var exceeded *pgproto3.ExceededMaxBodyLenErr
+
+	if errors.As(err, &exceeded) {
+		return usererror.New("a row of the result is larger than 8 MiB; select fewer or smaller columns")
+	}
+
+	return err
 }

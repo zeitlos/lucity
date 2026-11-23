@@ -3,8 +3,10 @@ package dbquery
 import (
 	"context"
 	"fmt"
+	"io"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgproto3"
 )
 
 type Client struct {
@@ -18,10 +20,26 @@ func New(dsn string) *Client {
 const (
 	statementTimeout = "30s"
 	maxQueryRows     = 1000
+	maxMessageBytes  = 8 << 20
+	maxResultBytes   = 8 << 20
+	maxTableColumns  = 20000
 )
 
 func (c *Client) connect(ctx context.Context) (*pgx.Conn, error) {
-	conn, err := pgx.Connect(ctx, c.dsn)
+	config, err := pgx.ParseConfig(c.dsn)
+
+	if err != nil {
+		return nil, err
+	}
+
+	config.BuildFrontend = func(r io.Reader, w io.Writer) *pgproto3.Frontend {
+		frontend := pgproto3.NewFrontend(r, w)
+		frontend.SetMaxBodyLen(maxMessageBytes)
+
+		return frontend
+	}
+
+	conn, err := pgx.ConnectConfig(ctx, config)
 
 	if err != nil {
 		return nil, err

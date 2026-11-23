@@ -6,6 +6,8 @@ import (
 	"sort"
 
 	"github.com/jackc/pgx/v5"
+
+	"github.com/zeitlos/lucity/pkg/usererror"
 )
 
 func (c *Client) Tables(ctx context.Context) ([]Table, error) {
@@ -29,8 +31,15 @@ func (c *Client) Tables(ctx context.Context) ([]Table, error) {
 
 	byTable := map[key]*Table{}
 	order := []key{}
+	columns := 0
 
 	for rows.Next() {
+		columns++
+
+		if columns > maxTableColumns {
+			return nil, usererror.New("this database has more than 20,000 columns to list; query information_schema in the SQL editor instead")
+		}
+
 		var (
 			schema, name, colName, colType string
 			estimated                      int64
@@ -59,7 +68,7 @@ func (c *Client) Tables(ctx context.Context) ([]Table, error) {
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, rowTooLarge(err)
 	}
 
 	result := make([]Table, 0, len(order))
