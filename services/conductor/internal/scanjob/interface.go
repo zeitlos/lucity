@@ -49,6 +49,7 @@ const (
 	StatusRunning   Status = "running"
 	StatusSucceeded Status = "succeeded"
 	StatusFailed    Status = "failed"
+	StatusSkipped   Status = "skipped"
 )
 
 type ScanID struct {

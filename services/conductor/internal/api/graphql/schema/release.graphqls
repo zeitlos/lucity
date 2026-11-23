@@ -27,6 +27,7 @@ enum BuildStatus {
   SUCCEEDED
   FAILED
   CANCELLED
+  SUPERSEDED
 }
 
 type Deploy {

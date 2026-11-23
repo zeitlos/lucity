@@ -27,7 +27,6 @@ const (
 	annotationContext       = labels.SourceContext
 	annotationTargets       = "lucity.dev/target-image-refs"
 	annotationTriggeredBy   = "lucity.dev/triggered-by"
-	annotationCancelledAt   = "lucity.dev/cancelled-at"
 	annotationCommitMessage = "lucity.dev/commit-message"
 )
 
@@ -102,7 +101,11 @@ func toJob(job batch.Job) buildjob.Job {
 }
 
 func buildStatus(job batch.Job) buildjob.Status {
-	_, cancelled := job.Annotations[annotationCancelledAt]
+	if _, superseded := job.Annotations[labels.SupersededBy]; superseded {
+		return buildjob.StatusSuperseded
+	}
+
+	_, cancelled := job.Annotations[labels.CancelledAt]
 
 	for _, c := range job.Status.Conditions {
 		if c.Status != core.ConditionTrue {
@@ -121,7 +124,10 @@ func buildStatus(job batch.Job) buildjob.Status {
 		}
 	}
 
-	if cancelled && job.Spec.Suspend != nil && *job.Spec.Suspend {
+	suspended := job.Spec.Suspend != nil && *job.Spec.Suspend
+	dropped := job.Spec.Parallelism != nil && *job.Spec.Parallelism == 0
+
+	if cancelled && (suspended || dropped) {
 		return buildjob.StatusCancelled
 	}
 

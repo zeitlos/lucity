@@ -226,13 +226,6 @@ export interface Environment {
 const activeEnvironment = ref<Environment | null>(null);
 const environments = ref<Environment[]>([]);
 
-const TERMINAL_BUILD_STATUSES = new Set<string>(['SUCCEEDED', 'FAILED', 'CANCELLED']);
-
-export function activeBuild(service: Pick<Service, 'builds'>): Build | null {
-  const list = service.builds ?? [];
-  return list.find(b => !TERMINAL_BUILD_STATUSES.has(b.status)) ?? null;
-}
-
 export function useEnvironment() {
   function setEnvironments(envs: Environment[], preferredEnvId?: string) {
     environments.value = envs;

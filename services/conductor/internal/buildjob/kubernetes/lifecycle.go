@@ -127,7 +127,7 @@ func (c *Client) Cancel(ctx context.Context, id buildjob.BuildID) (*buildjob.Job
 	patch, err := json.Marshal(map[string]any{
 		"metadata": map[string]any{
 			"annotations": map[string]string{
-				annotationCancelledAt: time.Now().UTC().Format(time.RFC3339),
+				labels.CancelledAt: time.Now().UTC().Format(time.RFC3339),
 			},
 		},
 		"spec": map[string]any{
@@ -155,6 +155,7 @@ func isDone(job batch.Job) bool {
 		buildjob.StatusCancelling,
 		buildjob.StatusFailed,
 		buildjob.StatusSucceeded,
+		buildjob.StatusSuperseded,
 	}
 
 	return slices.Contains(terminalStatuses, status)

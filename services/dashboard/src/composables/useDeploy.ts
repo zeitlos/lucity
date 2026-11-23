@@ -1,7 +1,7 @@
-import { computed, reactive, ref, watch } from 'vue';
+import { reactive, ref } from 'vue';
 import { apolloClient } from '@/lib/apollo';
 import { graphql } from '@/gql';
-import { activeBuild, type Service } from '@/composables/useEnvironment';
+import type { Service } from '@/composables/useEnvironment';
 import { failureToast, infoToast } from '@/components/ui/sonner';
 
 const DeployDocument = graphql(`
@@ -20,22 +20,15 @@ const DeployDocument = graphql(`
 `);
 
 export interface DeployState {
-  isDeploying: boolean;
+  starting: boolean;
   startDeploy: (gitRef?: string) => Promise<void>;
 }
 
-export function useDeploy(service: () => Pick<Service, 'id' | 'name' | 'builds'>): DeployState {
+export function useDeploy(service: () => Pick<Service, 'id' | 'name'>): DeployState {
   const starting = ref(false);
-  const unseenBuildId = ref<string | null>(null);
-
-  watch(() => service().builds, (builds) => {
-    if (builds?.some(b => b.id === unseenBuildId.value)) {
-      unseenBuildId.value = null;
-    }
-  });
 
   return reactive({
-    isDeploying: computed(() => starting.value || unseenBuildId.value !== null || activeBuild(service()) !== null),
+    starting,
 
     async startDeploy(gitRef?: string) {
       starting.value = true;
@@ -55,7 +48,6 @@ export function useDeploy(service: () => Pick<Service, 'id' | 'name' | 'builds'>
           throw new Error('Failed to start deploy');
         }
 
-        unseenBuildId.value = build.id;
         infoToast('Deploy started', { description: `Building ${service().name}…` });
       } catch (e: unknown) {
         failureToast('Failed to start deploy', e);

@@ -44,6 +44,24 @@ func (c *Client) Build(ctx context.Context, id BuildID) (*Build, error) {
 }
 
 func (c *Client) CancelBuild(ctx context.Context, id BuildID) (*Build, error) {
+	build, err := c.buildjob.Get(ctx, id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if build.Status == buildjob.StatusQueued && build.ReleaseID != "" {
+		cancelled, err := c.pipeline.Cancel(ctx, id.Workspace, build.ReleaseID)
+
+		if err != nil {
+			slog.WarnContext(ctx, "queued release cancel failed", "build", id.Name, "error", err)
+		}
+
+		if cancelled {
+			return c.buildjob.Get(ctx, id)
+		}
+	}
+
 	return c.buildjob.Cancel(ctx, id)
 }
 

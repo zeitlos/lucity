@@ -153,7 +153,8 @@ export enum BuildStatus {
   Failed = 'FAILED',
   Queued = 'QUEUED',
   Running = 'RUNNING',
-  Succeeded = 'SUCCEEDED'
+  Succeeded = 'SUCCEEDED',
+  Superseded = 'SUPERSEDED'
 }
 
 /** The chat app a bot lives in. */
@@ -477,7 +478,8 @@ export enum ScanStatus {
   Failed = 'FAILED',
   Findings = 'FINDINGS',
   Queued = 'QUEUED',
-  Running = 'RUNNING'
+  Running = 'RUNNING',
+  Skipped = 'SKIPPED'
 }
 
 export enum ServiceInstanceState {

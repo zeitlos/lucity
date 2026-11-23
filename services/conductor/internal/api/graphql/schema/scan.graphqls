@@ -14,6 +14,7 @@ enum ScanStatus {
   CLEAN
   FINDINGS
   FAILED
+  SKIPPED
 }
 
 type SecretScanReport {

@@ -209,7 +209,6 @@ const deployTarget = ref<PaletteResource | null>(null);
 const deploy = useDeploy(() => ({
   id: deployTarget.value?.id ?? '',
   name: deployTarget.value?.name ?? '',
-  builds: [],
 }));
 
 const { result, loading } = useQuery(CommandPaletteProjectsDocument, null, () => ({

@@ -252,6 +252,8 @@ func releaseStatus(build *Build, deploy *Deploy, deployment *Deployment) Release
 			return ReleaseFailed
 		case buildjob.StatusCancelled:
 			return ReleaseCancelled
+		case buildjob.StatusSuperseded:
+			return ReleaseSuperseded
 		}
 	}
 

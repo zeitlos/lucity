@@ -2111,11 +2111,12 @@ func (e BucketStatus) MarshalJSON() ([]byte, error) {
 type BuildStatus string
 
 const (
-	BuildStatusQueued    BuildStatus = "QUEUED"
-	BuildStatusRunning   BuildStatus = "RUNNING"
-	BuildStatusSucceeded BuildStatus = "SUCCEEDED"
-	BuildStatusFailed    BuildStatus = "FAILED"
-	BuildStatusCancelled BuildStatus = "CANCELLED"
+	BuildStatusQueued     BuildStatus = "QUEUED"
+	BuildStatusRunning    BuildStatus = "RUNNING"
+	BuildStatusSucceeded  BuildStatus = "SUCCEEDED"
+	BuildStatusFailed     BuildStatus = "FAILED"
+	BuildStatusCancelled  BuildStatus = "CANCELLED"
+	BuildStatusSuperseded BuildStatus = "SUPERSEDED"
 )
 
 var AllBuildStatus = []BuildStatus{
@@ -2124,11 +2125,12 @@ var AllBuildStatus = []BuildStatus{
 	BuildStatusSucceeded,
 	BuildStatusFailed,
 	BuildStatusCancelled,
+	BuildStatusSuperseded,
 }
 
 func (e BuildStatus) IsValid() bool {
 	switch e {
-	case BuildStatusQueued, BuildStatusRunning, BuildStatusSucceeded, BuildStatusFailed, BuildStatusCancelled:
+	case BuildStatusQueued, BuildStatusRunning, BuildStatusSucceeded, BuildStatusFailed, BuildStatusCancelled, BuildStatusSuperseded:
 		return true
 	}
 	return false
@@ -3973,6 +3975,7 @@ const (
 	ScanStatusClean    ScanStatus = "CLEAN"
 	ScanStatusFindings ScanStatus = "FINDINGS"
 	ScanStatusFailed   ScanStatus = "FAILED"
+	ScanStatusSkipped  ScanStatus = "SKIPPED"
 )
 
 var AllScanStatus = []ScanStatus{
@@ -3981,11 +3984,12 @@ var AllScanStatus = []ScanStatus{
 	ScanStatusClean,
 	ScanStatusFindings,
 	ScanStatusFailed,
+	ScanStatusSkipped,
 }
 
 func (e ScanStatus) IsValid() bool {
 	switch e {
-	case ScanStatusQueued, ScanStatusRunning, ScanStatusClean, ScanStatusFindings, ScanStatusFailed:
+	case ScanStatusQueued, ScanStatusRunning, ScanStatusClean, ScanStatusFindings, ScanStatusFailed, ScanStatusSkipped:
 		return true
 	}
 	return false

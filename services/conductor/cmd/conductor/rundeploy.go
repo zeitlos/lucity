@@ -174,7 +174,7 @@ func waitForBuild(ctx context.Context, builds buildjob.Interface, id buildjob.Bu
 		}
 
 		switch build.Status {
-		case buildjob.StatusSucceeded, buildjob.StatusFailed, buildjob.StatusCancelled:
+		case buildjob.StatusSucceeded, buildjob.StatusFailed, buildjob.StatusCancelled, buildjob.StatusSuperseded:
 			return build, nil
 		}
 

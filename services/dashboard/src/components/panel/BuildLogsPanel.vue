@@ -60,6 +60,8 @@ const end = computed(() => {
       return { text: took ? `${name} failed after ${took}` : `${name} failed`, tone: 'danger' as const };
     case BuildStatus.Cancelled:
       return { text: `${name} was cancelled`, tone: 'neutral' as const };
+    case BuildStatus.Superseded:
+      return { text: `${name} skipped, a newer commit was queued`, tone: 'neutral' as const };
     default:
       return { text: `${name} finished`, tone: 'neutral' as const };
   }
