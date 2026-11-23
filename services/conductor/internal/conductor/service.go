@@ -287,6 +287,7 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 		ID:          serviceID,
 		Name:        name,
 		Status:      platform.ServiceDeploying,
+		Port:        spec.Port,
 		SourceURL:   spec.SourceURL,
 		ContextPath: spec.ContextPath,
 		Resources:   platform.Resources{CPU: resources.CPU, Memory: resources.Memory},
