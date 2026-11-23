@@ -5,33 +5,48 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/logto"
 )
 
+const orgResolverTTL = time.Minute
+
 // newOrgResolver resolves a Logto organization_id into a workspace ID (the
 // organization name) and the caller's role (read from the token's organization
-// scopes). Organization names are immutable identifiers, so they are cached
-// permanently.
+// scopes). Tokens of a deleted workspace are rejected. A live organization is
+// looked up again after orgResolverTTL, so a deletion takes effect within it.
 func newOrgResolver(client *logto.Client) auth.OrgResolver {
+	type entry struct {
+		name      string
+		deleted   bool
+		checkedAt time.Time
+	}
+
 	var mu sync.Mutex
-	names := map[string]string{}
+	entries := map[string]entry{}
 
 	return func(ctx context.Context, organizationID, scope string) (string, auth.WorkspaceRole, error) {
 		mu.Lock()
-		name, ok := names[organizationID]
+		cached, ok := entries[organizationID]
 		mu.Unlock()
 
-		if !ok {
+		if !ok || (!cached.deleted && time.Since(cached.checkedAt) > orgResolverTTL) {
 			org, err := client.Organization(ctx, organizationID)
-			if err != nil {
+			if err != nil && !ok {
 				return "", "", fmt.Errorf("%w: %w", auth.ErrOrganizationLookup, err)
 			}
-			name = org.Name
-			mu.Lock()
-			names[organizationID] = name
-			mu.Unlock()
+			if err == nil {
+				cached = entry{name: org.Name, deleted: org.Deleted(), checkedAt: time.Now()}
+				mu.Lock()
+				entries[organizationID] = cached
+				mu.Unlock()
+			}
+		}
+
+		if cached.deleted {
+			return "", "", fmt.Errorf("organization token for deleted workspace %q", cached.name)
 		}
 
 		role := highestRole(strings.Fields(scope))
@@ -39,7 +54,7 @@ func newOrgResolver(client *logto.Client) auth.OrgResolver {
 			return "", "", fmt.Errorf("organization token for %q carries no workspace role scope", organizationID)
 		}
 
-		return name, role, nil
+		return cached.name, role, nil
 	}
 }
 

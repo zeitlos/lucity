@@ -2,16 +2,22 @@ package logto
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 )
 
 // ErrOrganizationNotFound is returned when no organization has the requested name.
 var ErrOrganizationNotFound = errors.New("organization not found")
+
+// ErrOrganizationTaken is returned when an organization, deleted or not, already
+// has the requested name.
+var ErrOrganizationTaken = errors.New("organization name taken")
 
 type Organization struct {
 	TenantID      string                 `json:"tenantId"`
@@ -59,6 +65,13 @@ type OrganizationMember struct {
 	LastSignInAt int64                   `json:"lastSignInAt,omitempty"`
 }
 
+// Deleted reports whether the organization is the tombstone of a deleted
+// workspace. Its name stays taken for good.
+func (o Organization) Deleted() bool {
+	_, ok := o.CustomData["deleted"]
+	return ok
+}
+
 // Organization returns a single organization by its Logto internal ID.
 func (c *Client) Organization(ctx context.Context, id string) (*Organization, error) {
 	var org Organization
@@ -68,27 +81,56 @@ func (c *Client) Organization(ctx context.Context, id string) (*Organization, er
 	return &org, nil
 }
 
+// OrganizationByName returns the organization with exactly this name, deleted
+// ones included. Should several share it, the oldest wins.
 func (c *Client) OrganizationByName(ctx context.Context, name string) (*Organization, error) {
-	path := "/api/organizations?q=" + url.QueryEscape(name) + "&page=1&page_size=20"
-
-	var orgs []Organization
-	if err := c.doJSON(ctx, "GET", path, nil, &orgs); err != nil {
-		return nil, fmt.Errorf("failed to search organizations by name %q: %w", name, err)
+	matches, err := c.organizationsNamed(ctx, name)
+	if err != nil {
+		return nil, err
 	}
 
-	for _, org := range orgs {
-		if org.Name == name {
-			return &org, nil
+	if len(matches) == 0 {
+		return nil, fmt.Errorf("organization with name %q: %w", name, ErrOrganizationNotFound)
+	}
+
+	return &matches[0], nil
+}
+
+func (c *Client) organizationsNamed(ctx context.Context, name string) ([]Organization, error) {
+	const pageSize = 100
+
+	var matches []Organization
+	for page := 1; ; page++ {
+		path := fmt.Sprintf("/api/organizations?q=%s&page=%d&page_size=%d", url.QueryEscape(name), page, pageSize)
+
+		var orgs []Organization
+		if err := c.doJSON(ctx, "GET", path, nil, &orgs); err != nil {
+			return nil, fmt.Errorf("failed to search organizations by name %q: %w", name, err)
+		}
+
+		for _, org := range orgs {
+			if org.Name == name {
+				matches = append(matches, org)
+			}
+		}
+
+		if len(orgs) < pageSize {
+			break
 		}
 	}
 
-	return nil, fmt.Errorf("organization with name %q: %w", name, ErrOrganizationNotFound)
+	slices.SortFunc(matches, func(a, b Organization) int {
+		return cmp.Or(cmp.Compare(a.CreatedAt, b.CreatedAt), strings.Compare(a.ID, b.ID))
+	})
+
+	return matches, nil
 }
 
 // CreateOrganization creates a new organization.
 // The name parameter is used as the org name (workspace ID). The displayName is stored
-// in customData only if it differs from the name.
-// Idempotent: if an org with the same name exists, returns it.
+// in customData only if it differs from the name. Names are never reused: if another
+// organization, deleted ones included, already has the name, the new one is removed
+// again and ErrOrganizationTaken is returned.
 func (c *Client) CreateOrganization(ctx context.Context, name, displayName string, customData map[string]any) (*Organization, error) {
 	payload := map[string]interface{}{
 		"name": name,
@@ -106,16 +148,21 @@ func (c *Client) CreateOrganization(ctx context.Context, name, displayName strin
 	body, _ := json.Marshal(payload)
 	var org Organization
 	if err := c.doJSON(ctx, "POST", "/api/organizations", bytes.NewReader(body), &org); err != nil {
-		// Handle conflict (already exists)
-		if strings.Contains(err.Error(), "409") || strings.Contains(err.Error(), "already exists") {
-			existing, findErr := c.OrganizationByName(ctx, name)
-			if findErr != nil {
-				return nil, fmt.Errorf("org %q already exists but failed to look up: %w", name, findErr)
-			}
-			return existing, nil
-		}
 		return nil, fmt.Errorf("failed to create organization %q: %w", name, err)
 	}
+
+	first, err := c.OrganizationByName(ctx, name)
+	if err != nil {
+		return nil, fmt.Errorf("failed to confirm organization %q: %w", name, err)
+	}
+
+	if first.ID != org.ID {
+		if err := c.DeleteOrganization(ctx, org.ID); err != nil {
+			return nil, fmt.Errorf("failed to remove duplicate organization %q: %w", name, err)
+		}
+		return nil, fmt.Errorf("organization %q: %w", name, ErrOrganizationTaken)
+	}
+
 	return &org, nil
 }
 
@@ -181,7 +228,8 @@ func (c *Client) OrganizationRoles(ctx context.Context) ([]OrganizationRole, err
 	return roles, nil
 }
 
-// Organizations returns all organizations, paginating through all pages.
+// Organizations returns all organizations that are not deleted, paginating
+// through all pages.
 func (c *Client) Organizations(ctx context.Context) ([]Organization, error) {
 	var all []Organization
 	page := 1
@@ -192,7 +240,11 @@ func (c *Client) Organizations(ctx context.Context) ([]Organization, error) {
 		if err := c.doJSON(ctx, "GET", path, nil, &orgs); err != nil {
 			return nil, fmt.Errorf("failed to list organizations (page %d): %w", page, err)
 		}
-		all = append(all, orgs...)
+		for _, org := range orgs {
+			if !org.Deleted() {
+				all = append(all, org)
+			}
+		}
 		if len(orgs) < pageSize {
 			break
 		}

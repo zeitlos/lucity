@@ -2,8 +2,10 @@ package logto
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
+	"time"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/logto"
@@ -67,6 +69,10 @@ func (c *Client) CreateWorkspace(ctx context.Context, id, name string, metadata 
 	}
 
 	org, err := c.api.CreateOrganization(ctx, id, name, metadata)
+
+	if errors.Is(err, logto.ErrOrganizationTaken) {
+		return nil, usererror.Errorf("workspace ID %q is already taken", id)
+	}
 
 	if err != nil {
 		return nil, err
@@ -154,11 +160,41 @@ func (c *Client) DeleteWorkspace(ctx context.Context, id string) error {
 		return usererror.New("cannot delete personal workspace")
 	}
 
-	if err := c.api.DeleteOrganization(ctx, orgID); err != nil {
+	customData := org.CustomData
+
+	if customData == nil {
+		customData = map[string]any{}
+	}
+
+	customData["deleted"] = time.Now().UTC().Format(time.RFC3339)
+
+	if _, err := c.api.UpdateOrganizationCustomData(ctx, orgID, customData); err != nil {
+		return fmt.Errorf("mark workspace deleted: %w", err)
+	}
+
+	members, err := c.api.OrganizationMembers(ctx, orgID)
+
+	if err != nil {
 		return err
 	}
 
-	c.invalidateOrgID(id)
+	for _, member := range members {
+		if err := c.api.RemoveOrganizationMember(ctx, orgID, member.ID); err != nil {
+			return fmt.Errorf("remove member %q: %w", member.ID, err)
+		}
+	}
+
+	applications, err := c.api.OrganizationApplications(ctx, orgID)
+
+	if err != nil {
+		return err
+	}
+
+	for _, application := range applications {
+		if err := c.api.DeleteApplication(ctx, application.ID); err != nil {
+			return fmt.Errorf("delete application %q: %w", application.ID, err)
+		}
+	}
 
 	return nil
 }
@@ -271,12 +307,6 @@ func (c *Client) orgID(ctx context.Context, workspaceID string) (string, error) 
 func (c *Client) cacheOrgID(workspaceID, logtoOrgID string) {
 	c.orgIDCacheMu.Lock()
 	c.orgIDCache[workspaceID] = logtoOrgID
-	c.orgIDCacheMu.Unlock()
-}
-
-func (c *Client) invalidateOrgID(workspaceID string) {
-	c.orgIDCacheMu.Lock()
-	delete(c.orgIDCache, workspaceID)
 	c.orgIDCacheMu.Unlock()
 }
 

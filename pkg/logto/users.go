@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 )
@@ -178,11 +179,11 @@ func (c *Client) EnsureUsername(ctx context.Context, userID, login string) (stri
 	return "", fmt.Errorf("all username candidates exhausted for base %q", base)
 }
 
-// UserOrganizations returns all organizations a user belongs to.
+// UserOrganizations returns all organizations a user belongs to that are not deleted.
 func (c *Client) UserOrganizations(ctx context.Context, userID string) ([]Organization, error) {
 	var orgs []Organization
 	if err := c.doJSON(ctx, "GET", "/api/users/"+userID+"/organizations", nil, &orgs); err != nil {
 		return nil, fmt.Errorf("failed to get organizations for user %q: %w", userID, err)
 	}
-	return orgs, nil
+	return slices.DeleteFunc(orgs, Organization.Deleted), nil
 }
