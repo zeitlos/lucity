@@ -624,9 +624,9 @@ victoria-metrics-alert:
                   summary: "{{ $labels.namespace }}/{{ $labels.pod }} restarted {{ $value | humanize }} times in the last hour"
               - alert: ContainerOOMKilled
                 expr: |-
-                  (increase_prometheus(kube_pod_container_status_restarts_total{namespace=~"kube-system|lucity-system"}[10m]) >= 1)
+                  (increase_prometheus(kube_pod_container_status_restarts_total{namespace=~"kube-system|lucity-system|lucity-builds"}[10m]) >= 1)
                     and on (namespace, pod, container)
-                  (max_over_time(kube_pod_container_status_last_terminated_reason{reason="OOMKilled", namespace=~"kube-system|lucity-system"}[10m]) == 1)
+                  (max_over_time(kube_pod_container_status_last_terminated_reason{reason="OOMKilled", namespace=~"kube-system|lucity-system|lucity-builds"}[10m]) == 1)
                 labels: { severity: warning }
                 annotations:
                   title: Container OOM-killed
