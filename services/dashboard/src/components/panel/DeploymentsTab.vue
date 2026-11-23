@@ -368,11 +368,11 @@ watch(
         {{ service.autoDeploy ? 'Every push deploys.' : 'Auto-deploy is off.' }}
       </p>
       <Button
-        :pending="deploy.isDeploying"
+        :pending="deploy.starting"
         @click="handleDeploy"
       >
         <Rocket />
-        {{ deploy.isDeploying ? 'Building…' : 'Deploy' }}
+        Deploy
       </Button>
     </div>
 
@@ -429,7 +429,7 @@ watch(
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem :disabled="deploy.isDeploying" @click="handleRedeploy">
+                  <DropdownMenuItem :disabled="deploy.starting" @click="handleRedeploy">
                     <RefreshCw :size="14" class="mr-2" />
                     Redeploy
                   </DropdownMenuItem>
@@ -610,7 +610,7 @@ watch(
 
     <!-- No releases yet -->
     <EmptyState
-      v-else-if="!deploy.isDeploying && !activeDeployment"
+      v-else-if="!deploy.starting && !activeDeployment"
       size="compact"
       :icon="Rocket"
       title="No deployments yet"
