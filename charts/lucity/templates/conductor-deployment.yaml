@@ -19,7 +19,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/secrets: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
+        checksum/secrets: {{ list .Values.secrets .Values.githubPrivateKey .Values.registryPull | toJson | sha256sum }}
       labels:
         {{- include "lucity.labels" . | nindent 8 }}
         {{- include "lucity.selectorLabels" (dict "name" "conductor" "release" .Release.Name) | nindent 8 }}
