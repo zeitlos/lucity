@@ -18,19 +18,6 @@ spec:
   ingress: []
   egress: []
 ---
-apiVersion: cilium.io/v2
-kind: CiliumNetworkPolicy
-metadata:
-  name: {{ include "lucity.fullname" . }}-builds-deny-gateway
-  namespace: {{ $ns }}
-  labels:
-    {{- include "lucity.labels" . | nindent 4 }}
-spec:
-  endpointSelector: {}
-  egressDeny:
-    - toEntities:
-        - ingress
----
 # BuildKit: ingress from build Jobs (same namespace) and builder service
 # (cross-namespace from lucity-system). Egress to Zot (cross-namespace),
 # DNS, and internet for pulling base images.
