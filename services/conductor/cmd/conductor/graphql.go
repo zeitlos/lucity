@@ -188,6 +188,10 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 			// cookie already resolved to claims on the HTTP upgrade request.
 			var expiresAt time.Time
 
+			if claims, err := auth.FromContext(ctx); err == nil {
+				expiresAt = claims.ExpiresAt
+			}
+
 			token, _ := initPayload["Authorization"].(string)
 			if token != "" {
 				token = strings.TrimPrefix(token, "Bearer ")
@@ -218,16 +222,19 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 				}
 			}
 
+			if expiresAt.IsZero() {
+				return ctx, nil, usererror.New("unauthenticated")
+			}
+
 			ctx = context.WithValue(ctx, openSubscriptionsKey{}, &atomic.Int32{})
 
-			if !expiresAt.IsZero() {
-				var cancel context.CancelFunc
-				ctx, cancel = context.WithDeadline(ctx, expiresAt)
-				context.AfterFunc(ctx, cancel)
-			}
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithDeadline(ctx, expiresAt)
+			context.AfterFunc(ctx, cancel)
 
 			return ctx, &initPayload, nil
 		},
+		InitTimeout: 10 * time.Second,
 	})
 	srv.SetQueryCache(lru.New[*ast.QueryDocument](1000))
 	srv.Use(extension.Introspection{})
