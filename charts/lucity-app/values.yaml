@@ -190,10 +190,14 @@ agents: {}
 # of these headers, so traffic must pass whatever sets them. Redirect rules stay
 # open. A value is either literal or read at render time from a Secret, which
 # defaults to the gateway namespace. Omit to route every request.
+# removeRequestHeaders: request headers the gateway drops before a backend sees
+# them, so a header the edge sets for origin checks never reaches the workload.
 gateway:
   name: lucity-gateway
   namespace: lucity-system
   httpsListener: ""
+  removeRequestHeaders:
+    - X-Lucity-Edge
   # headerMatches:
   #   - name: X-Lucity-Edge
   #     type: Exact            # or RegularExpression

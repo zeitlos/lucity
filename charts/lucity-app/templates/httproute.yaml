@@ -45,6 +45,15 @@ spec:
     - backendRefs:
         - name: {{ include "lucity-app.fullname" $ }}-{{ $name }}
           port: {{ $svc.port }}
+      {{- with $.Values.gateway.removeRequestHeaders }}
+      filters:
+        - type: RequestHeaderModifier
+          requestHeaderModifier:
+            remove:
+              {{- range . }}
+              - {{ . | quote }}
+              {{- end }}
+      {{- end }}
       {{- with $.Values.gateway.headerMatches }}
       matches:
         - path:
