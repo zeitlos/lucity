@@ -9,11 +9,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
-	"net/netip"
-	"syscall"
 	"time"
+
+	"github.com/zeitlos/lucity/services/conductor/internal/publicnet"
 )
 
 type Status string
@@ -33,45 +32,14 @@ type Check struct {
 
 const maxBody = 4 << 20
 
-var errNotPublic = errors.New("address is not public")
-
-var blockedPrefixes = []netip.Prefix{
-	netip.MustParsePrefix("0.0.0.0/8"),
-	netip.MustParsePrefix("100.64.0.0/10"),
-	netip.MustParsePrefix("192.0.0.0/24"),
-	netip.MustParsePrefix("198.18.0.0/15"),
-	netip.MustParsePrefix("64:ff9b::/96"),
-	netip.MustParsePrefix("64:ff9b:1::/48"),
-	netip.MustParsePrefix("2002::/16"),
-}
-
 type Client struct {
 	http *http.Client
 }
 
 func New() *Client {
-	dialer := &net.Dialer{
-		Timeout: 5 * time.Second,
-		Control: func(_, address string, _ syscall.RawConn) error {
-			host, _, err := net.SplitHostPort(address)
-
-			if err != nil {
-				return err
-			}
-
-			addr, err := netip.ParseAddr(host)
-
-			if err != nil || !isPublic(addr) {
-				return errNotPublic
-			}
-
-			return nil
-		},
-	}
-
 	transport := &http.Transport{
 		Proxy:                 nil,
-		DialContext:           dialer.DialContext,
+		DialContext:           publicnet.Dialer(5 * time.Second).DialContext,
 		ForceAttemptHTTP2:     true,
 		TLSHandshakeTimeout:   5 * time.Second,
 		ResponseHeaderTimeout: 15 * time.Second,
@@ -88,22 +56,6 @@ func New() *Client {
 			},
 		},
 	}
-}
-
-func isPublic(addr netip.Addr) bool {
-	addr = addr.Unmap()
-
-	if !addr.IsGlobalUnicast() || addr.IsPrivate() || addr.IsLoopback() || addr.IsLinkLocalUnicast() {
-		return false
-	}
-
-	for _, prefix := range blockedPrefixes {
-		if prefix.Contains(addr) {
-			return false
-		}
-	}
-
-	return true
 }
 
 func (c *Client) do(req *http.Request) (*http.Response, []byte, error) {
@@ -134,7 +86,7 @@ func unreachable(err error) Check {
 	var timeout interface{ Timeout() bool }
 
 	switch {
-	case errors.Is(err, errNotPublic):
+	case errors.Is(err, publicnet.ErrNotPublic):
 		reason = "its address is not public"
 	case errors.As(err, &timeout) && timeout.Timeout():
 		reason = "it didn't answer in time"
