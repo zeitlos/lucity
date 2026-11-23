@@ -398,7 +398,7 @@ func (b *Backend) syncReadPolicy(ctx context.Context, userID int64, physicalName
 		statements = append(statements, map[string]any{
 			"Sid":      "lucityPublicRead",
 			"Effect":   "Allow",
-			"Action":   []string{"s3:GetObject", "s3:ListBucket", "s3:GetBucketLocation"},
+			"Action":   []string{"s3:GetObject", "s3:GetBucketLocation"},
 			"Resource": resources,
 		})
 	}
