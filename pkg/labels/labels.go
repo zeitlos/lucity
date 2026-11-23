@@ -13,6 +13,7 @@ const (
 	Service             = Prefix + "service"
 	Release             = Prefix + "release"
 	Builder             = Prefix + "builder"
+	BuilderChoice       = Prefix + "builder-choice"
 	SourceRepo          = Prefix + "source-repo"
 	SourceContext       = Prefix + "source-context"
 	BuiltBy             = Prefix + "built-by"

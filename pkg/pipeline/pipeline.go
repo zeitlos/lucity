@@ -9,8 +9,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"slices"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -52,8 +54,24 @@ type Client struct {
 	builders      *jobs.Builders
 	maxConcurrent int
 
-	mu      sync.Mutex
-	resumed map[string]resumption
+	mu        sync.Mutex
+	resumed   map[string]resumption
+	admission *Admission
+}
+
+// Wait reasons of a queued release run, as of the last admission pass.
+const (
+	WaitEnvironment = "environment"
+	WaitConcurrency = "concurrency"
+	WaitWarmBuilder = "warm_builder"
+	WaitNoBuilder   = "no_builder"
+)
+
+// Admission is what the last admission pass saw: the queued runs by why they
+// wait, and the builds running on each ready builder.
+type Admission struct {
+	Waiting  map[string]int
+	Builders map[string]int
 }
 
 type resumption struct {
@@ -182,16 +200,17 @@ func (c *Client) Reconcile(ctx context.Context) error {
 			activeEnvironments[r.environment] = true
 
 			builder := ""
+			choice := 0
 
 			if build, ok := r.pendingBuild(); ok {
-				builder, _, ok = place(build.source, builderWarmWait, ready, load)
+				builder, choice, ok = place(build.source, builderWarmWait, ready, load)
 
 				if !ok {
 					continue
 				}
 			}
 
-			if err := c.resume(ctx, r, builder); err != nil {
+			if err := c.resume(ctx, r, builder, choice); err != nil {
 				slog.Warn("failed to resume partially admitted run", "run", r.key, "error", err)
 				continue
 			}
@@ -216,12 +235,18 @@ func (c *Client) Reconcile(ctx context.Context) error {
 		queuedByEnvironment[environment] = c.supersede(ctx, queue)
 	}
 
+	waiting := map[string]int{WaitEnvironment: 0, WaitConcurrency: 0, WaitWarmBuilder: 0, WaitNoBuilder: 0}
+
 	var candidates []run
 
 	for environment, queue := range queuedByEnvironment {
-		if !activeEnvironments[environment] {
-			candidates = append(candidates, queue[0])
+		if activeEnvironments[environment] {
+			waiting[WaitEnvironment] += len(queue)
+			continue
 		}
+
+		candidates = append(candidates, queue[0])
+		waiting[WaitEnvironment] += len(queue) - 1
 	}
 
 	sort.Slice(candidates, func(i, j int) bool {
@@ -232,8 +257,9 @@ func (c *Client) Reconcile(ctx context.Context) error {
 		return candidates[i].key < candidates[j].key
 	})
 
-	for _, candidate := range candidates {
+	for i, candidate := range candidates {
 		if c.maxConcurrent > 0 && active >= c.maxConcurrent {
+			waiting[WaitConcurrency] += len(candidates) - i
 			break
 		}
 
@@ -244,11 +270,17 @@ func (c *Client) Reconcile(ctx context.Context) error {
 			builder, choice, ok = place(build.source, time.Since(candidate.createdAt), ready, load)
 
 			if !ok {
+				if freeBuilder(ready, load) {
+					waiting[WaitWarmBuilder]++
+				} else {
+					waiting[WaitNoBuilder]++
+				}
+
 				continue
 			}
 		}
 
-		if err := c.resume(ctx, candidate, builder); err != nil {
+		if err := c.resume(ctx, candidate, builder, choice); err != nil {
 			slog.Warn("failed to admit run", "run", candidate.key, "error", err)
 			continue
 		}
@@ -261,7 +293,30 @@ func (c *Client) Reconcile(ctx context.Context) error {
 		}
 	}
 
+	builders := map[string]int{}
+
+	for _, builder := range ready {
+		builders[builder] = load[builder]
+	}
+
+	c.mu.Lock()
+	c.admission = &Admission{Waiting: waiting, Builders: builders}
+	c.mu.Unlock()
+
 	return nil
+}
+
+// Admission returns what the last admission pass saw, and false before the
+// first pass.
+func (c *Client) Admission() (Admission, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.admission == nil {
+		return Admission{}, false
+	}
+
+	return Admission{Waiting: maps.Clone(c.admission.Waiting), Builders: maps.Clone(c.admission.Builders)}, true
 }
 
 // supersede keeps the newest queued run of each service and drops the older
@@ -414,6 +469,16 @@ func place(source string, waited time.Duration, ready []string, load map[string]
 	return "", 0, false
 }
 
+func freeBuilder(ready []string, load map[string]int) bool {
+	for _, builder := range ready {
+		if load[builder] < builderSlots {
+			return true
+		}
+	}
+
+	return false
+}
+
 func rank(source string, builders []string) []string {
 	ranked := slices.Clone(builders)
 
@@ -494,8 +559,9 @@ var unsuspendPatch = []byte(`{"spec":{"suspend":false}}`)
 // resume unsuspends the run's suspended Jobs. A build Job also gets builder
 // written onto it and its pod template, in the same patch: the pod reads it to
 // pick its BuildKit daemon, and a suspended Job that never started still
-// accepts pod template annotation changes.
-func (c *Client) resume(ctx context.Context, r run, builder string) error {
+// accepts pod template annotation changes. choice, the builder's rank for the
+// build's source, goes onto the Job only.
+func (c *Client) resume(ctx context.Context, r run, builder string, choice int) error {
 	for _, j := range r.jobs {
 		if !j.suspended || j.terminal {
 			continue
@@ -511,7 +577,7 @@ func (c *Client) resume(ctx context.Context, r run, builder string) error {
 
 			var err error
 
-			if patch, err = builderPatch(builder); err != nil {
+			if patch, err = builderPatch(builder, choice); err != nil {
 				return err
 			}
 
@@ -531,11 +597,14 @@ func (c *Client) resume(ctx context.Context, r run, builder string) error {
 	return nil
 }
 
-func builderPatch(builder string) ([]byte, error) {
+func builderPatch(builder string, choice int) ([]byte, error) {
 	annotations := map[string]string{labels.Builder: builder}
 
 	return json.Marshal(map[string]any{
-		"metadata": map[string]any{"annotations": annotations},
+		"metadata": map[string]any{"annotations": map[string]string{
+			labels.Builder:       builder,
+			labels.BuilderChoice: strconv.Itoa(choice),
+		}},
 		"spec": map[string]any{
 			"suspend": false,
 			"template": map[string]any{

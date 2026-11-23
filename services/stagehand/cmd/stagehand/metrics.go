@@ -29,6 +29,18 @@ var (
 		[]string{"status"},
 		nil,
 	)
+	releasesWaitingDesc = prometheus.NewDesc(
+		"lucity_releases_waiting",
+		"Queued releases by why the last admission pass held them back.",
+		[]string{"reason"},
+		nil,
+	)
+	builderBuildsDesc = prometheus.NewDesc(
+		"lucity_builder_builds",
+		"Builds running on each ready builder after the last admission pass.",
+		[]string{"builder"},
+		nil,
+	)
 )
 
 type collector struct {
@@ -40,6 +52,8 @@ type collector struct {
 func (c *collector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- helmReleasesDesc
 	ch <- releasesDesc
+	ch <- releasesWaitingDesc
+	ch <- builderBuildsDesc
 }
 
 func (c *collector) Collect(ch chan<- prometheus.Metric) {
@@ -50,6 +64,16 @@ func (c *collector) Collect(ch chan<- prometheus.Metric) {
 	if c.workspaceReleases != nil {
 		if statuses, ok := c.workspaceReleases.Statuses(); ok {
 			collectHelmReleases(ch, "workspace", statuses)
+		}
+	}
+
+	if admission, ok := c.pipeline.Admission(); ok {
+		for reason, count := range admission.Waiting {
+			ch <- prometheus.MustNewConstMetric(releasesWaitingDesc, prometheus.GaugeValue, float64(count), reason)
+		}
+
+		for builder, count := range admission.Builders {
+			ch <- prometheus.MustNewConstMetric(builderBuildsDesc, prometheus.GaugeValue, float64(count), builder)
 		}
 	}
 
@@ -74,6 +98,7 @@ type jobMetrics struct {
 	cache    *jobs.Cache
 	queue    *prometheus.HistogramVec
 	duration *prometheus.HistogramVec
+	builds   *prometheus.HistogramVec
 }
 
 func registerJobMetrics(cache *jobs.Cache, registry prometheus.Registerer) error {
@@ -89,9 +114,14 @@ func registerJobMetrics(cache *jobs.Cache, registry prometheus.Registerer) error
 			Help:    "Time a build, scan or deploy Job ran until it succeeded or failed.",
 			Buckets: prometheus.ExponentialBuckets(0.5, 2, 14),
 		}, []string{"component", "outcome"}),
+		builds: prometheus.NewHistogramVec(prometheus.HistogramOpts{
+			Name:    "lucity_builder_build_duration_seconds",
+			Help:    "Time a build Job ran, by builder and the builder's rank for the build's source (1 is the warm one).",
+			Buckets: prometheus.ExponentialBuckets(0.5, 2, 14),
+		}, []string{"builder", "choice", "outcome"}),
 	}
 
-	registry.MustRegister(m.queue, m.duration)
+	registry.MustRegister(m.queue, m.duration, m.builds)
 
 	return cache.OnFinished(m.observe)
 }
@@ -121,6 +151,10 @@ func (m *jobMetrics) observe(job *batch.Job) {
 	}
 
 	m.duration.WithLabelValues(component, outcome).Observe(finishedAt.Sub(started).Seconds())
+
+	if builder := job.Annotations[labels.Builder]; component == "build" && builder != "" {
+		m.builds.WithLabelValues(builder, job.Annotations[labels.BuilderChoice], outcome).Observe(finishedAt.Sub(started).Seconds())
+	}
 }
 
 func (m *jobMetrics) buildFinished(job *batch.Job) (time.Time, bool) {
