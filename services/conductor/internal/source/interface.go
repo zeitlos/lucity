@@ -11,4 +11,5 @@ type Interface interface {
 	Commit(ctx context.Context, repoURL, ref string) (Commit, error)
 	Token(ctx context.Context, repoURL string) (string, error)
 	Branches(ctx context.Context, repoURL string) ([]string, error)
+	TreeSize(ctx context.Context, repoURL, ref string) (int64, error)
 }

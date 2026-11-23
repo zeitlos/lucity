@@ -75,7 +75,7 @@ const AddServiceDocument = graphql(`
 `);
 
 const DetectServicesDocument = graphql(`
-  query DetectServices($repositoryUrl: String!) {
+  mutation DetectServices($repositoryUrl: String!) {
     detectServices(repositoryUrl: $repositoryUrl) {
       name
       language
@@ -534,8 +534,8 @@ async function detectAndConfirm(repo: { fullName: string; htmlUrl: string }) {
 
   try {
     const client = resolveClient();
-    const { data } = await client.query({
-      query: DetectServicesDocument,
+    const { data } = await client.mutate({
+      mutation: DetectServicesDocument,
       variables: { repositoryUrl: repo.htmlUrl },
     });
     detectedServices.value = data?.detectServices ?? [];

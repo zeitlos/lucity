@@ -84,6 +84,8 @@ type Client struct {
 
 	capabilitiesCache map[string]cachedCapabilities
 	capabilitiesMu    sync.Mutex
+
+	detections sync.Map
 }
 
 type Config struct {

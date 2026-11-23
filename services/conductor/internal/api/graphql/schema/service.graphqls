@@ -183,12 +183,14 @@ extend type Query {
   """One service, with its configuration, endpoints and releases."""
   service(id: ServiceID!): Service! @hasRole(role: WORKSPACE_DEPLOYER)
   """Inspects the default branch of a repository, given as a URL such as `https://github.com/acme/api`, and suggests services with the detected language, framework and start command. When the root has nothing to run, as in a monorepo, it suggests every folder up to two levels down that can be built, each with its folder as `contextPath`. `contextPath` inspects a folder of the repository, such as `apps/web`, instead of its root. The Lucity GitHub App needs access to the repository."""
-  detectServices(repositoryUrl: String! @constraint(constraint: "min=3,max=300"), contextPath: String @constraint(constraint: "max=255")): [DetectedService!]! @hasRole(role: WORKSPACE_MEMBER)
+  detectServices(repositoryUrl: String! @constraint(constraint: "min=3,max=300"), contextPath: String @constraint(constraint: "max=255")): [DetectedService!]! @hasRole(role: WORKSPACE_MEMBER) @deprecated(reason: "Use the detectServices mutation.")
   """The branches of a repository, given as a URL such as `https://github.com/acme/api`. The Lucity GitHub App needs access to the repository."""
   repositoryBranches(repositoryUrl: String! @constraint(constraint: "min=3,max=300")): [String!]! @hasRole(role: WORKSPACE_MEMBER)
 }
 
 extend type Mutation {
+  """Inspects the default branch of a repository, given as a URL such as `https://github.com/acme/api`, and suggests services with the detected language, framework and start command. When the root has nothing to run, as in a monorepo, it suggests every folder up to two levels down that can be built, each with its folder as `contextPath`. `contextPath` inspects a folder of the repository, such as `apps/web`, instead of its root. The Lucity GitHub App needs access to the repository."""
+  detectServices(repositoryUrl: String! @constraint(constraint: "min=3,max=300"), contextPath: String @constraint(constraint: "max=255")): [DetectedService!]! @hasRole(role: WORKSPACE_MEMBER)
   """Adds a service to an environment, either built from a GitHub `repository` such as `acme/api` or run from a container `image`. A repository build starts right away, and an image runs without one."""
   addService(environment: EnvironmentID!, input: AddServiceInput!): Service! @hasRole(role: WORKSPACE_MEMBER)
   """Removes a service from its environment."""

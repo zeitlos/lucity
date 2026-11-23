@@ -691,6 +691,7 @@ type ComplexityRoot struct {
 		DeleteVolume                  func(childComplexity int, volume platform.VolumeID) int
 		DeleteWorkspace               func(childComplexity int) int
 		Deploy                        func(childComplexity int, service platform.ServiceID, gitRef *string, noCache *bool) int
+		DetectServices                func(childComplexity int, repositoryURL string, contextPath *string) int
 		ExecuteQuery                  func(childComplexity int, database platform.DatabaseID, query string) int
 		ExpandVolume                  func(childComplexity int, volume platform.VolumeID, size string) int
 		ExposeDatabase                func(childComplexity int, database platform.DatabaseID) int
@@ -1208,6 +1209,7 @@ type MutationResolver interface {
 	DeleteProject(ctx context.Context, id platform.ProjectID) (bool, error)
 	Deploy(ctx context.Context, service platform.ServiceID, gitRef *string, noCache *bool) (*model.Release, error)
 	CancelBuild(ctx context.Context, build buildjob.BuildID) (*model.Build, error)
+	DetectServices(ctx context.Context, repositoryURL string, contextPath *string) ([]model.DetectedService, error)
 	AddService(ctx context.Context, environment platform.EnvironmentID, input model.AddServiceInput) (*model.Service, error)
 	RemoveService(ctx context.Context, service platform.ServiceID) (bool, error)
 	RenameService(ctx context.Context, service platform.ServiceID, name string) (*model.Service, error)
@@ -4045,6 +4047,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.Deploy(childComplexity, args["service"].(platform.ServiceID), args["gitRef"].(*string), args["noCache"].(*bool)), true
+	case "Mutation.detectServices":
+		if e.ComplexityRoot.Mutation.DetectServices == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_detectServices_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.DetectServices(childComplexity, args["repositoryUrl"].(string), args["contextPath"].(*string)), true
 	case "Mutation.executeQuery":
 		if e.ComplexityRoot.Mutation.ExecuteQuery == nil {
 			break
@@ -9861,6 +9874,107 @@ func (ec *executionContext) field_Mutation_deploy_args(ctx context.Context, rawA
 	}
 	args["noCache"] = arg2
 	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_detectServices_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+
+	arg0, err := ec.field_Mutation_detectServices_argsRepositoryURL(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["repositoryUrl"] = arg0
+
+	arg1, err := ec.field_Mutation_detectServices_argsContextPath(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["contextPath"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_detectServices_argsRepositoryURL(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("repositoryUrl"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["repositoryUrl"]
+		if !ok {
+			var zeroVal string
+			return zeroVal, nil
+		}
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "min=3,max=300")
+		if err != nil {
+			var zeroVal string
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal string
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(string); ok {
+		return data, nil
+	} else {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
+	}
+}
+
+func (ec *executionContext) field_Mutation_detectServices_argsContextPath(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("contextPath"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["contextPath"]
+		if !ok {
+			var zeroVal *string
+			return zeroVal, nil
+		}
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "max=255")
+		if err != nil {
+			var zeroVal *string
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal *string
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal *string
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(*string); ok {
+		return data, nil
+	} else if tmp == nil {
+		var zeroVal *string
+		return zeroVal, nil
+	} else {
+		var zeroVal *string
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be *string`, tmp))
+	}
 }
 
 func (ec *executionContext) field_Mutation_executeQuery_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
@@ -26241,6 +26355,68 @@ func (ec *executionContext) fieldContext_Mutation_cancelBuild(ctx context.Contex
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_cancelBuild_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_detectServices(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_detectServices(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().DetectServices(ctx, fc.Args["repositoryUrl"].(string), fc.Args["contextPath"].(*string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal []model.DetectedService
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal []model.DetectedService
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v []model.DetectedService) graphql.Marshaler {
+			return ec.marshalNDetectedService2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDetectedServiceᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_detectServices(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_DetectedService(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_detectServices_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -44871,6 +45047,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "cancelBuild":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_cancelBuild(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "detectServices":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_detectServices(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

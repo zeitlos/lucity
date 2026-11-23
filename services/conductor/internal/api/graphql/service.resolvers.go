@@ -16,6 +16,19 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 )
 
+// DetectServices is the resolver for the detectServices field.
+func (r *mutationResolver) DetectServices(ctx context.Context, repositoryURL string, contextPath *string) ([]model.DetectedService, error) {
+	services, err := r.Conductor.DetectServices(ctx, repositoryURL, to.Val(contextPath))
+	if err != nil {
+		return nil, err
+	}
+	result := make([]model.DetectedService, 0, len(services))
+	for _, s := range services {
+		result = append(result, convertDetectedService(s))
+	}
+	return result, nil
+}
+
 // AddService is the resolver for the addService field.
 func (r *mutationResolver) AddService(ctx context.Context, environment platform.EnvironmentID, input model.AddServiceInput) (*model.Service, error) {
 	var cpu string
@@ -274,15 +287,7 @@ func (r *queryResolver) Service(ctx context.Context, id platform.ServiceID) (*mo
 
 // DetectServices is the resolver for the detectServices field.
 func (r *queryResolver) DetectServices(ctx context.Context, repositoryURL string, contextPath *string) ([]model.DetectedService, error) {
-	services, err := r.Conductor.DetectServices(ctx, repositoryURL, to.Val(contextPath))
-	if err != nil {
-		return nil, err
-	}
-	result := make([]model.DetectedService, 0, len(services))
-	for _, s := range services {
-		result = append(result, convertDetectedService(s))
-	}
-	return result, nil
+	return r.Mutation().DetectServices(ctx, repositoryURL, contextPath)
 }
 
 // RepositoryBranches is the resolver for the repositoryBranches field.

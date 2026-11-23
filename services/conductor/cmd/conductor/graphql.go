@@ -50,7 +50,10 @@ const (
 	allowSuspendedDirective = "allowSuspended"
 )
 
-const maxSubscriptionsPerConnection = 20
+const (
+	maxSubscriptionsPerConnection = 20
+	detectServicesComplexity      = 300
+)
 
 type openSubscriptionsKey struct{}
 
@@ -61,8 +64,18 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 
 	constraintDir := directive.New()
 
+	var complexity gatewaygraphql.ComplexityRoot
+
+	detectServicesCost := func(int, string, *string) int {
+		return detectServicesComplexity
+	}
+
+	complexity.Query.DetectServices = detectServicesCost
+	complexity.Mutation.DetectServices = detectServicesCost
+
 	srv := gqlhandler.New(gatewaygraphql.NewExecutableSchema(gatewaygraphql.Config{
-		Resolvers: &resolver,
+		Resolvers:  &resolver,
+		Complexity: complexity,
 		Directives: gatewaygraphql.DirectiveRoot{
 			Constraint: constraintDir.Validate,
 			AllowSuspended: func(ctx context.Context, obj interface{}, next gqlgen.Resolver) (interface{}, error) {

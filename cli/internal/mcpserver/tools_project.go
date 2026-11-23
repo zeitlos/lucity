@@ -234,7 +234,7 @@ func (s *server) detectServices(ctx context.Context, _ *mcp.CallToolRequest, inp
 		return nil, nil, err
 	}
 
-	const query = `query($url: String!, $contextPath: String) {
+	const query = `mutation($url: String!, $contextPath: String) {
   detectServices(repositoryUrl: $url, contextPath: $contextPath) { name language framework contextPath startCommand suggestedPort }
 }`
 

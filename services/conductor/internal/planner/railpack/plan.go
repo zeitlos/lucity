@@ -22,6 +22,14 @@ import (
 )
 
 func (c *Client) Plan(ctx context.Context, repoURL, ref, token, contextPath string) ([]planner.Plan, error) {
+	select {
+	case c.slots <- struct{}{}:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+
+	defer func() { <-c.slots }()
+
 	tmpDir, err := os.MkdirTemp("", "plan-*")
 
 	if err != nil {

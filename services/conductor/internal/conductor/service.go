@@ -3,12 +3,14 @@ package conductor
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
 	"regexp"
 	"slices"
 	"strings"
+	"time"
 
 	containername "github.com/google/go-containerregistry/pkg/name"
 	gh "github.com/google/go-github/v92/github"
@@ -16,9 +18,11 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/deployer"
+	ghpkg "github.com/zeitlos/lucity/pkg/github"
 	"github.com/zeitlos/lucity/pkg/imageref"
 	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/pkg/resources"
+	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/pkg/usererror"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/metrics"
@@ -109,7 +113,27 @@ func (c *Client) settleFirstBuildStatus(ctx context.Context, service *Service) {
 	}
 }
 
+const (
+	detectionTimeout  = 45 * time.Second
+	maxDetectionBytes = 500 << 20
+)
+
 func (c *Client) DetectServices(ctx context.Context, repositoryURL, contextPath string) ([]Plan, error) {
+	workspace, err := tenant.FromContext(ctx)
+
+	if err != nil {
+		return nil, usererror.New("workspace not specified")
+	}
+
+	if _, running := c.detections.LoadOrStore(workspace, struct{}{}); running {
+		return nil, usererror.New("already inspecting a repository for this workspace; try again in a moment")
+	}
+
+	defer c.detections.Delete(workspace)
+
+	ctx, cancel := context.WithTimeout(ctx, detectionTimeout)
+	defer cancel()
+
 	repository, err := repositoryFromURL(repositoryURL)
 
 	if err != nil {
@@ -134,13 +158,33 @@ func (c *Client) DetectServices(ctx context.Context, repositoryURL, contextPath 
 		return nil, err
 	}
 
+	size, err := c.source.TreeSize(ctx, sourceURL, commit.SHA)
+
+	if errors.Is(err, ghpkg.ErrTreeTruncated) {
+		return nil, usererror.New("this repository has too many files to inspect")
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	if size > maxDetectionBytes {
+		return nil, usererror.New("this repository is larger than 500 MiB, too large to inspect; add its services one by one instead")
+	}
+
 	token, err := c.source.Token(ctx, sourceURL)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return c.planner.Plan(ctx, sourceURL, commit.SHA, token, contextPath)
+	services, err := c.planner.Plan(ctx, sourceURL, commit.SHA, token, contextPath)
+
+	if err != nil && errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return nil, usererror.New("inspecting this repository took too long; add its services one by one instead")
+	}
+
+	return services, err
 }
 
 func (c *Client) RepositoryBranches(ctx context.Context, repositoryURL string) ([]string, error) {

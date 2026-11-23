@@ -4,10 +4,14 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/planner"
 )
 
-type Client struct{}
+const concurrentPlans = 2
+
+type Client struct {
+	slots chan struct{}
+}
 
 func New() *Client {
-	return &Client{}
+	return &Client{slots: make(chan struct{}, concurrentPlans)}
 }
 
 var _ planner.Interface = (*Client)(nil)
