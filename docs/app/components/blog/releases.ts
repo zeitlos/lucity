@@ -9,12 +9,21 @@ export interface Release {
 export const releasesUrl = 'https://github.com/zeitlos/lucity/releases';
 
 const tags: Record<string, string> = {
+  '23 Nov': 'v26.11.5',
   '17 Nov': 'v26.11.4',
   '11 Nov': 'v26.11.3',
-  '6 Nov': 'v26.11.2',
 };
 
 const earlier: Release[] = [
+  {
+    date: '6 Nov',
+    tag: 'v26.11.2',
+    items: [
+      { name: 'A log explorer', text: 'Search by keyword, go back up to 14 days and filter by instance, including ones that already crashed.' },
+      { name: 'A canvas that updates live', text: 'Deploys, scaling and new resources show up within a second. No reload.' },
+      { name: 'Jump anywhere with ⌘K', text: 'One palette for every project, environment and resource.' },
+    ],
+  },
   {
     date: '2 Nov',
     tag: 'v26.11.1',

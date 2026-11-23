@@ -95,12 +95,16 @@ the full draft. It's cheaper to confirm than to over- or under-report.
 
 Structure, top to bottom:
 
-1. **The image line, literally first**, then one blank line:
+1. **The image line, literally first**, then the background marker the image script
+   printed, then one blank line:
    ```
    <img width="1280" height="640" alt="lucity-social-preview" src="PASTE_IMAGE_URL" />
+   <!-- social-background: Mountain city -->
    ```
-   See "The social-preview image" below for how the maintainer gets that URL. Leave the
-   `PASTE_IMAGE_URL` placeholder in your draft; you can't mint the `user-attachments` URL.
+   Render the image first, as "The social-preview image" below describes. Leave the
+   `PASTE_IMAGE_URL` placeholder; you can't mint the `user-attachments` URL, so the
+   maintainer pastes the image the script put on their clipboard. Keep the marker: it is
+   how the next release avoids reusing this background.
 
 2. **An intro placeholder listing the highlights, not finished prose.** The opening
    paragraph is what makes it a Lucity release and not a dependabot digest, and the
@@ -173,8 +177,10 @@ gh release edit <typo-tag> --tag <correct-tag> --draft=true --title "<correct-ta
   --notes-file tmp/release-notes-<correct-tag>.md
 ```
 
-After writing, print the release URL (`gh release view <tag> --json url -q .url`) and remind
-the maintainer of the two manual steps left: the social image and the intro paragraph.
+After writing, print the release URL (`gh release view <tag> --json url -q .url`), send the
+rendered image to the maintainer, and remind them of the two manual steps left: paste the
+image (it is on their clipboard) over the `PASTE_IMAGE_URL` line, and write the intro
+paragraph. Name the background, headline and tagline you picked, so they can ask for others.
 
 ### 6. Update "Recently shipped" on the site
 
@@ -226,20 +232,40 @@ commit the site change with the release.
 
 ## The social-preview image
 
-Every release opens with a 1280×640 social card. It is generated in the dashboard, not by
-this skill:
+Every release opens with a 1280×640 social card from the generator on the dashboard's
+**/brand** page ([BrandSocialPreview.vue](services/dashboard/src/components/brand/BrandSocialPreview.vue)).
+[docs/scripts/social-image.mjs](docs/scripts/social-image.mjs) drives that page headlessly,
+so the card always matches the generator:
 
-1. Open the dashboard **/brand** page ([services/dashboard/src/pages/BrandPage.vue](services/dashboard/src/pages/BrandPage.vue)),
-   scroll to the **Social image** section.
-2. Keep the **Wide** format (1280×640, the default). Pick a background (a wallpaper or a
-   brand color) and put the release in **Kicker**, like
-   `Release 26.11.2`. Optionally tailor the **Headline** / **Tagline** to the release theme
-   (the default is "The PaaS you can leave." / "Made in Switzerland · Hosted in the EU ·
-   Open source"). Enter starts a new headline line, and the text shrinks to fit.
-3. Click **Copy image** and paste it into the description box of the GitHub release editor.
-   GitHub uploads it and inserts the `<img ... src="https://github.com/user-attachments/assets/…" />`
-   tag, which replaces the `PASTE_IMAGE_URL` placeholder in the draft. **PNG** and **JPG**
-   download `lucity-social-preview.png` instead, to drag in.
+```sh
+cd docs && node scripts/social-image.mjs --tag <tag> \
+  --headline '<line one>\n<line two>' --tagline '<tagline>'
+```
 
-Remind the maintainer of these steps when you hand off the draft, since the URL only exists
-after the upload.
+It writes `tmp/social-<tag>.png`, copies it to the clipboard and prints the background
+marker for the release body. Look at the image before handing it off (text cut off, a
+headline that shrank too far) and re-run with shorter text if needed.
+
+**Text**, following the recent headers:
+
+- Kicker: the tag itself (`v26.11.5`). The script sets it from `--tag`.
+- Headline: the one or two headline features, title case, at most two lines, like
+  "Monorepo Support", "Log Explorer &\ncleaner Canvas" or "Scale to Zero &\nfaster Builds".
+- Tagline: one short sentence with the next highlights, often starting with "Plus", like
+  "Plus smarter build queues and more secure sessions." No em dashes, no vendor names.
+
+**Background**: leave it to the script. It reads the `<!-- social-background: … -->`
+markers of recent releases and takes a wallpaper no release has used yet, in /brand order,
+otherwise the one used longest ago. A release that already has a marker keeps its
+background, so re-running for the same tag only changes the text. `--list` shows which
+release used which wallpaper, and `--background '<Name>'` overrides the pick when the
+maintainer asks for one.
+
+The script uses the public /brand page on lucity.dev and the installed Chrome. Set
+`LUCITY_URL=http://localhost:5173 LUCITY_APP_PATH=` to render with a local dashboard (for
+example to try generator changes that aren't deployed yet), and `SOCIAL_BROWSER=` for
+Playwright's own Chromium.
+
+If the script can't run, fall back to the page itself: **Social image** section, Wide format,
+pick the background, fill in Kicker, Headline and Tagline, click **Copy image** and paste it
+into the release editor. Still add the marker by hand.
