@@ -52,6 +52,8 @@ const (
 
 const (
 	maxSubscriptionsPerConnection = 20
+	maxGraphQLTokens              = 2000
+	maxGraphQLBodyBytes           = 1 << 20
 	detectServicesComplexity      = 300
 )
 
@@ -237,6 +239,7 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 		InitTimeout: 10 * time.Second,
 	})
 	srv.SetQueryCache(lru.New[*ast.QueryDocument](1000))
+	srv.SetParserTokenLimit(maxGraphQLTokens)
 	srv.Use(extension.Introspection{})
 	srv.Use(extension.FixedComplexityLimit(300))
 
@@ -404,7 +407,7 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 
 	// GraphQL endpoints
 	mux.Handle("/playground", playground.Handler("GraphQL playground", "/graphql"))
-	mux.Handle("/graphql", srv)
+	mux.Handle("/graphql", requireAuthentication(http.MaxBytesHandler(srv, maxGraphQLBodyBytes)))
 
 	authMiddleware := sessionAuth(tokens, codec, verifier)
 
@@ -490,6 +493,24 @@ func (s *GraphQLServer) Shutdown(ctx context.Context) error {
 
 func (s *GraphQLServer) Label() string {
 	return "GraphQL"
+}
+
+func requireAuthentication(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		websocketUpgrade := r.Method == http.MethodGet && strings.EqualFold(r.Header.Get("Upgrade"), "websocket")
+
+		if r.Method == http.MethodOptions || websocketUpgrade {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		if _, err := auth.FromContext(r.Context()); err != nil {
+			writeGraphQLError(w, http.StatusUnauthorized, "unauthenticated")
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 // securityHeadersMiddleware adds standard security headers to all responses.
