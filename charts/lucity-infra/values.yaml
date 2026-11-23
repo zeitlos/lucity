@@ -867,7 +867,7 @@ victoria-metrics-alert:
                   summary: "{{ $labels.pool }} pool has {{ $value | humanize }} free volume slots: the next database or volume will stay Pending. Add a node"
               - alert: PoolRequestsNoHeadroom
                 expr: |-
-                  lucity:pool_requests:sum
+                  lucity:pool_requests:sum{pool!="builds"}
                   / on (pool, resource) (lucity:pool_allocatable:sum - on (pool, resource) lucity:pool_allocatable:max_node)
                   > 1
                   and on (pool) count by (pool) (lucity:node_pool:info) > 1
