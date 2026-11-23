@@ -48,22 +48,22 @@ func (e *environmentClient) UpdateVariables(ctx context.Context, id platform.Env
 func (e *environmentClient) State(ctx context.Context, id platform.EnvironmentID) (*deployer.EnvironmentState, error) {
 	namespace := id.Namespace()
 
-	var newest types.UID
+	var deployed types.UID
 
 	if releases := e.client.releases; releases != nil {
-		uid, _, synced := releases.newest(namespace)
+		uid, exists, synced := releases.deployed(namespace)
 
-		if synced && uid == "" {
+		if synced && !exists {
 			return nil, nil
 		}
 
-		if synced {
+		if synced && uid != "" {
 			if state, ok := releases.state(namespace, uid); ok {
 				return &state, nil
 			}
 		}
 
-		newest = uid
+		deployed = uid
 	}
 
 	config := action.NewConfiguration()
@@ -84,8 +84,8 @@ func (e *environmentClient) State(ctx context.Context, id platform.EnvironmentID
 
 	state := deployer.EnvironmentState{Placement: env.Placement, Suspended: env.Suspended}
 
-	if newest != "" {
-		e.client.releases.markState(namespace, newest, state)
+	if deployed != "" {
+		e.client.releases.markState(namespace, deployed, state)
 	}
 
 	return &state, nil
@@ -136,20 +136,20 @@ func (e *environmentClient) Export(_ context.Context, id platform.EnvironmentID)
 func (e *environmentClient) Outdated(ctx context.Context, id platform.EnvironmentID) (bool, error) {
 	namespace := id.Namespace()
 
-	var newest types.UID
+	var deployed types.UID
 
 	if releases := e.client.releases; releases != nil {
-		uid, _, synced := releases.newest(namespace)
+		uid, exists, synced := releases.deployed(namespace)
 
-		if synced && uid == "" {
+		if synced && !exists {
 			return false, nil
 		}
 
-		if synced && releases.isVerified(namespace, uid) {
+		if synced && uid != "" && releases.isVerified(namespace, uid) {
 			return false, nil
 		}
 
-		newest = uid
+		deployed = uid
 	}
 
 	config := action.NewConfiguration()
@@ -158,7 +158,16 @@ func (e *environmentClient) Outdated(ctx context.Context, id platform.Environmen
 		return false, err
 	}
 
-	metadata, err := action.NewGetMetadata(config).Run(releaseName)
+	version, err := deployedVersion(config)
+
+	if err != nil {
+		return false, err
+	}
+
+	get := action.NewGetMetadata(config)
+	get.Version = version
+
+	metadata, err := get.Run(releaseName)
 
 	if errors.Is(err, driver.ErrReleaseNotFound) {
 		return false, nil
@@ -178,8 +187,8 @@ func (e *environmentClient) Outdated(ctx context.Context, id platform.Environmen
 		return true, nil
 	}
 
-	if newest != "" {
-		e.client.releases.markVerified(namespace, newest)
+	if deployed != "" {
+		e.client.releases.markVerified(namespace, deployed)
 	}
 
 	return false, nil

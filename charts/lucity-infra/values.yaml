@@ -710,6 +710,13 @@ victoria-metrics-alert:
                 annotations:
                   title: Helm release broken
                   summary: "{{ $value }} {{ $labels.chart }} releases have their newest revision in {{ $labels.status }}"
+              - alert: ReleaseApplyFailing
+                expr: max(lucity_release_apply_failures) > 0
+                for: 30m
+                labels: { severity: warning }
+                annotations:
+                  title: Release apply failing
+                  summary: "{{ $value }} environments have failed to apply their release for 30 minutes: suspension or placement is not landing, check the stagehand logs for \"release: failed to apply\""
               - alert: BuildQueueSlow
                 expr: histogram_quantile(0.95, sum by (le) (rate(lucity_job_queue_seconds_bucket{component="build"}[30m]))) > 600
                 for: 10m

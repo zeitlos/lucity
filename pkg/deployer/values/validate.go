@@ -44,6 +44,8 @@ var (
 
 	maxAllowRules              = 64
 	maxAllowRuleDescriptionLen = 64
+
+	maxVariableBytes = 256 * 1024
 )
 
 // Validate checks every invariant of env as a whole, whether the state was
@@ -167,6 +169,10 @@ func Validate(env *Env, workspace, registry string) error {
 	}
 
 	if err := validateAgents(env); err != nil {
+		return err
+	}
+
+	if err := validateVariableBytes(env); err != nil {
 		return err
 	}
 
@@ -521,6 +527,30 @@ func validateSecurityContext(runAsUser, runAsGroup, fsGroup *int64) error {
 		return err
 	}
 	return nil
+}
+
+func validateVariableBytes(env *Env) error {
+	total := variableBytes(env.SharedVariables)
+
+	for _, svc := range env.Services {
+		total += variableBytes(svc.Env)
+	}
+
+	if total > maxVariableBytes {
+		return usererror.Errorf("variables of this environment exceed %d KiB in total", maxVariableBytes/1024)
+	}
+
+	return nil
+}
+
+func variableBytes(variables map[string]string) int {
+	total := 0
+
+	for k, v := range variables {
+		total += len(k) + len(v)
+	}
+
+	return total
 }
 
 func isValidVarName(name string) bool {

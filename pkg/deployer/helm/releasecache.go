@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"sync"
 
+	"helm.sh/helm/v4/pkg/release/common"
 	core "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -54,21 +55,29 @@ func (r *ReleaseCache) Start(ctx context.Context) {
 	go r.informer.Run(ctx.Done())
 }
 
-func (r *ReleaseCache) newest(namespace string) (uid types.UID, revision int, synced bool) {
+func (r *ReleaseCache) deployed(namespace string) (uid types.UID, exists bool, synced bool) {
 	if !r.informer.HasSynced() {
-		return "", 0, false
+		return "", false, false
 	}
 
 	objects, err := r.informer.GetIndexer().ByIndex(cache.NamespaceIndex, namespace)
 
 	if err != nil {
-		return "", 0, false
+		return "", false, false
 	}
+
+	revision := 0
 
 	for _, object := range objects {
 		secret, ok := object.(*meta.PartialObjectMetadata)
 
 		if !ok {
+			continue
+		}
+
+		exists = true
+
+		if secret.Labels["status"] != common.StatusDeployed.String() {
 			continue
 		}
 
@@ -82,7 +91,7 @@ func (r *ReleaseCache) newest(namespace string) (uid types.UID, revision int, sy
 		revision = version
 	}
 
-	return uid, revision, true
+	return uid, exists, true
 }
 
 func (r *ReleaseCache) isVerified(namespace string, uid types.UID) bool {

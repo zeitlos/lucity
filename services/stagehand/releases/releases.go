@@ -46,6 +46,7 @@ type Worker struct {
 	loops            *metrics.Loops
 	workspaceCount   *prometheus.GaugeVec
 	environmentCount prometheus.Gauge
+	applyFailures    prometheus.Gauge
 }
 
 type verdict struct {
@@ -79,9 +80,13 @@ func New(environment environment.Interface, environments deployer.EnvironmentCli
 			Name: "lucity_environments",
 			Help: "Environments of known workspaces.",
 		}),
+		applyFailures: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "lucity_release_apply_failures",
+			Help: "Environments whose release failed to apply in the last pass.",
+		}),
 	}
 
-	registry.MustRegister(w.workspaceCount, w.environmentCount)
+	registry.MustRegister(w.workspaceCount, w.environmentCount, w.applyFailures)
 
 	return w
 }
@@ -147,7 +152,7 @@ func (w *Worker) reconcile(ctx context.Context) error {
 		return state
 	}
 
-	applied, planned := 0, 0
+	applied, planned, failed := 0, 0, 0
 	done := map[platform.EnvironmentID]bool{}
 
 	for _, environment := range environments {
@@ -175,10 +180,12 @@ func (w *Worker) reconcile(ctx context.Context) error {
 
 		done[environment.ID] = true
 
-		if w.apply(ctx, environment.ID, verdict, *current, desired(environment.ID, *current), outdated) {
-			applied++
+		if err := w.apply(ctx, environment.ID, verdict, *current, desired(environment.ID, *current), outdated); err != nil {
+			failed++
 		} else if w.dryRun {
 			planned++
+		} else {
+			applied++
 		}
 	}
 
@@ -223,17 +230,21 @@ func (w *Worker) reconcile(ctx context.Context) error {
 			continue
 		}
 
-		if w.apply(ctx, id, verdicts[id.Workspace], *current, state, outdated) {
-			applied++
+		if err := w.apply(ctx, id, verdicts[id.Workspace], *current, state, outdated); err != nil {
+			failed++
 		} else if w.dryRun {
 			planned++
+		} else {
+			applied++
 		}
 	}
 
+	w.applyFailures.Set(float64(failed))
+
 	upgraded := w.upgradeWorkspaces(ctx)
 
-	if applied > 0 || planned > 0 || upgraded > 0 || len(suspend) > 0 || len(resume) > 0 {
-		slog.Info("release pass done", "applied", applied, "planned", planned, "workspaces", upgraded, "suspended", len(suspend), "resumed", len(resume))
+	if applied > 0 || planned > 0 || failed > 0 || upgraded > 0 || len(suspend) > 0 || len(resume) > 0 {
+		slog.Info("release pass done", "applied", applied, "planned", planned, "failed", failed, "workspaces", upgraded, "suspended", len(suspend), "resumed", len(resume))
 	}
 
 	return nil
@@ -286,24 +297,24 @@ func (w *Worker) upgradeWorkspaces(ctx context.Context) int {
 	return upgraded
 }
 
-func (w *Worker) apply(ctx context.Context, id platform.EnvironmentID, verdict verdict, current, desired deployer.EnvironmentState, outdated bool) bool {
+func (w *Worker) apply(ctx context.Context, id platform.EnvironmentID, verdict verdict, current, desired deployer.EnvironmentState, outdated bool) error {
 	log := slog.With("environment", id, "paid", verdict.paid, "outdated", outdated, "move", !current.Placement.Equal(desired.Placement), "suspended", desired.Suspended)
 
 	if w.dryRun {
 		log.Info("release: would apply")
-		return false
+		return nil
 	}
 
 	revision, err := w.environments.SetState(ctx, id, desired)
 
 	if err != nil {
 		log.Warn("release: failed to apply", "error", err)
-		return false
+		return err
 	}
 
 	log.Info("release: applied", "revision", revision)
 
-	return true
+	return nil
 }
 
 func (w *Worker) verdicts(ctx context.Context, organizations []logto.Organization) (map[string]verdict, bool) {

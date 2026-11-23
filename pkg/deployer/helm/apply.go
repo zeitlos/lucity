@@ -231,8 +231,15 @@ func loadCurrent(cfg *action.Configuration) (*values.Env, error) {
 }
 
 func loadRelease(cfg *action.Configuration) (env *values.Env, installed bool, err error) {
+	version, err := deployedVersion(cfg)
+
+	if err != nil {
+		return nil, false, err
+	}
+
 	get := action.NewGetValues(cfg)
 	get.AllValues = true
+	get.Version = version
 
 	raw, err := get.Run(releaseName)
 
@@ -253,6 +260,26 @@ func loadRelease(cfg *action.Configuration) (env *values.Env, installed bool, er
 	env, err = values.Parse(data)
 
 	return env, true, err
+}
+
+func deployedVersion(cfg *action.Configuration) (int, error) {
+	deployed, err := cfg.Releases.Deployed(releaseName)
+
+	if errors.Is(err, driver.ErrNoDeployedReleases) {
+		return 0, nil
+	}
+
+	if err != nil {
+		return 0, err
+	}
+
+	accessor, err := release.NewAccessor(deployed)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return accessor.Version(), nil
 }
 
 func envToMap(env *values.Env) (map[string]any, error) {
