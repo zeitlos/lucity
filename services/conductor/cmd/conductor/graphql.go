@@ -485,26 +485,15 @@ func securityHeadersMiddleware(next http.Handler) http.Handler {
 }
 
 // clientAddressMiddleware records the address a request reached the platform
-// from: X-Real-IP when an edge in front of the gateway set it, otherwise the
-// rightmost X-Forwarded-For entry, which the gateway appends. Only the caller
-// is fooled by forging these, so the address must not be used for access
-// decisions.
+// from: the rightmost X-Forwarded-For entry, which the gateway appends.
 func clientAddressMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if address, ok := requestClientAddress(r); ok {
+		if address, ok := gatewayClientAddress(r); ok {
 			r = r.WithContext(conductor.WithClientAddress(r.Context(), address))
 		}
 
 		next.ServeHTTP(w, r)
 	})
-}
-
-func requestClientAddress(r *http.Request) (netip.Addr, bool) {
-	if address, err := netip.ParseAddr(strings.TrimSpace(r.Header.Get("X-Real-IP"))); err == nil {
-		return address, true
-	}
-
-	return gatewayClientAddress(r)
 }
 
 func gatewayClientAddress(r *http.Request) (netip.Addr, bool) {
