@@ -220,36 +220,6 @@ func (c *Client) EnsurePersonalWorkspace(ctx context.Context, userID, username s
 		}
 	}
 
-	if legacyID := sanitizeWorkspaceID(username); legacyID != "" {
-		if existing, err := c.logto.OrganizationByName(ctx, legacyID); err == nil {
-			// Cache the mapping
-			c.cacheOrgID(legacyID, existing.ID)
-
-			// Workspace exists. Check if this user is already a member.
-			members, memErr := c.logto.OrganizationMembers(ctx, existing.ID)
-			if memErr == nil {
-				for _, m := range members {
-					if m.ID == userID {
-						c.healBilling(ctx, legacyID, userID, username)
-						slog.Info("personal workspace restored", "id", legacyID, "user", userID)
-						return legacyID, false, nil
-					}
-				}
-			}
-
-			// Check if this is a personal workspace with customData indicating personal=true.
-			// If personal and no owner matched, it might be a pre-migration workspace.
-			isPersonal, _ := existing.CustomData["personal"].(bool)
-			if isPersonal {
-				// Re-add user as admin member
-				_ = c.logto.AddOrganizationMember(ctx, existing.ID, userID)
-				_ = c.logto.AssignOrganizationRoles(ctx, existing.ID, userID, []string{adminRoleID, memberRoleID})
-				slog.Info("personal workspace restored (re-added member)", "id", legacyID, "user", userID)
-				return legacyID, false, nil
-			}
-		}
-	}
-
 	wsID := platform.DeriveID(username, "personal", func(id string) bool {
 		if slices.Contains(reservedWorkspaceIDs, id) {
 			return true
@@ -513,27 +483,4 @@ func (c *Client) cacheOrgID(workspaceID, logtoOrgID string) {
 	c.orgIDCacheMu.Lock()
 	c.orgIDCache[workspaceID] = logtoOrgID
 	c.orgIDCacheMu.Unlock()
-}
-
-// sanitizeWorkspaceID is how personal workspace IDs were derived before the
-// 16-character rule. It finds workspaces created that way.
-func sanitizeWorkspaceID(login string) string {
-	id := strings.ToLower(login)
-	// Replace any non-alphanumeric characters (except hyphens) with hyphens
-	var b strings.Builder
-	for _, r := range id {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {
-			b.WriteRune(r)
-		} else {
-			b.WriteRune('-')
-		}
-	}
-	id = strings.Trim(b.String(), "-")
-	if len(id) < 3 {
-		return ""
-	}
-	if len(id) > 63 {
-		id = id[:63]
-	}
-	return id
 }
