@@ -82,6 +82,7 @@ const (
 	StatusFailed     Status = "failed"
 	StatusCancelling Status = "cancelling"
 	StatusCancelled  Status = "cancelled"
+	StatusSuperseded Status = "superseded"
 )
 
 type BuildID struct {

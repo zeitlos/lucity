@@ -67,7 +67,7 @@ const bucket: Record<BucketStatus, StatusView> = {
   [BucketStatus.Failed]: { tone: 'danger', label: 'Failed', glyph: 'failed' },
 };
 
-export type JobState = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'skipped';
+export type JobState = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'skipped' | 'superseded';
 
 const job: Record<JobState, StatusView> = {
   queued: { tone: 'neutral', label: 'Queued' },
@@ -76,6 +76,7 @@ const job: Record<JobState, StatusView> = {
   failed: { tone: 'danger', label: 'Failed' },
   cancelled: { tone: 'neutral', label: 'Cancelled' },
   skipped: { tone: 'neutral', label: 'Skipped' },
+  superseded: { tone: 'neutral', label: 'Superseded' },
 };
 
 const backupState: Record<BackupStatus, JobState> = {

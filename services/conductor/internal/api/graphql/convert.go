@@ -686,6 +686,8 @@ func convertScanStatus(scan conductor.Scan) model.ScanStatus {
 		return model.ScanStatusClean
 	case scanjob.StatusFailed:
 		return model.ScanStatusFailed
+	case scanjob.StatusSkipped:
+		return model.ScanStatusSkipped
 	}
 
 	slog.Warn("unknown scan status", "status", scan.Status)
@@ -802,7 +804,7 @@ func convertDeploy(deploy conductor.Deploy, build *conductor.Build) model.Deploy
 func convertDeployStatus(status deployjob.Status, build *conductor.Build) model.DeployStatus {
 	if build != nil {
 		switch build.Status {
-		case buildjob.StatusFailed, buildjob.StatusCancelled, buildjob.StatusCancelling:
+		case buildjob.StatusFailed, buildjob.StatusCancelled, buildjob.StatusCancelling, buildjob.StatusSuperseded:
 			return model.DeployStatusSkipped
 		case buildjob.StatusQueued, buildjob.StatusRunning:
 			if status == deployjob.StatusFailed {
@@ -1213,6 +1215,8 @@ func convertBuildStatus(status buildjob.Status) model.BuildStatus {
 		return model.BuildStatusRunning
 	case buildjob.StatusCancelled:
 		return model.BuildStatusCancelled
+	case buildjob.StatusSuperseded:
+		return model.BuildStatusSuperseded
 	}
 
 	slog.Warn("unknown build status", "status", status)

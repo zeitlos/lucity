@@ -34,6 +34,14 @@ const (
 	EnvironmentName = Prefix + "environment-name"
 )
 
+// Annotation keys on release Jobs that ended without running: a newer run of
+// the same service was queued (the value names its release), or the run was
+// cancelled while it waited.
+const (
+	SupersededBy = Prefix + "superseded-by"
+	CancelledAt  = Prefix + "cancelled-at"
+)
+
 // OCI image label constants.
 const (
 	OCISource   = "org.opencontainers.image.source"

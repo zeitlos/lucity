@@ -28,6 +28,7 @@ import (
 type Interface interface {
 	Reconcile(ctx context.Context) error
 	QueuedRuns(ctx context.Context, workspace string) (int, error)
+	Cancel(ctx context.Context, workspace, release string) (bool, error)
 }
 
 const labelComponent = labels.Prefix + "component"
@@ -96,9 +97,12 @@ type job struct {
 type run struct {
 	workspace   string
 	environment string
+	service     string
+	release     string
 	key         string
 	createdAt   time.Time
 	jobs        []job
+	dropped     map[string]string
 }
 
 func (r run) state() runState {
@@ -196,8 +200,20 @@ func (c *Client) Reconcile(ctx context.Context) error {
 				load[builder]++
 			}
 		case runQueued:
+			if len(r.dropped) > 0 {
+				if _, err := c.drop(ctx, r, r.dropped); err != nil {
+					slog.Warn("failed to finish partially dropped run", "run", r.key, "error", err)
+				}
+
+				continue
+			}
+
 			queuedByEnvironment[r.environment] = append(queuedByEnvironment[r.environment], r)
 		}
+	}
+
+	for environment, queue := range queuedByEnvironment {
+		queuedByEnvironment[environment] = c.supersede(ctx, queue)
 	}
 
 	var candidates []run
@@ -246,6 +262,116 @@ func (c *Client) Reconcile(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// supersede keeps the newest queued run of each service and drops the older
+// ones, so a burst of pushes builds only its last commit. queue is ordered
+// oldest first; the runs that remain keep that order.
+func (c *Client) supersede(ctx context.Context, queue []run) []run {
+	newest := map[string]run{}
+
+	for _, r := range queue {
+		if r.service != "" && r.release != "" {
+			newest[r.service] = r
+		}
+	}
+
+	var kept []run
+
+	for _, r := range queue {
+		latest := newest[r.service]
+
+		if r.service == "" || r.release == "" || latest.key == r.key {
+			kept = append(kept, r)
+			continue
+		}
+
+		if _, err := c.drop(ctx, r, map[string]string{labels.SupersededBy: latest.release}); err != nil {
+			slog.Warn("failed to drop superseded run", "run", r.key, "error", err)
+			continue
+		}
+
+		slog.Info("queued run superseded", "run", r.key, "service", r.service, "by", latest.release)
+	}
+
+	return kept
+}
+
+// Cancel finishes a queued release run without running any of its Jobs. It
+// reports false when the run is not queued as a whole anymore, so the caller
+// stops it the regular way.
+func (c *Client) Cancel(ctx context.Context, workspace, release string) (bool, error) {
+	if !c.jobs.HasSynced() {
+		return false, errJobsNotSynced
+	}
+
+	runs, err := c.runs(ctx)
+
+	if err != nil {
+		return false, err
+	}
+
+	for _, r := range runs {
+		if r.workspace != workspace || r.release != release {
+			continue
+		}
+
+		if r.state() != runQueued {
+			return false, nil
+		}
+
+		annotations := map[string]string{labels.CancelledAt: time.Now().UTC().Format(time.RFC3339)}
+		dropped, err := c.drop(ctx, r, annotations)
+
+		if dropped > 0 {
+			return true, nil
+		}
+
+		return false, err
+	}
+
+	return false, nil
+}
+
+// drop ends each of the run's waiting Jobs without a pod: unsuspended with no
+// parallelism, a Job runs nothing until its one-second deadline fails it. The
+// patch carries the resourceVersion the run was read at, so a Job admitted in
+// the meantime is left alone. It returns how many Jobs it dropped; admission
+// finishes a queued run that was dropped only in part.
+func (c *Client) drop(ctx context.Context, r run, annotations map[string]string) (int, error) {
+	dropped := 0
+
+	for _, j := range r.jobs {
+		if !j.suspended || j.terminal {
+			continue
+		}
+
+		patch, err := json.Marshal(map[string]any{
+			"metadata": map[string]any{
+				"resourceVersion": j.resourceVersion,
+				"annotations":     annotations,
+			},
+			"spec": map[string]any{
+				"suspend":               false,
+				"parallelism":           0,
+				"activeDeadlineSeconds": 1,
+			},
+		})
+
+		if err != nil {
+			return dropped, err
+		}
+
+		_, err = c.kubernetes.BatchV1().Jobs(j.namespace).Patch(ctx, j.name, types.StrategicMergePatchType, patch, meta.PatchOptions{})
+
+		if err != nil {
+			return dropped, fmt.Errorf("drop job %s/%s: %w", j.namespace, j.name, err)
+		}
+
+		dropped++
+	}
+
+	return dropped, nil
 }
 
 func (c *Client) readyBuilders() ([]string, error) {
@@ -445,17 +571,23 @@ func (c *Client) runs(ctx context.Context) ([]run, error) {
 			return
 		}
 
-		key := k8sJob.Labels[labels.Release]
+		release := k8sJob.Labels[labels.Release]
+		key := release
 
 		if key == "" {
 			key = k8sJob.Name
 		}
 
 		environment := workspace
+		service := ""
 
 		if project := k8sJob.Labels[labels.Project]; project != "" {
 			if env := k8sJob.Labels[labels.Environment]; env != "" {
 				environment = workspace + "/" + project + "/" + env
+
+				if name := k8sJob.Labels[labels.Service]; name != "" {
+					service = environment + "/" + name
+				}
 			}
 		}
 
@@ -463,7 +595,7 @@ func (c *Client) runs(ctx context.Context) ([]run, error) {
 		group, ok := groups[groupKey]
 
 		if !ok {
-			group = &run{workspace: workspace, environment: environment, key: groupKey, createdAt: k8sJob.CreationTimestamp.Time}
+			group = &run{workspace: workspace, environment: environment, service: service, release: release, key: groupKey, createdAt: k8sJob.CreationTimestamp.Time}
 			groups[groupKey] = group
 		}
 
@@ -481,6 +613,18 @@ func (c *Client) runs(ctx context.Context) ([]run, error) {
 
 			if expected.builder != "" {
 				builder = expected.builder
+			}
+		}
+
+		if k8sJob.Spec.Parallelism != nil && *k8sJob.Spec.Parallelism == 0 {
+			for _, key := range []string{labels.SupersededBy, labels.CancelledAt} {
+				if value, ok := k8sJob.Annotations[key]; ok {
+					if group.dropped == nil {
+						group.dropped = map[string]string{}
+					}
+
+					group.dropped[key] = value
+				}
 			}
 		}
 
@@ -558,7 +702,13 @@ func mustSelector(selector string) k8slabels.Selector {
 	return parsed
 }
 
+// jobTerminal reports whether a Job has finished or will finish without
+// running anything: a dropped Job has no parallelism.
 func jobTerminal(k8sJob *batch.Job) bool {
+	if k8sJob.Spec.Parallelism != nil && *k8sJob.Spec.Parallelism == 0 {
+		return true
+	}
+
 	for _, condition := range k8sJob.Status.Conditions {
 		if condition.Status != core.ConditionTrue {
 			continue

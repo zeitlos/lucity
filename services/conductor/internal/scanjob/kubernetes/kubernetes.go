@@ -70,7 +70,7 @@ func (c *Client) toJob(ctx context.Context, job batch.Job) scanjob.Job {
 
 	if job.Status.CompletionTime != nil {
 		scan.FinishedAt = new(job.Status.CompletionTime.Time)
-	} else if scan.Status == scanjob.StatusFailed {
+	} else if scan.Status == scanjob.StatusFailed || scan.Status == scanjob.StatusSkipped {
 		scan.FinishedAt = failureTime(job)
 	}
 
@@ -106,6 +106,13 @@ func (c *Client) summary(ctx context.Context, job *batch.Job) *scanSummary {
 }
 
 func scanStatus(job batch.Job) scanjob.Status {
+	_, superseded := job.Annotations[labels.SupersededBy]
+	_, cancelled := job.Annotations[labels.CancelledAt]
+
+	if superseded || cancelled {
+		return scanjob.StatusSkipped
+	}
+
 	for _, condition := range job.Status.Conditions {
 		if condition.Status != core.ConditionTrue {
 			continue

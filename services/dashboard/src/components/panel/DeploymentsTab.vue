@@ -241,6 +241,7 @@ function scanStepStatus(scan: Scan): StepStatus {
     case ScanStatus.Findings: return scan.verifiedCount ? 'leaked' : 'findings';
     case ScanStatus.Failed: return 'failed';
     case ScanStatus.Running: return 'running';
+    case ScanStatus.Skipped: return 'skipped';
     default: return 'queued';
   }
 }
