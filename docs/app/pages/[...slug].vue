@@ -11,7 +11,6 @@ const route = useRoute();
 const { t } = useDocusI18n();
 const appConfig = useAppConfig();
 const navigation = inject<Ref<ContentNavigationItem[]>>('navigation');
-const { shouldPushContent: shouldHideToc } = useAssistant();
 const section = useContentSection();
 
 const collectionName = computed(() => section.value.collection);
@@ -36,7 +35,7 @@ const title = page.value.seo?.title || page.value.title;
 const description = page.value.seo?.description || page.value.description;
 const modifiedAt = computed(() => contentDates?.[route.path] || null);
 
-const showToc = computed(() => !!page.value?.body?.toc?.links?.length && !unref(shouldHideToc));
+const showToc = computed(() => !!page.value?.body?.toc?.links?.length);
 
 const pageUi = computed(() => showToc.value
   ? { root: 'lg:grid-cols-12', center: 'lg:col-span-9', right: 'lg:col-span-3' }
@@ -115,7 +114,6 @@ if (requestEvent) {
 <template>
   <UPage
     v-if="page"
-    :key="`page-${shouldHideToc}`"
     :ui="pageUi"
   >
     <UPageHeader
