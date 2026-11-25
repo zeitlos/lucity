@@ -53,7 +53,12 @@ spec:
           type: RuntimeDefault
       containers:
         - name: valkey
-          image: {{ printf "valkey/valkey:%s-alpine" ($vk.version | default "8") | quote }}
+          {{- $vkVersion := $vk.version | default "8" }}
+          {{- with index $.Values.engines.valkey $vkVersion }}
+          image: {{ printf "%s:%s" .image.repository .image.tag | quote }}
+          {{- else }}
+          image: {{ printf "valkey/valkey:%s-alpine" $vkVersion | quote }}
+          {{- end }}
           imagePullPolicy: IfNotPresent
           command: ["sh", "-c"]
           args:

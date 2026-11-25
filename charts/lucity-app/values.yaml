@@ -153,6 +153,24 @@ services: {}
 
 sharedVariables: {}
 
+# The image for each engine major version a database or key-value store was
+# created with. A major missing here falls back to the upstream major tag.
+engines:
+  postgres:
+    "17":
+      image:
+        repository: ghcr.io/cloudnative-pg/postgresql
+        tag: 17.12-202611230809-standard-bookworm
+  valkey:
+    "8":
+      image:
+        repository: valkey/valkey
+        tag: 8.1.12-alpine
+    "9":
+      image:
+        repository: valkey/valkey
+        tag: 9.2.0-alpine
+
 databases:
   postgres: {}
   valkey: {}

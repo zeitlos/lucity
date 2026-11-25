@@ -45,7 +45,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: valkey
-          image: valkey/valkey:{{ .Values.rybbit.redis.version }}-alpine
+          image: {{ .Values.rybbit.redis.image.repository }}:{{ .Values.rybbit.redis.image.tag }}
           imagePullPolicy: IfNotPresent
           command: ["sh", "-c"]
           args:

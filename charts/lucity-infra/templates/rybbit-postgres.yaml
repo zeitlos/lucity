@@ -9,8 +9,8 @@ metadata:
     app.kubernetes.io/component: analytics
 spec:
   instances: {{ .Values.rybbit.postgres.instances | default 2 }}
-  {{- if .Values.rybbit.postgres.version }}
-  imageName: ghcr.io/cloudnative-pg/postgresql:{{ .Values.rybbit.postgres.version }}
+  {{- with .Values.rybbit.postgres.image }}
+  imageName: {{ .repository }}:{{ .tag }}
   {{- end }}
   primaryUpdateMethod: switchover
   {{- if or .Values.rybbit.postgres.nodeSelector .Values.rybbit.postgres.tolerations }}

@@ -20,7 +20,12 @@ spec:
       {{- toYaml . | nindent 6 }}
   {{- end }}
   instances: 2
-  imageName: ghcr.io/cloudnative-pg/postgresql:{{ $pg.version | default "17" }}-standard-bookworm
+  {{- $pgVersion := $pg.version | default "17" }}
+  {{- with index $.Values.engines.postgres $pgVersion }}
+  imageName: {{ .image.repository }}:{{ .image.tag }}
+  {{- else }}
+  imageName: ghcr.io/cloudnative-pg/postgresql:{{ $pgVersion }}-standard-bookworm
+  {{- end }}
   primaryUpdateStrategy: unsupervised
   primaryUpdateMethod: switchover
   postgresql:

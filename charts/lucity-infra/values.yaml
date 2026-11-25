@@ -448,7 +448,9 @@ rybbit:
     instances: 2
     size: 5Gi
     storageClass: ""
-    version: "17"
+    image:
+      repository: ghcr.io/cloudnative-pg/postgresql
+      tag: 17.12-202611230809-system-bookworm
     database: analytics
     resources:
       requests:
@@ -464,7 +466,9 @@ rybbit:
   # the client defaults to localhost:6379 and only error-loops when it can't connect,
   # so a missing Redis reads as healthy while sessions silently degrade.
   redis:
-    version: "8"
+    image:
+      repository: valkey/valkey
+      tag: 8.1.12-alpine
     size: 1Gi
     storageClass: ""
     resources:
@@ -1366,7 +1370,9 @@ logto:
     instances: 2
     size: 1Gi
     storageClass: ""
-    version: "17"
+    image:
+      repository: ghcr.io/cloudnative-pg/postgresql
+      tag: 17.12-202611230809-system-bookworm
     resources:
       requests:
         cpu: 100m

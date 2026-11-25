@@ -9,8 +9,8 @@ metadata:
     app.kubernetes.io/component: identity-provider
 spec:
   instances: {{ .Values.logto.postgres.instances | default 2 }}
-  {{- if .Values.logto.postgres.version }}
-  imageName: ghcr.io/cloudnative-pg/postgresql:{{ .Values.logto.postgres.version }}
+  {{- with .Values.logto.postgres.image }}
+  imageName: {{ .repository }}:{{ .tag }}
   {{- end }}
   enableSuperuserAccess: true
   primaryUpdateMethod: switchover
