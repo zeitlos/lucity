@@ -41,7 +41,7 @@ const emit = defineEmits<{
 
 const router = useRouter();
 
-const presetOptions = connectorPresets.map(option => ({ value: option.id, label: option.label, icon: option.url ? undefined : Server }));
+const presetOptions = connectorPresets.map(option => ({ value: option.id, label: option.label, icon: option.id === 'mcp' ? Server : undefined }));
 
 const preset = ref<ConnectorPreset>(connectorPresets[0]!);
 const name = ref('');
@@ -62,10 +62,10 @@ function pick(id: string) {
   if (!next || next === previous) return;
   preset.value = next;
   if (!name.value.trim() || name.value === previous.name) name.value = next.name;
-  if (next.url || previous.url) url.value = next.url;
+  url.value = next.url;
 }
 
-const asksUrl = computed(() => !preset.value.url);
+const asksUrl = computed(() => !!preset.value.urlPlaceholder);
 
 function focusNextField() {
   const field = asksUrl.value && !url.value.trim() ? 'connector-url' : 'connector-token';
@@ -126,7 +126,7 @@ async function create() {
               id="connector-url"
               v-model="url"
               class="font-mono text-sm"
-              placeholder="https://mcp.example.com/mcp"
+              :placeholder="preset.urlPlaceholder"
               autocomplete="off"
               spellcheck="false"
             />
@@ -148,7 +148,7 @@ async function create() {
             </div>
             <SecretInput id="connector-token" v-model="token" />
             <p class="text-xs text-muted-foreground">
-              Sent as a bearer token.<template v-if="asksUrl"> Leave it empty for a server without sign-in.</template>
+              {{ preset.keyHint ?? 'Sent as a bearer token.' }}<template v-if="preset.keyOptional"> Leave it empty for a server without sign-in.</template>
             </p>
           </div>
 

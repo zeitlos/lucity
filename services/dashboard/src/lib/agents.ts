@@ -216,14 +216,29 @@ export interface ConnectorPreset {
   label: string;
   name: string;
   url: string;
+  urlPlaceholder?: string;
   keyLabel: string;
   keyUrl?: string;
+  keyHint?: string;
+  keyOptional?: boolean;
 }
 
 export const connectorPresets: ConnectorPreset[] = [
   { id: 'github', label: 'GitHub', name: 'github', url: 'https://api.githubcopilot.com/mcp/', keyLabel: 'Personal access token', keyUrl: 'https://github.com/settings/personal-access-tokens' },
+  { id: 'gitlab', label: 'GitLab', name: 'gitlab', url: 'https://gitlab.com/api/v4/mcp', urlPlaceholder: 'https://gitlab.example.com/api/v4/mcp', keyLabel: 'Personal access token', keyUrl: 'https://gitlab.com/-/user_settings/personal_access_tokens', keyHint: 'A fine-grained token with the MCP permission.' },
   { id: 'linear', label: 'Linear', name: 'linear', url: 'https://mcp.linear.app/mcp', keyLabel: 'API key', keyUrl: 'https://linear.app/settings/account/security' },
-  { id: 'mcp', label: 'Any MCP server', name: '', url: '', keyLabel: 'Token' },
+  { id: 'atlassian', label: 'Atlassian', name: 'atlassian', url: 'https://mcp.atlassian.com/v2/mcp', keyLabel: 'Service account API key', keyUrl: 'https://admin.atlassian.com', keyHint: 'An org admin creates it. Personal API tokens don\'t work here.' },
+  { id: 'notion', label: 'Notion', name: 'notion', url: 'https://mcp.notion.com/mcp', keyLabel: 'MCP token', keyHint: 'Workspace owners on Business or Enterprise create it.' },
+  { id: 'airtable', label: 'Airtable', name: 'airtable', url: 'https://mcp.airtable.com/mcp', keyLabel: 'Personal access token', keyUrl: 'https://airtable.com/create/tokens' },
+  { id: 'monday', label: 'monday.com', name: 'monday', url: 'https://mcp.monday.com/mcp', keyLabel: 'Personal API token' },
+  { id: 'odoo', label: 'Odoo', name: 'odoo', url: '', urlPlaceholder: 'https://mycompany.odoo.com/mcp', keyLabel: 'API key', keyHint: 'Scoped to MCP. Needs Odoo 20 or a current Odoo Online.' },
+  { id: 'stripe', label: 'Stripe', name: 'stripe', url: 'https://mcp.stripe.com', keyLabel: 'Restricted key', keyUrl: 'https://dashboard.stripe.com/apikeys', keyHint: 'A restricted key tagged for agents.' },
+  { id: 'brevo', label: 'Brevo', name: 'brevo', url: 'https://mcp.brevo.com/v1/brevo/mcp', keyLabel: 'MCP server API key' },
+  { id: 'zapier', label: 'Zapier', name: 'zapier', url: 'https://mcp.zapier.com/api/v1/connect', keyLabel: 'Connection token', keyUrl: 'https://mcp.zapier.com' },
+  { id: 'make', label: 'Make', name: 'make', url: '', urlPlaceholder: 'https://eu2.make.com/mcp/v2', keyLabel: 'API token', keyHint: 'With the mcp:use scope. The URL starts with your zone.' },
+  { id: 'n8n', label: 'n8n', name: 'n8n', url: '', urlPlaceholder: 'https://n8n.example.com/mcp-server/http', keyLabel: 'MCP access token' },
+  { id: 'kubernetes', label: 'Kubernetes', name: 'kubernetes', url: '', urlPlaceholder: 'https://kubernetes-mcp.example.com/mcp', keyLabel: 'Token', keyOptional: true },
+  { id: 'mcp', label: 'Any MCP server', name: '', url: '', urlPlaceholder: 'https://mcp.example.com/mcp', keyLabel: 'Token', keyOptional: true },
 ];
 
 export const chatAppKinds: { value: ChatAppKind; label: string }[] = [
