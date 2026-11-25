@@ -6,16 +6,17 @@ description: >-
   a green one rolls out, and work through the Dependency Dashboard issue when asked. Use
   this whenever a CI run on a feature/renovate/* branch finishes, when asked to triage
   Renovate or dependency pull requests, or when asked to go through the Dependency
-  Dashboard. Reads and comments only: it never pushes, merges or deploys.
+  Dashboard. Merges green routine updates; never pushes or deploys.
 ---
 
 # Dependency updates of zeitlos/lucity
 
-Renovate opens the pull requests and CI builds them. You add the judgment: why a red one fails and how to fix it, what a green one changes once it is deployed, and whether an update waiting for approval is safe. A person merges and deploys, always.
+Renovate opens the pull requests and CI builds them. You add the judgment: why a red one fails and how to fix it, what a green one changes once it is deployed, and whether an update waiting for approval is safe. You merge green routine updates yourself. A person merges everything else, and a person deploys, always.
 
 ## Never
 
-- Merge, close or approve a pull request.
+- Merge a pull request that fails any condition under "Merge".
+- Close or approve a pull request.
 - Push, to any branch. You have no git credentials, and that is on purpose. A fix goes into your comment as a diff or a command, and the maintainer applies it.
 - Deploy anything, or touch a cluster.
 - Propose loosening a rule in `.github/renovate.json` (a cap, a disable, an approval gate) unless you can show the reason behind it no longer holds. Each rule there was verified by bumping the dependency and building.
@@ -48,18 +49,29 @@ Later runs of the same pull request (a re-run, a rebase, a new push) continue th
 1. **`conclusion` is `cancelled` or `skipped`**: stop. No comment, no message. CI cancels a run when a newer one starts on the same branch.
 2. **Check that it is yours to look at**: the pull request is open, its branch starts with the `branchPrefix` from `renovate.json`, and `commit` is still its head commit. If the head has moved on, stop: the run for the new head will come.
 3. **Check the marker**: every comment you post ends with `<!-- deps-agent:<head commit> -->`. If a comment with this commit's marker exists, stop. An earlier commit's comment does not count: post a new one and leave the old one alone.
-4. **`success`**: post the green comment.
+4. **`success`**: merge it if every condition under "Merge" holds, then post the green comment either way.
 5. **`failure`**: find the cause, then post the red comment.
+
+### Merge
+
+Merge only when all of these hold, checked right before you merge, not from memory:
+
+- Renovate opened the pull request (`renovate[bot]`).
+- It does not carry the `planned` label. Renovate adds that label to every update that needs a person (see `renovate.json`). Those get the green comment and wait.
+- Every check on the head commit has passed, including `ci-ok`. None is pending or failed.
+- `commit` is still the head commit, and GitHub reports the pull request as mergeable (no conflicts).
+
+Squash merge, keeping Renovate's title as the commit title. If the merge is refused, don't retry: say why in the green comment.
 
 ### Green
 
-At most four lines: what changed, what it rolls out once deployed, and anything the maintainer has to do. Nothing more: no praise, no restating the pull request body, no `<details>` block.
+At most four lines: whether you merged it and why not if you didn't, what changed, what it rolls out once deployed, and anything the maintainer has to do. Nothing more: no praise, no restating the pull request body, no `<details>` block.
 
 ```markdown
-**Ready to merge.** <one line: what this updates, in plain words>
+**<Merged. | Ready for you to merge: <the reason, e.g. labeled planned>.>** <one line: what this updates, in plain words>
 
 - Rolls out: <what changes on the next deploy, see "What rolls out">
-- Before merging: <only if something is needed, e.g. a regenerate; leave the line out otherwise>
+- Before deploying: <only if something is needed, e.g. a maintenance window; leave the line out otherwise>
 
 <!-- deps-agent:<head commit> -->
 ```
