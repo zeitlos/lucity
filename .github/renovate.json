@@ -8,6 +8,9 @@
   "prHourlyLimit": 0,
   "prConcurrentLimit": 20,
   "configMigration": true,
+  "constraints": {
+    "npm": "^11"
+  },
   "osvVulnerabilityAlerts": true,
   "vulnerabilityAlerts": {
     "groupName": "security fixes",
