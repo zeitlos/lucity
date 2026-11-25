@@ -8,13 +8,14 @@ import { cn } from '@/lib/utils';
 const props = defineProps<{
   label: string;
   options: { value: T; label: string; icon?: Component }[];
+  showLabels?: boolean;
   class?: HTMLAttributes['class'];
   itemClass?: HTMLAttributes['class'];
 }>();
 
 const model = defineModel<T>({ required: true });
 
-const baseItemClass = 'flex h-6 min-w-7 items-center justify-center rounded-sm px-2 font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 aria-pressed:bg-card aria-pressed:text-foreground aria-pressed:shadow-xs [&_svg]:size-3.5';
+const baseItemClass = 'flex h-6 min-w-7 items-center justify-center gap-1.5 rounded-sm px-2 font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 aria-pressed:bg-card aria-pressed:text-foreground aria-pressed:shadow-xs [&_svg]:size-3.5';
 
 function select(value: unknown) {
   if (typeof value === 'string' && value) model.value = value as T;
@@ -30,7 +31,7 @@ function select(value: unknown) {
     @update:model-value="select"
   >
     <template v-for="option in options" :key="option.value">
-      <Tooltip v-if="option.icon">
+      <Tooltip v-if="option.icon && !showLabels">
         <TooltipTrigger as-child>
           <ToggleGroupItem :value="option.value" :aria-label="option.label" :class="cn(baseItemClass, props.itemClass)">
             <component :is="option.icon" />
@@ -41,6 +42,7 @@ function select(value: unknown) {
         </TooltipContent>
       </Tooltip>
       <ToggleGroupItem v-else :value="option.value" :class="cn(baseItemClass, props.itemClass)">
+        <component :is="option.icon" v-if="option.icon" />
         {{ option.label }}
       </ToggleGroupItem>
     </template>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
-import { Webhook, Zap } from '@lucide/vue';
+import { Clock, Webhook, Zap } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { AgentTriggerSource } from '@/gql/graphql';
 import type { Agent, AgentTrigger } from '@/lib/agents';
@@ -75,8 +75,8 @@ const props = defineProps<{
 }>();
 
 const sources = [
-  { value: AgentTriggerSource.Schedule, label: 'On a schedule' },
-  { value: AgentTriggerSource.Webhook, label: 'From a webhook' },
+  { value: AgentTriggerSource.Schedule, label: 'On a schedule', icon: Clock },
+  { value: AgentTriggerSource.Webhook, label: 'From a webhook', icon: Webhook },
 ];
 
 const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -247,7 +247,7 @@ async function newToken() {
 
           <div v-if="!editing" class="space-y-2">
             <p class="text-sm font-medium text-foreground">Starts</p>
-            <SegmentedControl v-model="source" label="Starts" :options="sources" class="flex w-full" item-class="h-7 flex-1 text-sm" />
+            <SegmentedControl v-model="source" label="Starts" :options="sources" show-labels class="flex w-full" item-class="h-7 flex-1 text-sm" />
           </div>
 
           <template v-if="isSchedule">
