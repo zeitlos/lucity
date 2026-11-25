@@ -21,7 +21,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 # to git for cloning user source repos and the BuildKit client embeds
 # CGO-friendly code paths in some transitive deps.
 FROM ghcr.io/gitleaks/gitleaks:v8.30.1 AS gitleaks
-FROM trufflesecurity/trufflehog:3.99.7 AS trufflehog
+FROM trufflesecurity/trufflehog:3.100.1@sha256:9c7a8325d43a4af2960d3f21d61a08981d8a1bf0542e007efa2e47097e386452 AS trufflehog
 
 FROM debian:bookworm-slim
 
