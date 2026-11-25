@@ -95,7 +95,13 @@ func (c *Client) modelPage(req *http.Request) (modelList, Check) {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return modelList{}, statusCheck(resp.StatusCode)
+		check := statusCheck(resp.StatusCode)
+
+		if message := errorMessage(body); message != "" {
+			check.Reason += ": " + message
+		}
+
+		return modelList{}, check
 	}
 
 	var list modelList
@@ -139,4 +145,37 @@ func isPrintable(s string, maxLen int) bool {
 	}
 
 	return true
+}
+
+// errorMessage is the message of an error body in the shape Anthropic and
+// OpenAI-compatible APIs answer with, cut to fit a sentence.
+func errorMessage(body []byte) string {
+	var answer struct {
+		Error struct {
+			Message string `json:"message"`
+		} `json:"error"`
+		Message string `json:"message"`
+	}
+
+	if json.Unmarshal(body, &answer) != nil {
+		return ""
+	}
+
+	message := answer.Error.Message
+
+	if message == "" {
+		message = answer.Message
+	}
+
+	runes := []rune(strings.TrimSpace(message))
+
+	if len(runes) > 400 {
+		runes = runes[:400]
+	}
+
+	if !isPrintable(string(runes), 1024) {
+		return ""
+	}
+
+	return string(runes)
 }
