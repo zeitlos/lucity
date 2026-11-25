@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { failureToast } from '@/components/ui/sonner';
 
 const CreateConnectorDocument = graphql(`
@@ -47,22 +48,33 @@ const preset = ref<ConnectorPreset>(connectorPresets[0]!);
 const name = ref('');
 const url = ref('');
 const token = ref('');
+const toolsetId = ref('');
+
+const toolset = computed(() => preset.value.toolsets?.find(candidate => candidate.id === toolsetId.value) ?? null);
+
+function applyPreset(next: ConnectorPreset) {
+  preset.value = next;
+  toolsetId.value = next.toolsets?.[0]?.id ?? '';
+  url.value = next.url;
+}
 
 watch(open, (value) => {
   if (!value) return;
-  preset.value = connectorPresets[0]!;
+  applyPreset(connectorPresets[0]!);
   name.value = preset.value.name;
-  url.value = preset.value.url;
   token.value = '';
+});
+
+watch(toolset, (next) => {
+  if (next) url.value = next.url;
 });
 
 function pick(id: string) {
   const next = connectorPresets.find(candidate => candidate.id === id);
   const previous = preset.value;
   if (!next || next === previous) return;
-  preset.value = next;
+  applyPreset(next);
   if (!name.value.trim() || name.value === previous.name) name.value = next.name;
-  url.value = next.url;
 }
 
 const asksUrl = computed(() => !!preset.value.urlPlaceholder);
@@ -118,6 +130,21 @@ async function create() {
                 <BrandTile :name="option.label" :icon="option.icon" />
               </template>
             </ChoiceRows>
+          </div>
+
+          <div v-if="preset.toolsets" class="space-y-2">
+            <Label for="connector-toolset">Tools</Label>
+            <Select v-model="toolsetId">
+              <SelectTrigger id="connector-toolset" class="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="option in preset.toolsets" :key="option.id" :value="option.id">
+                  {{ option.label }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p v-if="toolset" class="text-xs text-muted-foreground">{{ toolset.hint }}</p>
           </div>
 
           <div v-if="asksUrl" class="space-y-2">

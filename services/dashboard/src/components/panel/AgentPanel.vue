@@ -5,10 +5,11 @@ import type { Agent } from '@/lib/agents';
 import PanelShell from '@/components/PanelShell.vue';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import AgentAccessTab from './AgentAccessTab.vue';
 import AgentAuditTab from './AgentAuditTab.vue';
 import AgentChannelsTab from './AgentChannelsTab.vue';
 import AgentChatTab from './AgentChatTab.vue';
+import AgentConnectorsTab from './AgentConnectorsTab.vue';
+import AgentNetworkTab from './AgentNetworkTab.vue';
 import AgentSettingsTab from './AgentSettingsTab.vue';
 import AgentTriggersTab from './AgentTriggersTab.vue';
 
@@ -36,7 +37,8 @@ const { tab: activeTab, selectTab } = usePanelTab('chat');
         <TabsList class="w-full overflow-x-auto overflow-y-hidden border-b-0 [scrollbar-width:none]">
           <TabsTrigger value="chat">Chat</TabsTrigger>
           <TabsTrigger value="audit">Audit</TabsTrigger>
-          <TabsTrigger value="access">Access</TabsTrigger>
+          <TabsTrigger value="connectors">Connectors</TabsTrigger>
+          <TabsTrigger value="network">Network</TabsTrigger>
           <TabsTrigger value="triggers">Triggers</TabsTrigger>
           <TabsTrigger value="channels">Channel</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
@@ -52,8 +54,12 @@ const { tab: activeTab, selectTab } = usePanelTab('chat');
           <AgentAuditTab :agent-id="agent.id" />
         </TabsContent>
 
-        <TabsContent value="access" class="px-4 py-4">
-          <AgentAccessTab
+        <TabsContent value="connectors" class="px-4 py-4">
+          <AgentConnectorsTab :agent="agent" />
+        </TabsContent>
+
+        <TabsContent value="network" class="px-4 py-4">
+          <AgentNetworkTab
             :agent="agent"
             :service-names="serviceNames"
           />

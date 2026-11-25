@@ -215,20 +215,35 @@ export function modelProviderBrand(provider: ModelProviderIdentity): ModelProvid
   return modelProviderPresets.find(candidate => candidate.name && candidate.name === provider.name.trim().toLowerCase())?.brand ?? 'generic';
 }
 
+export interface ConnectorToolset {
+  id: string;
+  label: string;
+  url: string;
+  hint: string;
+}
+
 export interface ConnectorPreset {
   id: string;
   label: string;
   name: string;
   url: string;
   urlPlaceholder?: string;
+  toolsets?: ConnectorToolset[];
   keyLabel: string;
   keyUrl?: string;
   keyHint?: string;
   keyOptional?: boolean;
 }
 
+const githubToolsets: ConnectorToolset[] = [
+  { id: 'default', label: 'Default tools', url: 'https://api.githubcopilot.com/mcp/', hint: 'Repositories, issues, pull requests and users, with the tools that write.' },
+  { id: 'default-readonly', label: 'Default tools, read only', url: 'https://api.githubcopilot.com/mcp/readonly', hint: 'The default tools without any that write, including ones GitHub adds later.' },
+  { id: 'all', label: 'All tools', url: 'https://api.githubcopilot.com/mcp/x/all', hint: 'Every toolset, Actions and security included. Hide what an agent shouldn\'t use.' },
+  { id: 'all-readonly', label: 'All tools, read only', url: 'https://api.githubcopilot.com/mcp/x/all/readonly', hint: 'Every toolset without any tool that writes, including ones GitHub adds later.' },
+];
+
 export const connectorPresets: ConnectorPreset[] = [
-  { id: 'github', label: 'GitHub', name: 'github', url: 'https://api.githubcopilot.com/mcp/', keyLabel: 'Personal access token', keyUrl: 'https://github.com/settings/personal-access-tokens' },
+  { id: 'github', label: 'GitHub', name: 'github', url: githubToolsets[0]!.url, toolsets: githubToolsets, keyLabel: 'Personal access token', keyUrl: 'https://github.com/settings/personal-access-tokens' },
   { id: 'gitlab', label: 'GitLab', name: 'gitlab', url: 'https://gitlab.com/api/v4/mcp', urlPlaceholder: 'https://gitlab.example.com/api/v4/mcp', keyLabel: 'Personal access token', keyUrl: 'https://gitlab.com/-/user_settings/personal_access_tokens', keyHint: 'A fine-grained token with the MCP permission.' },
   { id: 'linear', label: 'Linear', name: 'linear', url: 'https://mcp.linear.app/mcp', keyLabel: 'API key', keyUrl: 'https://linear.app/settings/account/security' },
   { id: 'atlassian', label: 'Atlassian', name: 'atlassian', url: 'https://mcp.atlassian.com/v2/mcp', keyLabel: 'Service account API key', keyUrl: 'https://admin.atlassian.com', keyHint: 'An org admin creates it. Personal API tokens don\'t work here.' },

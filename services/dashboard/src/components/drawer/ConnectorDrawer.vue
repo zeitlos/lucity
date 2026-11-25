@@ -225,7 +225,7 @@ async function handleDelete() {
       <section class="space-y-3">
         <div class="space-y-1 text-sm text-muted-foreground/80">
           <h3 class="text-sm font-medium text-muted-foreground">Agents</h3>
-          <p>Agents granted this connector. Grant it from an agent's Access tab.</p>
+          <p>Agents granted this connector. Grant it from an agent's Connectors tab.</p>
         </div>
         <ConnectionAgents :agents="connector.agents" empty="No agent is granted this connector yet." />
       </section>
