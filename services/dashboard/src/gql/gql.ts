@@ -28,7 +28,7 @@ type Documents = {
     "\n  mutation CreateKeyValueStore($input: CreateKeyValueStoreInput!) {\n    createKeyValueStore(input: $input) {\n      id\n      name\n      version\n      size\n    }\n  }\n": typeof types.CreateKeyValueStoreDocument,
     "\n  mutation CreateBucket($input: CreateBucketInput!) {\n    createBucket(input: $input) {\n      id\n      name\n      region\n      endpoint\n    }\n  }\n": typeof types.CreateBucketDocument,
     "\n  mutation CreateVolume($environment: EnvironmentID!, $name: String!, $id: String, $size: String!) {\n    createVolume(environment: $environment, name: $name, id: $id, size: $size) {\n      id\n      name\n      size\n    }\n  }\n": typeof types.CreateVolumeDocument,
-    "\n  query AgentPaletteConnectors {\n    connectors {\n      id\n      name\n      url\n    }\n  }\n": typeof types.AgentPaletteConnectorsDocument,
+    "\n  query AgentPaletteConnectors {\n    connectors {\n      id\n      name\n    }\n  }\n": typeof types.AgentPaletteConnectorsDocument,
     "\n  query CreatePaletteProjects {\n    projects {\n      id\n    }\n  }\n": typeof types.CreatePaletteProjectsDocument,
     "\n  mutation CreateAgent($environment: EnvironmentID!, $name: String!, $harness: Harness!, $instructions: String!, $connectors: [AgentConnectorInput!]) {\n    createAgent(environment: $environment, name: $name, harness: $harness, instructions: $instructions, connectors: $connectors) {\n      id\n      name\n    }\n  }\n": typeof types.CreateAgentDocument,
     "\n  mutation CreateEnvironment($input: CreateEnvironmentInput!) {\n    createEnvironment(input: $input) {\n      id\n      name\n    }\n  }\n": typeof types.CreateEnvironmentDocument,
@@ -205,7 +205,7 @@ const documents: Documents = {
     "\n  mutation CreateKeyValueStore($input: CreateKeyValueStoreInput!) {\n    createKeyValueStore(input: $input) {\n      id\n      name\n      version\n      size\n    }\n  }\n": types.CreateKeyValueStoreDocument,
     "\n  mutation CreateBucket($input: CreateBucketInput!) {\n    createBucket(input: $input) {\n      id\n      name\n      region\n      endpoint\n    }\n  }\n": types.CreateBucketDocument,
     "\n  mutation CreateVolume($environment: EnvironmentID!, $name: String!, $id: String, $size: String!) {\n    createVolume(environment: $environment, name: $name, id: $id, size: $size) {\n      id\n      name\n      size\n    }\n  }\n": types.CreateVolumeDocument,
-    "\n  query AgentPaletteConnectors {\n    connectors {\n      id\n      name\n      url\n    }\n  }\n": types.AgentPaletteConnectorsDocument,
+    "\n  query AgentPaletteConnectors {\n    connectors {\n      id\n      name\n    }\n  }\n": types.AgentPaletteConnectorsDocument,
     "\n  query CreatePaletteProjects {\n    projects {\n      id\n    }\n  }\n": types.CreatePaletteProjectsDocument,
     "\n  mutation CreateAgent($environment: EnvironmentID!, $name: String!, $harness: Harness!, $instructions: String!, $connectors: [AgentConnectorInput!]) {\n    createAgent(environment: $environment, name: $name, harness: $harness, instructions: $instructions, connectors: $connectors) {\n      id\n      name\n    }\n  }\n": types.CreateAgentDocument,
     "\n  mutation CreateEnvironment($input: CreateEnvironmentInput!) {\n    createEnvironment(input: $input) {\n      id\n      name\n    }\n  }\n": types.CreateEnvironmentDocument,
@@ -441,7 +441,7 @@ export function graphql(source: "\n  mutation CreateVolume($environment: Environ
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query AgentPaletteConnectors {\n    connectors {\n      id\n      name\n      url\n    }\n  }\n"): (typeof documents)["\n  query AgentPaletteConnectors {\n    connectors {\n      id\n      name\n      url\n    }\n  }\n"];
+export function graphql(source: "\n  query AgentPaletteConnectors {\n    connectors {\n      id\n      name\n    }\n  }\n"): (typeof documents)["\n  query AgentPaletteConnectors {\n    connectors {\n      id\n      name\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

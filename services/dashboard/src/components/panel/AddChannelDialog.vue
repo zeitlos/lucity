@@ -1,19 +1,22 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useMutation, useQuery } from '@vue/apollo-composable';
+import { RadioGroupIndicator, RadioGroupItem } from 'reka-ui';
 import { Check, Hash, MessageSquare, RotateCw } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { ChatAppKind } from '@/gql/graphql';
 import { chatAppKindLabel, type Agent } from '@/lib/agents';
 import { mobileSheetClass } from '@/lib/dialog';
+import BrandTile from '@/components/BrandTile.vue';
+import ChoiceRows from '@/components/ChoiceRows.vue';
 import CopyButton from '@/components/CopyButton.vue';
 import IconButton from '@/components/IconButton.vue';
 import DialogIcon from '@/components/DialogIcon.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import QueryError from '@/components/QueryError.vue';
-import SegmentedControl from '@/components/SegmentedControl.vue';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { RadioGroup } from '@/components/ui/radio-group';
 import { Skeleton } from '@/components/ui/skeleton';
 import { failureToast } from '@/components/ui/sonner';
 
@@ -79,6 +82,8 @@ const isMattermost = computed(() => app.value?.kind === ChatAppKind.Mattermost);
 const appOptions = computed(() => apps.value.map(candidate => ({
   value: candidate.id,
   label: apps.value.filter(other => other.kind === candidate.kind).length > 1 ? candidate.name : chatAppKindLabel(candidate.kind),
+  hint: candidate.account,
+  kind: chatAppKindLabel(candidate.kind),
 })));
 
 watch(open, (value) => {
@@ -119,7 +124,7 @@ async function add() {
     await setChat({ agent: props.agent.id, chatApp: appId.value, channel: selected.value });
     open.value = false;
   } catch (e: unknown) {
-    failureToast('Failed to set channel', e);
+    failureToast(props.agent.chat ? 'Failed to change channel' : 'Failed to add channel', e);
   }
 }
 </script>
@@ -150,14 +155,18 @@ async function add() {
         />
 
         <template v-else>
-          <div class="space-y-2">
-            <p class="text-sm font-medium text-foreground">Chat app</p>
-            <SegmentedControl v-model="appId" label="Chat app" :options="appOptions" class="flex w-full" item-class="h-7 flex-1 text-sm" />
+          <div v-if="apps.length > 1" class="space-y-2">
+            <p id="add-channel-app" class="text-sm font-medium text-foreground">Chat app</p>
+            <ChoiceRows v-model="appId" :options="appOptions" :columns="1" aria-labelledby="add-channel-app">
+              <template #visual="{ option }">
+                <BrandTile :name="option.kind" />
+              </template>
+            </ChoiceRows>
           </div>
 
           <div v-if="isMattermost" class="space-y-2">
             <div class="flex items-center justify-between gap-2">
-              <p class="text-sm font-medium text-foreground">Channel</p>
+              <p id="add-channel-channel" class="text-sm font-medium text-foreground">Channel</p>
               <IconButton
                 type="button"
                 label="Refresh channels"
@@ -177,29 +186,29 @@ async function add() {
             </div>
             <QueryError v-else-if="channelsError && !channelsResult" title="Couldn't list the channels" :error="channelsError" @retry="refetchChannels()" />
             <p v-else-if="channels.length === 0" class="text-sm text-muted-foreground">{{ botHandle }} isn't a member of any channel yet.</p>
-            <div v-else class="max-h-64 divide-y overflow-y-auto rounded-lg border">
-              <button
+            <RadioGroup v-else v-model="selected" aria-labelledby="add-channel-channel" class="max-h-64 gap-0 divide-y overflow-y-auto rounded-lg border">
+              <RadioGroupItem
                 v-for="channel in channels"
                 :key="channel.id"
-                type="button"
+                :value="channel.id"
                 :disabled="added(channel.id) || saving"
-                :aria-pressed="selected === channel.id"
-                class="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted/50 disabled:text-muted-foreground disabled:hover:bg-transparent aria-pressed:bg-accent"
-                @click="selected = channel.id"
+                class="flex w-full items-center gap-3 px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset disabled:text-muted-foreground disabled:hover:bg-transparent data-[state=checked]:bg-accent data-[state=checked]:font-medium"
               >
                 <Hash :size="16" class="shrink-0 text-muted-foreground" />
                 <span class="min-w-0 flex-1 truncate">{{ channel.name }}</span>
                 <span v-if="added(channel.id)" class="shrink-0 text-xs">Current</span>
-                <Check v-else-if="selected === channel.id" :size="16" class="shrink-0 text-primary" />
-              </button>
-            </div>
+                <RadioGroupIndicator v-else class="shrink-0">
+                  <Check :size="16" />
+                </RadioGroupIndicator>
+              </RadioGroupItem>
+            </RadioGroup>
             <p class="text-xs text-muted-foreground">Only channels {{ botHandle }} is a member of. Invite it there with <span class="font-mono">/invite {{ botHandle }}</span>.</p>
           </div>
 
           <ol v-else class="space-y-4 pt-1">
             <li class="flex items-start gap-3">
               <span class="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">1</span>
-              <p class="text-sm leading-relaxed">Add <span class="font-medium">{{ botHandle }}</span> to a group. Turn on topics there if every conversation should get its own.</p>
+              <p class="text-sm leading-relaxed">Add <span class="font-medium">{{ botHandle }}</span> to a group.</p>
             </li>
             <li class="flex items-start gap-3">
               <span class="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">2</span>
@@ -213,19 +222,22 @@ async function add() {
             </li>
             <li class="flex items-start gap-3">
               <span class="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">3</span>
-              <p class="text-sm leading-relaxed">The bot answers with a link. It opens Lucity, where you pick the agent.</p>
+              <p class="text-sm leading-relaxed">Open the link the bot answers with, and pick {{ agent.name }}.</p>
             </li>
           </ol>
+
+          <p v-if="!isMattermost" class="text-xs text-muted-foreground">Turn on topics in the group if every conversation should get its own.</p>
         </template>
 
         <DialogFooter>
           <template v-if="isMattermost">
             <Button type="button" variant="ghost" :disabled="saving" @click="open = false">Cancel</Button>
             <Button type="submit" :pending="saving" :disabled="!canAdd">
-              {{ saving ? 'Saving…' : 'Save' }}
+              <template v-if="agent.chat">{{ saving ? 'Changing…' : 'Change channel' }}</template>
+              <template v-else>{{ saving ? 'Adding…' : 'Add channel' }}</template>
             </Button>
           </template>
-          <Button v-else type="button" variant="outline" @click="open = false">Close</Button>
+          <Button v-else type="button" variant="outline" @click="open = false">Done</Button>
         </DialogFooter>
       </form>
     </DialogContent>

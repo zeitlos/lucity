@@ -2,14 +2,15 @@
 import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useMutation } from '@vue/apollo-composable';
-import { MessageSquare } from '@lucide/vue';
+import { ExternalLink, MessageSquare } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { ChatAppKind } from '@/gql/graphql';
 import { chatAppKinds, resourceName } from '@/lib/agents';
 import { mobileSheetClass } from '@/lib/dialog';
+import BrandTile from '@/components/BrandTile.vue';
+import ChoiceRows from '@/components/ChoiceRows.vue';
 import DialogIcon from '@/components/DialogIcon.vue';
 import SecretInput from '@/components/SecretInput.vue';
-import SegmentedControl from '@/components/SegmentedControl.vue';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -58,6 +59,11 @@ watch(kind, (value, previous) => {
   if (!name.value || name.value === previous.toLowerCase()) name.value = value.toLowerCase();
 });
 
+function focusNextField() {
+  const field = isMattermost.value && !url.value.trim() ? 'chat-app-url' : 'chat-app-token';
+  document.getElementById(field)?.focus();
+}
+
 const { mutate: createChatApp, loading: pending } = useMutation(CreateChatAppDocument);
 
 const canCreate = computed(() => !pending.value && !!name.value.trim() && !!token.value && (!isMattermost.value || !!url.value.trim()));
@@ -93,13 +99,12 @@ async function create() {
 
         <fieldset :disabled="pending" class="min-w-0 space-y-4">
           <div class="space-y-2">
-            <p class="text-sm font-medium text-foreground">App</p>
-            <SegmentedControl v-model="kind" label="Chat app" :options="chatAppKinds" class="flex w-full" item-class="h-7 flex-1 text-sm" />
-          </div>
-
-          <div class="space-y-2">
-            <Label for="chat-app-name">Name</Label>
-            <Input id="chat-app-name" v-model="name" placeholder="telegram" autocomplete="off" spellcheck="false" />
+            <p id="chat-app-kind" class="text-sm font-medium text-foreground">App</p>
+            <ChoiceRows v-model="kind" :options="chatAppKinds" aria-labelledby="chat-app-kind" @pointer="focusNextField">
+              <template #visual="{ option }">
+                <BrandTile :name="option.label" />
+              </template>
+            </ChoiceRows>
           </div>
 
           <div v-if="isMattermost" class="space-y-2">
@@ -115,12 +120,26 @@ async function create() {
           </div>
 
           <div class="space-y-2">
-            <Label for="chat-app-token">Bot token</Label>
+            <div class="flex items-center justify-between gap-2">
+              <Label for="chat-app-token">Bot token</Label>
+              <a
+                v-if="!isMattermost"
+                href="https://t.me/BotFather"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="flex items-center gap-1 rounded-sm text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              >
+                Open @BotFather
+                <ExternalLink :size="12" />
+              </a>
+            </div>
             <SecretInput id="chat-app-token" v-model="token" />
-            <p class="text-xs text-muted-foreground">
-              <template v-if="isMattermost">From a bot account under Integrations. Checked by asking the server who the bot is.</template>
-              <template v-else>From @BotFather. Checked by asking Telegram who the bot is.</template>
-            </p>
+            <p v-if="isMattermost" class="text-xs text-muted-foreground">From a bot account under Integrations.</p>
+          </div>
+
+          <div class="space-y-2">
+            <Label for="chat-app-name">Name</Label>
+            <Input id="chat-app-name" v-model="name" :placeholder="kind.toLowerCase()" autocomplete="off" spellcheck="false" />
           </div>
         </fieldset>
 

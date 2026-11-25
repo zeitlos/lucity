@@ -216,12 +216,14 @@ export interface ConnectorPreset {
   label: string;
   name: string;
   url: string;
+  keyLabel: string;
+  keyUrl?: string;
 }
 
 export const connectorPresets: ConnectorPreset[] = [
-  { id: 'github', label: 'GitHub', name: 'github', url: 'https://api.githubcopilot.com/mcp/' },
-  { id: 'linear', label: 'Linear', name: 'linear', url: 'https://mcp.linear.app/mcp' },
-  { id: 'mcp', label: 'Any MCP server', name: '', url: '' },
+  { id: 'github', label: 'GitHub', name: 'github', url: 'https://api.githubcopilot.com/mcp/', keyLabel: 'Personal access token', keyUrl: 'https://github.com/settings/personal-access-tokens' },
+  { id: 'linear', label: 'Linear', name: 'linear', url: 'https://mcp.linear.app/mcp', keyLabel: 'API key', keyUrl: 'https://linear.app/settings/account/security' },
+  { id: 'mcp', label: 'Any MCP server', name: '', url: '', keyLabel: 'Token' },
 ];
 
 export const chatAppKinds: { value: ChatAppKind; label: string }[] = [

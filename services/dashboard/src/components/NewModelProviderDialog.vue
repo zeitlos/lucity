@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useMutation } from '@vue/apollo-composable';
-import { RadioGroupIndicator, RadioGroupItem } from 'reka-ui';
-import { Check, ExternalLink, Sparkles } from '@lucide/vue';
+import { ExternalLink, Sparkles } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { ModelApi } from '@/gql/graphql';
 import { modelProviderPresets, resourceName, type ModelProviderPreset } from '@/lib/agents';
 import { mobileSheetClass } from '@/lib/dialog';
+import ChoiceRows from '@/components/ChoiceRows.vue';
 import DialogIcon from '@/components/DialogIcon.vue';
 import ModelProviderIcon from '@/components/ModelProviderIcon.vue';
 import SecretInput from '@/components/SecretInput.vue';
@@ -15,7 +15,6 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { RadioGroup } from '@/components/ui/radio-group';
 import { failureToast } from '@/components/ui/sonner';
 
 const CreateModelProviderDocument = graphql(`
@@ -40,6 +39,8 @@ const emit = defineEmits<{
 }>();
 
 const router = useRouter();
+
+const presetOptions = modelProviderPresets.map(option => ({ value: option.id, label: option.label, brand: option.brand }));
 
 const preset = ref<ModelProviderPreset>(modelProviderPresets[0]!);
 const name = ref('');
@@ -67,10 +68,7 @@ const needsUrl = computed(() => preset.value.api === ModelApi.OpenaiCompatible);
 const asksUrl = computed(() => needsUrl.value && !preset.value.url);
 const keyHint = computed(() => (preset.value.keyHint ? `${preset.value.keyHint} Agents never see it.` : 'Agents never see it.'));
 
-async function pickByPointer(event: MouseEvent, id: string) {
-  if (!event.detail) return;
-  pick(id);
-  await nextTick();
+function focusNextField() {
   const field = asksUrl.value && !url.value.trim() ? 'model-provider-url' : 'model-provider-key';
   document.getElementById(field)?.focus();
 }
@@ -111,26 +109,17 @@ async function create() {
         <fieldset :disabled="pending" class="min-w-0 space-y-4">
           <div class="space-y-2">
             <p id="model-provider-preset" class="text-sm font-medium text-foreground">Provider</p>
-            <RadioGroup
+            <ChoiceRows
               :model-value="preset.id"
+              :options="presetOptions"
               aria-labelledby="model-provider-preset"
-              class="grid-cols-2 gap-1"
-              @update:model-value="pick($event as string)"
+              @update:model-value="pick"
+              @pointer="focusNextField"
             >
-              <RadioGroupItem
-                v-for="option in modelProviderPresets"
-                :key="option.id"
-                :value="option.id"
-                class="flex items-center gap-2.5 rounded-md border border-transparent p-1 text-left text-sm text-foreground transition-colors hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none data-[state=checked]:border-border data-[state=checked]:bg-accent data-[state=checked]:font-medium"
-                @click="pickByPointer($event, option.id)"
-              >
+              <template #visual="{ option }">
                 <ModelProviderIcon :brand="option.brand" />
-                <span class="min-w-0 flex-1 truncate">{{ option.label }}</span>
-                <RadioGroupIndicator class="mr-1 shrink-0">
-                  <Check :size="16" />
-                </RadioGroupIndicator>
-              </RadioGroupItem>
-            </RadioGroup>
+              </template>
+            </ChoiceRows>
           </div>
 
           <div v-if="asksUrl" class="space-y-2">

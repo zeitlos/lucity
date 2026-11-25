@@ -146,7 +146,6 @@ const AgentPaletteConnectorsDocument = graphql(`
     connectors {
       id
       name
-      url
     }
   }
 `);
@@ -1655,9 +1654,14 @@ void activeEnvironment;
               >
                 <ArrowLeft />
               </IconButton>
-              <Bot :size="16" class="ml-1 shrink-0 text-muted-foreground" />
-              <span v-if="agentStep === 'harness'" class="ml-2 text-sm text-muted-foreground">Choose a harness</span>
-              <span v-else class="ml-2 text-sm font-medium text-foreground">Agent</span>
+              <template v-if="agentStep === 'harness' || !agentHarness">
+                <Bot :size="16" class="ml-1 shrink-0 text-muted-foreground" />
+                <span class="ml-2 text-sm text-muted-foreground">Choose a harness</span>
+              </template>
+              <template v-else>
+                <BrandTile :name="harnessLabel(agentHarness)" size="sm" class="ml-1" />
+                <span class="ml-2 text-sm font-medium text-foreground">{{ harnessLabel(agentHarness) }} agent</span>
+              </template>
             </div>
 
             <div v-if="agentStep === 'harness'" class="p-1">
@@ -1697,9 +1701,6 @@ void activeEnvironment;
                   autocomplete="off"
                   spellcheck="false"
                 />
-                <p class="text-xs text-muted-foreground">
-                  {{ agentHarness ? harnessLabel(agentHarness) : '' }} &middot; the model is picked per session
-                </p>
               </div>
 
               <div class="space-y-2">
@@ -1722,7 +1723,6 @@ void activeEnvironment;
                     <div class="flex h-5 flex-1 items-center">
                       <Skeleton :class="['h-3', width]" />
                     </div>
-                    <Skeleton class="h-2.5 w-32" />
                   </div>
                 </div>
                 <p v-else-if="agentConnectors.length === 0" class="text-xs text-muted-foreground">
@@ -1740,9 +1740,9 @@ void activeEnvironment;
                     />
                     <BrandTile :name="connector.name" size="sm" />
                     <span class="min-w-0 flex-1 truncate text-sm text-foreground">{{ connector.name }}</span>
-                    <span class="max-w-40 truncate font-mono text-xs text-muted-foreground">{{ connector.url }}</span>
                   </label>
                 </div>
+                <p v-if="agentConnectors.length > 0" class="text-xs text-muted-foreground">Tool calls ask for approval until you allow them under Access.</p>
               </div>
 
               <div class="space-y-2">
@@ -1754,9 +1754,7 @@ void activeEnvironment;
                 >
                   {{ creatingAgent ? 'Creating…' : 'Create agent' }}
                 </Button>
-                <p class="text-center text-xs text-muted-foreground">
-                  Tool calls ask for approval until you allow them under Access.
-                </p>
+                <p class="text-center text-xs text-muted-foreground">The model is picked per session.</p>
               </div>
             </form>
           </template>

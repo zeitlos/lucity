@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
-import { Clock, Webhook, Zap } from '@lucide/vue';
+import { Webhook, Zap } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { AgentTriggerSource } from '@/gql/graphql';
 import type { Agent, AgentTrigger } from '@/lib/agents';
@@ -75,8 +75,8 @@ const props = defineProps<{
 }>();
 
 const sources = [
-  { value: AgentTriggerSource.Schedule, label: 'On a schedule', icon: Clock },
-  { value: AgentTriggerSource.Webhook, label: 'From a webhook', icon: Webhook },
+  { value: AgentTriggerSource.Schedule, label: 'On a schedule' },
+  { value: AgentTriggerSource.Webhook, label: 'From a webhook' },
 ];
 
 const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -95,6 +95,7 @@ const isSchedule = computed(() => source.value === AgentTriggerSource.Schedule);
 watch(open, (value) => {
   if (!value) return;
   created.value = null;
+  example.value = 'alertmanager';
   name.value = props.trigger?.name ?? '';
   source.value = props.trigger?.source ?? AgentTriggerSource.Schedule;
   schedule.value = props.trigger?.schedule ? fromCron(props.trigger.schedule) : defaultSchedule();
@@ -129,6 +130,19 @@ const canSave = computed(() => !pending.value
   && name.value.trim() !== ''
   && instructions.value.trim() !== ''
   && (!isSchedule.value || !scheduleProblem.value));
+
+const examples = [
+  { value: 'alertmanager', label: 'Alertmanager' },
+  { value: 'curl', label: 'curl' },
+];
+const example = ref('alertmanager');
+
+const curlSnippet = computed(() => created.value
+  ? `curl -X POST ${created.value.url} \\
+  -H "Authorization: Bearer ${created.value.token}" \\
+  -H "Content-Type: application/json" \\
+  -d '${JSON.stringify({ [key.value.trim() || 'message']: 'test' })}'`
+  : '');
 
 const snippet = computed(() => created.value
   ? `receivers:
@@ -191,22 +205,26 @@ async function newToken() {
 <template>
   <Dialog v-model:open="open">
     <DialogContent :class="[mobileSheetClass, 'sm:max-w-lg']">
-      <div v-if="created" class="space-y-4">
+      <div v-if="created" class="min-w-0 space-y-4">
         <DialogHeader>
           <DialogIcon :icon="Webhook" />
           <DialogTitle>"{{ name }}" is ready</DialogTitle>
-          <DialogDescription>Send events to this address with the token as a bearer token. The token is shown only now.</DialogDescription>
+          <DialogDescription>Send events to the address, with the token as a bearer token.</DialogDescription>
         </DialogHeader>
 
         <div class="space-y-2">
           <CredentialField label="Address" :value="created.url" />
           <CredentialField label="Token" :value="created.token" />
+          <p class="text-xs text-muted-foreground">The token is shown only now. A lost token can be replaced, not read again.</p>
         </div>
 
         <div class="space-y-2">
-          <p class="text-sm font-medium text-foreground">Alertmanager</p>
-          <CodeBlock :code="snippet" :secrets="[created.token]" />
-          <p class="text-xs text-muted-foreground">Route the alerts {{ agent.name }} should look at to this receiver, with <span class="font-mono">continue: true</span> to keep notifying as before.</p>
+          <CodeBlock :code="example === 'curl' ? curlSnippet : snippet" :secrets="[created.token]">
+            <template #header>
+              <SegmentedControl v-model="example" label="Example" :options="examples" />
+            </template>
+          </CodeBlock>
+          <p v-if="example === 'alertmanager'" class="text-xs text-muted-foreground">Route the alerts {{ agent.name }} should look at to this receiver, with <span class="font-mono">continue: true</span> to keep notifying as before.</p>
         </div>
 
         <DialogFooter>
@@ -243,35 +261,36 @@ async function newToken() {
               <Input id="trigger-minute" v-model.number="schedule.minute" type="number" min="0" max="59" class="w-28 tabular-nums" />
             </div>
 
-            <div v-if="schedule.repeats === 'weekly'" class="space-y-2">
-              <p class="text-sm font-medium text-foreground">On</p>
-              <div class="flex flex-wrap gap-1.5" role="group" aria-label="Days">
-                <Button
-                  v-for="day in weekdays"
-                  :key="day.value"
-                  type="button"
-                  variant="outline"
-                  size="xs"
-                  class="w-10 aria-pressed:border-primary aria-pressed:bg-accent aria-pressed:text-foreground"
-                  :class="schedule.days.includes(day.value) ? '' : 'text-muted-foreground'"
-                  :aria-pressed="schedule.days.includes(day.value)"
-                  :aria-label="day.name"
-                  @click="toggleDay(day.value)"
-                >
-                  {{ day.label }}
-                </Button>
+            <div v-if="schedule.repeats === 'daily' || schedule.repeats === 'weekly' || schedule.repeats === 'monthly'" class="flex flex-wrap items-end justify-between gap-4">
+              <div v-if="schedule.repeats === 'weekly'" class="space-y-2">
+                <p class="text-sm font-medium text-foreground">On</p>
+                <div class="flex flex-wrap gap-1.5" role="group" aria-label="Days">
+                  <Button
+                    v-for="day in weekdays"
+                    :key="day.value"
+                    type="button"
+                    variant="outline"
+                    size="xs"
+                    class="w-10 aria-pressed:border-primary aria-pressed:bg-accent aria-pressed:text-foreground"
+                    :class="schedule.days.includes(day.value) ? '' : 'text-muted-foreground'"
+                    :aria-pressed="schedule.days.includes(day.value)"
+                    :aria-label="day.name"
+                    @click="toggleDay(day.value)"
+                  >
+                    {{ day.label }}
+                  </Button>
+                </div>
               </div>
-            </div>
 
-            <div v-if="schedule.repeats === 'monthly'" class="space-y-2">
-              <Label for="trigger-day">Day of the month</Label>
-              <Input id="trigger-day" v-model.number="schedule.dayOfMonth" type="number" min="1" max="31" class="w-28 tabular-nums" />
-            </div>
+              <div v-if="schedule.repeats === 'monthly'" class="space-y-2">
+                <Label for="trigger-day">Day of the month</Label>
+                <Input id="trigger-day" v-model.number="schedule.dayOfMonth" type="number" min="1" max="31" class="w-28 tabular-nums" />
+              </div>
 
-            <div v-if="schedule.repeats === 'daily' || schedule.repeats === 'weekly' || schedule.repeats === 'monthly'" class="space-y-2">
-              <Label for="trigger-time">At</Label>
-              <Input id="trigger-time" v-model="schedule.time" type="time" class="w-32 tabular-nums" />
-              <p class="text-xs text-muted-foreground">In {{ timeZone }}.</p>
+              <div class="space-y-2">
+                <Label for="trigger-time">At</Label>
+                <Input id="trigger-time" v-model="schedule.time" type="time" class="w-32 tabular-nums" />
+              </div>
             </div>
 
             <div v-if="schedule.repeats === 'custom'" class="space-y-2">
@@ -281,16 +300,19 @@ async function newToken() {
             </div>
 
             <p v-if="scheduleProblem && (schedule.repeats !== 'custom' || schedule.cron.trim() !== '')" class="text-xs text-destructive">{{ scheduleProblem }}</p>
-            <div v-else-if="runs.length > 0" class="space-y-1 rounded-md bg-muted/40 px-3 py-2">
-              <p class="text-xs text-muted-foreground">Next runs</p>
-              <p class="text-xs text-foreground tabular-nums">{{ runs.map(run => formatDateTime(run)).join(' · ') }}</p>
-            </div>
+            <p v-else-if="runs.length > 0" class="text-xs text-muted-foreground tabular-nums">{{ timeZone }} time. Next: {{ runs.map(run => formatDateTime(run)).join(' · ') }}</p>
           </template>
 
-          <div v-else class="space-y-2">
-            <Label for="trigger-key">Same session for</Label>
+          <div class="space-y-2">
+            <Label for="trigger-instructions">What {{ agent.name }} does</Label>
+            <Textarea id="trigger-instructions" v-model="instructions" rows="3" maxlength="65536" placeholder="Post a short status of production: failed deploys, restarts and open alerts." />
+            <p class="text-xs text-muted-foreground">The first message of every session it starts. The event follows as data.</p>
+          </div>
+
+          <div v-if="!isSchedule" class="space-y-2">
+            <Label for="trigger-key">Group events by</Label>
             <Input id="trigger-key" v-model="key" class="font-mono text-sm" placeholder="groupKey" autocomplete="off" spellcheck="false" maxlength="128" />
-            <p class="text-xs text-muted-foreground">A top-level field of the JSON body. Events with the same value continue one session. Empty starts a new session for every event.</p>
+            <p class="text-xs text-muted-foreground">A top-level field of the JSON body. Events with the same value continue one session. Leave it empty to start a session for every event.</p>
           </div>
 
           <div v-if="editing && !isSchedule && trigger?.url" class="space-y-2">
@@ -299,12 +321,6 @@ async function newToken() {
               <p class="text-xs text-muted-foreground">A new token replaces the current one, which stops working.</p>
               <Button type="button" variant="outline" size="xs" class="shrink-0" :pending="replacing" @click="newToken">New token</Button>
             </div>
-          </div>
-
-          <div class="space-y-2">
-            <Label for="trigger-instructions">What {{ agent.name }} does</Label>
-            <Textarea id="trigger-instructions" v-model="instructions" rows="5" maxlength="65536" placeholder="Post a short status of production: failed deploys, restarts and open alerts." />
-            <p class="text-xs text-muted-foreground">The first message of every session it starts. The event follows as data.</p>
           </div>
         </fieldset>
 

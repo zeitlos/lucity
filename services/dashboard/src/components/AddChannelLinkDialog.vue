@@ -1,17 +1,16 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useMutation, useQuery } from '@vue/apollo-composable';
-import { MessageSquare } from '@lucide/vue';
+import { Bot, MessageSquare } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { chatAppKindLabel } from '@/lib/agents';
 import { mobileSheetClass } from '@/lib/dialog';
 import BrandTile from '@/components/BrandTile.vue';
+import ChoiceRows from '@/components/ChoiceRows.vue';
 import DialogIcon from '@/components/DialogIcon.vue';
 import QueryError from '@/components/QueryError.vue';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { failureToast, successToast } from '@/components/ui/sonner';
 
@@ -98,6 +97,7 @@ const groups = computed(() => (result.value?.projects ?? []).flatMap(project => 
   }))));
 
 const agents = computed(() => groups.value.flatMap(group => group.agents));
+const agentOptions = computed(() => groups.value.flatMap(group => group.agents.map(agent => ({ value: agent.id, label: agent.name, hint: group.label }))));
 const agentId = ref('');
 
 watch(agents, (list) => {
@@ -133,48 +133,34 @@ async function add() {
       <form class="space-y-4" @submit.prevent="add">
         <DialogHeader>
           <DialogIcon :icon="MessageSquare" />
-          <DialogTitle>Add a channel</DialogTitle>
+          <DialogTitle>Add channel</DialogTitle>
           <DialogDescription v-if="app && found">
-            The {{ chatAppKindLabel(app.kind) }} chat "{{ found.name }}" asked to talk to an agent of this workspace. Linked members there reach the agent you pick.
+            Pick the agent the {{ chatAppKindLabel(app.kind) }} chat "{{ found.name }}" talks to. Linked members there reach it.
           </DialogDescription>
           <DialogDescription v-else>Pick the agent this chat talks to.</DialogDescription>
         </DialogHeader>
 
-        <div v-if="loading && !result" class="flex items-center gap-3 rounded-lg border p-3">
-          <Skeleton class="size-8 rounded-sm" />
-          <div class="flex-1 space-y-1.5">
-            <Skeleton class="h-3 w-28" />
-            <Skeleton class="h-2.5 w-44" />
+        <div v-if="loading && !result" class="space-y-1">
+          <div v-for="width in ['w-24', 'w-32']" :key="width" class="flex items-center gap-2.5 p-1">
+            <Skeleton class="size-8 rounded-sm" />
+            <Skeleton :class="['h-3', width]" />
           </div>
         </div>
 
         <QueryError v-else-if="error && !result" title="Couldn't look up this chat" :error="error" @retry="refetch()" />
 
         <template v-else-if="app && found">
-          <div class="flex items-center gap-3 rounded-lg border p-3">
-            <BrandTile :name="chatAppKindLabel(app.kind)" />
-            <div class="min-w-0 flex-1">
-              <p class="truncate text-sm font-medium text-foreground">{{ found.name }}</p>
-              <p class="truncate text-xs text-muted-foreground">{{ chatAppKindLabel(app.kind) }} · {{ app.account }} is a member</p>
-            </div>
-          </div>
-
           <p v-if="owner" class="text-sm text-muted-foreground">This chat already talks to "{{ owner.name }}". Remove it there first.</p>
 
+          <p v-else-if="agents.length === 0" class="text-sm text-muted-foreground">This workspace has no agent yet. Create one on an environment's canvas first.</p>
+
           <div v-else class="space-y-2">
-            <Label for="add-channel-agent">Agent</Label>
-            <Select v-model="agentId" :disabled="saving || agents.length === 0">
-              <SelectTrigger id="add-channel-agent" class="w-full">
-                <SelectValue placeholder="Pick an agent" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup v-for="group in groups" :key="group.id">
-                  <SelectLabel>{{ group.label }}</SelectLabel>
-                  <SelectItem v-for="agent in group.agents" :key="agent.id" :value="agent.id">{{ agent.name }}</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            <p v-if="agents.length === 0" class="text-xs text-muted-foreground">This workspace has no agent yet. Create one on an environment's canvas first.</p>
+            <p id="add-channel-agent" class="text-sm font-medium text-foreground">Agent</p>
+            <ChoiceRows v-model="agentId" :options="agentOptions" :columns="1" aria-labelledby="add-channel-agent" class="max-h-64 overflow-y-auto">
+              <template #visual="{ option }">
+                <BrandTile :name="option.label" :icon="Bot" />
+              </template>
+            </ChoiceRows>
           </div>
         </template>
 

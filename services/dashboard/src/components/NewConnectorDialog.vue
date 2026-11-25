@@ -2,11 +2,12 @@
 import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useMutation } from '@vue/apollo-composable';
-import { Plug } from '@lucide/vue';
+import { ExternalLink, Plug, Server } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { connectorPresets, resourceName, type ConnectorPreset } from '@/lib/agents';
 import { mobileSheetClass } from '@/lib/dialog';
 import BrandTile from '@/components/BrandTile.vue';
+import ChoiceRows from '@/components/ChoiceRows.vue';
 import DialogIcon from '@/components/DialogIcon.vue';
 import SecretInput from '@/components/SecretInput.vue';
 import { Button } from '@/components/ui/button';
@@ -40,20 +41,35 @@ const emit = defineEmits<{
 
 const router = useRouter();
 
+const presetOptions = connectorPresets.map(option => ({ value: option.id, label: option.label, icon: option.url ? undefined : Server }));
+
 const preset = ref<ConnectorPreset>(connectorPresets[0]!);
 const name = ref('');
 const url = ref('');
 const token = ref('');
 
 watch(open, (value) => {
-  if (value) pick(connectorPresets[0]!);
+  if (!value) return;
+  preset.value = connectorPresets[0]!;
+  name.value = preset.value.name;
+  url.value = preset.value.url;
+  token.value = '';
 });
 
-function pick(next: ConnectorPreset) {
+function pick(id: string) {
+  const next = connectorPresets.find(candidate => candidate.id === id);
+  const previous = preset.value;
+  if (!next || next === previous) return;
   preset.value = next;
-  name.value = next.name;
-  url.value = next.url;
-  token.value = '';
+  if (!name.value.trim() || name.value === previous.name) name.value = next.name;
+  if (next.url || previous.url) url.value = next.url;
+}
+
+const asksUrl = computed(() => !preset.value.url);
+
+function focusNextField() {
+  const field = asksUrl.value && !url.value.trim() ? 'connector-url' : 'connector-token';
+  document.getElementById(field)?.focus();
 }
 
 const { mutate: createConnector, loading: pending } = useMutation(CreateConnectorDocument);
@@ -85,33 +101,26 @@ async function create() {
         <DialogHeader>
           <DialogIcon :icon="Plug" />
           <DialogTitle>New connector</DialogTitle>
-          <DialogDescription>A remote MCP server. Agents reach it through Lucity, which adds the token to every request.</DialogDescription>
+          <DialogDescription>A remote MCP server. Agents reach it through Lucity and never see the token.</DialogDescription>
         </DialogHeader>
 
         <fieldset :disabled="pending" class="min-w-0 space-y-4">
           <div class="space-y-2">
-            <p class="text-sm font-medium text-foreground">Server</p>
-            <div class="grid grid-cols-2 gap-1">
-              <button
-                v-for="option in connectorPresets"
-                :key="option.id"
-                type="button"
-                :aria-pressed="option.id === preset.id"
-                class="flex items-center gap-2 rounded-md px-2 py-2 text-left text-sm text-foreground transition-colors hover:bg-accent aria-pressed:bg-accent"
-                @click="pick(option)"
-              >
-                <BrandTile :name="option.label" size="sm" />
-                <span class="truncate">{{ option.label }}</span>
-              </button>
-            </div>
+            <p id="connector-preset" class="text-sm font-medium text-foreground">Server</p>
+            <ChoiceRows
+              :model-value="preset.id"
+              :options="presetOptions"
+              aria-labelledby="connector-preset"
+              @update:model-value="pick"
+              @pointer="focusNextField"
+            >
+              <template #visual="{ option }">
+                <BrandTile :name="option.label" :icon="option.icon" />
+              </template>
+            </ChoiceRows>
           </div>
 
-          <div class="space-y-2">
-            <Label for="connector-name">Name</Label>
-            <Input id="connector-name" v-model="name" placeholder="linear" autocomplete="off" spellcheck="false" />
-          </div>
-
-          <div class="space-y-2">
+          <div v-if="asksUrl" class="space-y-2">
             <Label for="connector-url">URL</Label>
             <Input
               id="connector-url"
@@ -124,9 +133,29 @@ async function create() {
           </div>
 
           <div class="space-y-2">
-            <Label for="connector-token">Token</Label>
+            <div class="flex items-center justify-between gap-2">
+              <Label for="connector-token">{{ preset.keyLabel }}</Label>
+              <a
+                v-if="preset.keyUrl"
+                :href="preset.keyUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="flex items-center gap-1 rounded-sm text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              >
+                Get one
+                <ExternalLink :size="12" />
+              </a>
+            </div>
             <SecretInput id="connector-token" v-model="token" />
-            <p class="text-xs text-muted-foreground">Sent as a bearer token. Leave it empty for a server without sign-in.</p>
+            <p class="text-xs text-muted-foreground">
+              Sent as a bearer token.<template v-if="asksUrl"> Leave it empty for a server without sign-in.</template>
+            </p>
+          </div>
+
+          <div class="space-y-2">
+            <Label for="connector-name">Name</Label>
+            <Input id="connector-name" v-model="name" :placeholder="preset.name || 'my-server'" autocomplete="off" spellcheck="false" />
+            <p class="text-xs text-muted-foreground">Its tools are listed under this name.</p>
           </div>
         </fieldset>
 

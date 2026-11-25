@@ -161,8 +161,8 @@ async function remove(kind: ChatAppKind, server?: string | null) {
         <DialogHeader>
           <DialogIcon :icon="Link2" />
           <DialogTitle>Link your {{ chatAppKindLabel(pending.app.kind) }} account</DialogTitle>
-          <DialogDescription v-if="pending.url">Open the link where you use Telegram and tap Start. It works once, for 10 minutes.</DialogDescription>
-          <DialogDescription v-else>Send this to {{ pending.app.account }} in a direct message. It works once, for 10 minutes.</DialogDescription>
+          <DialogDescription v-if="pending.url">Open the link where you use Telegram and tap Start.</DialogDescription>
+          <DialogDescription v-else>Send this to {{ pending.app.account }} in a direct message<template v-if="pending.app.url"> on {{ host(pending.app.url) }}</template>.</DialogDescription>
         </DialogHeader>
 
         <div class="min-w-0 space-y-3">
@@ -178,12 +178,12 @@ async function remove(kind: ChatAppKind, server?: string | null) {
           </div>
           <p class="flex items-center gap-2 text-xs text-muted-foreground">
             <Spinner :size="12" />
-            Waiting for {{ chatAppKindLabel(pending.app.kind) }}…
+            Waiting for {{ chatAppKindLabel(pending.app.kind) }}… The {{ pending.url ? 'link' : 'code' }} works once, for 10 minutes.
           </p>
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="ghost" @click="pending = null">Cancel</Button>
+          <Button type="button" variant="ghost" @click="pending = null">Back</Button>
         </DialogFooter>
       </template>
 
@@ -191,7 +191,7 @@ async function remove(kind: ChatAppKind, server?: string | null) {
         <DialogHeader>
           <DialogIcon :icon="Link2" />
           <DialogTitle>Linked accounts</DialogTitle>
-          <DialogDescription>Chat accounts that count as you when you talk to agents, in every workspace you are a member of.</DialogDescription>
+          <DialogDescription>Agents know you by these chat accounts, in every workspace you are a member of.</DialogDescription>
         </DialogHeader>
 
         <div v-if="loading && !result" class="divide-y overflow-hidden rounded-lg border">
