@@ -187,6 +187,7 @@ func convertAgentTrigger(trigger conductor.AgentTrigger) model.AgentTrigger {
 		Repository:   optional(trigger.Repository),
 		Events:       trigger.Events,
 		Branches:     trigger.Branches,
+		OnlyFailures: &trigger.OnlyFailures,
 		Instructions: trigger.Instructions,
 		Enabled:      trigger.Enabled,
 	}
@@ -224,6 +225,10 @@ func parseAgentTriggerInput(input model.AgentTriggerInput) conductor.AgentTrigge
 
 	spec.Events = input.Events
 	spec.Branches = input.Branches
+
+	if input.OnlyFailures != nil {
+		spec.OnlyFailures = *input.OnlyFailures
+	}
 
 	return spec
 }

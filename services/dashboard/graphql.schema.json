@@ -1693,7 +1693,7 @@
         "fields": [
           {
             "name": "branches",
-            "description": "Branch patterns a GitHub trigger is limited to, like `feature/*`. Empty means every branch.",
+            "description": "Branch patterns a GitHub trigger's pull request and CI run events are limited to, like `feature/*`. Empty means every branch.",
             "args": [],
             "type": {
               "kind": "LIST",
@@ -1729,7 +1729,7 @@
           },
           {
             "name": "events",
-            "description": "The events a GitHub trigger starts on, like `pull_request.opened` or `workflow_run.completed`. Events of one pull request continue one session.",
+            "description": "The events a GitHub trigger starts on, like `pull_request.opened` or `workflow_run.completed`. Events of one pull request or issue continue one session. Issues and comments start a session only when their author is an owner, member or collaborator of the repository, and a comment only when it mentions the agent as `@name`.",
             "args": [],
             "type": {
               "kind": "LIST",
@@ -1815,6 +1815,18 @@
                 "kind": "SCALAR",
                 "ofType": null
               }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "onlyFailures",
+            "description": "Whether a GitHub trigger starts on failed CI runs only.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -1909,7 +1921,7 @@
         "inputFields": [
           {
             "name": "branches",
-            "description": "Branch patterns, for a GitHub trigger. Pull requests from forks never start a session.",
+            "description": "Branch patterns for pull request and CI run events, for a GitHub trigger. Pull requests from forks never start a session.",
             "type": {
               "kind": "LIST",
               "name": null,
@@ -1929,7 +1941,7 @@
           },
           {
             "name": "events",
-            "description": "At least one of `pull_request.opened`, `pull_request.reopened`, `pull_request.synchronize`, `pull_request.closed` and `workflow_run.completed`, for a GitHub trigger.",
+            "description": "At least one of `pull_request.opened`, `pull_request.reopened`, `pull_request.synchronize`, `pull_request.closed`, `workflow_run.completed`, `issues.opened`, `issue_comment.created` and `release.published`, for a GitHub trigger.",
             "type": {
               "kind": "LIST",
               "name": null,
@@ -1986,6 +1998,18 @@
                 "kind": "SCALAR",
                 "ofType": null
               }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "onlyFailures",
+            "description": "Start on failed CI runs only, for a GitHub trigger with `workflow_run.completed`.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
             },
             "defaultValue": null,
             "isDeprecated": false,

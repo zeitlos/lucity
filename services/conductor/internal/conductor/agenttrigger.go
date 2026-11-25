@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net/url"
 	"path"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -39,13 +40,14 @@ type AgentTrigger struct {
 	Repository   string
 	Events       []string
 	Branches     []string
+	OnlyFailures bool
 	Instructions string
 	Enabled      bool
 }
 
 // AgentTriggerSpec is what a member sets on a trigger. Schedule and TimeZone
-// are for a schedule, Key for a webhook, Repository, Events and Branches for
-// GitHub.
+// are for a schedule, Key for a webhook, Repository, Events, Branches and
+// OnlyFailures for GitHub.
 type AgentTriggerSpec struct {
 	Name         string
 	Source       values.TriggerSource
@@ -55,6 +57,7 @@ type AgentTriggerSpec struct {
 	Repository   string
 	Events       []string
 	Branches     []string
+	OnlyFailures bool
 	Instructions string
 }
 
@@ -69,11 +72,15 @@ type GitHubTriggerEvent struct {
 	Branch         string
 	Commit         string
 	PullRequest    int
+	Issue          int
 	Title          string
 	Workflow       string
 	Conclusion     string
 	URL            string
 	Sender         string
+	Association    string
+	Comment        string
+	Tag            string
 }
 
 // GitHubTriggerEvents are the events a GitHub trigger can start on.
@@ -83,9 +90,20 @@ var GitHubTriggerEvents = []string{
 	"pull_request.synchronize",
 	"pull_request.closed",
 	"workflow_run.completed",
+	"issues.opened",
+	"issue_comment.created",
+	"release.published",
 }
 
-const maxTriggerBranches = 16
+const (
+	maxTriggerBranches = 16
+	maxTriggerComment  = 4000
+)
+
+var (
+	trustedAssociations = []string{"OWNER", "MEMBER", "COLLABORATOR"}
+	failedConclusions   = []string{"failure", "timed_out", "startup_failure"}
+)
 
 var (
 	// ErrTriggerNotFound means no enabled webhook trigger has the id.
@@ -121,6 +139,7 @@ func toAgentTrigger(id AgentTriggerID, trigger values.AgentTrigger) AgentTrigger
 		Repository:   trigger.Repository,
 		Events:       trigger.Events,
 		Branches:     trigger.Branches,
+		OnlyFailures: trigger.OnlyFailures,
 		Instructions: trigger.Instructions,
 		Enabled:      trigger.Enabled,
 	}
@@ -393,6 +412,7 @@ func triggerValues(spec AgentTriggerSpec) (values.AgentTrigger, error) {
 		trigger.Repository = repository
 		trigger.Events = events
 		trigger.Branches = branches
+		trigger.OnlyFailures = spec.OnlyFailures && slices.Contains(events, "workflow_run.completed")
 	default:
 		return values.AgentTrigger{}, usererror.Errorf("unsupported source %q", spec.Source)
 	}
@@ -472,10 +492,17 @@ func (c *Client) authorizeTriggerRepository(ctx context.Context, trigger *values
 
 // FireGitHub hands a GitHub event to every enabled GitHub trigger it matches:
 // same repository and installation, a listed event and a matching branch.
-// Events from forks never fire. Events of one pull request continue one
-// session. It returns how many triggers took the event.
+// Events from forks never fire, and issues and comments only from the
+// repository's owners, members and collaborators. A comment fires only when
+// it mentions the agent, so the agent's own comments don't start it again.
+// Events of one pull request or issue continue one session. It returns how
+// many triggers took the event.
 func (c *Client) FireGitHub(ctx context.Context, event GitHubTriggerEvent) (int, error) {
 	if !strings.EqualFold(event.HeadRepository, event.Repository) {
+		return 0, nil
+	}
+
+	if (event.Type == "issues" || event.Type == "issue_comment") && !slices.Contains(trustedAssociations, event.Association) {
 		return 0, nil
 	}
 
@@ -495,8 +522,11 @@ func (c *Client) FireGitHub(ctx context.Context, event GitHubTriggerEvent) (int,
 
 	key := ""
 
-	if event.PullRequest > 0 {
+	switch {
+	case event.PullRequest > 0:
 		key = "pr:" + strconv.Itoa(event.PullRequest)
+	case event.Issue > 0:
+		key = "issue:" + strconv.Itoa(event.Issue)
 	}
 
 	fired := 0
@@ -512,6 +542,14 @@ func (c *Client) FireGitHub(ctx context.Context, event GitHubTriggerEvent) (int,
 		}
 
 		if !slices.Contains(trigger.Events, name) || !matchesBranch(trigger.Branches, event.Branch) {
+			continue
+		}
+
+		if trigger.OnlyFailures && event.Type == "workflow_run" && !slices.Contains(failedConclusions, event.Conclusion) {
+			continue
+		}
+
+		if event.Type == "issue_comment" && !mentions(event.Comment, trigger.ID.Agent.Name) {
 			continue
 		}
 
@@ -557,7 +595,7 @@ func (c *Client) workspaceSuspended(ctx context.Context, workspace string) bool 
 }
 
 func matchesBranch(patterns []string, branch string) bool {
-	if len(patterns) == 0 {
+	if len(patterns) == 0 || branch == "" {
 		return true
 	}
 
@@ -575,24 +613,30 @@ func gitHubTriggerBody(name string, event GitHubTriggerEvent) (string, error) {
 		Event       string `json:"event"`
 		Repository  string `json:"repository"`
 		PullRequest int    `json:"pullRequest,omitempty"`
+		Issue       int    `json:"issue,omitempty"`
 		Title       string `json:"title,omitempty"`
+		Tag         string `json:"tag,omitempty"`
 		Branch      string `json:"branch,omitempty"`
 		Commit      string `json:"commit,omitempty"`
 		Workflow    string `json:"workflow,omitempty"`
 		Conclusion  string `json:"conclusion,omitempty"`
 		URL         string `json:"url,omitempty"`
 		Sender      string `json:"sender,omitempty"`
+		Comment     string `json:"comment,omitempty"`
 	}{
 		Event:       name,
 		Repository:  event.Repository,
 		PullRequest: event.PullRequest,
+		Issue:       event.Issue,
 		Title:       event.Title,
+		Tag:         event.Tag,
 		Branch:      event.Branch,
 		Commit:      event.Commit,
 		Workflow:    event.Workflow,
 		Conclusion:  event.Conclusion,
 		URL:         event.URL,
 		Sender:      event.Sender,
+		Comment:     truncate(event.Comment, maxTriggerComment),
 	}, "", "  ")
 
 	if err != nil {
@@ -600,4 +644,21 @@ func gitHubTriggerBody(name string, event GitHubTriggerEvent) (string, error) {
 	}
 
 	return string(body), nil
+}
+
+// mentions reports whether text mentions @name as a whole handle.
+func mentions(text, name string) bool {
+	pattern := `(?i)(^|[^A-Za-z0-9_-])@` + regexp.QuoteMeta(name) + `($|[^A-Za-z0-9_-])`
+
+	return regexp.MustCompile(pattern).MatchString(text)
+}
+
+func truncate(text string, limit int) string {
+	runes := []rune(text)
+
+	if len(runes) <= limit {
+		return text
+	}
+
+	return string(runes[:limit]) + "…"
 }

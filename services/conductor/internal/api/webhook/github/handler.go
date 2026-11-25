@@ -25,6 +25,10 @@ type Event struct {
 	HTMLURL        string // pull request or workflow run page
 	WorkflowName   string
 	Conclusion     string // workflow run conclusion, e.g. "success", "failure"
+	IssueNumber    int
+	Association    string // the author's relation to the repository, e.g. "MEMBER"
+	Comment        string
+	Tag            string // release tag
 }
 
 // ValidateAndParse validates the webhook HMAC signature and parses
@@ -84,6 +88,43 @@ func ValidateAndParse(secret []byte, r *http.Request) (*Event, error) {
 		if len(run.PullRequests) > 0 {
 			event.PRNumber = run.PullRequests[0].GetNumber()
 		}
+
+	case *gh.IssuesEvent:
+		event.Action = e.GetAction()
+		event.RepoFullName = e.GetRepo().GetFullName()
+		event.HeadRepo = event.RepoFullName
+		event.Sender = e.GetSender().GetLogin()
+		event.InstallationID = e.GetInstallation().GetID()
+		event.IssueNumber = e.GetIssue().GetNumber()
+		event.Title = e.GetIssue().GetTitle()
+		event.HTMLURL = e.GetIssue().GetHTMLURL()
+		event.Association = e.GetIssue().GetAuthorAssociation()
+
+	case *gh.IssueCommentEvent:
+		event.Action = e.GetAction()
+		event.RepoFullName = e.GetRepo().GetFullName()
+		event.HeadRepo = event.RepoFullName
+		event.Sender = e.GetSender().GetLogin()
+		event.InstallationID = e.GetInstallation().GetID()
+		if e.GetIssue().IsPullRequest() {
+			event.PRNumber = e.GetIssue().GetNumber()
+		} else {
+			event.IssueNumber = e.GetIssue().GetNumber()
+		}
+		event.Title = e.GetIssue().GetTitle()
+		event.HTMLURL = e.GetComment().GetHTMLURL()
+		event.Association = e.GetComment().GetAuthorAssociation()
+		event.Comment = e.GetComment().GetBody()
+
+	case *gh.ReleaseEvent:
+		event.Action = e.GetAction()
+		event.RepoFullName = e.GetRepo().GetFullName()
+		event.HeadRepo = event.RepoFullName
+		event.Sender = e.GetSender().GetLogin()
+		event.InstallationID = e.GetInstallation().GetID()
+		event.Title = e.GetRelease().GetName()
+		event.Tag = e.GetRelease().GetTagName()
+		event.HTMLURL = e.GetRelease().GetHTMLURL()
 
 	case *gh.InstallationEvent:
 		// Placeholder for future installation lifecycle management (app installed/uninstalled).

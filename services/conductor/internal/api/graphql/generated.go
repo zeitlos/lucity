@@ -163,6 +163,7 @@ type ComplexityRoot struct {
 		Key          func(childComplexity int) int
 		LastRunAt    func(childComplexity int) int
 		Name         func(childComplexity int) int
+		OnlyFailures func(childComplexity int) int
 		Repository   func(childComplexity int) int
 		Schedule     func(childComplexity int) int
 		Source       func(childComplexity int) int
@@ -1820,6 +1821,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.AgentTrigger.Name(childComplexity), true
+	case "AgentTrigger.onlyFailures":
+		if e.ComplexityRoot.AgentTrigger.OnlyFailures == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentTrigger.OnlyFailures(childComplexity), true
 	case "AgentTrigger.repository":
 		if e.ComplexityRoot.AgentTrigger.Repository == nil {
 			break
@@ -6904,6 +6911,8 @@ func (ec *executionContext) childFields_AgentTrigger(ctx context.Context, field 
 		return ec.fieldContext_AgentTrigger_events(ctx, field)
 	case "branches":
 		return ec.fieldContext_AgentTrigger_branches(ctx, field)
+	case "onlyFailures":
+		return ec.fieldContext_AgentTrigger_onlyFailures(ctx, field)
 	case "instructions":
 		return ec.fieldContext_AgentTrigger_instructions(ctx, field)
 	case "enabled":
@@ -15594,6 +15603,29 @@ func (ec *executionContext) _AgentTrigger_branches(ctx context.Context, field gr
 }
 func (ec *executionContext) fieldContext_AgentTrigger_branches(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("AgentTrigger", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AgentTrigger_onlyFailures(ctx context.Context, field graphql.CollectedField, obj *model.AgentTrigger) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentTrigger_onlyFailures(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.OnlyFailures, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *bool) graphql.Marshaler {
+			return ec.marshalOBoolean2ᚖbool(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_AgentTrigger_onlyFailures(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentTrigger", field, false, false, errors.New("field of type Boolean does not have child fields"))
 }
 
 func (ec *executionContext) _AgentTrigger_instructions(ctx context.Context, field graphql.CollectedField, obj *model.AgentTrigger) (ret graphql.Marshaler) {
@@ -39034,7 +39066,7 @@ func (ec *executionContext) unmarshalInputAgentTriggerInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "source", "schedule", "timeZone", "key", "repository", "events", "branches", "instructions"}
+	fieldsInOrder := [...]string{"name", "source", "schedule", "timeZone", "key", "repository", "events", "branches", "onlyFailures", "instructions"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -39196,7 +39228,7 @@ func (ec *executionContext) unmarshalInputAgentTriggerInput(ctx context.Context,
 			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalOString2ᚕstringᚄ(ctx, v) }
 
 			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "max=8,dive,min=1,max=64")
+				constraint, err := ec.unmarshalNString2string(ctx, "max=16,dive,min=1,max=64")
 				if err != nil {
 					var zeroVal []string
 					return zeroVal, err
@@ -39249,6 +39281,13 @@ func (ec *executionContext) unmarshalInputAgentTriggerInput(ctx context.Context,
 				err := fmt.Errorf(`unexpected type %T from directive, should be []string`, tmp)
 				return it, graphql.ErrorOnPath(ctx, err)
 			}
+		case "onlyFailures":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("onlyFailures"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.OnlyFailures = data
 		case "instructions":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("instructions"))
 			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
@@ -41840,6 +41879,11 @@ func (ec *executionContext) _AgentTrigger(ctx context.Context, sel ast.Selection
 			}
 		case "branches":
 			out.Values[i] = ec._AgentTrigger_branches(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "onlyFailures":
+			out.Values[i] = ec._AgentTrigger_onlyFailures(ctx, field, obj)
 			if out.Values[i] == graphql.RequiredNull {
 				atomic.AddUint32(&out.Invalids, 1)
 			}

@@ -212,11 +212,13 @@ type AgentTrigger struct {
 	Key *string `json:"key,omitempty"`
 	// The `owner/repo` a GitHub trigger listens to.
 	Repository *string `json:"repository,omitempty"`
-	// The events a GitHub trigger starts on, like `pull_request.opened` or `workflow_run.completed`. Events of one pull request continue one session.
+	// The events a GitHub trigger starts on, like `pull_request.opened` or `workflow_run.completed`. Events of one pull request or issue continue one session. Issues and comments start a session only when their author is an owner, member or collaborator of the repository, and a comment only when it mentions the agent as `@name`.
 	Events []string `json:"events,omitempty"`
-	// Branch patterns a GitHub trigger is limited to, like `feature/*`. Empty means every branch.
-	Branches     []string `json:"branches,omitempty"`
-	Instructions string   `json:"instructions"`
+	// Branch patterns a GitHub trigger's pull request and CI run events are limited to, like `feature/*`. Empty means every branch.
+	Branches []string `json:"branches,omitempty"`
+	// Whether a GitHub trigger starts on failed CI runs only.
+	OnlyFailures *bool  `json:"onlyFailures,omitempty"`
+	Instructions string `json:"instructions"`
 	// A trigger that is off doesn't start sessions.
 	Enabled bool `json:"enabled"`
 	// Where a webhook trigger is called, with its token as a bearer token.
@@ -238,11 +240,13 @@ type AgentTriggerInput struct {
 	Key *string `json:"key,omitempty"`
 	// An `owner/repo` your GitHub account can read, for a GitHub trigger.
 	Repository *string `json:"repository,omitempty"`
-	// At least one of `pull_request.opened`, `pull_request.reopened`, `pull_request.synchronize`, `pull_request.closed` and `workflow_run.completed`, for a GitHub trigger.
+	// At least one of `pull_request.opened`, `pull_request.reopened`, `pull_request.synchronize`, `pull_request.closed`, `workflow_run.completed`, `issues.opened`, `issue_comment.created` and `release.published`, for a GitHub trigger.
 	Events []string `json:"events,omitempty"`
-	// Branch patterns, for a GitHub trigger. Pull requests from forks never start a session.
-	Branches     []string `json:"branches,omitempty"`
-	Instructions string   `json:"instructions"`
+	// Branch patterns for pull request and CI run events, for a GitHub trigger. Pull requests from forks never start a session.
+	Branches []string `json:"branches,omitempty"`
+	// Start on failed CI runs only, for a GitHub trigger with `workflow_run.completed`.
+	OnlyFailures *bool  `json:"onlyFailures,omitempty"`
+	Instructions string `json:"instructions"`
 }
 
 // A trigger and, for a webhook trigger, its token. The token is shown only here.

@@ -54,6 +54,7 @@ type AgentTrigger struct {
 	InstallationID string        `yaml:"installationId,omitempty" json:"installationId,omitempty"`
 	Events         []string      `yaml:"events,omitempty" json:"events,omitempty"`
 	Branches       []string      `yaml:"branches,omitempty" json:"branches,omitempty"`
+	OnlyFailures   bool          `yaml:"onlyFailures,omitempty" json:"onlyFailures,omitempty"`
 	Instructions   string        `yaml:"instructions" json:"instructions"`
 	Enabled        bool          `yaml:"enabled" json:"enabled"`
 }

@@ -129,7 +129,7 @@ async function remove(trigger: AgentTrigger) {
       size="compact"
       :icon="Zap"
       title="No triggers yet"
-      description="Start sessions on a schedule, when a webhook is called, or on a GitHub event."
+      description="Start sessions on a schedule, when a webhook is called, or on GitHub events."
     />
     <QueryError v-if="runsError && !runsResult && agent.triggers.length > 0" title="Couldn't load when the triggers last ran" :error="runsError" @retry="refetchRuns()" />
 

@@ -302,6 +302,7 @@ const EnvironmentAgentsDocument = graphql(`
           repository
           events
           branches
+          onlyFailures
           instructions
           enabled
           url

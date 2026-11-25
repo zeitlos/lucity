@@ -21,10 +21,12 @@ type AgentTrigger {
   key: String
   """The `owner/repo` a GitHub trigger listens to."""
   repository: String
-  """The events a GitHub trigger starts on, like `pull_request.opened` or `workflow_run.completed`. Events of one pull request continue one session."""
+  """The events a GitHub trigger starts on, like `pull_request.opened` or `workflow_run.completed`. Events of one pull request or issue continue one session. Issues and comments start a session only when their author is an owner, member or collaborator of the repository, and a comment only when it mentions the agent as `@name`."""
   events: [String!]
-  """Branch patterns a GitHub trigger is limited to, like `feature/*`. Empty means every branch."""
+  """Branch patterns a GitHub trigger's pull request and CI run events are limited to, like `feature/*`. Empty means every branch."""
   branches: [String!]
+  """Whether a GitHub trigger starts on failed CI runs only."""
+  onlyFailures: Boolean
   instructions: String!
   """A trigger that is off doesn't start sessions."""
   enabled: Boolean!
@@ -51,10 +53,12 @@ input AgentTriggerInput {
   key: String @constraint(constraint: "max=128")
   """An `owner/repo` your GitHub account can read, for a GitHub trigger."""
   repository: String @constraint(constraint: "max=200")
-  """At least one of `pull_request.opened`, `pull_request.reopened`, `pull_request.synchronize`, `pull_request.closed` and `workflow_run.completed`, for a GitHub trigger."""
-  events: [String!] @constraint(constraint: "max=8,dive,min=1,max=64")
-  """Branch patterns, for a GitHub trigger. Pull requests from forks never start a session."""
+  """At least one of `pull_request.opened`, `pull_request.reopened`, `pull_request.synchronize`, `pull_request.closed`, `workflow_run.completed`, `issues.opened`, `issue_comment.created` and `release.published`, for a GitHub trigger."""
+  events: [String!] @constraint(constraint: "max=16,dive,min=1,max=64")
+  """Branch patterns for pull request and CI run events, for a GitHub trigger. Pull requests from forks never start a session."""
   branches: [String!] @constraint(constraint: "max=16,dive,min=1,max=255")
+  """Start on failed CI runs only, for a GitHub trigger with `workflow_run.completed`."""
+  onlyFailures: Boolean
   instructions: String! @constraint(constraint: "min=1,max=65536")
 }
 

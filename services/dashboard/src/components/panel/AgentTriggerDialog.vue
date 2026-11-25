@@ -5,13 +5,15 @@ import { Clock, Webhook, Zap } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { AgentTriggerSource } from '@/gql/graphql';
 import type { Agent, AgentTrigger } from '@/lib/agents';
-import { brandIcon } from '@/lib/brandMarks';
 import { mobileSheetClass } from '@/lib/dialog';
 import { formatDateTime } from '@/lib/format';
 import { defaultSchedule, describeCron, fromCron, nextRuns, repeatOptions, toCron, weekdays, type Schedule } from '@/lib/schedule';
+import BrandTile from '@/components/BrandTile.vue';
+import ChoiceRows from '@/components/ChoiceRows.vue';
 import CodeBlock from '@/components/CodeBlock.vue';
 import CredentialField from '@/components/CredentialField.vue';
 import DialogIcon from '@/components/DialogIcon.vue';
+import GitHubRepositoryCombobox from '@/components/GitHubRepositoryCombobox.vue';
 import SegmentedControl from '@/components/SegmentedControl.vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -35,6 +37,7 @@ const CreateAgentTriggerDocument = graphql(`
         repository
         events
         branches
+        onlyFailures
         instructions
         enabled
         url
@@ -55,6 +58,7 @@ const UpdateAgentTriggerDocument = graphql(`
       repository
       events
       branches
+      onlyFailures
       instructions
       enabled
       url
@@ -83,14 +87,42 @@ const props = defineProps<{
 }>();
 
 const sources = [
-  { value: AgentTriggerSource.Schedule, label: 'On a schedule', icon: Clock },
-  { value: AgentTriggerSource.Webhook, label: 'From a webhook', icon: Webhook },
-  { value: AgentTriggerSource.Github, label: 'From GitHub', icon: brandIcon('github') ?? Webhook },
+  { value: AgentTriggerSource.Schedule, label: 'Schedule', icon: Clock, placeholder: 'Morning summary' },
+  { value: AgentTriggerSource.Webhook, label: 'Webhook', icon: Webhook, placeholder: 'Platform alerts' },
+  { value: AgentTriggerSource.Github, label: 'GitHub', icon: undefined, placeholder: 'Renovate CI' },
 ];
 
-const gitHubEvents = [
-  { value: 'pullRequest', label: 'A pull request is opened or updated', events: ['pull_request.opened', 'pull_request.reopened', 'pull_request.synchronize'] },
-  { value: 'ciRun', label: 'A CI run finishes', events: ['workflow_run.completed'] },
+const gitHubEventGroups = computed(() => [
+  {
+    title: 'Pull requests',
+    options: [
+      { value: 'prUpdated', label: 'Opened or updated', events: ['pull_request.opened', 'pull_request.reopened', 'pull_request.synchronize'] },
+      { value: 'prClosed', label: 'Merged or closed', events: ['pull_request.closed'] },
+    ],
+  },
+  {
+    title: 'CI runs',
+    options: [{ value: 'ciRun', label: 'A run finishes', events: ['workflow_run.completed'] }],
+  },
+  {
+    title: 'Issues',
+    options: [
+      { value: 'issueOpened', label: 'Opened', events: ['issues.opened'] },
+      { value: 'comment', label: `A comment mentions @${props.agent.name}`, events: ['issue_comment.created'] },
+    ],
+    note: 'Only owners, members and collaborators of the repository start a session.',
+  },
+  {
+    title: 'Releases',
+    options: [{ value: 'release', label: 'Published', events: ['release.published'] }],
+  },
+]);
+
+const gitHubEventOptions = computed(() => gitHubEventGroups.value.flatMap(group => group.options));
+
+const ciResults = [
+  { value: 'any', label: 'Any result' },
+  { value: 'failures', label: 'Only failures' },
 ];
 
 const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -102,6 +134,7 @@ const key = ref('');
 const repository = ref('');
 const eventGroups = ref<string[]>([]);
 const branches = ref('');
+const ciResult = ref('any');
 const instructions = ref('');
 const created = ref<{ url: string; token: string } | null>(null);
 
@@ -110,6 +143,18 @@ const timeZone = computed(() => props.trigger?.timeZone || browserTimeZone);
 const isSchedule = computed(() => source.value === AgentTriggerSource.Schedule);
 const isWebhook = computed(() => source.value === AgentTriggerSource.Webhook);
 const isGitHub = computed(() => source.value === AgentTriggerSource.Github);
+const currentSource = computed(() => sources.find(option => option.value === source.value) ?? sources[0]!);
+const picked = (value: string) => eventGroups.value.includes(value);
+const pickedPullRequests = computed(() => picked('prUpdated') || picked('prClosed'));
+const pickedIssues = computed(() => picked('issueOpened') || picked('comment'));
+const showsBranches = computed(() => pickedPullRequests.value || picked('ciRun'));
+const grouping = computed(() => {
+  const pullRequests = pickedPullRequests.value || picked('ciRun');
+  if (pullRequests && pickedIssues.value) return 'Events of one issue or pull request continue one session.';
+  if (pullRequests) return 'Events of one pull request continue one session. Pull requests from forks never start one.';
+  if (pickedIssues.value) return 'Events of one issue continue one session.';
+  return null;
+});
 
 watch(open, (value) => {
   if (!value) return;
@@ -120,10 +165,11 @@ watch(open, (value) => {
   schedule.value = props.trigger?.schedule ? fromCron(props.trigger.schedule) : defaultSchedule();
   key.value = props.trigger?.key ?? '';
   repository.value = props.trigger?.repository ?? '';
-  eventGroups.value = gitHubEvents
-    .filter(group => group.events.some(event => props.trigger?.events?.includes(event)))
-    .map(group => group.value);
+  eventGroups.value = gitHubEventOptions.value
+    .filter(option => option.events.some(event => props.trigger?.events?.includes(event)))
+    .map(option => option.value);
   branches.value = (props.trigger?.branches ?? []).join(', ');
+  ciResult.value = props.trigger?.onlyFailures ? 'failures' : 'any';
   instructions.value = props.trigger?.instructions ?? '';
 });
 
@@ -133,7 +179,6 @@ function toggleEventGroup(group: string, checked: boolean | 'indeterminate') {
     : eventGroups.value.filter(existing => existing !== group);
 }
 
-const repositoryValid = computed(() => /^[\w.-]+\/[\w.-]+$/.test(repository.value.trim()));
 
 const { mutate: createTrigger, loading: creating } = useMutation(CreateAgentTriggerDocument, { refetchQueries: ['EnvironmentAgents'] });
 const { mutate: updateTrigger, loading: updating } = useMutation(UpdateAgentTriggerDocument);
@@ -162,7 +207,7 @@ const canSave = computed(() => !pending.value
   && name.value.trim() !== ''
   && instructions.value.trim() !== ''
   && (!isSchedule.value || !scheduleProblem.value)
-  && (!isGitHub.value || (repositoryValid.value && eventGroups.value.length > 0)));
+  && (!isGitHub.value || (repository.value !== '' && eventGroups.value.length > 0)));
 
 const examples = [
   { value: 'alertmanager', label: 'Alertmanager' },
@@ -195,9 +240,10 @@ function input() {
     schedule: isSchedule.value ? cron.value : null,
     timeZone: isSchedule.value ? timeZone.value : null,
     key: isWebhook.value ? key.value.trim() || null : null,
-    repository: isGitHub.value ? repository.value.trim() : null,
-    events: isGitHub.value ? gitHubEvents.filter(group => eventGroups.value.includes(group.value)).flatMap(group => group.events) : null,
-    branches: isGitHub.value ? branches.value.split(',').map(branch => branch.trim()).filter(branch => branch !== '') : null,
+    repository: isGitHub.value ? repository.value : null,
+    events: isGitHub.value ? gitHubEventOptions.value.filter(option => picked(option.value)).flatMap(option => option.events) : null,
+    branches: isGitHub.value && showsBranches.value ? branches.value.split(',').map(branch => branch.trim()).filter(branch => branch !== '') : null,
+    onlyFailures: isGitHub.value && picked('ciRun') ? ciResult.value === 'failures' : null,
     instructions: instructions.value,
   };
 }
@@ -277,13 +323,19 @@ async function newToken() {
 
         <fieldset :disabled="pending" class="min-w-0 space-y-4">
           <div class="space-y-2">
-            <Label for="trigger-name">Name</Label>
-            <Input id="trigger-name" v-model="name" placeholder="Platform alerts" autocomplete="off" maxlength="64" />
-          </div>
-
-          <div v-if="!editing" class="space-y-2">
-            <p class="text-sm font-medium text-foreground">Starts</p>
-            <SegmentedControl v-model="source" label="Starts" :options="sources" show-labels class="flex w-full" item-class="h-7 flex-1 text-sm" />
+            <p id="trigger-source" class="text-sm font-medium text-foreground">Starts</p>
+            <ChoiceRows v-if="!editing" v-model="source" :options="sources" aria-labelledby="trigger-source">
+              <template #visual="{ option }">
+                <BrandTile :name="option.label" :icon="option.icon" />
+              </template>
+            </ChoiceRows>
+            <template v-else>
+              <div class="flex items-center gap-2.5 rounded-md border bg-accent p-1 text-sm font-medium text-foreground">
+                <BrandTile :name="currentSource.label" :icon="currentSource.icon" />
+                {{ currentSource.label }}
+              </div>
+              <p class="text-xs text-muted-foreground">A trigger's source can't change. Create a new trigger for another one.</p>
+            </template>
           </div>
 
           <template v-if="isSchedule">
@@ -342,24 +394,40 @@ async function newToken() {
           <template v-if="isGitHub">
             <div class="space-y-2">
               <Label for="trigger-repository">Repository</Label>
-              <Input id="trigger-repository" v-model="repository" class="font-mono text-sm" placeholder="acme/app" autocomplete="off" spellcheck="false" maxlength="200" />
-              <p class="text-xs text-muted-foreground">An <span class="font-mono">owner/repo</span> your GitHub account can read through the Lucity GitHub App.</p>
+              <GitHubRepositoryCombobox id="trigger-repository" v-model="repository" />
             </div>
 
             <div class="space-y-2">
               <p class="text-sm font-medium text-foreground">Starts when</p>
-              <label v-for="group in gitHubEvents" :key="group.value" class="flex items-center gap-2 text-sm text-foreground">
-                <Checkbox :model-value="eventGroups.includes(group.value)" @update:model-value="toggleEventGroup(group.value, $event)" />
-                {{ group.label }}
-              </label>
-              <p class="text-xs text-muted-foreground">Events of one pull request continue one session.</p>
+              <div class="space-y-3.5">
+                <div v-for="group in gitHubEventGroups" :key="group.title" class="space-y-1">
+                  <p class="text-xs font-medium text-muted-foreground">{{ group.title }}</p>
+                  <div v-for="option in group.options" :key="option.value" class="flex min-h-7 items-center gap-2.5">
+                    <label class="flex items-center gap-2.5 text-sm text-foreground">
+                      <Checkbox class="rounded-xs" :model-value="picked(option.value)" @update:model-value="toggleEventGroup(option.value, $event)" />
+                      {{ option.label }}
+                    </label>
+                    <SegmentedControl
+                      v-if="option.value === 'ciRun' && picked('ciRun')"
+                      v-model="ciResult"
+                      label="Result"
+                      :options="ciResults"
+                      class="ml-auto"
+                      item-class="h-6 px-2 text-xs"
+                    />
+                  </div>
+                  <p v-if="group.note" class="pl-6.5 text-xs text-muted-foreground">{{ group.note }}</p>
+                </div>
+              </div>
             </div>
 
-            <div class="space-y-2">
+            <div v-if="showsBranches" class="space-y-2">
               <Label for="trigger-branches">Branches</Label>
               <Input id="trigger-branches" v-model="branches" class="font-mono text-sm" placeholder="feature/renovate/*" autocomplete="off" spellcheck="false" />
-              <p class="text-xs text-muted-foreground">Patterns, separated by commas. Leave it empty for every branch. Pull requests from forks never start a session.</p>
+              <p class="text-xs text-muted-foreground">For pull requests and CI runs. Patterns, separated by commas. Leave it empty for every branch.</p>
             </div>
+
+            <p v-if="grouping" class="text-xs text-muted-foreground">{{ grouping }}</p>
           </template>
 
           <div class="space-y-2">
@@ -372,6 +440,11 @@ async function newToken() {
             <Label for="trigger-key">Group events by</Label>
             <Input id="trigger-key" v-model="key" class="font-mono text-sm" placeholder="groupKey" autocomplete="off" spellcheck="false" maxlength="128" />
             <p class="text-xs text-muted-foreground">A top-level field of the JSON body. Events with the same value continue one session. Leave it empty to start a session for every event.</p>
+          </div>
+
+          <div class="space-y-2">
+            <Label for="trigger-name">Name</Label>
+            <Input id="trigger-name" v-model="name" :placeholder="currentSource.placeholder" autocomplete="off" maxlength="64" />
           </div>
 
           <div v-if="editing && isWebhook && trigger?.url" class="space-y-2">

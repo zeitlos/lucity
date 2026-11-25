@@ -85,7 +85,7 @@ func handleGitHub(secret []byte, h *Handler, events *prometheus.CounterVec) http
 		switch {
 		case event.Type == "push" && h != nil:
 			go func() { events.WithLabelValues("push", h.handlePush(event)).Inc() }()
-		case (event.Type == "pull_request" || event.Type == "workflow_run") && h != nil:
+		case triggerEvents[event.Type] && h != nil:
 			go func() { events.WithLabelValues(event.Type, h.handleTriggerEvent(event)).Inc() }()
 		default:
 			events.WithLabelValues(eventLabel(event.Type), "ignored").Inc()
@@ -192,8 +192,16 @@ func (h *Handler) handlePush(event *github.Event) string {
 	return "deployed"
 }
 
-// handleTriggerEvent hands a pull request or workflow run event to the agent
-// triggers that listen for it.
+var triggerEvents = map[string]bool{
+	"pull_request":  true,
+	"workflow_run":  true,
+	"issues":        true,
+	"issue_comment": true,
+	"release":       true,
+}
+
+// handleTriggerEvent hands a repository event to the agent triggers that
+// listen for it.
 func (h *Handler) handleTriggerEvent(event *github.Event) string {
 	if event.InstallationID == 0 {
 		return "ignored"
@@ -208,7 +216,11 @@ func (h *Handler) handleTriggerEvent(event *github.Event) string {
 		Branch:         event.Ref,
 		Commit:         event.CommitSHA,
 		PullRequest:    event.PRNumber,
+		Issue:          event.IssueNumber,
 		Title:          event.Title,
+		Association:    event.Association,
+		Comment:        event.Comment,
+		Tag:            event.Tag,
 		Workflow:       event.WorkflowName,
 		Conclusion:     event.Conclusion,
 		URL:            event.HTMLURL,
@@ -230,7 +242,7 @@ func (h *Handler) handleTriggerEvent(event *github.Event) string {
 
 func eventLabel(eventType string) string {
 	switch eventType {
-	case "push", "pull_request", "workflow_run", "installation", "installation_repositories":
+	case "push", "pull_request", "workflow_run", "issues", "issue_comment", "release", "installation", "installation_repositories":
 		return eventType
 	}
 

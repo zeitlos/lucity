@@ -34,6 +34,7 @@ export interface AgentTrigger {
   repository?: string | null;
   events?: string[] | null;
   branches?: string[] | null;
+  onlyFailures?: boolean | null;
   instructions: string;
   enabled: boolean;
   url?: string | null;
