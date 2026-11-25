@@ -25,6 +25,7 @@ require (
 	github.com/ovh/go-ovh v1.9.0
 	github.com/prometheus/client_golang v1.24.1
 	github.com/railwayapp/railpack v0.40.1
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/rs/cors v1.11.1
 	github.com/stripe/stripe-go/v87 v87.0.0
 	github.com/vektah/gqlparser/v2 v2.5.59

@@ -37,8 +37,8 @@ type thread struct {
 	thread string
 }
 
-func (t thread) origin() agentrunner.Origin {
-	return agentrunner.Origin{ChatApp: t.place.ChatApp.Name, Channel: t.place.Channel, Thread: t.thread}
+func (t thread) chat() agentrunner.Chat {
+	return agentrunner.Chat{ChatApp: t.place.ChatApp.Name, Channel: t.place.Channel, Thread: t.thread}
 }
 
 // bot is one chat app's bot: it receives until its context ends, and posts
@@ -46,6 +46,8 @@ func (t thread) origin() agentrunner.Origin {
 type bot interface {
 	run(ctx context.Context) error
 	say(ctx context.Context, at thread, text string)
+	threads() bool
+	root(ctx context.Context, at thread, text string) string
 	status(ctx context.Context, at thread, id, text string) string
 	clear(ctx context.Context, at thread, id string)
 	ask(ctx context.Context, at thread, request approvalRequest) string
@@ -68,8 +70,8 @@ type running struct {
 }
 
 type sessionKey struct {
-	agent  platform.AgentID
-	origin agentrunner.Origin
+	agent platform.AgentID
+	chat  agentrunner.Chat
 }
 
 type hintKey struct {
@@ -95,6 +97,8 @@ type Bridge struct {
 	sessions  map[sessionKey]string
 	followers map[platform.AgentSessionID]bool
 	hinted    map[hintKey]bool
+	started   time.Time
+	cursors   map[platform.AgentSessionID]string
 }
 
 func New(runner *agentrunner.Client, people *people.Directory, watcher *bindings.Watcher, dashboardURL string) *Bridge {
@@ -113,6 +117,8 @@ func New(runner *agentrunner.Client, people *people.Directory, watcher *bindings
 		sessions:       map[sessionKey]string{},
 		followers:      map[platform.AgentSessionID]bool{},
 		hinted:         map[hintKey]bool{},
+		started:        time.Now(),
+		cursors:        map[platform.AgentSessionID]string{},
 	}
 }
 
@@ -294,11 +300,11 @@ func (b *Bridge) converse(ctx context.Context, app bindings.ChatApp, at thread, 
 		return true
 	}
 
-	origin := at.origin()
+	link := at.chat()
 	sessionName := ""
 
 	if !fresh {
-		sessionName = b.findSession(ctx, binding.Agent, origin)
+		sessionName = b.findSession(ctx, binding.Agent, link)
 	}
 
 	if sessionName == "" {
@@ -307,7 +313,7 @@ func (b *Bridge) converse(ctx context.Context, app bindings.ChatApp, at thread, 
 		}
 
 		callCtx, cancel := context.WithTimeout(ctx, callTimeout)
-		session, err := b.runner.StartSession(callCtx, binding.Agent, agentrunner.StartRequest{Message: text, StartedBy: member.ID, Origin: &origin})
+		session, err := b.runner.StartSession(callCtx, binding.Agent, agentrunner.StartRequest{Message: text, StartedBy: member.ID, Chat: &link})
 		cancel()
 
 		if err != nil {
@@ -316,7 +322,7 @@ func (b *Bridge) converse(ctx context.Context, app bindings.ChatApp, at thread, 
 		}
 
 		b.mu.Lock()
-		b.sessions[sessionKey{agent: binding.Agent, origin: origin}] = session.ID
+		b.sessions[sessionKey{agent: binding.Agent, chat: link}] = session.ID
 		b.mu.Unlock()
 
 		b.follow(platform.AgentSessionID{Agent: binding.Agent, Session: session.ID}, at, "")
@@ -328,7 +334,7 @@ func (b *Bridge) converse(ctx context.Context, app bindings.ChatApp, at thread, 
 	b.followCurrentTurn(ctx, id, at)
 
 	callCtx, cancel := context.WithTimeout(ctx, callTimeout)
-	_, err := b.runner.SendMessage(callCtx, id, text, member.ID, &origin)
+	_, err := b.runner.SendMessage(callCtx, id, text, member.ID, &link)
 	cancel()
 
 	if err != nil {
@@ -338,9 +344,9 @@ func (b *Bridge) converse(ctx context.Context, app bindings.ChatApp, at thread, 
 	return true
 }
 
-// findSession returns the newest session of agent that started at origin.
-func (b *Bridge) findSession(ctx context.Context, agent platform.AgentID, origin agentrunner.Origin) string {
-	key := sessionKey{agent: agent, origin: origin}
+// findSession returns the newest session of agent linked to chat.
+func (b *Bridge) findSession(ctx context.Context, agent platform.AgentID, chat agentrunner.Chat) string {
+	key := sessionKey{agent: agent, chat: chat}
 
 	b.mu.Lock()
 	cached, ok := b.sessions[key]
@@ -374,8 +380,8 @@ func (b *Bridge) refreshSessions(ctx context.Context, agent platform.AgentID) []
 	defer b.mu.Unlock()
 
 	for _, session := range sessions {
-		if session.Origin != nil {
-			b.sessions[sessionKey{agent: agent, origin: *session.Origin}] = session.ID
+		if session.Chat != nil {
+			b.sessions[sessionKey{agent: agent, chat: *session.Chat}] = session.ID
 		}
 	}
 
@@ -384,6 +390,12 @@ func (b *Bridge) refreshSessions(ctx context.Context, agent platform.AgentID) []
 
 // discover follows the chat sessions that are working or waiting for an
 // approval, such as one someone wrote to from the dashboard.
+// discover relays what happened in sessions linked to a bound chat that no
+// chat message led to, like a dashboard message, a trigger's event or a turn
+// that ended before anyone followed it. A session switchboard knows the last
+// relayed event of continues from there. A session it sees for the first time
+// is relayed from its start when it began after switchboard did, from its
+// current turn while it works, and not at all otherwise.
 func (b *Bridge) discover() {
 	b.mu.Lock()
 	snapshot := b.snapshot
@@ -391,19 +403,47 @@ func (b *Bridge) discover() {
 
 	for _, agent := range snapshot.Agents() {
 		for _, session := range b.refreshSessions(b.ctx, agent) {
-			if session.Origin == nil || session.Status == agentrunner.StatusIdle {
+			if session.Chat == nil {
 				continue
 			}
 
-			place := bindings.Place{ChatApp: platform.ChatAppID{Workspace: agent.Workspace, Name: session.Origin.ChatApp}, Channel: session.Origin.Channel}
+			place := bindings.Place{ChatApp: platform.ChatAppID{Workspace: agent.Workspace, Name: session.Chat.ChatApp}, Channel: session.Chat.Channel}
 
 			if binding, ok := snapshot.Bindings[place]; !ok || binding.Agent != agent {
 				continue
 			}
 
-			b.followCurrentTurn(b.ctx, platform.AgentSessionID{Agent: agent, Session: session.ID}, thread{place: place, thread: session.Origin.Thread})
+			id := platform.AgentSessionID{Agent: agent, Session: session.ID}
+			at := thread{place: place, thread: session.Chat.Thread}
+
+			b.mu.Lock()
+			cursor, seen := b.cursors[id]
+			following := b.followers[id]
+			b.mu.Unlock()
+
+			switch {
+			case following:
+			case !seen && session.StartedAt.After(b.started):
+				b.follow(id, at, "")
+			case !seen && session.Status == agentrunner.StatusIdle:
+				b.setCursor(id, session.LastEvent)
+			case !seen:
+				b.followCurrentTurn(b.ctx, id, at)
+			case session.LastEvent == "" || session.LastEvent == cursor:
+			case cursor == "":
+				b.followCurrentTurn(b.ctx, id, at)
+			default:
+				b.follow(id, at, cursor)
+			}
 		}
 	}
+}
+
+func (b *Bridge) setCursor(id platform.AgentSessionID, event string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	b.cursors[id] = event
 }
 
 // followCurrentTurn follows a session from the start of its current turn, so
@@ -501,7 +541,7 @@ func (b *Bridge) answerPending(ctx context.Context, app bindings.ChatApp, at thr
 		return false
 	}
 
-	sessionName := b.findSession(ctx, binding.Agent, at.origin())
+	sessionName := b.findSession(ctx, binding.Agent, at.chat())
 
 	if sessionName == "" {
 		return false

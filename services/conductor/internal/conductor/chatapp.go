@@ -30,15 +30,10 @@ type ChatChannel struct {
 	Name string
 }
 
-type AgentChannel struct {
+// AgentChat is the chat an agent talks in.
+type AgentChat struct {
 	ChatApp ChatApp
 	Channel ChatChannel
-}
-
-// AgentChannelSpec adds an agent to a chat or channel of a chat app.
-type AgentChannelSpec struct {
-	ChatApp ChatAppID
-	Channel string
 }
 
 type ChatAccount struct {
@@ -291,14 +286,13 @@ func (c *Client) ChatAppAgents(ctx context.Context, id ChatAppID) ([]Agent, erro
 	}
 
 	return slices.DeleteFunc(agents, func(agent Agent) bool {
-		return !slices.ContainsFunc(agent.Channels, func(channel AgentChannel) bool { return channel.ChatApp.ID == id })
+		return agent.Chat == nil || agent.Chat.ChatApp.ID != id
 	}), nil
 }
 
-// SetAgentChannels replaces the chats an agent talks in. A chat the agent is
-// already in keeps the name it was added with. A new one is looked up as the
-// bot, so the bot must already be a member of it.
-func (c *Client) SetAgentChannels(ctx context.Context, id AgentID, specs []AgentChannelSpec) (*Agent, error) {
+// SetAgentChat sets the chat an agent talks in. A chat it isn't in yet is
+// looked up as the bot, so the bot must already be a member of it.
+func (c *Client) SetAgentChat(ctx context.Context, id AgentID, chatApp ChatAppID, channel string) (*Agent, error) {
 	if _, _, err := c.loadAgent(ctx, id); err != nil {
 		return nil, err
 	}
@@ -309,62 +303,59 @@ func (c *Client) SetAgentChannels(ctx context.Context, id AgentID, specs []Agent
 		return nil, err
 	}
 
-	current := ws.Agents[values.AgentGrantKey(id)].Channels
-	channels := make([]values.AgentChannel, 0, len(specs))
+	app, ok := ws.ChatApps[chatApp.Name]
 
-	for _, spec := range specs {
-		if spec.ChatApp.Workspace != id.Workspace {
-			return nil, usererror.Errorf("chat app %q not found", spec.ChatApp.Name)
-		}
+	if chatApp.Workspace != id.Workspace || !ok {
+		return nil, usererror.Errorf("chat app %q not found", chatApp.Name)
+	}
 
-		app, ok := ws.ChatApps[spec.ChatApp.Name]
+	chat := ws.Agents[values.AgentGrantKey(id)].Chat
 
-		if !ok {
-			return nil, usererror.Errorf("chat app %q not found", spec.ChatApp.Name)
-		}
-
-		index := slices.IndexFunc(current, func(existing values.AgentChannel) bool {
-			return existing.ChatApp == spec.ChatApp.Name && existing.Channel == spec.Channel
-		})
-
-		if index >= 0 {
-			channels = append(channels, current[index])
-			continue
-		}
-
-		found, err := c.lookupChatChannel(ctx, app, spec.Channel)
+	if chat == nil || chat.ChatApp != chatApp.Name || chat.Channel != channel {
+		found, err := c.lookupChatChannel(ctx, app, channel)
 
 		if err != nil {
 			return nil, err
 		}
 
-		channels = append(channels, values.AgentChannel{ChatApp: spec.ChatApp.Name, Channel: found.ID, Name: found.Name})
+		chat = &values.AgentChat{ChatApp: chatApp.Name, Channel: found.ID, Name: found.Name}
 	}
 
-	if err := c.deployer.Workspaces().SetAgentChannels(ctx, id, channels); err != nil {
+	if err := c.deployer.Workspaces().SetAgentChat(ctx, id, chat); err != nil {
 		return nil, err
 	}
 
 	return c.Agent(ctx, id)
 }
 
-func toAgentChannels(id AgentID, grant values.AgentGrant, ws *values.Workspace) []AgentChannel {
-	channels := make([]AgentChannel, 0, len(grant.Channels))
-
-	for _, channel := range grant.Channels {
-		app, ok := ws.ChatApps[channel.ChatApp]
-
-		if !ok {
-			continue
-		}
-
-		channels = append(channels, AgentChannel{
-			ChatApp: toChatApp(ChatAppID{Workspace: id.Workspace, Name: channel.ChatApp}, app),
-			Channel: ChatChannel{ID: channel.Channel, Name: channel.Name},
-		})
+// RemoveAgentChat takes an agent out of its chat.
+func (c *Client) RemoveAgentChat(ctx context.Context, id AgentID) (*Agent, error) {
+	if _, _, err := c.loadAgent(ctx, id); err != nil {
+		return nil, err
 	}
 
-	return channels
+	if err := c.deployer.Workspaces().SetAgentChat(ctx, id, nil); err != nil {
+		return nil, err
+	}
+
+	return c.Agent(ctx, id)
+}
+
+func toAgentChat(id AgentID, grant values.AgentGrant, ws *values.Workspace) *AgentChat {
+	if grant.Chat == nil {
+		return nil
+	}
+
+	app, ok := ws.ChatApps[grant.Chat.ChatApp]
+
+	if !ok {
+		return nil
+	}
+
+	return &AgentChat{
+		ChatApp: toChatApp(ChatAppID{Workspace: id.Workspace, Name: grant.Chat.ChatApp}, app),
+		Channel: ChatChannel{ID: grant.Chat.Channel, Name: grant.Chat.Name},
+	}
 }
 
 // ChatAccounts returns the chat accounts linked to the caller.

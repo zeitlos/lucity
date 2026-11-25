@@ -1,0 +1,14 @@
+{{- range $name, $agent := .Values.agents }}
+{{- range $id, $trigger := $agent.triggers }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ printf "%s-agent-%s-trigger-%s" (include "lucity-app.fullname" $) $name $id }}
+  labels:
+    {{- include "lucity-app.agentLabels" (dict "root" $ "name" $name) | nindent 4 }}
+    lucity.dev/agent-trigger: {{ $id | quote }}
+data:
+  trigger.json: {{ $trigger | toJson | quote }}
+{{- end }}
+{{- end }}

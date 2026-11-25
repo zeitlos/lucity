@@ -20,24 +20,32 @@ import (
 type AgentSession struct {
 	ID        AgentSessionID
 	Title     string
-	StartedBy *WorkspaceMember
+	StartedBy AgentActor
 	StartedAt time.Time
 	Model     AgentModel
 	Effort    string
 	Status    string
-	Origin    *AgentOrigin
+	Chat      *AgentChatLink
 }
 
 type AgentSessionEvent struct {
 	agentrunner.Event
-	Author    *WorkspaceMember
+	Author    AgentActor
 	DecidedBy *WorkspaceMember
-	Via       *AgentOrigin
+	Via       *AgentChatLink
 }
 
-// AgentOrigin is the chat a session started in, or a message came through,
-// with a link to the thread there when the chat app has one.
-type AgentOrigin struct {
+// AgentActor is who started a session or wrote a message: a member of the
+// workspace, or one of the agent's triggers. Both are nil once the member left
+// or the trigger was deleted.
+type AgentActor struct {
+	Member  *WorkspaceMember
+	Trigger *AgentTrigger
+}
+
+// AgentChatLink is the chat a session is mirrored to, or a message came
+// through, with a link to the thread there when the chat app has one.
+type AgentChatLink struct {
 	ChatApp ChatApp
 	Channel ChatChannel
 	URL     string
@@ -104,7 +112,31 @@ func (m *members) lookup(ctx context.Context, id string) *WorkspaceMember {
 	return nil
 }
 
-func (c *Client) toAgentSession(ctx context.Context, agent AgentID, session agentrunner.Session, ws *values.Workspace, people *members) AgentSession {
+// actors resolves who started a session or wrote a message.
+type actors struct {
+	people   *members
+	triggers []AgentTrigger
+}
+
+func (c *Client) actors(id AgentID, agent values.Agent) *actors {
+	return &actors{people: c.members(id.Workspace), triggers: toAgentTriggers(id, agent)}
+}
+
+func (a *actors) lookup(ctx context.Context, actor string) AgentActor {
+	if trigger, ok := agentrunner.ActorTrigger(actor); ok {
+		index := slices.IndexFunc(a.triggers, func(t AgentTrigger) bool { return t.ID.Trigger == trigger })
+
+		if index < 0 {
+			return AgentActor{}
+		}
+
+		return AgentActor{Trigger: &a.triggers[index]}
+	}
+
+	return AgentActor{Member: a.people.lookup(ctx, actor)}
+}
+
+func (c *Client) toAgentSession(ctx context.Context, agent AgentID, session agentrunner.Session, ws *values.Workspace, people *actors) AgentSession {
 	return AgentSession{
 		ID:        AgentSessionID{Agent: agent, Session: session.ID},
 		Title:     session.Title,
@@ -113,46 +145,44 @@ func (c *Client) toAgentSession(ctx context.Context, agent AgentID, session agen
 		Model:     sessionModel(agent.Workspace, session.Model, ws),
 		Effort:    session.Effort,
 		Status:    session.Status,
-		Origin:    agentOrigin(agent, session.Origin, ws),
+		Chat:      agentChatLink(agent, session.Chat, ws),
 	}
 }
 
-func (c *Client) toAgentSessionEvent(ctx context.Context, agent AgentID, event agentrunner.Event, ws *values.Workspace, people *members) AgentSessionEvent {
-	converted := AgentSessionEvent{Event: event, Author: people.lookup(ctx, event.Author), Via: agentOrigin(agent, event.Via, ws)}
+func (c *Client) toAgentSessionEvent(ctx context.Context, agent AgentID, event agentrunner.Event, ws *values.Workspace, people *actors) AgentSessionEvent {
+	converted := AgentSessionEvent{Event: event, Author: people.lookup(ctx, event.Author), Via: agentChatLink(agent, event.Via, ws)}
 
 	if event.Approval != nil {
-		converted.DecidedBy = people.lookup(ctx, event.Approval.DecidedBy)
+		converted.DecidedBy = people.people.lookup(ctx, event.Approval.DecidedBy)
 	}
 
 	return converted
 }
 
-// agentOrigin resolves an origin the runner reported. The runner is untrusted,
-// so the chat app is looked up by name in the agent's own workspace, and an
-// origin naming none of its chat apps is dropped.
-func agentOrigin(agent AgentID, origin *agentrunner.Origin, ws *values.Workspace) *AgentOrigin {
-	if origin == nil {
+// agentChatLink resolves a chat the runner reported. The runner is untrusted,
+// so the chat app is looked up by name in the agent's own workspace, and a
+// chat naming none of its chat apps is dropped.
+func agentChatLink(agent AgentID, link *agentrunner.Chat, ws *values.Workspace) *AgentChatLink {
+	if link == nil {
 		return nil
 	}
 
-	app, ok := ws.ChatApps[origin.ChatApp]
+	app, ok := ws.ChatApps[link.ChatApp]
 
 	if !ok {
 		return nil
 	}
 
-	channel := ChatChannel{ID: origin.Channel, Name: origin.Channel}
+	channel := ChatChannel{ID: link.Channel, Name: link.Channel}
 
-	for _, known := range ws.Agents[values.AgentGrantKey(agent)].Channels {
-		if known.ChatApp == origin.ChatApp && known.Channel == origin.Channel {
-			channel.Name = known.Name
-		}
+	if known := ws.Agents[values.AgentGrantKey(agent)].Chat; known != nil && known.ChatApp == link.ChatApp && known.Channel == link.Channel {
+		channel.Name = known.Name
 	}
 
-	return &AgentOrigin{
-		ChatApp: toChatApp(ChatAppID{Workspace: agent.Workspace, Name: origin.ChatApp}, app),
+	return &AgentChatLink{
+		ChatApp: toChatApp(ChatAppID{Workspace: agent.Workspace, Name: link.ChatApp}, app),
 		Channel: channel,
-		URL:     threadURL(app, origin.Channel, origin.Thread),
+		URL:     threadURL(app, link.Channel, link.Thread),
 	}
 }
 
@@ -195,13 +225,13 @@ func (c *Client) AgentSessions(ctx context.Context, agent AgentID) ([]AgentSessi
 		return nil, err
 	}
 
-	ws, err := c.workspaceRelease(ctx, agent.Workspace)
+	current, ws, err := c.loadAgent(ctx, agent)
 
 	if err != nil {
 		return nil, err
 	}
 
-	people := c.members(agent.Workspace)
+	people := c.actors(agent, current)
 	result := make([]AgentSession, 0, len(sessions))
 
 	for _, session := range sessions {
@@ -224,13 +254,13 @@ func (c *Client) AgentSession(ctx context.Context, id AgentSessionID) (*AgentSes
 }
 
 func (c *Client) sessionResult(ctx context.Context, agent AgentID, session *agentrunner.Session) (*AgentSession, error) {
-	ws, err := c.workspaceRelease(ctx, agent.Workspace)
+	current, ws, err := c.loadAgent(ctx, agent)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return new(c.toAgentSession(ctx, agent, *session, ws, c.members(agent.Workspace))), nil
+	return new(c.toAgentSession(ctx, agent, *session, ws, c.actors(agent, current))), nil
 }
 
 func (c *Client) AgentSessionEvents(ctx context.Context, id AgentSessionID) ([]AgentSessionEvent, error) {
@@ -240,13 +270,13 @@ func (c *Client) AgentSessionEvents(ctx context.Context, id AgentSessionID) ([]A
 		return nil, err
 	}
 
-	ws, err := c.workspaceRelease(ctx, id.Agent.Workspace)
+	current, ws, err := c.loadAgent(ctx, id.Agent)
 
 	if err != nil {
 		return nil, err
 	}
 
-	people := c.members(id.Agent.Workspace)
+	people := c.actors(id.Agent, current)
 	events := make([]AgentSessionEvent, 0, len(session.Events))
 
 	for _, event := range session.Events {
@@ -416,7 +446,7 @@ func (c *Client) SubscribeAgentSessionEvents(ctx context.Context, id AgentSessio
 		return nil, usererror.Errorf("invalid event %q", after)
 	}
 
-	ws, err := c.workspaceRelease(ctx, id.Agent.Workspace)
+	current, ws, err := c.loadAgent(ctx, id.Agent)
 
 	if err != nil {
 		return nil, err
@@ -428,7 +458,7 @@ func (c *Client) SubscribeAgentSessionEvents(ctx context.Context, id AgentSessio
 		return nil, err
 	}
 
-	people := c.members(id.Agent.Workspace)
+	people := c.actors(id.Agent, current)
 	out := make(chan AgentSessionEvent, 64)
 
 	go func() {

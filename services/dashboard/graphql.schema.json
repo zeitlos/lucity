@@ -160,25 +160,13 @@
             "deprecationReason": null
           },
           {
-            "name": "channels",
-            "description": "The chats and channels the agent talks in.",
+            "name": "chat",
+            "description": "The chat the agent talks in. Null when it has none.",
             "args": [],
             "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "name": null,
-                "kind": "LIST",
-                "ofType": {
-                  "name": null,
-                  "kind": "NON_NULL",
-                  "ofType": {
-                    "name": "AgentChannel",
-                    "kind": "OBJECT",
-                    "ofType": null
-                  }
-                }
-              }
+              "kind": "OBJECT",
+              "name": "AgentChat",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -326,12 +314,58 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
+          },
+          {
+            "name": "triggers",
+            "description": "The triggers that start sessions of the agent on their own, by name.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": null,
+                "kind": "LIST",
+                "ofType": {
+                  "name": null,
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "name": "AgentTrigger",
+                    "kind": "OBJECT",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
           }
         ],
         "inputFields": null,
         "interfaces": [],
         "enumValues": null,
         "possibleTypes": null
+      },
+      {
+        "kind": "UNION",
+        "name": "AgentActor",
+        "description": "Who started a session or wrote a message to the agent.",
+        "isOneOf": null,
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": [
+          {
+            "kind": "OBJECT",
+            "name": "AgentTrigger",
+            "ofType": null
+          },
+          {
+            "kind": "OBJECT",
+            "name": "WorkspaceMember",
+            "ofType": null
+          }
+        ]
       },
       {
         "kind": "OBJECT",
@@ -683,8 +717,8 @@
       },
       {
         "kind": "OBJECT",
-        "name": "AgentChannel",
-        "description": "A chat or channel an agent talks in. Linked members of the workspace talk to the agent there, and answer its approvals.",
+        "name": "AgentChat",
+        "description": "The chat or channel an agent talks in. Linked members of the workspace talk to the agent there and answer its approvals, and the sessions its triggers start are mirrored there.",
         "isOneOf": null,
         "fields": [
           {
@@ -726,46 +760,58 @@
         "possibleTypes": null
       },
       {
-        "kind": "INPUT_OBJECT",
-        "name": "AgentChannelInput",
-        "description": null,
-        "isOneOf": false,
-        "fields": null,
-        "inputFields": [
+        "kind": "OBJECT",
+        "name": "AgentChatLink",
+        "description": "The chat a session is mirrored to, or a message came through.",
+        "isOneOf": null,
+        "fields": [
           {
             "name": "channel",
-            "description": "The chat app's own ID of the chat or channel.",
+            "description": null,
+            "args": [],
             "type": {
               "kind": "NON_NULL",
               "name": null,
               "ofType": {
-                "name": "String",
-                "kind": "SCALAR",
+                "name": "ChatChannel",
+                "kind": "OBJECT",
                 "ofType": null
               }
             },
-            "defaultValue": null,
             "isDeprecated": false,
             "deprecationReason": null
           },
           {
             "name": "chatApp",
             "description": null,
+            "args": [],
             "type": {
               "kind": "NON_NULL",
               "name": null,
               "ofType": {
-                "name": "ChatAppID",
-                "kind": "SCALAR",
+                "name": "ChatApp",
+                "kind": "OBJECT",
                 "ofType": null
               }
             },
-            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "url",
+            "description": "Opens the thread in the chat app. Null where the chat app has no links to it.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
             "isDeprecated": false,
             "deprecationReason": null
           }
         ],
-        "interfaces": null,
+        "inputFields": null,
+        "interfaces": [],
         "enumValues": null,
         "possibleTypes": null
       },
@@ -1180,66 +1226,22 @@
       },
       {
         "kind": "OBJECT",
-        "name": "AgentOrigin",
-        "description": "The chat a session started in, or a message came through.",
-        "isOneOf": null,
-        "fields": [
-          {
-            "name": "channel",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "name": "ChatChannel",
-                "kind": "OBJECT",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "chatApp",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "name": "ChatApp",
-                "kind": "OBJECT",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "url",
-            "description": "Opens the thread in the chat app. Null where the chat app has no links to it.",
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "inputFields": null,
-        "interfaces": [],
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "OBJECT",
         "name": "AgentSession",
         "description": "One conversation with an agent. Every member of the workspace can see it and take part.",
         "isOneOf": null,
         "fields": [
+          {
+            "name": "chat",
+            "description": "The chat the session is mirrored to. Null for one that stays in Lucity.",
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "AgentChatLink",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
           {
             "name": "effort",
             "description": null,
@@ -1313,18 +1315,6 @@
             "deprecationReason": null
           },
           {
-            "name": "origin",
-            "description": "The chat the session started in. Null for one started in Lucity.",
-            "args": [],
-            "type": {
-              "kind": "OBJECT",
-              "name": "AgentOrigin",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "startedAt",
             "description": null,
             "args": [],
@@ -1342,11 +1332,11 @@
           },
           {
             "name": "startedBy",
-            "description": "Who started the session. Null once that person has left the workspace.",
+            "description": "Who started the session: a member, or one of the agent's triggers. Null once that member left or the trigger was deleted.",
             "args": [],
             "type": {
-              "kind": "OBJECT",
-              "name": "WorkspaceMember",
+              "kind": "UNION",
+              "name": "AgentActor",
               "ofType": null
             },
             "isDeprecated": false,
@@ -1697,6 +1687,329 @@
       },
       {
         "kind": "OBJECT",
+        "name": "AgentTrigger",
+        "description": "Starts sessions of an agent on its own. Its instructions, followed by the event, are the first message. The sessions are mirrored to the agent's chat when it has one.",
+        "isOneOf": null,
+        "fields": [
+          {
+            "name": "enabled",
+            "description": "A trigger that is off doesn't start sessions.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "Boolean",
+                "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "AgentTriggerID",
+                "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "instructions",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "String",
+                "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "key",
+            "description": "A top-level field of a webhook's JSON body. Events with the same value continue one session.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "lastRunAt",
+            "description": "When the trigger last started a session.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Time",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "name",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "String",
+                "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "schedule",
+            "description": "The cron schedule of a schedule trigger.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "source",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "AgentTriggerSource",
+                "kind": "ENUM",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "timeZone",
+            "description": "The time zone the schedule runs in, like `Europe/Zurich`.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "url",
+            "description": "Where a webhook trigger is called, with its token as a bearer token.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "SCALAR",
+        "name": "AgentTriggerID",
+        "description": "A trigger of an agent, as the agent id followed by the trigger. For example `acme/shop/production/ops-agent/q7m2xk4p9atz`.",
+        "isOneOf": null,
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "AgentTriggerInput",
+        "description": null,
+        "isOneOf": false,
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "instructions",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "String",
+                "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "key",
+            "description": "A top-level field of the JSON body, for a webhook trigger.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "name",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "String",
+                "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "schedule",
+            "description": "A cron expression, for a schedule trigger. For example `0 12 * * 1-5`.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "source",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "AgentTriggerSource",
+                "kind": "ENUM",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "timeZone",
+            "description": "An IANA time zone, for a schedule trigger. For example `Europe/Zurich`.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "ENUM",
+        "name": "AgentTriggerSource",
+        "description": "What starts a trigger.",
+        "isOneOf": null,
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": [
+          {
+            "name": "SCHEDULE",
+            "description": "A cron schedule, in a time zone.",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "WEBHOOK",
+            "description": "A call to the trigger's address with its token.",
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "AgentTriggerWithToken",
+        "description": "A trigger and, for a webhook trigger, its token. The token is shown only here.",
+        "isOneOf": null,
+        "fields": [
+          {
+            "name": "token",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "trigger",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "AgentTrigger",
+                "kind": "OBJECT",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
         "name": "AgentTurnEnd",
         "description": "The agent ended its turn and waits for the next message.",
         "isOneOf": null,
@@ -1800,16 +2113,16 @@
       {
         "kind": "OBJECT",
         "name": "AgentUserMessage",
-        "description": "A message someone in the workspace sent to the agent.",
+        "description": "A message someone in the workspace, or one of the agent's triggers, sent to the agent.",
         "isOneOf": null,
         "fields": [
           {
             "name": "author",
-            "description": "Null once that person has left the workspace.",
+            "description": "Null once that member left or the trigger was deleted.",
             "args": [],
             "type": {
-              "kind": "OBJECT",
-              "name": "WorkspaceMember",
+              "kind": "UNION",
+              "name": "AgentActor",
               "ofType": null
             },
             "isDeprecated": false,
@@ -1865,11 +2178,11 @@
           },
           {
             "name": "via",
-            "description": "The chat the message came through. Null for one sent in Lucity.",
+            "description": "The chat the message came through. Null for one sent in Lucity or by a trigger.",
             "args": [],
             "type": {
               "kind": "OBJECT",
-              "name": "AgentOrigin",
+              "name": "AgentChatLink",
               "ofType": null
             },
             "isDeprecated": false,
@@ -9983,6 +10296,55 @@
             "deprecationReason": null
           },
           {
+            "name": "createAgentTrigger",
+            "description": "Adds a trigger to an agent. It starts on.",
+            "args": [
+              {
+                "name": "agent",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "AgentID",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "input",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "AgentTriggerInput",
+                    "kind": "INPUT_OBJECT",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "AgentTriggerWithToken",
+                "kind": "OBJECT",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "createApiToken",
             "description": "Creates an API token for the workspace with the given role. The `lucity_…` value is only returned in this response, and the token stays valid until it is revoked.",
             "args": [
@@ -10565,6 +10927,39 @@
               "ofType": {
                 "name": "Boolean",
                 "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "deleteAgentTrigger",
+            "description": "Deletes a trigger. The sessions it started stay.",
+            "args": [
+              {
+                "name": "trigger",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "AgentTriggerID",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "Agent",
+                "kind": "OBJECT",
                 "ofType": null
               }
             },
@@ -11438,6 +11833,39 @@
             "deprecationReason": null
           },
           {
+            "name": "removeAgentChat",
+            "description": "Takes an agent out of its chat.",
+            "args": [
+              {
+                "name": "agent",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "AgentID",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "Agent",
+                "kind": "OBJECT",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "removeChatAccount",
             "description": "Unlinks one of your chat accounts. `server` names the Mattermost server, and is left out for Telegram.",
             "args": [
@@ -11990,6 +12418,39 @@
             "deprecationReason": null
           },
           {
+            "name": "replaceAgentTriggerToken",
+            "description": "Gives a webhook trigger a new token. The old one stops working.",
+            "args": [
+              {
+                "name": "trigger",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "AgentTriggerID",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "AgentTriggerWithToken",
+                "kind": "OBJECT",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "replaceChatAppToken",
             "description": "Replaces the token of a chat app, after checking the new one.",
             "args": [
@@ -12351,8 +12812,8 @@
             "deprecationReason": null
           },
           {
-            "name": "setAgentChannels",
-            "description": "Replaces the chats and channels an agent talks in. A chat it isn't in yet is looked up as the chat app's bot, which has to be a member of it. One chat talks to one agent.",
+            "name": "setAgentChat",
+            "description": "Sets the chat an agent talks in, by the chat app's own ID of the chat or channel. A chat it isn't in yet is looked up as the chat app's bot, which has to be a member of it. One chat talks to one agent.",
             "args": [
               {
                 "name": "agent",
@@ -12371,23 +12832,31 @@
                 "deprecationReason": null
               },
               {
-                "name": "channels",
+                "name": "channel",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
                   "name": null,
                   "ofType": {
-                    "name": null,
-                    "kind": "LIST",
-                    "ofType": {
-                      "name": null,
-                      "kind": "NON_NULL",
-                      "ofType": {
-                        "name": "AgentChannelInput",
-                        "kind": "INPUT_OBJECT",
-                        "ofType": null
-                      }
-                    }
+                    "name": "String",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "chatApp",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "ChatAppID",
+                    "kind": "SCALAR",
+                    "ofType": null
                   }
                 },
                 "defaultValue": null,
@@ -12595,6 +13064,55 @@
               "name": null,
               "ofType": {
                 "name": "AgentSession",
+                "kind": "OBJECT",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "setAgentTriggerEnabled",
+            "description": "Turns a trigger on or off.",
+            "args": [
+              {
+                "name": "enabled",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "Boolean",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "trigger",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "AgentTriggerID",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "AgentTrigger",
                 "kind": "OBJECT",
                 "ofType": null
               }
@@ -13551,6 +14069,55 @@
               "name": null,
               "ofType": {
                 "name": "Agent",
+                "kind": "OBJECT",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "updateAgentTrigger",
+            "description": "Changes a trigger. Its source can't change.",
+            "args": [
+              {
+                "name": "input",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "AgentTriggerInput",
+                    "kind": "INPUT_OBJECT",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "trigger",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "AgentTriggerID",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "AgentTrigger",
                 "kind": "OBJECT",
                 "ofType": null
               }

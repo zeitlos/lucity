@@ -40,11 +40,11 @@ const ChatAppChannelsDocument = graphql(`
   }
 `);
 
-const AddAgentChannelDocument = graphql(`
-  mutation AddAgentChannel($agent: AgentID!, $channels: [AgentChannelInput!]!) {
-    setAgentChannels(agent: $agent, channels: $channels) {
+const SetAgentChatDocument = graphql(`
+  mutation SetAgentChat($agent: AgentID!, $chatApp: ChatAppID!, $channel: String!) {
+    setAgentChat(agent: $agent, chatApp: $chatApp, channel: $channel) {
       id
-      channels {
+      chat {
         chatApp {
           id
           name
@@ -103,29 +103,23 @@ const { result: channelsResult, loading: channelsLoading, error: channelsError, 
 const channels = computed(() => channelsResult.value?.chatApp.channels ?? []);
 
 function added(channel: string) {
-  return props.agent.channels.some(existing => existing.chatApp.id === appId.value && existing.channel.id === channel);
+  return props.agent.chat?.chatApp.id === appId.value && props.agent.chat?.channel.id === channel;
 }
 
 const connectCommand = computed(() => `/connect@${(app.value?.account ?? '').replace(/^@/, '')}`);
 const botHandle = computed(() => app.value?.account ?? 'the bot');
 
-const { mutate: setChannels, loading: saving } = useMutation(AddAgentChannelDocument);
+const { mutate: setChat, loading: saving } = useMutation(SetAgentChatDocument);
 
 const canAdd = computed(() => isMattermost.value && !!selected.value && !added(selected.value) && !saving.value);
 
 async function add() {
   if (!canAdd.value) return;
   try {
-    await setChannels({
-      agent: props.agent.id,
-      channels: [
-        ...props.agent.channels.map(existing => ({ chatApp: existing.chatApp.id, channel: existing.channel.id })),
-        { chatApp: appId.value, channel: selected.value },
-      ],
-    });
+    await setChat({ agent: props.agent.id, chatApp: appId.value, channel: selected.value });
     open.value = false;
   } catch (e: unknown) {
-    failureToast('Failed to add channel', e);
+    failureToast('Failed to set channel', e);
   }
 }
 </script>
@@ -136,8 +130,8 @@ async function add() {
       <form class="space-y-4" @submit.prevent="add">
         <DialogHeader>
           <DialogIcon :icon="MessageSquare" />
-          <DialogTitle>Add channel</DialogTitle>
-          <DialogDescription>Linked members of this workspace talk to {{ agent.name }} there.</DialogDescription>
+          <DialogTitle>{{ agent.chat ? 'Change channel' : 'Add channel' }}</DialogTitle>
+          <DialogDescription>Linked members of this workspace talk to {{ agent.name }} there, and its triggers post there.</DialogDescription>
         </DialogHeader>
 
         <div v-if="appsLoading && !appsResult" class="space-y-2">
@@ -195,7 +189,7 @@ async function add() {
               >
                 <Hash :size="16" class="shrink-0 text-muted-foreground" />
                 <span class="min-w-0 flex-1 truncate">{{ channel.name }}</span>
-                <span v-if="added(channel.id)" class="shrink-0 text-xs">Added</span>
+                <span v-if="added(channel.id)" class="shrink-0 text-xs">Current</span>
                 <Check v-else-if="selected === channel.id" :size="16" class="shrink-0 text-primary" />
               </button>
             </div>
@@ -228,7 +222,7 @@ async function add() {
           <template v-if="isMattermost">
             <Button type="button" variant="ghost" :disabled="saving" @click="open = false">Cancel</Button>
             <Button type="submit" :pending="saving" :disabled="!canAdd">
-              {{ saving ? 'Adding…' : 'Add channel' }}
+              {{ saving ? 'Saving…' : 'Save' }}
             </Button>
           </template>
           <Button v-else type="button" variant="outline" @click="open = false">Close</Button>

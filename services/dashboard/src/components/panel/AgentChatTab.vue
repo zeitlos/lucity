@@ -3,8 +3,8 @@ import { computed, ref, watch } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
 import { Plus } from '@lucide/vue';
 import { graphql } from '@/gql';
-import { AgentSessionStatus, Effort } from '@/gql/graphql';
-import { memberName } from '@/lib/agentSession';
+import { AgentSessionStatus, AgentStatus, Effort } from '@/gql/graphql';
+import { actorName } from '@/lib/agentSession';
 import { chatAppKindLabel, missingModelsHint, type Agent, type AgentModelOption } from '@/lib/agents';
 import { agentSessionStatus } from '@/lib/status';
 import QueryError from '@/components/QueryError.vue';
@@ -25,9 +25,9 @@ const AgentSessionsDocument = graphql(`
         startedAt
         status
         effort
-        startedBy { id name email }
+        startedBy { __typename ... on WorkspaceMember { id name email } ... on AgentTrigger { triggerId: id triggerName: name } }
         model { name provider { id name } }
-        origin { chatApp { id kind } channel { id name } url }
+        chat { chatApp { id kind } channel { id name } url }
       }
     }
   }
@@ -46,10 +46,12 @@ const props = defineProps<{
   agent: Agent;
 }>();
 
+const starting = computed(() => props.agent.status === AgentStatus.Starting);
+
 const { result, loading, error, refetch } = useQuery(
   AgentSessionsDocument,
   () => ({ agent: props.agent.id }),
-  { pollInterval: 5000 },
+  () => ({ pollInterval: 5000, enabled: !starting.value }),
 );
 
 const { result: modelsResult, loading: modelsLoading } = useQuery(
@@ -114,13 +116,16 @@ function statusWord(status: AgentSessionStatus) {
   <div class="flex min-h-0 flex-1">
     <nav aria-label="Sessions" class="flex w-60 shrink-0 flex-col border-r bg-muted/30">
       <div class="shrink-0 p-3">
-        <Button variant="outline" size="xs" class="w-full" @click="startNew">
+        <Button variant="outline" size="xs" class="w-full" :disabled="starting" @click="startNew">
           <Plus />
           New session
         </Button>
       </div>
 
-      <div v-if="loading && !result" class="divide-y border-y">
+      <p v-if="starting" class="px-4 py-2 text-xs text-muted-foreground">
+        {{ agent.name }} is starting.
+      </p>
+      <div v-else-if="loading && !result" class="divide-y border-y">
         <div v-for="width in ['w-32', 'w-24', 'w-36', 'w-20']" :key="width" class="flex flex-col gap-1 px-4 py-2.5">
           <div class="flex h-5 items-center">
             <Skeleton :class="['h-3', width]" />
@@ -150,7 +155,7 @@ function statusWord(status: AgentSessionStatus) {
             <span class="truncate text-sm font-medium text-foreground">{{ session.title }}</span>
             <span class="flex items-center gap-2 text-xs text-muted-foreground">
               <span class="min-w-0 truncate">
-                {{ memberName(session.startedBy) }}<template v-if="session.origin"> in {{ chatAppKindLabel(session.origin.chatApp.kind) }}</template> · <RelativeTime :value="session.startedAt" />
+                {{ actorName(session.startedBy) }}<template v-if="session.chat"> in {{ session.startedBy?.__typename === 'AgentTrigger' ? session.chat.channel.name : chatAppKindLabel(session.chat.chatApp.kind) }}</template> · <RelativeTime :value="session.startedAt" />
               </span>
               <span class="flex-1" />
               <Status

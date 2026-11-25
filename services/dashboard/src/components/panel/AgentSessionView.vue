@@ -4,7 +4,7 @@ import { useMutation, useQuery, useSubscription } from '@vue/apollo-composable';
 import { Bot, CircleAlert, Info, MessagesSquare, TriangleAlert } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { AgentNoticeSeverity, AgentSessionStatus, AgentTurnEndReason, type AgentApprovalDecision, type Effort } from '@/gql/graphql';
-import { buildTranscript, memberName, sessionActivity, type SessionEvent } from '@/lib/agentSession';
+import { actorName, buildTranscript, sessionActivity, type SessionEvent } from '@/lib/agentSession';
 import { chatAppKindLabel, type AgentModelOption } from '@/lib/agents';
 import { formatTime } from '@/lib/format';
 import EmptyState from '@/components/EmptyState.vue';
@@ -22,7 +22,7 @@ const AgentSessionDocument = graphql(`
       id
       events {
         __typename
-        ... on AgentUserMessage { id time text author { id name email } via { chatApp { id kind } channel { id name } url } }
+        ... on AgentUserMessage { id time text author { __typename ... on WorkspaceMember { id name email } ... on AgentTrigger { triggerId: id triggerName: name } } via { chatApp { id kind } channel { id name } url } }
         ... on AgentMessage { id time text }
         ... on AgentToolCall { id time callId connector tool title status input output }
         ... on AgentApproval { id time approval toolCallId: callId title approvalStatus: status decidedBy { id name email } }
@@ -37,7 +37,7 @@ const AgentSessionEventsDocument = graphql(`
   subscription AgentSessionEvents($session: AgentSessionID!, $after: ID) {
     agentSessionEvents(session: $session, after: $after) {
       __typename
-      ... on AgentUserMessage { id time text author { id name email } via { chatApp { id kind } channel { id name } url } }
+      ... on AgentUserMessage { id time text author { __typename ... on WorkspaceMember { id name email } ... on AgentTrigger { triggerId: id triggerName: name } } via { chatApp { id kind } channel { id name } url } }
       ... on AgentMessage { id time text }
       ... on AgentToolCall { id time callId connector tool title status input output }
       ... on AgentApproval { id time approval toolCallId: callId title approvalStatus: status decidedBy { id name email } }
@@ -55,7 +55,7 @@ const StartAgentSessionDocument = graphql(`
       startedAt
       status
       effort
-      startedBy { id name email }
+      startedBy { __typename ... on WorkspaceMember { id name email } ... on AgentTrigger { triggerId: id triggerName: name } }
       model { name provider { id name } }
     }
   }
@@ -315,7 +315,7 @@ function retryLive() {
         <template v-for="block in transcript" :key="block.key">
           <div v-if="block.kind === 'user'" class="flex flex-col items-end gap-1">
             <span class="text-xs text-muted-foreground">
-              {{ memberName(block.event.author) }}<template v-if="block.event.via"> in {{ chatAppKindLabel(block.event.via.chatApp.kind) }}</template> · {{ formatTime(block.event.time) }}
+              {{ actorName(block.event.author) }}<template v-if="block.event.via"> in {{ chatAppKindLabel(block.event.via.chatApp.kind) }}</template> · {{ formatTime(block.event.time) }}
             </span>
             <div class="max-w-[85%] rounded-lg bg-muted px-3 py-2 text-sm whitespace-pre-wrap break-words text-foreground">
               {{ block.event.text }}

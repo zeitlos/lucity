@@ -142,6 +142,32 @@ func (m *mattermostBot) say(ctx context.Context, at thread, text string) {
 	}
 }
 
+func (m *mattermostBot) threads() bool {
+	return true
+}
+
+func (m *mattermostBot) root(ctx context.Context, at thread, text string) string {
+	parts := chunks(text, mattermostChunk)
+
+	if len(parts) == 0 {
+		return ""
+	}
+
+	root := m.post(ctx, at, parts[0])
+
+	if root == "" {
+		return ""
+	}
+
+	at.thread = root
+
+	for _, part := range parts[1:] {
+		m.post(ctx, at, part)
+	}
+
+	return root
+}
+
 func (m *mattermostBot) status(ctx context.Context, at thread, id, text string) string {
 	if id == "" {
 		return m.post(ctx, at, "_"+text+"_")

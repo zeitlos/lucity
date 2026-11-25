@@ -13,9 +13,12 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/metadata"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/zeitlos/lucity/charts"
+	"github.com/zeitlos/lucity/pkg/agentrunner"
+	"github.com/zeitlos/lucity/pkg/agenttrigger"
 	"github.com/zeitlos/lucity/pkg/billing"
 	"github.com/zeitlos/lucity/pkg/bunny"
 	"github.com/zeitlos/lucity/pkg/deployer"
@@ -36,6 +39,7 @@ import (
 	"github.com/zeitlos/lucity/services/stagehand/backups"
 	"github.com/zeitlos/lucity/services/stagehand/customdomains"
 	"github.com/zeitlos/lucity/services/stagehand/releases"
+	"github.com/zeitlos/lucity/services/stagehand/triggers"
 	"github.com/zeitlos/lucity/services/stagehand/workspaces"
 )
 
@@ -49,6 +53,7 @@ const (
 	pendingDomainInterval = 15 * time.Second
 	domainSyncInterval    = 2 * time.Minute
 	backupInterval        = 10 * time.Minute
+	agentTriggerInterval  = time.Minute
 )
 
 type Config struct {
@@ -127,7 +132,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	k8sClient, dynClient, metadataClient, err := buildKubeClients()
+	restConfig, k8sClient, dynClient, metadataClient, err := buildKubeClients()
 
 	if err != nil {
 		slog.Error("failed to build kube clients", "error", err)
@@ -292,6 +297,18 @@ func main() {
 	workers.Go(func() { domainWorker.Run(ctx) })
 	workers.Go(func() { graceful.Serve(ctx, metrics.NewServer(config.MetricsPort, registry)) })
 
+	if config.AgentsEnabled {
+		runner, err := agentrunner.New(restConfig, k8sClient)
+
+		if err != nil {
+			slog.Error("failed to create agent runner client", "error", err)
+			os.Exit(1)
+		}
+
+		triggerWorker := triggers.New(agenttrigger.New(k8sClient, runner, workspaceReleases), runner, loops, agentTriggerInterval)
+		workers.Go(func() { triggerWorker.Run(ctx) })
+	}
+
 	if config.DatabaseBackupEnabled {
 		backupWorker := backups.New(platformClient, directory, loops, backupInterval)
 		workers.Go(func() { backupWorker.Run(ctx) })
@@ -300,13 +317,13 @@ func main() {
 	workers.Wait()
 }
 
-func buildKubeClients() (kubernetes.Interface, dynamic.Interface, metadata.Interface, error) {
+func buildKubeClients() (*rest.Config, kubernetes.Interface, dynamic.Interface, metadata.Interface, error) {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 
 	cfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, &clientcmd.ConfigOverrides{}).ClientConfig()
 
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	cfg.QPS = 50
@@ -315,20 +332,20 @@ func buildKubeClients() (kubernetes.Interface, dynamic.Interface, metadata.Inter
 	k8s, err := kubernetes.NewForConfig(cfg)
 
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	dyn, err := dynamic.NewForConfig(cfg)
 
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	meta, err := metadata.NewForConfig(cfg)
 
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
-	return k8s, dyn, meta, nil
+	return cfg, k8s, dyn, meta, nil
 }

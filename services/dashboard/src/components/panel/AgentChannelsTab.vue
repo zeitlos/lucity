@@ -4,7 +4,7 @@ import { useMutation } from '@vue/apollo-composable';
 import { MessageSquare, Plus, Trash2 } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { ChatAppKind } from '@/gql/graphql';
-import { chatAppKindLabel, type Agent, type AgentChannel } from '@/lib/agents';
+import { chatAppKindLabel, type Agent, type AgentChat } from '@/lib/agents';
 import BrandTile from '@/components/BrandTile.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import IconButton from '@/components/IconButton.vue';
@@ -12,21 +12,16 @@ import { Button } from '@/components/ui/button';
 import { failureToast } from '@/components/ui/sonner';
 import AddChannelDialog from './AddChannelDialog.vue';
 
-const SetAgentChannelsDocument = graphql(`
-  mutation SetAgentChannels($agent: AgentID!, $channels: [AgentChannelInput!]!) {
-    setAgentChannels(agent: $agent, channels: $channels) {
+const RemoveAgentChatDocument = graphql(`
+  mutation RemoveAgentChat($agent: AgentID!) {
+    removeAgentChat(agent: $agent) {
       id
-      channels {
+      chat {
         chatApp {
           id
-          name
-          kind
-          account
-          url
         }
         channel {
           id
-          name
         }
       }
     }
@@ -38,39 +33,26 @@ const props = defineProps<{
 }>();
 
 const addOpen = ref(false);
-const removing = ref<string | null>(null);
 
-const { mutate: setChannels, loading: saving } = useMutation(SetAgentChannelsDocument);
+const { mutate: removeChat, loading: removing } = useMutation(RemoveAgentChatDocument);
 
-function key(channel: AgentChannel) {
-  return `${channel.chatApp.id}\n${channel.channel.id}`;
-}
-
-function where(channel: AgentChannel) {
-  if (channel.chatApp.kind === ChatAppKind.Mattermost && channel.chatApp.url) {
+function where(chat: AgentChat) {
+  if (chat.chatApp.kind === ChatAppKind.Mattermost && chat.chatApp.url) {
     try {
-      return `Mattermost · ${new URL(channel.chatApp.url).host}`;
+      return `Mattermost · ${new URL(chat.chatApp.url).host}`;
     } catch {
       return 'Mattermost';
     }
   }
 
-  return `${chatAppKindLabel(channel.chatApp.kind)} · ${channel.chatApp.account}`;
+  return `${chatAppKindLabel(chat.chatApp.kind)} · ${chat.chatApp.account}`;
 }
 
-async function remove(channel: AgentChannel) {
-  removing.value = key(channel);
+async function remove() {
   try {
-    await setChannels({
-      agent: props.agent.id,
-      channels: props.agent.channels
-        .filter(existing => key(existing) !== key(channel))
-        .map(existing => ({ chatApp: existing.chatApp.id, channel: existing.channel.id })),
-    });
+    await removeChat({ agent: props.agent.id });
   } catch (e: unknown) {
     failureToast('Failed to remove channel', e);
-  } finally {
-    removing.value = null;
   }
 }
 </script>
@@ -79,35 +61,35 @@ async function remove(channel: AgentChannel) {
   <section class="space-y-4">
     <div class="flex items-start justify-between gap-4">
       <p class="text-sm text-muted-foreground">
-        Linked members of this workspace talk to {{ agent.name }} in these channels and answer its approvals there.
+        Linked members of this workspace talk to {{ agent.name }} in this channel and answer its approvals there. Sessions its triggers start are posted there too.
       </p>
-      <Button variant="outline" size="xs" class="shrink-0" @click="addOpen = true">
+      <Button v-if="!agent.chat" variant="outline" size="xs" class="shrink-0" @click="addOpen = true">
         <Plus />
         Add channel
       </Button>
     </div>
 
     <EmptyState
-      v-if="agent.channels.length === 0"
+      v-if="!agent.chat"
       size="compact"
       :icon="MessageSquare"
-      title="No channels yet"
+      title="No channel yet"
       description="Add a Telegram chat or a Mattermost channel."
     />
     <div v-else class="-mx-4 divide-y border-y">
-      <div v-for="channel in agent.channels" :key="key(channel)" class="flex items-center gap-3 py-2.5 pr-3 pl-4">
-        <BrandTile :name="chatAppKindLabel(channel.chatApp.kind)" />
+      <div class="flex items-center gap-3 py-2.5 pr-3 pl-4">
+        <BrandTile :name="chatAppKindLabel(agent.chat.chatApp.kind)" />
         <div class="min-w-0 flex-1">
-          <p class="truncate text-sm font-medium text-foreground">{{ channel.channel.name }}</p>
-          <p class="truncate text-xs text-muted-foreground">{{ where(channel) }}</p>
+          <p class="truncate text-sm font-medium text-foreground">{{ agent.chat.channel.name }}</p>
+          <p class="truncate text-xs text-muted-foreground">{{ where(agent.chat) }}</p>
         </div>
+        <Button variant="outline" size="xs" class="shrink-0" :disabled="removing" @click="addOpen = true">Change</Button>
         <IconButton
-          :label="`Remove ${channel.channel.name}`"
+          :label="`Remove ${agent.chat.channel.name}`"
           size="icon-xs"
           class="shrink-0"
-          :pending="removing === key(channel)"
-          :disabled="saving"
-          @click="remove(channel)"
+          :pending="removing"
+          @click="remove"
         >
           <Trash2 />
         </IconButton>

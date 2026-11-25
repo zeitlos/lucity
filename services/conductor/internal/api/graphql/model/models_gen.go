@@ -16,6 +16,11 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/scanjob"
 )
 
+// Who started a session or wrote a message to the agent.
+type AgentActor interface {
+	IsAgentActor()
+}
+
 // Something that happened in a session. Events with the same `callId` or `approval` describe the same call or approval, and the later one replaces the earlier one.
 type AgentSessionEvent interface {
 	IsAgentSessionEvent()
@@ -57,8 +62,10 @@ type Agent struct {
 	Instructions string           `json:"instructions"`
 	Status       AgentStatus      `json:"status"`
 	Connectors   []AgentConnector `json:"connectors"`
-	// The chats and channels the agent talks in.
-	Channels []AgentChannel `json:"channels"`
+	// The chat the agent talks in. Null when it has none.
+	Chat *AgentChat `json:"chat,omitempty"`
+	// The triggers that start sessions of the agent on their own, by name.
+	Triggers []AgentTrigger `json:"triggers"`
 	// Hosts on the internet the agent may reach directly, without credentials. `*.example.com` covers the subdomains of `example.com`.
 	AllowedHosts []string `json:"allowedHosts"`
 	// Whether the agent may reach the other services of its environment.
@@ -98,16 +105,18 @@ type AgentAuditEntry struct {
 	Result       AgentAuditResult `json:"result"`
 }
 
-// A chat or channel an agent talks in. Linked members of the workspace talk to the agent there, and answer its approvals.
-type AgentChannel struct {
+// The chat or channel an agent talks in. Linked members of the workspace talk to the agent there and answer its approvals, and the sessions its triggers start are mirrored there.
+type AgentChat struct {
 	ChatApp *ChatApp     `json:"chatApp"`
 	Channel *ChatChannel `json:"channel"`
 }
 
-type AgentChannelInput struct {
-	ChatApp platform.ChatAppID `json:"chatApp"`
-	// The chat app's own ID of the chat or channel.
-	Channel string `json:"channel"`
+// The chat a session is mirrored to, or a message came through.
+type AgentChatLink struct {
+	ChatApp *ChatApp     `json:"chatApp"`
+	Channel *ChatChannel `json:"channel"`
+	// Opens the thread in the chat app. Null where the chat app has no links to it.
+	URL *string `json:"url,omitempty"`
 }
 
 // A connector granted to an agent.
@@ -156,27 +165,19 @@ type AgentNotice struct {
 
 func (AgentNotice) IsAgentSessionEvent() {}
 
-// The chat a session started in, or a message came through.
-type AgentOrigin struct {
-	ChatApp *ChatApp     `json:"chatApp"`
-	Channel *ChatChannel `json:"channel"`
-	// Opens the thread in the chat app. Null where the chat app has no links to it.
-	URL *string `json:"url,omitempty"`
-}
-
 // One conversation with an agent. Every member of the workspace can see it and take part.
 type AgentSession struct {
 	ID    platform.AgentSessionID `json:"id"`
 	Title string                  `json:"title"`
-	// Who started the session. Null once that person has left the workspace.
-	StartedBy *WorkspaceMember `json:"startedBy,omitempty"`
-	StartedAt time.Time        `json:"startedAt"`
+	// Who started the session: a member, or one of the agent's triggers. Null once that member left or the trigger was deleted.
+	StartedBy AgentActor `json:"startedBy,omitempty"`
+	StartedAt time.Time  `json:"startedAt"`
 	// The model of the next turn.
 	Model  *AgentModel        `json:"model"`
 	Effort Effort             `json:"effort"`
 	Status AgentSessionStatus `json:"status"`
-	// The chat the session started in. Null for one started in Lucity.
-	Origin *AgentOrigin `json:"origin,omitempty"`
+	// The chat the session is mirrored to. Null for one that stays in Lucity.
+	Chat *AgentChatLink `json:"chat,omitempty"`
 	// Everything that happened in the session, oldest first.
 	Events []AgentSessionEvent `json:"events"`
 }
@@ -198,6 +199,46 @@ type AgentToolCall struct {
 
 func (AgentToolCall) IsAgentSessionEvent() {}
 
+// Starts sessions of an agent on its own. Its instructions, followed by the event, are the first message. The sessions are mirrored to the agent's chat when it has one.
+type AgentTrigger struct {
+	ID     platform.AgentTriggerID `json:"id"`
+	Name   string                  `json:"name"`
+	Source AgentTriggerSource      `json:"source"`
+	// The cron schedule of a schedule trigger.
+	Schedule *string `json:"schedule,omitempty"`
+	// The time zone the schedule runs in, like `Europe/Zurich`.
+	TimeZone *string `json:"timeZone,omitempty"`
+	// A top-level field of a webhook's JSON body. Events with the same value continue one session.
+	Key          *string `json:"key,omitempty"`
+	Instructions string  `json:"instructions"`
+	// A trigger that is off doesn't start sessions.
+	Enabled bool `json:"enabled"`
+	// Where a webhook trigger is called, with its token as a bearer token.
+	URL *string `json:"url,omitempty"`
+	// When the trigger last started a session.
+	LastRunAt *time.Time `json:"lastRunAt,omitempty"`
+}
+
+func (AgentTrigger) IsAgentActor() {}
+
+type AgentTriggerInput struct {
+	Name   string             `json:"name"`
+	Source AgentTriggerSource `json:"source"`
+	// A cron expression, for a schedule trigger. For example `0 12 * * 1-5`.
+	Schedule *string `json:"schedule,omitempty"`
+	// An IANA time zone, for a schedule trigger. For example `Europe/Zurich`.
+	TimeZone *string `json:"timeZone,omitempty"`
+	// A top-level field of the JSON body, for a webhook trigger.
+	Key          *string `json:"key,omitempty"`
+	Instructions string  `json:"instructions"`
+}
+
+// A trigger and, for a webhook trigger, its token. The token is shown only here.
+type AgentTriggerWithToken struct {
+	Trigger *AgentTrigger `json:"trigger"`
+	Token   *string       `json:"token,omitempty"`
+}
+
 // The agent ended its turn and waits for the next message.
 type AgentTurnEnd struct {
 	ID     string             `json:"id"`
@@ -208,16 +249,16 @@ type AgentTurnEnd struct {
 
 func (AgentTurnEnd) IsAgentSessionEvent() {}
 
-// A message someone in the workspace sent to the agent.
+// A message someone in the workspace, or one of the agent's triggers, sent to the agent.
 type AgentUserMessage struct {
 	// The event's position in the session. Pass it as `after` to continue from here.
 	ID   string    `json:"id"`
 	Time time.Time `json:"time"`
-	// Null once that person has left the workspace.
-	Author *WorkspaceMember `json:"author,omitempty"`
-	Text   string           `json:"text"`
-	// The chat the message came through. Null for one sent in Lucity.
-	Via *AgentOrigin `json:"via,omitempty"`
+	// Null once that member left or the trigger was deleted.
+	Author AgentActor `json:"author,omitempty"`
+	Text   string     `json:"text"`
+	// The chat the message came through. Null for one sent in Lucity or by a trigger.
+	Via *AgentChatLink `json:"via,omitempty"`
 }
 
 func (AgentUserMessage) IsAgentSessionEvent() {}
@@ -1284,6 +1325,8 @@ type WorkspaceMember struct {
 	Role  WorkspaceRole `json:"role"`
 }
 
+func (WorkspaceMember) IsAgentActor() {}
+
 type WorkspaceMembership struct {
 	Workspace string        `json:"workspace"`
 	Role      WorkspaceRole `json:"role"`
@@ -1751,6 +1794,64 @@ func (e *AgentToolCallStatus) UnmarshalJSON(b []byte) error {
 }
 
 func (e AgentToolCallStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// What starts a trigger.
+type AgentTriggerSource string
+
+const (
+	// A cron schedule, in a time zone.
+	AgentTriggerSourceSchedule AgentTriggerSource = "SCHEDULE"
+	// A call to the trigger's address with its token.
+	AgentTriggerSourceWebhook AgentTriggerSource = "WEBHOOK"
+)
+
+var AllAgentTriggerSource = []AgentTriggerSource{
+	AgentTriggerSourceSchedule,
+	AgentTriggerSourceWebhook,
+}
+
+func (e AgentTriggerSource) IsValid() bool {
+	switch e {
+	case AgentTriggerSourceSchedule, AgentTriggerSourceWebhook:
+		return true
+	}
+	return false
+}
+
+func (e AgentTriggerSource) String() string {
+	return string(e)
+}
+
+func (e *AgentTriggerSource) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AgentTriggerSource(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AgentTriggerSource", str)
+	}
+	return nil
+}
+
+func (e AgentTriggerSource) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AgentTriggerSource) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AgentTriggerSource) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

@@ -123,16 +123,97 @@ func convertChatChannels(channels []conductor.ChatChannel) []model.ChatChannel {
 	return result
 }
 
-func convertAgentOrigin(origin *conductor.AgentOrigin) *model.AgentOrigin {
-	if origin == nil {
+func convertAgentChatLink(link *conductor.AgentChatLink) *model.AgentChatLink {
+	if link == nil {
 		return nil
 	}
 
-	return &model.AgentOrigin{
-		ChatApp: new(convertChatApp(origin.ChatApp)),
-		Channel: &model.ChatChannel{ID: origin.Channel.ID, Name: origin.Channel.Name},
-		URL:     optional(origin.URL),
+	return &model.AgentChatLink{
+		ChatApp: new(convertChatApp(link.ChatApp)),
+		Channel: &model.ChatChannel{ID: link.Channel.ID, Name: link.Channel.Name},
+		URL:     optional(link.URL),
 	}
+}
+
+func convertAgentChat(chat *conductor.AgentChat) *model.AgentChat {
+	if chat == nil {
+		return nil
+	}
+
+	return &model.AgentChat{
+		ChatApp: new(convertChatApp(chat.ChatApp)),
+		Channel: &model.ChatChannel{ID: chat.Channel.ID, Name: chat.Channel.Name},
+	}
+}
+
+func convertAgentActor(actor conductor.AgentActor) model.AgentActor {
+	switch {
+	case actor.Trigger != nil:
+		return new(convertAgentTrigger(*actor.Trigger))
+	case actor.Member != nil:
+		return convertWorkspaceMember(actor.Member)
+	default:
+		return nil
+	}
+}
+
+func convertAgentTriggers(triggers []conductor.AgentTrigger) []model.AgentTrigger {
+	result := make([]model.AgentTrigger, 0, len(triggers))
+
+	for _, trigger := range triggers {
+		result = append(result, convertAgentTrigger(trigger))
+	}
+
+	return result
+}
+
+func convertAgentTrigger(trigger conductor.AgentTrigger) model.AgentTrigger {
+	source := model.AgentTriggerSourceSchedule
+
+	if trigger.Source == values.TriggerWebhook {
+		source = model.AgentTriggerSourceWebhook
+	}
+
+	return model.AgentTrigger{
+		ID:           trigger.ID,
+		Name:         trigger.Name,
+		Source:       source,
+		Schedule:     optional(trigger.Schedule),
+		TimeZone:     optional(trigger.TimeZone),
+		Key:          optional(trigger.Key),
+		Instructions: trigger.Instructions,
+		Enabled:      trigger.Enabled,
+	}
+}
+
+func parseAgentTriggerInput(input model.AgentTriggerInput) conductor.AgentTriggerSpec {
+	spec := conductor.AgentTriggerSpec{
+		Name:         input.Name,
+		Source:       values.TriggerSchedule,
+		Instructions: input.Instructions,
+	}
+
+	if input.Source == model.AgentTriggerSourceWebhook {
+		spec.Source = values.TriggerWebhook
+	}
+
+	if input.Schedule != nil {
+		spec.Schedule = *input.Schedule
+	}
+
+	if input.TimeZone != nil {
+		spec.TimeZone = *input.TimeZone
+	}
+
+	if input.Key != nil {
+		spec.Key = *input.Key
+	}
+
+	return spec
+}
+
+func convertAgentTriggerWithToken(trigger conductor.AgentTrigger, token string) *model.AgentTriggerWithToken {
+	return &model.AgentTriggerWithToken{Trigger: new(convertAgentTrigger(trigger)), Token: optional(token)}
 }
 
 func parseHarness(harness model.Harness) (values.Harness, error) {
@@ -215,15 +296,6 @@ func convertAgent(agent conductor.Agent) model.Agent {
 		})
 	}
 
-	channels := make([]model.AgentChannel, 0, len(agent.Channels))
-
-	for _, channel := range agent.Channels {
-		channels = append(channels, model.AgentChannel{
-			ChatApp: new(convertChatApp(channel.ChatApp)),
-			Channel: &model.ChatChannel{ID: channel.Channel.ID, Name: channel.Channel.Name},
-		})
-	}
-
 	allowedHosts := agent.AllowedHosts
 
 	if allowedHosts == nil {
@@ -236,7 +308,8 @@ func convertAgent(agent conductor.Agent) model.Agent {
 		Harness:        convertHarness(agent.Harness),
 		Instructions:   agent.Instructions,
 		Connectors:     connectors,
-		Channels:       channels,
+		Chat:           convertAgentChat(agent.Chat),
+		Triggers:       convertAgentTriggers(agent.Triggers),
 		AllowedHosts:   allowedHosts,
 		PrivateNetwork: agent.PrivateNetwork,
 	}
@@ -315,12 +388,12 @@ func convertAgentSession(session conductor.AgentSession) model.AgentSession {
 	return model.AgentSession{
 		ID:        session.ID,
 		Title:     session.Title,
-		StartedBy: convertWorkspaceMemberOrNil(session.StartedBy),
+		StartedBy: convertAgentActor(session.StartedBy),
 		StartedAt: session.StartedAt,
 		Model:     new(convertAgentModel(session.Model)),
 		Effort:    convertEffort(session.Effort),
 		Status:    convertAgentSessionStatus(session.Status),
-		Origin:    convertAgentOrigin(session.Origin),
+		Chat:      convertAgentChatLink(session.Chat),
 	}
 }
 
@@ -335,7 +408,7 @@ func convertWorkspaceMemberOrNil(member *conductor.WorkspaceMember) *model.Works
 func convertAgentSessionEvent(event conductor.AgentSessionEvent) model.AgentSessionEvent {
 	switch event.Type {
 	case agentrunner.EventUserMessage:
-		return model.AgentUserMessage{ID: event.ID, Time: event.Time, Author: convertWorkspaceMemberOrNil(event.Author), Text: event.Text, Via: convertAgentOrigin(event.Via)}
+		return model.AgentUserMessage{ID: event.ID, Time: event.Time, Author: convertAgentActor(event.Author), Text: event.Text, Via: convertAgentChatLink(event.Via)}
 	case agentrunner.EventMessage:
 		return model.AgentMessage{ID: event.ID, Time: event.Time, Text: event.Text}
 	case agentrunner.EventToolCall:

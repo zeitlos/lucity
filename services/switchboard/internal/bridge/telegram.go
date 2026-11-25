@@ -193,6 +193,16 @@ func (t *telegramBot) say(ctx context.Context, at thread, text string) {
 	}
 }
 
+func (t *telegramBot) threads() bool {
+	return false
+}
+
+func (t *telegramBot) root(ctx context.Context, at thread, text string) string {
+	t.say(ctx, at, text)
+
+	return ""
+}
+
 func (t *telegramBot) status(ctx context.Context, at thread, id, text string) string {
 	if id == "" {
 		return t.send(ctx, at, telegram.Outgoing{Text: text})

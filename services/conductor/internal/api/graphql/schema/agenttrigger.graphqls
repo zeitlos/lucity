@@ -1,0 +1,58 @@
+"""What starts a trigger."""
+enum AgentTriggerSource {
+  """A cron schedule, in a time zone."""
+  SCHEDULE
+  """A call to the trigger's address with its token."""
+  WEBHOOK
+}
+
+"""Starts sessions of an agent on its own. Its instructions, followed by the event, are the first message. The sessions are mirrored to the agent's chat when it has one."""
+type AgentTrigger {
+  id: AgentTriggerID!
+  name: String!
+  source: AgentTriggerSource!
+  """The cron schedule of a schedule trigger."""
+  schedule: String
+  """The time zone the schedule runs in, like `Europe/Zurich`."""
+  timeZone: String
+  """A top-level field of a webhook's JSON body. Events with the same value continue one session."""
+  key: String
+  instructions: String!
+  """A trigger that is off doesn't start sessions."""
+  enabled: Boolean!
+  """Where a webhook trigger is called, with its token as a bearer token."""
+  url: String @goField(forceResolver: true)
+  """When the trigger last started a session."""
+  lastRunAt: Time @goField(forceResolver: true)
+}
+
+"""A trigger and, for a webhook trigger, its token. The token is shown only here."""
+type AgentTriggerWithToken {
+  trigger: AgentTrigger!
+  token: String
+}
+
+input AgentTriggerInput {
+  name: String! @constraint(constraint: "min=1,max=64")
+  source: AgentTriggerSource!
+  """A cron expression, for a schedule trigger. For example `0 12 * * 1-5`."""
+  schedule: String @constraint(constraint: "max=128")
+  """An IANA time zone, for a schedule trigger. For example `Europe/Zurich`."""
+  timeZone: String @constraint(constraint: "max=64")
+  """A top-level field of the JSON body, for a webhook trigger."""
+  key: String @constraint(constraint: "max=128")
+  instructions: String! @constraint(constraint: "min=1,max=65536")
+}
+
+extend type Mutation {
+  """Adds a trigger to an agent. It starts on."""
+  createAgentTrigger(agent: AgentID!, input: AgentTriggerInput!): AgentTriggerWithToken! @hasRole(role: WORKSPACE_MEMBER)
+  """Changes a trigger. Its source can't change."""
+  updateAgentTrigger(trigger: AgentTriggerID!, input: AgentTriggerInput!): AgentTrigger! @hasRole(role: WORKSPACE_MEMBER)
+  """Turns a trigger on or off."""
+  setAgentTriggerEnabled(trigger: AgentTriggerID!, enabled: Boolean!): AgentTrigger! @hasRole(role: WORKSPACE_MEMBER)
+  """Gives a webhook trigger a new token. The old one stops working."""
+  replaceAgentTriggerToken(trigger: AgentTriggerID!): AgentTriggerWithToken! @hasRole(role: WORKSPACE_MEMBER)
+  """Deletes a trigger. The sessions it started stay."""
+  deleteAgentTrigger(trigger: AgentTriggerID!): Agent! @hasRole(role: WORKSPACE_MEMBER)
+}

@@ -12,7 +12,10 @@ import (
 	"github.com/zeitlos/lucity/pkg/usererror"
 )
 
-var sessionNameRe = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+var (
+	sessionNameRe = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+	triggerNameRe = regexp.MustCompile(`^[a-z0-9]{1,32}$`)
+)
 
 type ModelProviderID struct {
 	Workspace string
@@ -296,7 +299,73 @@ func (a AgentSessionID) MarshalGQL(w io.Writer) {
 	graphql.MarshalString(a.String()).MarshalGQL(w)
 }
 
+// AgentTriggerID names one trigger of an agent. Trigger is unique across
+// the platform, so it alone also finds the trigger.
+type AgentTriggerID struct {
+	Agent   AgentID
+	Trigger string
+}
+
+func ParseAgentTriggerID(s string) (AgentTriggerID, error) {
+	agent, trigger, ok := cutLast(s, "/")
+
+	if !ok || !IsValidTriggerName(trigger) {
+		return AgentTriggerID{}, usererror.Errorf("invalid agent trigger id %q", s)
+	}
+
+	agentID, err := ParseAgentID(agent)
+
+	if err != nil {
+		return AgentTriggerID{}, usererror.Errorf("invalid agent trigger id %q", s)
+	}
+
+	return AgentTriggerID{Agent: agentID, Trigger: trigger}, nil
+}
+
+// IsValidTriggerName reports whether name can name a trigger: lowercase
+// letters and digits, safe in a URL, a Kubernetes name and a label.
+func IsValidTriggerName(name string) bool {
+	return triggerNameRe.MatchString(name)
+}
+
+func (a AgentTriggerID) LogValue() slog.Value {
+	return slog.StringValue(a.String())
+}
+
+func (a AgentTriggerID) String() string {
+	return a.Agent.String() + "/" + a.Trigger
+}
+
+func (a AgentTriggerID) WorkspaceID() string {
+	return a.Agent.Workspace
+}
+
+func (a *AgentTriggerID) UnmarshalGQL(val interface{}) error {
+	str, ok := val.(string)
+
+	if !ok {
+		return usererror.New("AgentTriggerID must be a string")
+	}
+
+	parsed, err := ParseAgentTriggerID(str)
+
+	if err != nil {
+		return err
+	}
+
+	*a = parsed
+
+	return nil
+}
+
+func (a AgentTriggerID) MarshalGQL(w io.Writer) {
+	graphql.MarshalString(a.String()).MarshalGQL(w)
+}
+
 var (
+	_ WorkspaceScoped     = AgentTriggerID{}
+	_ graphql.Marshaler   = AgentTriggerID{}
+	_ graphql.Unmarshaler = (*AgentTriggerID)(nil)
 	_ WorkspaceScoped     = ModelProviderID{}
 	_ WorkspaceScoped     = ConnectorID{}
 	_ WorkspaceScoped     = ChatAppID{}

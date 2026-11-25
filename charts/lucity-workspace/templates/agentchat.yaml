@@ -1,0 +1,17 @@
+{{- $workspace := include "lucity-workspace.workspace" . }}
+{{- range $key, $agent := .Values.agents }}
+{{- if $agent.chat }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ printf "%s.chat.%s" $workspace (replace "/" "." $key) }}
+  namespace: {{ required "switchboard.namespace is required for agent chats" $.Values.switchboard.namespace }}
+  labels:
+    {{- include "lucity-workspace.labels" $ | nindent 4 }}
+    lucity.dev/agent-chat: "true"
+data:
+  agent: {{ printf "%s/%s" $workspace $key | quote }}
+  chat: {{ $agent.chat | toJson | quote }}
+{{- end }}
+{{- end }}

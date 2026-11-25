@@ -77,14 +77,22 @@ func (s *session) statusLocked() string {
 func (s *session) snapshot() SessionStatus {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return SessionStatus{Session: s.record, Status: s.statusLocked()}
+	return s.snapshotLocked()
+}
+
+func (s *session) snapshotLocked() SessionStatus {
+	status := SessionStatus{Session: s.record, Status: s.statusLocked()}
+	if len(s.events) > 0 {
+		status.LastEvent = s.events[len(s.events)-1].ID
+	}
+	return status
 }
 
 func (s *session) detail() SessionDetail {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return SessionDetail{
-		SessionStatus: SessionStatus{Session: s.record, Status: s.statusLocked()},
+		SessionStatus: s.snapshotLocked(),
 		Events:        append([]Event{}, s.events...),
 	}
 }

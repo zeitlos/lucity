@@ -100,6 +100,8 @@ type AgentClient interface {
 	Update(ctx context.Context, id platform.AgentID, harness values.Harness, instructions string) (RevisionID, error)
 	SetConnectors(ctx context.Context, id platform.AgentID, connectors map[string]values.AgentConnector) (RevisionID, error)
 	SetNetwork(ctx context.Context, id platform.AgentID, network values.AgentNetwork) (RevisionID, error)
+	SetTrigger(ctx context.Context, id platform.AgentTriggerID, trigger values.AgentTrigger) (RevisionID, error)
+	DeleteTrigger(ctx context.Context, id platform.AgentTriggerID) (RevisionID, error)
 	Delete(ctx context.Context, id platform.AgentID) error
 }
 
@@ -116,7 +118,7 @@ type WorkspaceClient interface {
 	SetChatApp(ctx context.Context, id platform.ChatAppID, app values.ChatApp) error
 	DeleteChatApp(ctx context.Context, id platform.ChatAppID) error
 	SetAgentGrant(ctx context.Context, id platform.AgentID, grant values.AgentGrant) error
-	SetAgentChannels(ctx context.Context, id platform.AgentID, channels []values.AgentChannel) error
+	SetAgentChat(ctx context.Context, id platform.AgentID, chat *values.AgentChat) error
 	DeleteAgentGrant(ctx context.Context, id platform.AgentID) error
 	Delete(ctx context.Context, workspace string) error
 

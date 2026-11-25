@@ -69,3 +69,5 @@ models:
     model: github.com/zeitlos/lucity/services/conductor/internal/conductor.AgentID
   AgentSessionID:
     model: github.com/zeitlos/lucity/services/conductor/internal/conductor.AgentSessionID
+  AgentTriggerID:
+    model: github.com/zeitlos/lucity/services/conductor/internal/conductor.AgentTriggerID

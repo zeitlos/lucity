@@ -1,4 +1,4 @@
-import { AgentStatus, Approval, ChatAppKind, Effort, Harness, ModelApi } from '@/gql/graphql';
+import { AgentStatus, AgentTriggerSource, Approval, ChatAppKind, Effort, Harness, ModelApi } from '@/gql/graphql';
 
 export interface AgentConnectorGrant {
   connector: { id: string; name: string };
@@ -6,7 +6,7 @@ export interface AgentConnectorGrant {
   hiddenTools: string[];
 }
 
-export interface AgentChannel {
+export interface AgentChat {
   chatApp: { id: string; name: string; kind: ChatAppKind; account: string; url?: string | null };
   channel: { id: string; name: string };
 }
@@ -18,9 +18,23 @@ export interface Agent {
   instructions: string;
   status: AgentStatus;
   connectors: AgentConnectorGrant[];
-  channels: AgentChannel[];
+  chat?: AgentChat | null;
+  triggers: AgentTrigger[];
   allowedHosts: string[];
   privateNetwork: boolean;
+}
+
+export interface AgentTrigger {
+  id: string;
+  name: string;
+  source: AgentTriggerSource;
+  schedule?: string | null;
+  timeZone?: string | null;
+  key?: string | null;
+  instructions: string;
+  enabled: boolean;
+  url?: string | null;
+  lastRunAt?: string | null;
 }
 
 export interface HarnessOption {

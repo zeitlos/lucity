@@ -36,7 +36,7 @@ const AddChannelLinkDocument = graphql(`
         agents {
           id
           name
-          channels {
+          chat {
             chatApp {
               id
             }
@@ -50,11 +50,11 @@ const AddChannelLinkDocument = graphql(`
   }
 `);
 
-const SetAgentChannelsFromLinkDocument = graphql(`
-  mutation SetAgentChannelsFromLink($agent: AgentID!, $channels: [AgentChannelInput!]!) {
-    setAgentChannels(agent: $agent, channels: $channels) {
+const SetAgentChatFromLinkDocument = graphql(`
+  mutation SetAgentChatFromLink($agent: AgentID!, $chatApp: ChatAppID!, $channel: String!) {
+    setAgentChat(agent: $agent, chatApp: $chatApp, channel: $channel) {
       id
-      channels {
+      chat {
         chatApp {
           id
           name
@@ -104,13 +104,13 @@ watch(agents, (list) => {
   if (!agentId.value && list.length === 1) agentId.value = list[0]!.id;
 }, { immediate: true });
 
-const owner = computed(() => agents.value.find(agent => agent.channels.some(channel => channel.chatApp.id === chatAppId.value && channel.channel.id === props.channel)) ?? null);
+const owner = computed(() => agents.value.find(agent => agent.chat?.chatApp.id === chatAppId.value && agent.chat?.channel.id === props.channel) ?? null);
 
 watch(open, (value) => {
   if (!value) emit('close');
 });
 
-const { mutate: setChannels, loading: saving } = useMutation(SetAgentChannelsFromLinkDocument);
+const { mutate: setChat, loading: saving } = useMutation(SetAgentChatFromLinkDocument);
 
 const canAdd = computed(() => !saving.value && !!agentId.value && !!found.value && !owner.value);
 
@@ -118,13 +118,7 @@ async function add() {
   const agent = agents.value.find(candidate => candidate.id === agentId.value);
   if (!canAdd.value || !agent || !found.value) return;
   try {
-    await setChannels({
-      agent: agent.id,
-      channels: [
-        ...agent.channels.map(channel => ({ chatApp: channel.chatApp.id, channel: channel.channel.id })),
-        { chatApp: chatAppId.value, channel: found.value.id },
-      ],
-    });
+    await setChat({ agent: agent.id, chatApp: chatAppId.value, channel: found.value.id });
     successToast(`"${found.value.name}" added to "${agent.name}"`);
     open.value = false;
   } catch (e: unknown) {

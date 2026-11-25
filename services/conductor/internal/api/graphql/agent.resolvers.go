@@ -10,7 +10,6 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
-	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 )
 
 // Status is the resolver for the status field.
@@ -109,15 +108,20 @@ func (r *mutationResolver) SetAgentConnectors(ctx context.Context, agent platfor
 	return new(convertAgent(*result)), nil
 }
 
-// SetAgentChannels is the resolver for the setAgentChannels field.
-func (r *mutationResolver) SetAgentChannels(ctx context.Context, agent platform.AgentID, channels []model.AgentChannelInput) (*model.Agent, error) {
-	specs := make([]conductor.AgentChannelSpec, 0, len(channels))
+// SetAgentChat is the resolver for the setAgentChat field.
+func (r *mutationResolver) SetAgentChat(ctx context.Context, agent platform.AgentID, chatApp platform.ChatAppID, channel string) (*model.Agent, error) {
+	result, err := r.Conductor.SetAgentChat(ctx, agent, chatApp, channel)
 
-	for _, input := range channels {
-		specs = append(specs, conductor.AgentChannelSpec{ChatApp: input.ChatApp, Channel: input.Channel})
+	if err != nil {
+		return nil, err
 	}
 
-	result, err := r.Conductor.SetAgentChannels(ctx, agent, specs)
+	return new(convertAgent(*result)), nil
+}
+
+// RemoveAgentChat is the resolver for the removeAgentChat field.
+func (r *mutationResolver) RemoveAgentChat(ctx context.Context, agent platform.AgentID) (*model.Agent, error) {
+	result, err := r.Conductor.RemoveAgentChat(ctx, agent)
 
 	if err != nil {
 		return nil, err

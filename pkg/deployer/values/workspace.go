@@ -94,10 +94,10 @@ type ChatApp struct {
 	CheckedAt  string           `yaml:"checkedAt,omitempty"`
 }
 
-// AgentChannel is a place in a chat app an agent talks in: a Telegram chat or
-// a Mattermost channel, by the chat app's own ID. Name is how it read when it
-// was added.
-type AgentChannel struct {
+// AgentChat is the one place in a chat app an agent talks in: a Telegram chat
+// or a Mattermost channel, by the chat app's own ID. Name is how it read when
+// it was set.
+type AgentChat struct {
 	ChatApp string `yaml:"chatApp"`
 	Channel string `yaml:"channel"`
 	Name    string `yaml:"name"`
@@ -105,13 +105,13 @@ type AgentChannel struct {
 
 // AgentGrant is an agent's entry in its workspace release: the hash of its
 // gateway key, the namespace the key is accepted from, the connectors it may
-// call and the chat channels it talks in. Keyed by project/environment/agent.
+// call and the chat it talks in. Keyed by project/environment/agent.
 type AgentGrant struct {
 	KeyHash     string              `yaml:"keyHash"`
 	Namespace   string              `yaml:"namespace"`
 	Connectors  []string            `yaml:"connectors,omitempty"`
 	HiddenTools map[string][]string `yaml:"hiddenTools,omitempty"`
-	Channels    []AgentChannel      `yaml:"channels,omitempty"`
+	Chat        *AgentChat          `yaml:"chat,omitempty"`
 }
 
 const (
@@ -122,7 +122,6 @@ const (
 	maxCredentialLen      = 4096
 	maxUpstreamURLLen     = 512
 	maxChatNameLen        = 256
-	maxChannels           = 64
 )
 
 var (
@@ -233,7 +232,7 @@ func SetChatApp(ws *Workspace, name string, app ChatApp) error {
 	return nil
 }
 
-// DeleteChatApp removes a chat app and every agent channel in it.
+// DeleteChatApp removes a chat app and every agent chat in it.
 func DeleteChatApp(ws *Workspace, name string) error {
 	if _, ok := ws.ChatApps[name]; !ok {
 		return usererror.Errorf("chat app %q not found", name)
@@ -242,8 +241,10 @@ func DeleteChatApp(ws *Workspace, name string) error {
 	delete(ws.ChatApps, name)
 
 	for key, grant := range ws.Agents {
-		grant.Channels = slices.DeleteFunc(slices.Clone(grant.Channels), func(c AgentChannel) bool { return c.ChatApp == name })
-		ws.Agents[key] = grant
+		if grant.Chat != nil && grant.Chat.ChatApp == name {
+			grant.Chat = nil
+			ws.Agents[key] = grant
+		}
 	}
 
 	return nil
@@ -255,28 +256,28 @@ func IsValidChannel(channel string) bool {
 	return channelRe.MatchString(channel)
 }
 
-// SetAgentGrant sets an agent's key and connectors. Its channels stay as they
-// are: only SetAgentChannels changes them, so neither overwrites the other.
+// SetAgentGrant sets an agent's key and connectors. Its chat stays as it is:
+// only SetAgentChat changes it, so neither overwrites the other.
 func SetAgentGrant(ws *Workspace, id platform.AgentID, grant AgentGrant) error {
 	if ws.Agents == nil {
 		ws.Agents = map[string]AgentGrant{}
 	}
 
-	grant.Channels = ws.Agents[AgentGrantKey(id)].Channels
+	grant.Chat = ws.Agents[AgentGrantKey(id)].Chat
 	ws.Agents[AgentGrantKey(id)] = grant
 
 	return nil
 }
 
-// SetAgentChannels replaces the chat channels an agent talks in.
-func SetAgentChannels(ws *Workspace, id platform.AgentID, channels []AgentChannel) error {
+// SetAgentChat sets the chat an agent talks in, or removes it when chat is nil.
+func SetAgentChat(ws *Workspace, id platform.AgentID, chat *AgentChat) error {
 	grant, ok := ws.Agents[AgentGrantKey(id)]
 
 	if !ok {
 		return usererror.Errorf("agent %q not found", id.Name)
 	}
 
-	grant.Channels = channels
+	grant.Chat = chat
 	ws.Agents[AgentGrantKey(id)] = grant
 
 	return nil
@@ -411,7 +412,7 @@ func ValidateWorkspace(ws *Workspace, workspace string) error {
 		}
 	}
 
-	channelOwners := map[AgentChannel]string{}
+	chatOwners := map[AgentChat]string{}
 
 	for key, grant := range ws.Agents {
 		parts := strings.Split(key, "/")
@@ -456,30 +457,26 @@ func ValidateWorkspace(ws *Workspace, workspace string) error {
 			}
 		}
 
-		if len(grant.Channels) > maxChannels {
-			return usererror.Errorf("agent %q is in more than %d channels", parts[2], maxChannels)
-		}
-
-		for _, channel := range grant.Channels {
-			if _, ok := ws.ChatApps[channel.ChatApp]; !ok {
-				return usererror.Errorf("agent %q: unknown chat app %q", parts[2], channel.ChatApp)
+		if chat := grant.Chat; chat != nil {
+			if _, ok := ws.ChatApps[chat.ChatApp]; !ok {
+				return usererror.Errorf("agent %q: unknown chat app %q", parts[2], chat.ChatApp)
 			}
 
-			if !IsValidChannel(channel.Channel) {
-				return usererror.Errorf("agent %q: invalid channel %q", parts[2], channel.Channel)
+			if !IsValidChannel(chat.Channel) {
+				return usererror.Errorf("agent %q: invalid channel %q", parts[2], chat.Channel)
 			}
 
-			if !isPrintable(channel.Name, maxChatNameLen) {
-				return usererror.Errorf("agent %q: invalid channel name %q", parts[2], channel.Name)
+			if !isPrintable(chat.Name, maxChatNameLen) {
+				return usererror.Errorf("agent %q: invalid chat name %q", parts[2], chat.Name)
 			}
 
-			place := AgentChannel{ChatApp: channel.ChatApp, Channel: channel.Channel}
+			place := AgentChat{ChatApp: chat.ChatApp, Channel: chat.Channel}
 
-			if owner, ok := channelOwners[place]; ok {
-				return usererror.Errorf("%q in chat app %q is already a channel of agent %q", channel.Name, channel.ChatApp, owner)
+			if owner, ok := chatOwners[place]; ok {
+				return usererror.Errorf("%q in chat app %q is already the chat of agent %q", chat.Name, chat.ChatApp, owner)
 			}
 
-			channelOwners[place] = parts[2]
+			chatOwners[place] = parts[2]
 		}
 	}
 

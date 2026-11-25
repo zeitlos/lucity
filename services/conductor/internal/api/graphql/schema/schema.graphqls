@@ -46,6 +46,8 @@ scalar ChatAppID
 scalar AgentID
 """A session of an agent, as the agent id followed by the session. For example `acme/shop/production/ops-agent/s-q7m2xk`."""
 scalar AgentSessionID
+"""A trigger of an agent, as the agent id followed by the trigger. For example `acme/shop/production/ops-agent/q7m2xk4p9atz`."""
+scalar AgentTriggerID
 
 enum Role {
   ANONYMOUS

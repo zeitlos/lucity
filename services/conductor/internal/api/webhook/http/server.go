@@ -2,7 +2,9 @@ package http
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -40,6 +42,7 @@ func NewServer(port, webhookSecret string, handler *Handler, registry prometheus
 	registry.MustRegister(events)
 
 	mux.HandleFunc("/webhooks/github", handleGitHub(secret, handler, events))
+	mux.HandleFunc("POST /webhooks/triggers/{id}", handleTrigger(handler))
 
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -225,4 +228,50 @@ func (h *Handler) suspended(ctx context.Context, workspace string) bool {
 	}
 
 	return details.Suspended
+}
+
+const maxTriggerBody = 256 << 10
+
+// handleTrigger hands a call to an agent's webhook trigger. The token comes as
+// a bearer token, and the body must be a JSON object.
+func handleTrigger(h *Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+
+		if !ok || token == "" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		body, err := io.ReadAll(io.LimitReader(r.Body, maxTriggerBody+1))
+
+		if err != nil {
+			http.Error(w, "unreadable body", http.StatusBadRequest)
+			return
+		}
+
+		if len(body) > maxTriggerBody {
+			http.Error(w, "body too large", http.StatusRequestEntityTooLarge)
+			return
+		}
+
+		err = h.Conductor.FireWebhook(r.Context(), r.PathValue("id"), token, body)
+
+		switch {
+		case err == nil:
+			w.WriteHeader(http.StatusAccepted)
+		case errors.Is(err, conductor.ErrTriggerNotFound):
+			http.Error(w, "not found", http.StatusNotFound)
+		case errors.Is(err, conductor.ErrTriggerUnauthorized):
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+		case errors.Is(err, conductor.ErrTriggerInvalid):
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		case errors.Is(err, conductor.ErrTriggerBusy):
+			w.Header().Set("Retry-After", "60")
+			http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		default:
+			slog.Warn("trigger webhook failed", "trigger", r.PathValue("id"), "error", err)
+			http.Error(w, "the agent couldn't take the event", http.StatusBadGateway)
+		}
+	}
 }

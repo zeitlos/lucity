@@ -279,7 +279,7 @@ const EnvironmentAgentsDocument = graphql(`
             name
           }
         }
-        channels {
+        chat {
           chatApp {
             id
             name
@@ -291,6 +291,18 @@ const EnvironmentAgentsDocument = graphql(`
             id
             name
           }
+        }
+        triggers {
+          id
+          name
+          source
+          schedule
+          timeZone
+          key
+          instructions
+          enabled
+          url
+          lastRunAt
         }
       }
     }

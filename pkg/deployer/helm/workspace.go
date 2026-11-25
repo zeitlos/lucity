@@ -165,9 +165,9 @@ func (w *workspaceClient) SetAgentGrant(ctx context.Context, id platform.AgentID
 	})
 }
 
-func (w *workspaceClient) SetAgentChannels(ctx context.Context, id platform.AgentID, channels []values.AgentChannel) error {
+func (w *workspaceClient) SetAgentChat(ctx context.Context, id platform.AgentID, chat *values.AgentChat) error {
 	return w.client.applyWorkspace(ctx, id.Workspace, func(ws *values.Workspace) error {
-		return values.SetAgentChannels(ws, id, channels)
+		return values.SetAgentChat(ws, id, chat)
 	})
 }
 

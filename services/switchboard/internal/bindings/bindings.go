@@ -1,6 +1,6 @@
 // Package bindings watches what the workspace releases render into
 // switchboard's namespace: a Secret per chat app, and a ConfigMap per agent
-// with the chat channels it talks in.
+// with the chat it talks in.
 package bindings
 
 import (
@@ -83,7 +83,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 		return factory.Core().V1().Secrets().Informer()
 	})
 
-	configMaps := w.informer(ctx, labels.AgentChannels, func(factory informers.SharedInformerFactory) cache.SharedIndexInformer {
+	configMaps := w.informer(ctx, labels.AgentChat, func(factory informers.SharedInformerFactory) cache.SharedIndexInformer {
 		return factory.Core().V1().ConfigMaps().Informer()
 	})
 
@@ -185,25 +185,23 @@ func (w *Watcher) Snapshot() Snapshot {
 		agent, err := platform.ParseAgentID(configMap.Data["agent"])
 
 		if err != nil || agent.Workspace != configMap.Labels[labels.Workspace] {
-			slog.Warn("bindings: skipping agent channels with an invalid agent", "configmap", configMap.Name)
+			slog.Warn("bindings: skipping an agent chat with an invalid agent", "configmap", configMap.Name)
 			continue
 		}
 
-		var channels []struct {
+		var chat struct {
 			ChatApp string `json:"chatApp"`
 			Channel string `json:"channel"`
 			Name    string `json:"name"`
 		}
 
-		if err := json.Unmarshal([]byte(configMap.Data["channels"]), &channels); err != nil {
-			slog.Warn("bindings: skipping unreadable agent channels", "configmap", configMap.Name, "error", err)
+		if err := json.Unmarshal([]byte(configMap.Data["chat"]), &chat); err != nil {
+			slog.Warn("bindings: skipping an unreadable agent chat", "configmap", configMap.Name, "error", err)
 			continue
 		}
 
-		for _, channel := range channels {
-			place := Place{ChatApp: platform.ChatAppID{Workspace: agent.Workspace, Name: channel.ChatApp}, Channel: channel.Channel}
-			snapshot.Bindings[place] = Binding{Agent: agent, Name: channel.Name}
-		}
+		place := Place{ChatApp: platform.ChatAppID{Workspace: agent.Workspace, Name: chat.ChatApp}, Channel: chat.Channel}
+		snapshot.Bindings[place] = Binding{Agent: agent, Name: chat.Name}
 	}
 
 	return snapshot

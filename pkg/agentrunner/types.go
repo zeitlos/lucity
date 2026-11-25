@@ -22,10 +22,10 @@ type Status struct {
 	LastEffort string `json:"lastEffort,omitempty"`
 }
 
-// Origin is the chat a session started in, or a message came through. ChatApp
+// Chat is the chat a session is mirrored to, or a message came through. ChatApp
 // is the chat app's name within the agent's workspace, never a workspace-qualified
 // ID: the runner is untrusted, so the workspace always comes from the agent.
-type Origin struct {
+type Chat struct {
 	ChatApp string `json:"chatApp"`
 	Channel string `json:"channel"`
 	Thread  string `json:"thread,omitempty"`
@@ -39,7 +39,9 @@ type Session struct {
 	Model     Model     `json:"model"`
 	Effort    string    `json:"effort"`
 	Status    string    `json:"status"`
-	Origin    *Origin   `json:"origin,omitempty"`
+	Chat      *Chat     `json:"chat,omitempty"`
+	Key       string    `json:"key,omitempty"`
+	LastEvent string    `json:"lastEvent,omitempty"`
 	Events    []Event   `json:"events,omitempty"`
 }
 
@@ -49,7 +51,7 @@ type Event struct {
 	Type     string    `json:"type"`
 	Text     string    `json:"text,omitempty"`
 	Author   string    `json:"author,omitempty"`
-	Via      *Origin   `json:"via,omitempty"`
+	Via      *Chat     `json:"via,omitempty"`
 	ToolCall *ToolCall `json:"toolCall,omitempty"`
 	Approval *Approval `json:"approval,omitempty"`
 	Notice   *Notice   `json:"notice,omitempty"`
@@ -110,6 +112,7 @@ const (
 	maxNameLen    = 256
 	maxRefLen     = 128
 	maxUserIDLen  = 128
+	maxKeyLen     = 256
 	maxAPIMessage = 300
 )
 
@@ -193,16 +196,16 @@ func sanitizeModel(model *Model) bool {
 	return isRef(model.Provider, maxNameLen) && oneOf(model.API, modelAPIs) && isRef(model.Name, maxNameLen)
 }
 
-func sanitizeOrigin(origin *Origin) *Origin {
-	if origin == nil || !isRef(origin.ChatApp, maxNameLen) || !isRef(origin.Channel, maxRefLen) {
+func sanitizeChat(chat *Chat) *Chat {
+	if chat == nil || !isRef(chat.ChatApp, maxNameLen) || !isRef(chat.Channel, maxRefLen) {
 		return nil
 	}
 
-	if !isRef(origin.Thread, maxRefLen) {
-		origin.Thread = ""
+	if !isRef(chat.Thread, maxRefLen) {
+		chat.Thread = ""
 	}
 
-	return origin
+	return chat
 }
 
 func sanitizeSession(session *Session) bool {
@@ -216,7 +219,15 @@ func sanitizeSession(session *Session) bool {
 		session.StartedBy = ""
 	}
 
-	session.Origin = sanitizeOrigin(session.Origin)
+	session.Chat = sanitizeChat(session.Chat)
+
+	if !isRef(session.Key, maxKeyLen) {
+		session.Key = ""
+	}
+
+	if !platform.IsValidSessionName(session.LastEvent) {
+		session.LastEvent = ""
+	}
 
 	events := session.Events[:0]
 
@@ -245,7 +256,7 @@ func sanitizeEvent(event *Event) bool {
 	}
 
 	if event.Type == EventUserMessage {
-		event.Via = sanitizeOrigin(event.Via)
+		event.Via = sanitizeChat(event.Via)
 	} else {
 		event.Via = nil
 	}

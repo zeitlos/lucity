@@ -46,10 +46,10 @@
 #     connectors: [linear]
 #     hiddenTools:
 #       linear: [delete_issue]
-#     channels:                                # chats the agent talks in, one agent per chat
-#       - chatApp: telegram
-#         channel: "-1001234567890"            # the chat app's own ID of the chat or channel
-#         name: Ops on-call
+#     chat:                                    # the chat the agent talks in, one agent per chat
+#       chatApp: telegram
+#       channel: "-1001234567890"              # the chat app's own ID of the chat or channel
+#       name: Ops on-call
 #
 # Model providers, connectors and agents go through the shared agent gateway,
 # which only reads routes, backends, policies and credentials from its own
@@ -59,8 +59,8 @@
 # /<workspace>/models/<name>/ and /<workspace>/connectors/<name>/. Every agent
 # becomes a key entry the gateway authenticates against.
 #
-# Chat apps and agent channels don't go through the gateway. Each chat app
-# becomes a Secret and each agent with channels a ConfigMap in switchboard's
+# Chat apps and agent chats don't go through the gateway. Each chat app
+# becomes a Secret and each agent with a chat a ConfigMap in switchboard's
 # namespace, so switchboard never reads the gateway's credentials.
 
 workspace: ""

@@ -196,7 +196,7 @@ async function handleDelete() {
         </div>
         <ConfirmDialog
           :title="`Delete chat app &quot;${app.name}&quot;?`"
-          description="Its token is deleted, and every agent's channels in it are removed. This can't be undone."
+          description="Its token is deleted, and agents that talk in it lose their channel. This can't be undone."
           confirm-label="Delete chat app"
           pending-label="Deleting…"
           :pending="deleting"

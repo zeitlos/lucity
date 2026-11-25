@@ -105,6 +105,22 @@
 #     storage:
 #       size: 10Gi
 #     resources: {}
+#     triggers:                                # start sessions on their own, keyed by trigger id
+#       q7m2xk4p9a:
+#         name: Platform alerts
+#         source: webhook                      # schedule | webhook
+#         tokenHash: sha256:<hex of the webhook token>
+#         key: groupKey                        # events with the same value continue one session
+#         instructions: |
+#           Find out what the alert is about, read-only.
+#         enabled: true
+#       b3n8w1c6tz:
+#         name: Midday status
+#         source: schedule
+#         schedule: "0 12 * * 1-5"             # cron
+#         timeZone: Europe/Zurich
+#         instructions: Post a short status of production.
+#         enabled: true
 
 nameOverride: ""
 fullnameOverride: ""

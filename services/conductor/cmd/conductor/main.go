@@ -13,6 +13,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/zeitlos/lucity/charts"
 	"github.com/zeitlos/lucity/pkg/agentrunner"
+	"github.com/zeitlos/lucity/pkg/agenttrigger"
 	helmDeployer "github.com/zeitlos/lucity/pkg/deployer/helm"
 	"github.com/zeitlos/lucity/pkg/deployer/values"
 	"github.com/zeitlos/lucity/pkg/domains"
@@ -575,10 +576,11 @@ func main() {
 	}
 
 	agentAuditClient := agentaudit.New(config.VictoriaLogsURL, config.AgentsNamespace)
+	agentTriggerClient := agenttrigger.New(k8sClient, agentRunnerClient, deployerClient.Workspaces())
 
 	registry := prometheus.NewRegistry()
 
-	conductor := conductor.New(billingClient, githubApp, logtoClient, directoryClient, platformClient, cachedPlatform, changes, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, vulnerabilitiesClient, pipelineClient, planner, source, hostnameClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, usageClient, domainsClient, upstream.New(), agentRunnerClient, agentAuditClient, servicelogs.New(config.VictoriaLogsURL), conductorConfig, registry)
+	conductor := conductor.New(billingClient, githubApp, logtoClient, directoryClient, platformClient, cachedPlatform, changes, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, vulnerabilitiesClient, pipelineClient, planner, source, hostnameClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, usageClient, domainsClient, upstream.New(), agentRunnerClient, agentTriggerClient, agentAuditClient, servicelogs.New(config.VictoriaLogsURL), conductorConfig, registry)
 
 	platformClient.Start(ctx)
 	cachedClients.Start(ctx)

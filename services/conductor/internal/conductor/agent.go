@@ -19,7 +19,8 @@ type Agent struct {
 	Harness        values.Harness
 	Instructions   string
 	Connectors     []AgentConnector
-	Channels       []AgentChannel
+	Chat           *AgentChat
+	Triggers       []AgentTrigger
 	AllowedHosts   []string
 	PrivateNetwork bool
 }
@@ -194,7 +195,8 @@ func toAgent(id AgentID, agent values.Agent, ws *values.Workspace) Agent {
 		Harness:        agent.Harness,
 		Instructions:   agent.Instructions,
 		Connectors:     connectors,
-		Channels:       toAgentChannels(id, grant, ws),
+		Chat:           toAgentChat(id, grant, ws),
+		Triggers:       toAgentTriggers(id, agent),
 		AllowedHosts:   slices.Clone(agent.Network.AllowedHosts),
 		PrivateNetwork: agent.Network.PrivateNetwork,
 	}

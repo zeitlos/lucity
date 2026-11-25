@@ -163,6 +163,10 @@ func responseError(code int, data []byte) error {
 		return ErrUnreachable
 	}
 
+	if code == http.StatusConflict && json.Unmarshal(data, &body) == nil && body.Error != "" {
+		return conflictError{usererror.Errorf("the agent says: %s", printable(body.Error))}
+	}
+
 	if code >= 400 && code < 500 && json.Unmarshal(data, &body) == nil && body.Error != "" {
 		return usererror.Errorf("the agent says: %s", printable(body.Error))
 	}
@@ -224,12 +228,16 @@ func (c *Client) Session(ctx context.Context, id platform.AgentSessionID) (*Sess
 	return c.session(ctx, id.Agent, http.MethodGet, []string{"sessions", id.Session}, nil, maxSessionBody)
 }
 
+// StartRequest starts a session. Title and Key are optional, and so are Model
+// and Effort: the runner then takes the ones it used last.
 type StartRequest struct {
-	Message   string  `json:"message"`
-	Model     *Model  `json:"model,omitempty"`
-	Effort    string  `json:"effort,omitempty"`
-	StartedBy string  `json:"startedBy"`
-	Origin    *Origin `json:"origin,omitempty"`
+	Message   string `json:"message"`
+	Model     *Model `json:"model,omitempty"`
+	Effort    string `json:"effort,omitempty"`
+	StartedBy string `json:"startedBy"`
+	Title     string `json:"title,omitempty"`
+	Key       string `json:"key,omitempty"`
+	Chat      *Chat  `json:"chat,omitempty"`
 }
 
 func (c *Client) StartSession(ctx context.Context, agent platform.AgentID, request StartRequest) (*Session, error) {
@@ -238,12 +246,17 @@ func (c *Client) StartSession(ctx context.Context, agent platform.AgentID, reque
 
 // SendMessage sends a message to a session. via is the chat it came through,
 // or nil for one sent in Lucity.
-func (c *Client) SendMessage(ctx context.Context, id platform.AgentSessionID, message, author string, via *Origin) (*Session, error) {
+func (c *Client) SendMessage(ctx context.Context, id platform.AgentSessionID, message, author string, via *Chat) (*Session, error) {
 	return c.session(ctx, id.Agent, http.MethodPost, []string{"sessions", id.Session, "messages"}, map[string]any{"message": message, "author": author, "via": via}, maxBody)
 }
 
 func (c *Client) SetModel(ctx context.Context, id platform.AgentSessionID, model Model, effort string) (*Session, error) {
 	return c.session(ctx, id.Agent, http.MethodPost, []string{"sessions", id.Session, "model"}, map[string]any{"model": model, "effort": effort}, maxBody)
+}
+
+// SetChat sets the chat a session is mirrored to.
+func (c *Client) SetChat(ctx context.Context, id platform.AgentSessionID, chat Chat) (*Session, error) {
+	return c.session(ctx, id.Agent, http.MethodPost, []string{"sessions", id.Session, "chat"}, chat, maxBody)
 }
 
 func (c *Client) AnswerApproval(ctx context.Context, id platform.AgentSessionID, approval, decision, decidedBy string) (*Session, error) {

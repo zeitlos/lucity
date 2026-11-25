@@ -75,6 +75,7 @@ const (
 
 const (
 	maxMessage = 256 << 10
+	maxKey     = 256
 	maxTool    = 64 << 10
 )
 
@@ -82,9 +83,9 @@ var efforts = []string{"low", "medium", "high", "max"}
 
 type Model = harness.Model
 
-// Origin is the chat a session started in, or a message came through: a chat
-// app of the agent's workspace, a channel in it and the thread there.
-type Origin struct {
+// Chat is a chat app of the agent's workspace, a channel in it and the thread
+// there: where a session is mirrored, or where a message came through.
+type Chat struct {
 	ChatApp string `json:"chatApp"`
 	Channel string `json:"channel"`
 	Thread  string `json:"thread,omitempty"`
@@ -97,13 +98,29 @@ type Session struct {
 	StartedAt        time.Time `json:"startedAt"`
 	Model            Model     `json:"model"`
 	Effort           string    `json:"effort,omitempty"`
-	Origin           *Origin   `json:"origin,omitempty"`
+	Chat             *Chat     `json:"chat,omitempty"`
+	Key              string    `json:"key,omitempty"`
 	HarnessSessionID string    `json:"harnessSessionId,omitempty"`
 }
 
+// Start is what a new session begins with. Title and Key are optional: the
+// title defaults to the first line of the message.
+type Start struct {
+	Message   string `json:"message"`
+	Model     *Model `json:"model"`
+	Effort    string `json:"effort"`
+	StartedBy string `json:"startedBy"`
+	Title     string `json:"title"`
+	Key       string `json:"key"`
+	Chat      *Chat  `json:"chat"`
+}
+
+// SessionStatus is a session with its status and its last event, which is 0
+// for a session nothing happened in since the runner started.
 type SessionStatus struct {
 	Session
-	Status string `json:"status"`
+	Status    string `json:"status"`
+	LastEvent int64  `json:"lastEvent,string,omitempty"`
 }
 
 type SessionDetail struct {
@@ -125,7 +142,7 @@ type Event struct {
 	Type     string    `json:"type"`
 	Text     string    `json:"text,omitempty"`
 	Author   string    `json:"author,omitempty"`
-	Via      *Origin   `json:"via,omitempty"`
+	Via      *Chat     `json:"via,omitempty"`
 	ToolCall *ToolCall `json:"toolCall,omitempty"`
 	Approval *Approval `json:"approval,omitempty"`
 	Notice   *Notice   `json:"notice,omitempty"`

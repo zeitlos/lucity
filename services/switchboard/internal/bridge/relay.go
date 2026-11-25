@@ -3,6 +3,7 @@ package bridge
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -28,13 +29,16 @@ func (b *Bridge) relay(id platform.AgentSessionID, at thread, after string) {
 		return
 	}
 
+	chatBot := b.bot(at.place.ChatApp)
+
 	r := relayState{
-		bridge: b,
-		id:     id,
-		at:     at,
-		origin: at.origin(),
-		calls:  map[string]agentrunner.ToolCall{},
-		cards:  map[string]string{},
+		bridge:  b,
+		id:      id,
+		at:      at,
+		pending: at.thread == "" && chatBot != nil && chatBot.threads(),
+		opening: after == "",
+		calls:   map[string]agentrunner.ToolCall{},
+		cards:   map[string]string{},
 	}
 
 	idle := time.NewTimer(followIdle)
@@ -55,7 +59,12 @@ func (b *Bridge) relay(id platform.AgentSessionID, at thread, after string) {
 				return
 			}
 
-			r.handle(ctx, event)
+			if err := r.handle(ctx, event); err != nil {
+				slog.Error("bridge: stopped following a session", "session", id, "error", err)
+				return
+			}
+
+			b.setCursor(id, event.ID)
 
 			if !idle.Stop() {
 				select {
@@ -70,10 +79,12 @@ func (b *Bridge) relay(id platform.AgentSessionID, at thread, after string) {
 }
 
 type relayState struct {
-	bridge *Bridge
-	id     platform.AgentSessionID
-	at     thread
-	origin agentrunner.Origin
+	bridge  *Bridge
+	id      platform.AgentSessionID
+	at      thread
+	pending bool
+	opening bool
+	title   string
 
 	turn   bool
 	status string
@@ -83,38 +94,60 @@ type relayState struct {
 	cards  map[string]string
 }
 
-func (r *relayState) handle(ctx context.Context, event agentrunner.Event) {
+func (r *relayState) handle(ctx context.Context, event agentrunner.Event) error {
 	chatBot := r.bridge.bot(r.at.place.ChatApp)
 
 	if chatBot == nil {
-		return
+		return nil
 	}
 
 	r.turn = event.Type != agentrunner.EventTurnEnd
 
 	switch event.Type {
 	case agentrunner.EventUserMessage:
-		if event.Via != nil {
-			return
+		opening := r.opening
+		r.opening = false
+
+		if event.Via != nil || r.pending {
+			return nil
+		}
+
+		if _, ok := agentrunner.ActorTrigger(event.Author); ok {
+			if opening {
+				return nil
+			}
+
+			title, err := r.sessionTitle(ctx)
+
+			if err != nil {
+				return err
+			}
+
+			chatBot.say(ctx, r.at, title+": new event")
+
+			return nil
 		}
 
 		name := r.bridge.memberName(ctx, r.id.Agent.Workspace, event.Author)
 		chatBot.say(ctx, r.at, name+" in Lucity: "+event.Text)
 	case agentrunner.EventMessage:
 		if strings.TrimSpace(event.Text) != "" {
-			chatBot.say(ctx, r.at, event.Text)
+			return r.post(ctx, chatBot, event.Text)
 		}
 	case agentrunner.EventToolCall:
 		call := *event.ToolCall
 
 		if _, seen := r.calls[call.CallID]; !seen {
 			r.steps++
-			r.status = chatBot.status(ctx, r.at, r.status, "Working · "+steps(r.steps)+" · "+truncate(call.Title, 160))
+
+			if !r.pending {
+				r.status = chatBot.status(ctx, r.at, r.status, "Working · "+steps(r.steps)+" · "+truncate(call.Title, 160))
+			}
 		}
 
 		r.calls[call.CallID] = call
 
-		if time.Since(r.typed) > typingEvery {
+		if !r.pending && time.Since(r.typed) > typingEvery {
 			r.typed = time.Now()
 			chatBot.typing(ctx, r.at)
 		}
@@ -130,13 +163,13 @@ func (r *relayState) handle(ctx context.Context, event agentrunner.Event) {
 
 		if approval.Status == "pending" {
 			r.cards[approval.ApprovalID] = chatBot.ask(ctx, r.at, request)
-			return
+			return nil
 		}
 
 		card, ok := r.cards[approval.ApprovalID]
 
 		if !ok {
-			return
+			return nil
 		}
 
 		delete(r.cards, approval.ApprovalID)
@@ -148,7 +181,7 @@ func (r *relayState) handle(ctx context.Context, event agentrunner.Event) {
 			text += ": " + event.Notice.Description
 		}
 
-		chatBot.say(ctx, r.at, text)
+		return r.post(ctx, chatBot, text)
 	case agentrunner.EventTurnEnd:
 		end := event.TurnEnd
 
@@ -163,13 +196,76 @@ func (r *relayState) handle(ctx context.Context, event agentrunner.Event) {
 			}
 		}
 
-		if end.Reason == "failed" && end.Error != "" {
-			chatBot.say(ctx, r.at, "The turn failed: "+end.Error)
-		}
-
 		r.status = ""
 		r.steps = 0
+
+		if end.Reason == "failed" && end.Error != "" {
+			return r.post(ctx, chatBot, "The turn failed: "+end.Error)
+		}
 	}
+
+	return nil
+}
+
+// post says text in the session's thread, or starts the thread with it when
+// the session has none yet.
+func (r *relayState) post(ctx context.Context, chatBot bot, text string) error {
+	if !r.pending {
+		chatBot.say(ctx, r.at, text)
+		return nil
+	}
+
+	thread := chatBot.root(ctx, r.at, text)
+
+	if thread == "" {
+		return errors.New("the thread's first post failed")
+	}
+
+	return r.adopt(ctx, thread)
+}
+
+// adopt makes thread the session's thread, and tells the runner, so replies
+// there and later relays find the session.
+func (r *relayState) adopt(ctx context.Context, thread string) error {
+	link := r.at.chat()
+	link.Thread = thread
+
+	callCtx, cancel := context.WithTimeout(ctx, callTimeout)
+	_, err := r.bridge.runner.SetChat(callCtx, r.id, link)
+	cancel()
+
+	if err != nil {
+		return fmt.Errorf("saving the session's thread: %w", err)
+	}
+
+	r.pending = false
+	r.at.thread = thread
+
+	r.bridge.mu.Lock()
+	r.bridge.sessions[sessionKey{agent: r.id.Agent, chat: link}] = r.id.Session
+	r.bridge.mu.Unlock()
+
+	return nil
+}
+
+// sessionTitle is the session's title: for a trigger's session, the trigger's
+// name.
+func (r *relayState) sessionTitle(ctx context.Context) (string, error) {
+	if r.title != "" {
+		return r.title, nil
+	}
+
+	callCtx, cancel := context.WithTimeout(ctx, callTimeout)
+	session, err := r.bridge.runner.Session(callCtx, r.id)
+	cancel()
+
+	if err != nil {
+		return "", fmt.Errorf("reading the session's title: %w", err)
+	}
+
+	r.title = session.Title
+
+	return r.title, nil
 }
 
 func (r *relayState) outcome(ctx context.Context, approval *agentrunner.Approval) string {

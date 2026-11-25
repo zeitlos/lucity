@@ -34,6 +34,7 @@ func New(address string, r *runner.Runner) *Server {
 	mux.HandleFunc("GET /sessions/{id}/events", s.events)
 	mux.HandleFunc("POST /sessions/{id}/messages", s.send)
 	mux.HandleFunc("POST /sessions/{id}/model", s.model)
+	mux.HandleFunc("POST /sessions/{id}/chat", s.chat)
 	mux.HandleFunc("POST /sessions/{id}/approvals/{approvalID}", s.answer)
 	mux.HandleFunc("POST /sessions/{id}/stop", s.stop)
 
@@ -77,17 +78,11 @@ func (s *Server) session(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) create(w http.ResponseWriter, r *http.Request) {
-	var request struct {
-		Message   string         `json:"message"`
-		Model     *runner.Model  `json:"model"`
-		Effort    string         `json:"effort"`
-		StartedBy string         `json:"startedBy"`
-		Origin    *runner.Origin `json:"origin"`
-	}
+	var request runner.Start
 	if !decode(w, r, &request) {
 		return
 	}
-	session, err := s.runner.Create(r.Context(), request.Message, request.Model, request.Effort, request.StartedBy, request.Origin)
+	session, err := s.runner.Create(r.Context(), request)
 	if err != nil {
 		fail(w, err)
 		return
@@ -97,9 +92,9 @@ func (s *Server) create(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) send(w http.ResponseWriter, r *http.Request) {
 	var request struct {
-		Message string         `json:"message"`
-		Author  string         `json:"author"`
-		Via     *runner.Origin `json:"via"`
+		Message string       `json:"message"`
+		Author  string       `json:"author"`
+		Via     *runner.Chat `json:"via"`
 	}
 	if !decode(w, r, &request) {
 		return
@@ -121,6 +116,19 @@ func (s *Server) model(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	session, err := s.runner.SetModel(r.Context(), r.PathValue("id"), request.Model, request.Effort)
+	if err != nil {
+		fail(w, err)
+		return
+	}
+	respond(w, http.StatusOK, session)
+}
+
+func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
+	var request runner.Chat
+	if !decode(w, r, &request) {
+		return
+	}
+	session, err := s.runner.SetChat(r.PathValue("id"), request)
 	if err != nil {
 		fail(w, err)
 		return

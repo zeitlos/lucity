@@ -25,7 +25,8 @@ const (
 	Agent               = Prefix + "agent"
 	AgentKey            = Prefix + "agent-key"
 	ChatApp             = Prefix + "chat-app"
-	AgentChannels       = Prefix + "agent-channels"
+	AgentChat           = Prefix + "agent-chat"
+	AgentTrigger        = Prefix + "agent-trigger"
 )
 
 // Annotation keys for readable names. A resource without one is named by its id.

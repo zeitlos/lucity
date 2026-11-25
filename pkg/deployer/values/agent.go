@@ -36,7 +36,29 @@ type Agent struct {
 	Network      AgentNetwork              `yaml:"network"`
 	Storage      AgentStorage              `yaml:"storage"`
 	Resources    Resources                 `yaml:"resources,omitempty"`
+	Triggers     map[string]AgentTrigger   `yaml:"triggers,omitempty"`
 }
+
+// AgentTrigger starts sessions of an agent on its own: on a cron schedule in a
+// time zone, or when a webhook with its token is called. Events with the same
+// value in the body's Key field continue one session.
+type AgentTrigger struct {
+	Name         string        `yaml:"name" json:"name"`
+	Source       TriggerSource `yaml:"source" json:"source"`
+	Schedule     string        `yaml:"schedule,omitempty" json:"schedule,omitempty"`
+	TimeZone     string        `yaml:"timeZone,omitempty" json:"timeZone,omitempty"`
+	TokenHash    string        `yaml:"tokenHash,omitempty" json:"tokenHash,omitempty"`
+	Key          string        `yaml:"key,omitempty" json:"key,omitempty"`
+	Instructions string        `yaml:"instructions" json:"instructions"`
+	Enabled      bool          `yaml:"enabled" json:"enabled"`
+}
+
+type TriggerSource string
+
+const (
+	TriggerSchedule TriggerSource = "schedule"
+	TriggerWebhook  TriggerSource = "webhook"
+)
 
 type Harness string
 
@@ -74,6 +96,7 @@ const (
 
 var (
 	agentKeyRe     = regexp.MustCompile(`^[A-Za-z0-9_-]{32,128}$`)
+	triggerIDRe    = regexp.MustCompile(`^[a-z0-9]{1,32}$`)
 	minAgentVolume = resource.MustParse("1Gi")
 	maxAgentVolume = resource.MustParse("100Gi")
 )
@@ -114,6 +137,30 @@ func SetAgentConnectors(env *Env, name string, connectors map[string]AgentConnec
 func SetAgentNetwork(env *Env, name string, network AgentNetwork) error {
 	return mutateAgent(env, name, func(a *Agent) {
 		a.Network = AgentNetwork{AllowedHosts: slices.Clone(network.AllowedHosts), PrivateNetwork: network.PrivateNetwork}
+	})
+}
+
+// SetAgentTrigger adds or replaces one trigger of an agent.
+func SetAgentTrigger(env *Env, name, id string, trigger AgentTrigger) error {
+	return mutateAgent(env, name, func(a *Agent) {
+		triggers := maps.Clone(a.Triggers)
+
+		if triggers == nil {
+			triggers = map[string]AgentTrigger{}
+		}
+
+		triggers[id] = trigger
+		a.Triggers = triggers
+	})
+}
+
+// DeleteAgentTrigger removes one trigger of an agent. A trigger that is
+// already gone is not an error.
+func DeleteAgentTrigger(env *Env, name, id string) error {
+	return mutateAgent(env, name, func(a *Agent) {
+		triggers := maps.Clone(a.Triggers)
+		delete(triggers, id)
+		a.Triggers = triggers
 	})
 }
 
@@ -205,10 +252,24 @@ func validateAgents(env *Env) error {
 			return usererror.Errorf("agent %q: %v", name, err)
 		}
 
+		if err := validateTriggers(agent.Triggers); err != nil {
+			return usererror.Errorf("agent %q: %v", name, err)
+		}
+
 		size, err := resource.ParseQuantity(agent.Storage.Size)
 
 		if err != nil || size.Cmp(minAgentVolume) < 0 || size.Cmp(maxAgentVolume) > 0 {
 			return usererror.Errorf("agent %q: storage must be between %s and %s", name, minAgentVolume.String(), maxAgentVolume.String())
+		}
+	}
+
+	return nil
+}
+
+func validateTriggers(triggers map[string]AgentTrigger) error {
+	for id := range triggers {
+		if !triggerIDRe.MatchString(id) {
+			return fmt.Errorf("invalid trigger id %q", id)
 		}
 	}
 

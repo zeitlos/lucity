@@ -12,12 +12,16 @@ export interface SessionMember {
   email: string;
 }
 
+export type SessionActor =
+  | ({ __typename: 'WorkspaceMember' } & SessionMember)
+  | { __typename: 'AgentTrigger'; triggerId: string; triggerName: string };
+
 export interface UserMessageEvent {
   __typename: 'AgentUserMessage';
   id: string;
   time: string;
   text: string;
-  author?: SessionMember | null;
+  author?: SessionActor | null;
   via?: SessionOrigin | null;
 }
 
@@ -90,6 +94,12 @@ export type TranscriptBlock =
 
 export function memberName(member?: SessionMember | null): string {
   return member?.name || member?.email || 'A former member';
+}
+
+export function actorName(actor?: SessionActor | null): string {
+  if (!actor) return 'A former member or deleted trigger';
+  if (actor.__typename === 'AgentTrigger') return actor.triggerName;
+  return memberName(actor);
 }
 
 function eventKey(event: SessionEvent): string {

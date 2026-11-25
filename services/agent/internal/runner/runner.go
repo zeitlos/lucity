@@ -168,11 +168,11 @@ func (r *Runner) Sessions() []SessionStatus {
 	defer r.mu.Unlock()
 	sessions := make([]SessionStatus, 0, len(records))
 	for _, record := range records {
-		status := StatusIdle
 		if s, ok := r.sessions[record.ID]; ok {
-			status = s.status()
+			sessions = append(sessions, s.snapshot())
+			continue
 		}
-		sessions = append(sessions, SessionStatus{Session: record, Status: status})
+		sessions = append(sessions, SessionStatus{Session: record, Status: StatusIdle})
 	}
 	return sessions
 }
@@ -185,12 +185,22 @@ func (r *Runner) Session(id string) (SessionDetail, error) {
 	return s.detail(), nil
 }
 
-func (r *Runner) Create(ctx context.Context, message string, model *Model, effort, startedBy string, origin *Origin) (SessionStatus, error) {
+func (r *Runner) Create(ctx context.Context, start Start) (SessionStatus, error) {
+	message := start.Message
+	model := start.Model
+	effort := start.Effort
 	if err := validate(message, effort); err != nil {
 		return SessionStatus{}, err
 	}
-	if err := validateOrigin(origin); err != nil {
+	if err := validateChat(start.Chat); err != nil {
 		return SessionStatus{}, err
+	}
+	if len(start.Key) > maxKey {
+		return SessionStatus{}, InvalidError{fmt.Errorf("key is longer than %d bytes", maxKey)}
+	}
+	sessionTitle := title(message)
+	if strings.TrimSpace(start.Title) != "" {
+		sessionTitle = title(start.Title)
 	}
 	lastModel, lastEffort := r.store.defaults()
 	if model == nil {
@@ -223,12 +233,13 @@ func (r *Runner) Create(ctx context.Context, message string, model *Model, effor
 
 	s := newSession(Session{
 		ID:               rand.Text(),
-		Title:            title(message),
-		StartedBy:        startedBy,
+		Title:            sessionTitle,
+		StartedBy:        start.StartedBy,
 		StartedAt:        time.Now().UTC(),
 		Model:            *model,
 		Effort:           effort,
-		Origin:           origin,
+		Chat:             start.Chat,
+		Key:              start.Key,
 		HarnessSessionID: created.ID,
 	}, nil)
 	r.register(s)
@@ -248,17 +259,17 @@ func (r *Runner) Create(ctx context.Context, message string, model *Model, effor
 		r.unregister(s)
 		return SessionStatus{}, err
 	}
-	if err := r.prompt(s, client, message, startedBy, origin); err != nil {
+	if err := r.prompt(s, client, message, start.StartedBy, start.Chat); err != nil {
 		return SessionStatus{}, err
 	}
 	return s.snapshot(), nil
 }
 
-func (r *Runner) Send(ctx context.Context, id, message, author string, via *Origin) (SessionStatus, error) {
+func (r *Runner) Send(ctx context.Context, id, message, author string, via *Chat) (SessionStatus, error) {
 	if err := validate(message, ""); err != nil {
 		return SessionStatus{}, err
 	}
-	if err := validateOrigin(via); err != nil {
+	if err := validateChat(via); err != nil {
 		return SessionStatus{}, err
 	}
 	s, err := r.session(id)
@@ -384,6 +395,26 @@ func (r *Runner) Answer(id, approvalID, outcome, decidedBy string) (SessionStatu
 	select {
 	case <-recorded:
 	case <-time.After(5 * time.Second):
+	}
+	return s.snapshot(), nil
+}
+
+// SetChat sets the chat a session is mirrored to, like the thread switchboard
+// created for it.
+func (r *Runner) SetChat(id string, chat Chat) (SessionStatus, error) {
+	if err := validateChat(&chat); err != nil {
+		return SessionStatus{}, err
+	}
+	s, err := r.session(id)
+	if err != nil {
+		return SessionStatus{}, err
+	}
+	s.mu.Lock()
+	s.record.Chat = &chat
+	record := s.record
+	s.mu.Unlock()
+	if err := r.store.save(record); err != nil {
+		return SessionStatus{}, err
 	}
 	return s.snapshot(), nil
 }
@@ -517,7 +548,7 @@ func (r *Runner) Permission(ctx context.Context, request acp.PermissionRequest) 
 	}
 }
 
-func (r *Runner) prompt(s *session, client *acp.Client, message, author string, via *Origin) error {
+func (r *Runner) prompt(s *session, client *acp.Client, message, author string, via *Chat) error {
 	s.mu.Lock()
 	if s.turn != nil {
 		s.mu.Unlock()
@@ -838,12 +869,12 @@ func validate(message, effort string) error {
 	return nil
 }
 
-func validateOrigin(origin *Origin) error {
-	if origin == nil {
+func validateChat(chat *Chat) error {
+	if chat == nil {
 		return nil
 	}
-	if origin.ChatApp == "" || origin.Channel == "" || len(origin.ChatApp) > 64 || len(origin.Channel) > 128 || len(origin.Thread) > 128 {
-		return InvalidError{errors.New("origin needs a chat app and a channel")}
+	if chat.ChatApp == "" || chat.Channel == "" || len(chat.ChatApp) > 64 || len(chat.Channel) > 128 || len(chat.Thread) > 128 {
+		return InvalidError{errors.New("a chat needs a chat app and a channel")}
 	}
 	return nil
 }

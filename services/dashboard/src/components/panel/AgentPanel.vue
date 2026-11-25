@@ -10,6 +10,7 @@ import AgentAuditTab from './AgentAuditTab.vue';
 import AgentChannelsTab from './AgentChannelsTab.vue';
 import AgentChatTab from './AgentChatTab.vue';
 import AgentSettingsTab from './AgentSettingsTab.vue';
+import AgentTriggersTab from './AgentTriggersTab.vue';
 
 defineProps<{
   agent: Agent;
@@ -36,7 +37,8 @@ const { tab: activeTab, selectTab } = usePanelTab('chat');
           <TabsTrigger value="chat">Chat</TabsTrigger>
           <TabsTrigger value="audit">Audit</TabsTrigger>
           <TabsTrigger value="access">Access</TabsTrigger>
-          <TabsTrigger value="channels">Channels</TabsTrigger>
+          <TabsTrigger value="triggers">Triggers</TabsTrigger>
+          <TabsTrigger value="channels">Channel</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
       </div>
@@ -55,6 +57,10 @@ const { tab: activeTab, selectTab } = usePanelTab('chat');
             :agent="agent"
             :service-names="serviceNames"
           />
+        </TabsContent>
+
+        <TabsContent value="triggers" class="px-4 py-4">
+          <AgentTriggersTab :agent="agent" />
         </TabsContent>
 
         <TabsContent value="channels" class="px-4 py-4">

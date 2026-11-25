@@ -51,6 +51,18 @@ func (a *agentClient) SetNetwork(ctx context.Context, id platform.AgentID, netwo
 	})
 }
 
+func (a *agentClient) SetTrigger(ctx context.Context, id platform.AgentTriggerID, trigger values.AgentTrigger) (deployer.RevisionID, error) {
+	return a.client.applyEnv(ctx, id.Agent.EnvironmentID(), func(e *values.Env) error {
+		return values.SetAgentTrigger(e, id.Agent.Name, id.Trigger, trigger)
+	})
+}
+
+func (a *agentClient) DeleteTrigger(ctx context.Context, id platform.AgentTriggerID) (deployer.RevisionID, error) {
+	return a.client.applyEnv(ctx, id.Agent.EnvironmentID(), func(e *values.Env) error {
+		return values.DeleteAgentTrigger(e, id.Agent.Name, id.Trigger)
+	})
+}
+
 func (a *agentClient) Delete(ctx context.Context, id platform.AgentID) error {
 	_, err := a.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
 		return values.DeleteAgent(e, id.Name)
