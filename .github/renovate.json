@@ -1,0 +1,230 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
+  "timezone": "Europe/Zurich",
+  "schedule": ["before 6am on monday"],
+  "branchPrefix": "feature/renovate/",
+  "labels": ["dependencies"],
+  "prHourlyLimit": 0,
+  "prConcurrentLimit": 20,
+  "configMigration": true,
+  "osvVulnerabilityAlerts": true,
+  "postUpdateOptions": ["gomodTidyAll", "gomodUpdateImportPaths", "helmUpdateSubChartArchives"],
+  "lockFileMaintenance": {
+    "enabled": true
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "The go line of go.work, which the gomod manager does not read",
+      "managerFilePatterns": ["/(^|/)go\\.work$/"],
+      "matchStrings": ["(^|\\n)go (?<currentValue>\\d+\\.\\d+\\.\\d+)"],
+      "depNameTemplate": "go",
+      "depTypeTemplate": "golang",
+      "datasourceTemplate": "golang-version",
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "description": "Literal images in lucity-infra templates",
+      "managerFilePatterns": ["/^charts/lucity-infra/templates/.+\\.ya?ml$/"],
+      "matchStrings": ["image:\\s*\"?(?<depName>[a-z0-9][a-z0-9./_-]*):(?<currentValue>[A-Za-z0-9][A-Za-z0-9._-]*)\"?\\s*\\n"],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "BuildKit image pinned in the eject build script",
+      "managerFilePatterns": ["/^services/conductor/internal/eject/build\\.sh$/"],
+      "matchStrings": ["buildkit_image=(?<depName>moby/buildkit):(?<currentValue>v[0-9.]+)"],
+      "datasourceTemplate": "docker"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchDatasources": ["npm", "go"],
+      "minimumReleaseAge": "3 days"
+    },
+    {
+      "matchUpdateTypes": ["major", "replacement"],
+      "dependencyDashboardApproval": true,
+      "addLabels": ["planned"]
+    },
+    {
+      "matchManagers": ["dockerfile"],
+      "pinDigests": true
+    },
+    {
+      "description": "Internal workspace modules resolve through local replace directives",
+      "matchManagers": ["gomod"],
+      "matchPackageNames": ["github.com/zeitlos/lucity/**"],
+      "enabled": false
+    },
+    {
+      "description": "Moves only with the libraries that require it; newer pseudo-versions switch to structured-merge-diff v7 and break apimachinery",
+      "matchManagers": ["gomod"],
+      "matchPackageNames": ["k8s.io/kube-openapi", "sigs.k8s.io/structured-merge-diff/**"],
+      "enabled": false
+    },
+    {
+      "description": "Platform images are tagged per release by the release workflow",
+      "matchManagers": ["helm-values"],
+      "matchPackageNames": ["ghcr.io/zeitlos/lucity/**"],
+      "enabled": false
+    },
+    {
+      "matchManagers": ["gomod"],
+      "matchDepTypes": ["require"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "go modules non-major"
+    },
+    {
+      "description": "helm and cloudnative-pg require matching k8s.io versions",
+      "matchManagers": ["gomod"],
+      "matchPackageNames": ["k8s.io/**", "sigs.k8s.io/**", "helm.sh/helm/**", "github.com/cloudnative-pg/**"],
+      "groupName": "kubernetes go libraries"
+    },
+    {
+      "matchManagers": ["gomod"],
+      "matchPackageNames": ["k8s.io/**", "sigs.k8s.io/**"],
+      "matchUpdateTypes": ["major", "minor"],
+      "dependencyDashboardApproval": true,
+      "addLabels": ["planned"]
+    },
+    {
+      "matchManagers": ["gomod"],
+      "matchPackageNames": ["github.com/99designs/gqlgen", "github.com/vektah/gqlparser/**"],
+      "groupName": "gqlgen",
+      "prBodyNotes": [
+        "Generated code must be regenerated: run `go generate ./internal/api/graphql/resolver.go` in `services/conductor` and `services/cockpit` (workspace mode) and push the result. CI fails until it matches."
+      ]
+    },
+    {
+      "description": "railpack requires a specific buildkit and fsutil; buildkit pins docker/cli; the daemon image moves with its client",
+      "matchPackageNames": [
+        "github.com/railwayapp/railpack",
+        "github.com/moby/buildkit",
+        "github.com/tonistiigi/fsutil",
+        "github.com/docker/cli",
+        "moby/buildkit"
+      ],
+      "groupName": "build stack",
+      "dependencyDashboardApproval": true,
+      "addLabels": ["planned", "tier:workload"]
+    },
+    {
+      "matchDatasources": ["golang-version"],
+      "rangeStrategy": "bump"
+    },
+    {
+      "description": "The go line only moves with a new minor, so it never runs ahead of the golang image",
+      "matchDatasources": ["golang-version"],
+      "matchUpdateTypes": ["patch"],
+      "enabled": false
+    },
+    {
+      "description": "go.mod, go.work, the golang base image and setup-go move together",
+      "matchDepNames": ["go", "golang"],
+      "matchManagers": ["gomod", "custom.regex", "dockerfile", "github-actions"],
+      "matchUpdateTypes": ["major", "minor", "patch"],
+      "groupName": "go toolchain",
+      "dependencyDashboardApproval": true,
+      "addLabels": ["planned"]
+    },
+    {
+      "matchManagers": ["dockerfile"],
+      "matchUpdateTypes": ["digest", "pinDigest"],
+      "groupName": "base image digests"
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchDepTypes": ["action"],
+      "groupName": "github actions"
+    },
+    {
+      "description": "Harnesses run inside tenant agent pods",
+      "matchFileNames": ["services/agent/harnesses/package.json"],
+      "groupName": "agent harnesses",
+      "dependencyDashboardApproval": true,
+      "addLabels": ["planned", "tier:workload"]
+    },
+    {
+      "description": "Apollo Client 4 needs @vue/apollo-composable 5 (prerelease, peers @vueuse/core ^14); the 4.x composable breaks on Apollo 4",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["@apollo/client"],
+      "allowedVersions": "<4"
+    },
+    {
+      "description": "Apollo Client 3 peers graphql ^15 || ^16; lift together with the Apollo cap",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["graphql"],
+      "allowedVersions": "<17"
+    },
+    {
+      "description": "TypeScript 7 ships no JS compiler API: vue-tsc, @vue/compiler-sfc and typescript-eslint break",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["typescript"],
+      "allowedVersions": "<7"
+    },
+    {
+      "matchFileNames": ["services/dashboard/package.json"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "dashboard npm non-major"
+    },
+    {
+      "matchFileNames": ["docs/package.json"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "docs npm non-major"
+    },
+    {
+      "description": "The 2.1.2 pin shapes llms-full.txt escaping; check the output before moving it",
+      "matchFileNames": ["docs/package.json"],
+      "matchDepTypes": ["overrides"],
+      "matchPackageNames": ["mdast-util-to-markdown"],
+      "groupName": null,
+      "dependencyDashboardApproval": true,
+      "addLabels": ["planned"]
+    },
+    {
+      "description": "A fresh docs lockfile fails on an esbuild peer conflict and pulls a docus release that breaks prerendering",
+      "matchFileNames": ["docs/package.json"],
+      "matchUpdateTypes": ["lockFileMaintenance"],
+      "enabled": false
+    },
+    {
+      "description": "Operator and backup plugin release together; a plugin bump rolls every Postgres pod",
+      "matchManagers": ["helmv3"],
+      "matchDepNames": ["cloudnative-pg", "plugin-barman-cloud"],
+      "groupName": "cloudnative-pg",
+      "dependencyDashboardApproval": true,
+      "addLabels": ["planned"]
+    },
+    {
+      "description": "Same tag for both; CRDs first",
+      "matchManagers": ["helmv3"],
+      "matchDepNames": ["agentgateway", "agentgateway-crds"],
+      "groupName": "agentgateway"
+    },
+    {
+      "description": "traefik keeps its CRDs in crds/, which upgrades skip; zot is a single-replica registry, so every bump is a registry outage",
+      "matchManagers": ["helmv3"],
+      "matchDepNames": ["traefik", "zot"],
+      "dependencyDashboardApproval": true,
+      "addLabels": ["planned"]
+    },
+    {
+      "matchPackageNames": ["ghcr.io/rybbit-io/rybbit-backend", "ghcr.io/rybbit-io/rybbit-client"],
+      "groupName": "rybbit"
+    },
+    {
+      "description": "Logto runs schema migrations on rollout; ClickHouse has no backup",
+      "matchPackageNames": ["ghcr.io/logto-io/logto", "clickhouse/clickhouse-server"],
+      "dependencyDashboardApproval": true,
+      "addLabels": ["planned"]
+    },
+    {
+      "description": "LTS releases only",
+      "matchPackageNames": ["clickhouse/clickhouse-server"],
+      "allowedVersions": "/^\\d+\\.(3|8)\\.\\d+\\.\\d+$/"
+    }
+  ]
+}

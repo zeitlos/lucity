@@ -1,6 +1,4 @@
-ARG GO_VERSION=1.27
-
-FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS builder
 
 WORKDIR /workspace
 ENV GOWORK=off
@@ -22,7 +20,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 # debian-slim (not distroless) because the build runner shells out
 # to git for cloning user source repos and the BuildKit client embeds
 # CGO-friendly code paths in some transitive deps.
-FROM ghcr.io/gitleaks/gitleaks:latest AS gitleaks
+FROM ghcr.io/gitleaks/gitleaks:v8.30.1 AS gitleaks
 FROM trufflesecurity/trufflehog:3.99.7 AS trufflehog
 
 FROM debian:bookworm-slim

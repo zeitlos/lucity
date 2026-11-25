@@ -1,0 +1,297 @@
+name: CI
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    if: >-
+      startsWith(github.head_ref, 'feature/') ||
+      startsWith(github.head_ref, 'bugfix/') ||
+      startsWith(github.head_ref, 'hotfix/') ||
+      startsWith(github.head_ref, 'release/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      go: ${{ steps.filter.outputs.go }}
+      cockpit: ${{ steps.filter.outputs.cockpit }}
+      dashboard: ${{ steps.filter.outputs.dashboard }}
+      docs: ${{ steps.filter.outputs.docs }}
+      charts: ${{ steps.filter.outputs.charts }}
+      images: ${{ steps.images.outputs.changes }}
+    steps:
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            go:
+              - '**/*.go'
+              - '**/go.mod'
+              - '**/go.sum'
+              - 'go.work'
+              - 'go.work.sum'
+              - 'charts/**'
+              - 'services/conductor/internal/api/graphql/**'
+              - '.github/workflows/ci.yml'
+            cockpit:
+              - 'services/cockpit/**'
+              - 'pkg/**'
+              - 'go.work'
+              - 'go.work.sum'
+              - '.github/workflows/ci.yml'
+            dashboard:
+              - 'services/dashboard/**'
+              - 'services/conductor/internal/api/graphql/schema/**'
+              - '.github/workflows/ci.yml'
+            docs:
+              - 'docs/**'
+              - '.github/workflows/ci.yml'
+            charts:
+              - 'charts/**'
+              - 'deployments/**'
+              - '.github/workflows/ci.yml'
+      - uses: dorny/paths-filter@v3
+        id: images
+        with:
+          filters: |
+            conductor:
+              - 'services/conductor/**'
+              - 'pkg/**'
+              - 'charts/**'
+              - '.github/workflows/ci.yml'
+            stagehand:
+              - 'services/stagehand/**'
+              - 'pkg/**'
+              - 'charts/**'
+              - '.github/workflows/ci.yml'
+            builder:
+              - 'services/builder/**'
+              - 'pkg/**'
+              - '.github/workflows/ci.yml'
+            cashier:
+              - 'services/cashier/**'
+              - 'pkg/**'
+              - '.github/workflows/ci.yml'
+            exporter:
+              - 'services/exporter/**'
+              - 'pkg/**'
+              - '.github/workflows/ci.yml'
+            switchboard:
+              - 'services/switchboard/**'
+              - 'pkg/**'
+              - '.github/workflows/ci.yml'
+            agent:
+              - 'services/agent/**'
+              - 'pkg/**'
+              - '.github/workflows/ci.yml'
+            dashboard:
+              - 'services/dashboard/**'
+              - '.github/workflows/ci.yml'
+            docs:
+              - 'docs/**'
+              - '.github/workflows/ci.yml'
+
+  go:
+    needs: changes
+    if: needs.changes.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module:
+          - pkg
+          - charts
+          - cli
+          - services/agent
+          - services/builder
+          - services/cashier
+          - services/conductor
+          - services/exporter
+          - services/stagehand
+          - services/switchboard
+    env:
+      GOWORK: 'off'
+      GOTOOLCHAIN: local
+    defaults:
+      run:
+        working-directory: ${{ matrix.module }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27'
+          cache-dependency-path: '**/go.sum'
+      - name: Build
+        run: go build ./...
+      - name: Vet
+        run: go vet ./...
+      - name: Tidy
+        run: |
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
+      - name: Generated GraphQL code
+        if: matrix.module == 'services/conductor'
+        env:
+          GOWORK: ''
+        run: |
+          go generate ./internal/api/graphql/resolver.go
+          git diff --exit-code -- .
+
+  cockpit:
+    needs: changes
+    if: needs.changes.outputs.cockpit == 'true'
+    runs-on: macos-latest
+    env:
+      GOWORK: 'off'
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: services/cockpit/web/package-lock.json
+      - name: Web
+        working-directory: services/cockpit/web
+        run: |
+          npm ci
+          npm run build
+          npx oxlint --deny-warnings .
+          npx eslint --max-warnings=0 .
+          npm run codegen
+          git diff --exit-code -- .
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27'
+          cache-dependency-path: '**/go.sum'
+      - name: Go
+        working-directory: services/cockpit
+        run: |
+          go build ./...
+          go vet ./...
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
+      - name: Generated GraphQL code
+        working-directory: services/cockpit
+        env:
+          GOWORK: ''
+        run: |
+          go generate ./internal/api/graphql/resolver.go
+          git diff --exit-code -- .
+
+  dashboard:
+    needs: changes
+    if: needs.changes.outputs.dashboard == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/dashboard
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: services/dashboard/package-lock.json
+      - run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Lint
+        run: |
+          npx oxlint --deny-warnings .
+          npx eslint --max-warnings=0 .
+      - name: Generated GraphQL types
+        run: |
+          npm run codegen
+          git diff --exit-code -- .
+
+  docs:
+    needs: changes
+    if: needs.changes.outputs.docs == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+      - run: npm ci
+      - name: Generate
+        run: npm run generate
+
+  charts:
+    needs: changes
+    if: needs.changes.outputs.charts == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: azure/setup-helm@v5
+      - name: Lint
+        run: |
+          helm lint charts/lucity charts/lucity-app charts/lucity-infra
+          helm lint charts/lucity-workspace --set workspace=ci
+      - name: Render
+        run: |
+          helm template lucity charts/lucity -f deployments/lucity-dev/values.yaml > /dev/null
+          helm template lucity charts/lucity -f deployments/lucity-prod/values.yaml > /dev/null
+          helm template lucity-infra charts/lucity-infra -f deployments/lucity-dev/infra-values.yaml > /dev/null
+          helm template lucity-infra charts/lucity-infra -f deployments/lucity-prod/infra-values.yaml > /dev/null
+          helm template lucity-infra charts/lucity-infra -f deployments/minikube/values.yaml > /dev/null
+          helm template lucity-app charts/lucity-app > /dev/null
+          helm template lucity-workspace charts/lucity-workspace --set workspace=ci > /dev/null
+
+  images:
+    needs: changes
+    if: needs.changes.outputs.images != '[]' && needs.changes.outputs.images != ''
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJSON(needs.changes.outputs.images) }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Target
+        id: target
+        env:
+          SERVICE: ${{ matrix.service }}
+        run: |
+          case "$SERVICE" in
+            dashboard) echo "context=services/dashboard" >> "$GITHUB_OUTPUT"; echo "file=services/dashboard/Dockerfile" >> "$GITHUB_OUTPUT" ;;
+            docs) echo "context=docs" >> "$GITHUB_OUTPUT"; echo "file=docs/Dockerfile" >> "$GITHUB_OUTPUT" ;;
+            *) echo "context=." >> "$GITHUB_OUTPUT"; echo "file=services/$SERVICE/Dockerfile" >> "$GITHUB_OUTPUT" ;;
+          esac
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
+        with:
+          context: ${{ steps.target.outputs.context }}
+          file: ${{ steps.target.outputs.file }}
+          platforms: linux/amd64
+          push: false
+          cache-from: type=gha,scope=${{ matrix.service }}
+
+  ci-ok:
+    needs: [changes, go, cockpit, dashboard, docs, charts, images]
+    if: always() && needs.changes.result != 'skipped'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Results
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "$RESULTS"
+          case " $RESULTS " in
+            *" failure "*|*" cancelled "*) exit 1 ;;
+          esac

@@ -1,6 +1,4 @@
-ARG GO_VERSION=1.27
-
-FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS builder
 
 WORKDIR /workspace
 ENV GOWORK=off
