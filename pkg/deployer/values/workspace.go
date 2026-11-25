@@ -3,6 +3,7 @@ package values
 import (
 	"bytes"
 	"fmt"
+	"maps"
 	"net"
 	"net/url"
 	"regexp"
@@ -581,4 +582,35 @@ func isPrintable(s string, maxLen int) bool {
 	}
 
 	return true
+}
+
+// HarnessSupports reports whether a harness can use a model provider's API.
+func HarnessSupports(harness Harness, api ModelAPI) bool {
+	switch harness {
+	case HarnessClaudeCode:
+		return api == ModelAPIAnthropic
+	case HarnessCodex:
+		return api == ModelAPIOpenAI
+	case HarnessOpenCode:
+		return true
+	default:
+		return false
+	}
+}
+
+// DefaultModel picks the model a session of a harness starts with when nobody
+// chose one: the first model of the first valid provider, by name, that the
+// harness can use.
+func DefaultModel(ws *Workspace, harness Harness) (string, ModelProvider, bool) {
+	names := slices.Sorted(maps.Keys(ws.ModelProviders))
+
+	for _, name := range names {
+		provider := ws.ModelProviders[name]
+
+		if provider.Status == CredentialValid && HarnessSupports(harness, provider.API) && len(provider.Models) > 0 {
+			return name, provider, true
+		}
+	}
+
+	return "", ModelProvider{}, false
 }

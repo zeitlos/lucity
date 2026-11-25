@@ -16,6 +16,7 @@ type Model struct {
 }
 
 type Status struct {
+	Harness    string `json:"harness"`
 	Status     string `json:"status"`
 	Error      string `json:"error,omitempty"`
 	LastModel  *Model `json:"lastModel,omitempty"`
@@ -116,6 +117,10 @@ const (
 	maxAPIMessage = 300
 )
 
+// DefaultEffort is the effort of a session nobody chose one for, on an agent
+// that has none it used last.
+const DefaultEffort = "medium"
+
 var (
 	sessionStatuses  = []string{StatusIdle, StatusWorking, StatusWaitingForApproval}
 	runnerStatuses   = []string{StatusIdle, StatusWorking, StatusWaitingForApproval, StatusStarting, StatusFailed}
@@ -177,6 +182,10 @@ func isRef(s string, maxLen int) bool {
 func sanitizeStatus(status *Status) bool {
 	if !oneOf(status.Status, runnerStatuses) {
 		return false
+	}
+
+	if !isRef(status.Harness, maxNameLen) {
+		status.Harness = ""
 	}
 
 	status.Error = cut(status.Error, maxErrorLen)

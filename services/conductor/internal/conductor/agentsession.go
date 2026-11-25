@@ -58,7 +58,6 @@ type AgentModelSpec struct {
 }
 
 const (
-	defaultEffort        = "medium"
 	memberRefreshAtLeast = 30 * time.Second
 )
 
@@ -316,7 +315,7 @@ func (c *Client) StartAgentSession(ctx context.Context, agent AgentID, message s
 	}
 
 	if effort == "" {
-		effort = defaultEffort
+		effort = agentrunner.DefaultEffort
 
 		if status, err := c.agentRunner.Status(ctx, agent); err == nil && status.LastEffort != "" {
 			effort = status.LastEffort
@@ -346,13 +345,13 @@ func (c *Client) lastModel(ctx context.Context, agent AgentID, harness values.Ha
 		}
 	}
 
-	for _, provider := range modelProviders(agent.Workspace, ws) {
-		if provider.Status == values.CredentialValid && harnessSupports(harness, provider.API) && len(provider.Models) > 0 {
-			return agentrunner.Model{Provider: provider.ID.Name, API: string(provider.API), Name: provider.Models[0]}, nil
-		}
+	name, provider, ok := values.DefaultModel(ws, harness)
+
+	if !ok {
+		return agentrunner.Model{}, usererror.New("the workspace has no model provider this agent's harness can use")
 	}
 
-	return agentrunner.Model{}, usererror.New("the workspace has no model provider this agent's harness can use")
+	return agentrunner.Model{Provider: name, API: string(provider.API), Name: provider.Models[0]}, nil
 }
 
 func sessionRunnerModel(agent AgentID, harness values.Harness, ws *values.Workspace, spec AgentModelSpec) (agentrunner.Model, error) {
@@ -362,7 +361,7 @@ func sessionRunnerModel(agent AgentID, harness values.Harness, ws *values.Worksp
 		return agentrunner.Model{}, usererror.Errorf("model provider %q not found", spec.Provider.Name)
 	}
 
-	if !harnessSupports(harness, provider.API) {
+	if !values.HarnessSupports(harness, provider.API) {
 		return agentrunner.Model{}, usererror.Errorf("the agent's harness can't use model provider %q", spec.Provider.Name)
 	}
 

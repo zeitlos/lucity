@@ -214,7 +214,7 @@ func (c *Client) ModelProviderAgents(ctx context.Context, id ModelProviderID) ([
 		return nil, err
 	}
 
-	return slices.DeleteFunc(agents, func(agent Agent) bool { return !harnessSupports(agent.Harness, provider.API) }), nil
+	return slices.DeleteFunc(agents, func(agent Agent) bool { return !values.HarnessSupports(agent.Harness, provider.API) }), nil
 }
 
 func modelProviderURL(api values.ModelAPI, rawURL string) (string, error) {
@@ -321,17 +321,4 @@ func parseCheckedAt(raw string) *time.Time {
 	}
 
 	return &at
-}
-
-func harnessSupports(harness values.Harness, api values.ModelAPI) bool {
-	switch harness {
-	case values.HarnessClaudeCode:
-		return api == values.ModelAPIAnthropic
-	case values.HarnessCodex:
-		return api == values.ModelAPIOpenAI
-	case values.HarnessOpenCode:
-		return true
-	default:
-		return false
-	}
 }

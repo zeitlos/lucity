@@ -21,8 +21,13 @@ import (
 	"github.com/zeitlos/lucity/pkg/platform"
 )
 
-// ErrNotFound means no trigger has the id.
-var ErrNotFound = errors.New("trigger not found")
+var (
+	// ErrNotFound means no trigger has the id.
+	ErrNotFound = errors.New("trigger not found")
+	// ErrNoModel means the agent never had a session and its workspace has
+	// no model provider its harness can use.
+	ErrNoModel = errors.New("the workspace has no model provider this agent's harness can use")
+)
 
 type Trigger struct {
 	ID platform.AgentTriggerID
@@ -133,37 +138,65 @@ func (c *Client) Fire(ctx context.Context, trigger Trigger, key, event string) e
 		}
 	}
 
-	chat, err := c.chat(ctx, agent)
+	ws, err := c.workspaces.Workspace(ctx, agent.Workspace)
 
 	if err != nil {
 		return err
 	}
 
-	_, err = c.runner.StartSession(ctx, agent, agentrunner.StartRequest{
+	model, effort, err := c.defaults(ctx, agent, ws)
+
+	if err != nil {
+		return err
+	}
+
+	request := agentrunner.StartRequest{
 		Message:   message,
+		Model:     model,
+		Effort:    effort,
 		StartedBy: actor,
 		Title:     trigger.Name,
 		Key:       key,
-		Chat:      chat,
-	})
+	}
+
+	if chat := ws.Agents[values.AgentGrantKey(agent)].Chat; chat != nil {
+		request.Chat = &agentrunner.Chat{ChatApp: chat.ChatApp, Channel: chat.Channel}
+	}
+
+	_, err = c.runner.StartSession(ctx, agent, request)
 
 	return err
 }
 
-func (c *Client) chat(ctx context.Context, agent platform.AgentID) (*agentrunner.Chat, error) {
-	ws, err := c.workspaces.Workspace(ctx, agent.Workspace)
+// defaults are the model and effort a trigger's session starts with. Either
+// is left empty when the agent has one it used last, which the runner then
+// takes. An agent that never had a session starts like a session started in
+// the dashboard: with the workspace's default model for its harness, at the
+// default effort.
+func (c *Client) defaults(ctx context.Context, agent platform.AgentID, ws *values.Workspace) (*agentrunner.Model, string, error) {
+	status, err := c.runner.Status(ctx, agent)
 
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	chat := ws.Agents[values.AgentGrantKey(agent)].Chat
+	effort := ""
 
-	if chat == nil {
-		return nil, nil
+	if status.LastEffort == "" {
+		effort = agentrunner.DefaultEffort
 	}
 
-	return &agentrunner.Chat{ChatApp: chat.ChatApp, Channel: chat.Channel}, nil
+	if status.LastModel != nil {
+		return nil, effort, nil
+	}
+
+	name, provider, ok := values.DefaultModel(ws, values.Harness(status.Harness))
+
+	if !ok {
+		return nil, "", ErrNoModel
+	}
+
+	return &agentrunner.Model{Provider: name, API: string(provider.API), Name: provider.Models[0]}, effort, nil
 }
 
 // Message is what an agent reads when a trigger fires: the trigger's

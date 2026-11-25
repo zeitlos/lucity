@@ -409,7 +409,7 @@ func (c *Client) AgentModels(ctx context.Context, id AgentID) ([]AgentModel, err
 	var models []AgentModel
 
 	for _, provider := range modelProviders(id.Workspace, ws) {
-		if provider.Status != values.CredentialValid || !harnessSupports(agent.Harness, provider.API) {
+		if provider.Status != values.CredentialValid || !values.HarnessSupports(agent.Harness, provider.API) {
 			continue
 		}
 
