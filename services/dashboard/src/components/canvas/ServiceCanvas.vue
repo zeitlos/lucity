@@ -8,7 +8,7 @@ import { usePanel, type PanelEntry } from '@/composables/usePanel';
 import { useCanvasReleaseStatus } from '@/composables/useCanvasReleaseStatus';
 import { useCanvasLayout, firstFreeSpot, nearestFreeSpot, gridSize, type NodeRect } from '@/composables/useCanvasLayout';
 import type { Service, Database, KeyValueStore, Bucket, Volume } from '@/composables/useEnvironment';
-import type { Agent } from '@/lib/agents';
+import { connectorBrand, type Agent } from '@/lib/agents';
 import ServiceNode from './ServiceNode.vue';
 import DatabaseNode from './DatabaseNode.vue';
 import KeyValueStoreNode from './KeyValueStoreNode.vue';
@@ -187,7 +187,7 @@ const nodes = computed(() => {
         name: agent.name,
         harness: agent.harness,
         status: agent.status,
-        connectors: agent.connectors.map(grant => grant.connector.name),
+        connectors: agent.connectors.map(grant => ({ name: grant.connector.name, brand: connectorBrand(grant.connector) })),
         chat: agent.chat ? { kind: agent.chat.chatApp.kind, channel: agent.chat.channel.name } : null,
         triggers: agent.triggers.filter(trigger => trigger.enabled).map(trigger => trigger.name),
         allowedHosts: agent.allowedHosts.length,

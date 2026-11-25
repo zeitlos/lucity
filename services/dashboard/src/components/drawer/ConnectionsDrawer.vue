@@ -4,7 +4,7 @@ import { useQuery } from '@vue/apollo-composable';
 import { ChevronRight, MessageSquare, Plug, Plus, Sparkles } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { CredentialStatus } from '@/gql/graphql';
-import { chatAppKindLabel, modelApiLabel, resourceName } from '@/lib/agents';
+import { chatAppKindLabel, connectorBrand, modelApiLabel, resourceName } from '@/lib/agents';
 import { credentialStatus } from '@/lib/status';
 import BrandTile from '@/components/BrandTile.vue';
 import ModelProviderIcon from '@/components/ModelProviderIcon.vue';
@@ -210,7 +210,7 @@ function attention(status: CredentialStatus, credential: string) {
               :to="{ name: 'connection', params: { kind: 'connectors', name: resourceName(connector.id) } }"
               class="flex items-center gap-3 py-2.5 pr-3 pl-4 transition-colors hover:bg-muted/50"
             >
-              <BrandTile :name="connector.name" />
+              <BrandTile :name="connector.name" :brand="connectorBrand(connector)" />
               <div class="min-w-0 flex-1">
                 <p class="truncate text-sm font-medium text-foreground">{{ connector.name }}</p>
                 <p class="truncate text-xs text-muted-foreground">

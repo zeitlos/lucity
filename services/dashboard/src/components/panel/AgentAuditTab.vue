@@ -5,6 +5,7 @@ import { ScrollText } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { AgentAuditKind } from '@/gql/graphql';
 import { auditResultStatus } from '@/lib/status';
+import { useConnectorBrands } from '@/composables/useConnectorBrands';
 import { formatCompact, formatDateTime, formatTime } from '@/lib/format';
 import BrandTile from '@/components/BrandTile.vue';
 import ModelProviderIcon from '@/components/ModelProviderIcon.vue';
@@ -56,6 +57,7 @@ const { result, loading, error, refetch } = useQuery(
 );
 
 const entries = computed(() => result.value?.agentAudit ?? []);
+const connectorBrandFor = useConnectorBrands();
 
 function when(time: string) {
   return new Date(time).toDateString() === new Date().toDateString() ? formatTime(time) : formatDateTime(time);
@@ -132,7 +134,7 @@ function tokens(entry: { inputTokens?: number | null; outputTokens?: number | nu
             <TableCell>
               <span class="flex items-center gap-2">
                 <ModelProviderIcon v-if="entry.modelProvider" :provider="{ name: entry.modelProvider }" size="sm" />
-                <BrandTile v-else :name="entry.connector ?? '?'" size="sm" />
+                <BrandTile v-else :name="entry.connector ?? '?'" :brand="entry.connector ? connectorBrandFor(entry.connector) : null" size="sm" />
                 <span class="truncate">{{ entry.modelProvider ?? entry.connector }}</span>
               </span>
             </TableCell>

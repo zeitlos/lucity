@@ -18,7 +18,7 @@ import type { CommandFlowConfig } from '@/lib/commandFlow';
 import { onKeyStroke, refDebounced } from '@vueuse/core';
 import { graphql } from '@/gql';
 import { Approval, GitHubAccountType, type Harness } from '@/gql/graphql';
-import { harnesses, harnessLabel } from '@/lib/agents';
+import { connectorBrand, harnesses, harnessLabel } from '@/lib/agents';
 import BrandTile from '@/components/BrandTile.vue';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
@@ -146,6 +146,7 @@ const AgentPaletteConnectorsDocument = graphql(`
     connectors {
       id
       name
+      url
     }
   }
 `);
@@ -1738,7 +1739,7 @@ void activeEnvironment;
                       :model-value="agentConnectorIds.includes(connector.id)"
                       @update:model-value="toggleAgentConnector(connector.id, $event)"
                     />
-                    <BrandTile :name="connector.name" size="sm" />
+                    <BrandTile :name="connector.name" :brand="connectorBrand(connector)" size="sm" />
                     <span class="min-w-0 flex-1 truncate text-sm text-foreground">{{ connector.name }}</span>
                   </label>
                 </div>
