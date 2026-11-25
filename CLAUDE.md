@@ -35,7 +35,7 @@ The platform is non-intrusive — its downtime does not affect running workloads
 
 ### Single-Repository Model
 
-- **User's source repo** (GitHub): read-only to the platform, never written to
+- **User's source repo** (GitHub): read by the platform, written only through access the user granted (an agent linked with write access, a git connection's webhook)
 - **No GitOps repo**: the conductor deploys workloads as standard Helm releases applied imperatively (Helm SDK). Deployment config is the chart values it computes; Helm stores the release state in-cluster.
 
 ### Multi-Tenant (Workspaces)

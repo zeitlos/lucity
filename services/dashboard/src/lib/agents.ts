@@ -31,6 +31,9 @@ export interface AgentTrigger {
   schedule?: string | null;
   timeZone?: string | null;
   key?: string | null;
+  repository?: string | null;
+  events?: string[] | null;
+  branches?: string[] | null;
   instructions: string;
   enabled: boolean;
   url?: string | null;

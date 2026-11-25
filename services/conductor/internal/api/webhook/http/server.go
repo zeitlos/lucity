@@ -82,9 +82,12 @@ func handleGitHub(secret []byte, h *Handler, events *prometheus.CounterVec) http
 			"sender", event.Sender,
 		)
 
-		if event.Type == "push" && h != nil {
+		switch {
+		case event.Type == "push" && h != nil:
 			go func() { events.WithLabelValues("push", h.handlePush(event)).Inc() }()
-		} else {
+		case (event.Type == "pull_request" || event.Type == "workflow_run") && h != nil:
+			go func() { events.WithLabelValues(event.Type, h.handleTriggerEvent(event)).Inc() }()
+		default:
 			events.WithLabelValues(eventLabel(event.Type), "ignored").Inc()
 		}
 
@@ -189,9 +192,45 @@ func (h *Handler) handlePush(event *github.Event) string {
 	return "deployed"
 }
 
+// handleTriggerEvent hands a pull request or workflow run event to the agent
+// triggers that listen for it.
+func (h *Handler) handleTriggerEvent(event *github.Event) string {
+	if event.InstallationID == 0 {
+		return "ignored"
+	}
+
+	fired, err := h.Conductor.FireGitHub(context.Background(), conductor.GitHubTriggerEvent{
+		Type:           event.Type,
+		Action:         event.Action,
+		Repository:     event.RepoFullName,
+		InstallationID: event.InstallationID,
+		HeadRepository: event.HeadRepo,
+		Branch:         event.Ref,
+		Commit:         event.CommitSHA,
+		PullRequest:    event.PRNumber,
+		Title:          event.Title,
+		Workflow:       event.WorkflowName,
+		Conclusion:     event.Conclusion,
+		URL:            event.HTMLURL,
+		Sender:         event.Sender,
+	})
+
+	switch {
+	case err != nil:
+		slog.Error("trigger event failed", "type", event.Type, "repo", event.RepoFullName, "error", err)
+		return "failed"
+	case fired == 0:
+		return "ignored"
+	}
+
+	slog.Info("trigger event fired", "type", event.Type, "action", event.Action, "repo", event.RepoFullName, "triggers", fired)
+
+	return "triggered"
+}
+
 func eventLabel(eventType string) string {
 	switch eventType {
-	case "push", "pull_request", "installation", "installation_repositories":
+	case "push", "pull_request", "workflow_run", "installation", "installation_repositories":
 		return eventType
 	}
 

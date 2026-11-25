@@ -170,8 +170,11 @@ func convertAgentTriggers(triggers []conductor.AgentTrigger) []model.AgentTrigge
 func convertAgentTrigger(trigger conductor.AgentTrigger) model.AgentTrigger {
 	source := model.AgentTriggerSourceSchedule
 
-	if trigger.Source == values.TriggerWebhook {
+	switch trigger.Source {
+	case values.TriggerWebhook:
 		source = model.AgentTriggerSourceWebhook
+	case values.TriggerGitHub:
+		source = model.AgentTriggerSourceGithub
 	}
 
 	return model.AgentTrigger{
@@ -181,6 +184,9 @@ func convertAgentTrigger(trigger conductor.AgentTrigger) model.AgentTrigger {
 		Schedule:     optional(trigger.Schedule),
 		TimeZone:     optional(trigger.TimeZone),
 		Key:          optional(trigger.Key),
+		Repository:   optional(trigger.Repository),
+		Events:       trigger.Events,
+		Branches:     trigger.Branches,
 		Instructions: trigger.Instructions,
 		Enabled:      trigger.Enabled,
 	}
@@ -193,8 +199,11 @@ func parseAgentTriggerInput(input model.AgentTriggerInput) conductor.AgentTrigge
 		Instructions: input.Instructions,
 	}
 
-	if input.Source == model.AgentTriggerSourceWebhook {
+	switch input.Source {
+	case model.AgentTriggerSourceWebhook:
 		spec.Source = values.TriggerWebhook
+	case model.AgentTriggerSourceGithub:
+		spec.Source = values.TriggerGitHub
 	}
 
 	if input.Schedule != nil {
@@ -208,6 +217,13 @@ func parseAgentTriggerInput(input model.AgentTriggerInput) conductor.AgentTrigge
 	if input.Key != nil {
 		spec.Key = *input.Key
 	}
+
+	if input.Repository != nil {
+		spec.Repository = *input.Repository
+	}
+
+	spec.Events = input.Events
+	spec.Branches = input.Branches
 
 	return spec
 }

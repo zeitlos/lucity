@@ -1,3 +1,5 @@
+import { h, type Component } from 'vue';
+
 export interface BrandMark {
   path: string;
   viewBox?: string;
@@ -132,4 +134,10 @@ const aliases: Record<string, string> = {
 export function brandMark(name: string): BrandMark | null {
   const key = name.trim().toLowerCase();
   return brandMarks[aliases[key] ?? key] ?? null;
+}
+
+export function brandIcon(name: string): Component | null {
+  const mark = brandMark(name);
+  if (!mark) return null;
+  return () => h('svg', { viewBox: mark.viewBox ?? '0 0 24 24', fill: 'currentColor', 'aria-hidden': 'true' }, [h('path', { d: mark.path })]);
 }

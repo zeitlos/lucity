@@ -209,8 +209,14 @@ type AgentTrigger struct {
 	// The time zone the schedule runs in, like `Europe/Zurich`.
 	TimeZone *string `json:"timeZone,omitempty"`
 	// A top-level field of a webhook's JSON body. Events with the same value continue one session.
-	Key          *string `json:"key,omitempty"`
-	Instructions string  `json:"instructions"`
+	Key *string `json:"key,omitempty"`
+	// The `owner/repo` a GitHub trigger listens to.
+	Repository *string `json:"repository,omitempty"`
+	// The events a GitHub trigger starts on, like `pull_request.opened` or `workflow_run.completed`. Events of one pull request continue one session.
+	Events []string `json:"events,omitempty"`
+	// Branch patterns a GitHub trigger is limited to, like `feature/*`. Empty means every branch.
+	Branches     []string `json:"branches,omitempty"`
+	Instructions string   `json:"instructions"`
 	// A trigger that is off doesn't start sessions.
 	Enabled bool `json:"enabled"`
 	// Where a webhook trigger is called, with its token as a bearer token.
@@ -229,8 +235,14 @@ type AgentTriggerInput struct {
 	// An IANA time zone, for a schedule trigger. For example `Europe/Zurich`.
 	TimeZone *string `json:"timeZone,omitempty"`
 	// A top-level field of the JSON body, for a webhook trigger.
-	Key          *string `json:"key,omitempty"`
-	Instructions string  `json:"instructions"`
+	Key *string `json:"key,omitempty"`
+	// An `owner/repo` your GitHub account can read, for a GitHub trigger.
+	Repository *string `json:"repository,omitempty"`
+	// At least one of `pull_request.opened`, `pull_request.reopened`, `pull_request.synchronize`, `pull_request.closed` and `workflow_run.completed`, for a GitHub trigger.
+	Events []string `json:"events,omitempty"`
+	// Branch patterns, for a GitHub trigger. Pull requests from forks never start a session.
+	Branches     []string `json:"branches,omitempty"`
+	Instructions string   `json:"instructions"`
 }
 
 // A trigger and, for a webhook trigger, its token. The token is shown only here.
@@ -1807,16 +1819,19 @@ const (
 	AgentTriggerSourceSchedule AgentTriggerSource = "SCHEDULE"
 	// A call to the trigger's address with its token.
 	AgentTriggerSourceWebhook AgentTriggerSource = "WEBHOOK"
+	// An event in a GitHub repository the Lucity GitHub App can read.
+	AgentTriggerSourceGithub AgentTriggerSource = "GITHUB"
 )
 
 var AllAgentTriggerSource = []AgentTriggerSource{
 	AgentTriggerSourceSchedule,
 	AgentTriggerSourceWebhook,
+	AgentTriggerSourceGithub,
 }
 
 func (e AgentTriggerSource) IsValid() bool {
 	switch e {
-	case AgentTriggerSourceSchedule, AgentTriggerSourceWebhook:
+	case AgentTriggerSourceSchedule, AgentTriggerSourceWebhook, AgentTriggerSourceGithub:
 		return true
 	}
 	return false

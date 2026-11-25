@@ -4,6 +4,8 @@ enum AgentTriggerSource {
   SCHEDULE
   """A call to the trigger's address with its token."""
   WEBHOOK
+  """An event in a GitHub repository the Lucity GitHub App can read."""
+  GITHUB
 }
 
 """Starts sessions of an agent on its own. Its instructions, followed by the event, are the first message. The sessions are mirrored to the agent's chat when it has one."""
@@ -17,6 +19,12 @@ type AgentTrigger {
   timeZone: String
   """A top-level field of a webhook's JSON body. Events with the same value continue one session."""
   key: String
+  """The `owner/repo` a GitHub trigger listens to."""
+  repository: String
+  """The events a GitHub trigger starts on, like `pull_request.opened` or `workflow_run.completed`. Events of one pull request continue one session."""
+  events: [String!]
+  """Branch patterns a GitHub trigger is limited to, like `feature/*`. Empty means every branch."""
+  branches: [String!]
   instructions: String!
   """A trigger that is off doesn't start sessions."""
   enabled: Boolean!
@@ -41,6 +49,12 @@ input AgentTriggerInput {
   timeZone: String @constraint(constraint: "max=64")
   """A top-level field of the JSON body, for a webhook trigger."""
   key: String @constraint(constraint: "max=128")
+  """An `owner/repo` your GitHub account can read, for a GitHub trigger."""
+  repository: String @constraint(constraint: "max=200")
+  """At least one of `pull_request.opened`, `pull_request.reopened`, `pull_request.synchronize`, `pull_request.closed` and `workflow_run.completed`, for a GitHub trigger."""
+  events: [String!] @constraint(constraint: "max=8,dive,min=1,max=64")
+  """Branch patterns, for a GitHub trigger. Pull requests from forks never start a session."""
+  branches: [String!] @constraint(constraint: "max=16,dive,min=1,max=255")
   instructions: String! @constraint(constraint: "min=1,max=65536")
 }
 

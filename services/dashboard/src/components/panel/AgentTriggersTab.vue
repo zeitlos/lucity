@@ -5,6 +5,7 @@ import { Clock, Plus, Trash2, Webhook, Zap } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { AgentStatus, AgentTriggerSource } from '@/gql/graphql';
 import type { Agent, AgentTrigger } from '@/lib/agents';
+import { brandIcon } from '@/lib/brandMarks';
 import { describeCron } from '@/lib/schedule';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import EmptyState from '@/components/EmptyState.vue';
@@ -80,8 +81,11 @@ function openEdit(trigger: AgentTrigger) {
   dialogOpen.value = true;
 }
 
+const GitHubIcon = brandIcon('github');
+
 function when(trigger: AgentTrigger) {
   if (trigger.source === AgentTriggerSource.Webhook) return 'Webhook';
+  if (trigger.source === AgentTriggerSource.Github) return trigger.repository ?? 'GitHub';
   return `${describeCron(trigger.schedule ?? '') ?? trigger.schedule} · ${trigger.timeZone}`;
 }
 
@@ -125,7 +129,7 @@ async function remove(trigger: AgentTrigger) {
       size="compact"
       :icon="Zap"
       title="No triggers yet"
-      description="Start sessions on a schedule, or when a webhook is called."
+      description="Start sessions on a schedule, when a webhook is called, or on a GitHub event."
     />
     <QueryError v-if="runsError && !runsResult && agent.triggers.length > 0" title="Couldn't load when the triggers last ran" :error="runsError" @retry="refetchRuns()" />
 
@@ -133,6 +137,7 @@ async function remove(trigger: AgentTrigger) {
       <div v-for="trigger in agent.triggers" :key="trigger.id" class="flex items-center gap-3 py-2.5 pr-3 pl-4">
         <span class="inline-flex size-8 shrink-0 items-center justify-center rounded-md border bg-muted text-foreground">
           <Webhook v-if="trigger.source === AgentTriggerSource.Webhook" :size="16" />
+          <component :is="GitHubIcon" v-else-if="trigger.source === AgentTriggerSource.Github && GitHubIcon" class="size-4" />
           <Clock v-else :size="16" />
         </span>
         <button type="button" class="min-w-0 flex-1 text-left" @click="openEdit(trigger)">

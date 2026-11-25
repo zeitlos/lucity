@@ -299,6 +299,9 @@ const EnvironmentAgentsDocument = graphql(`
           schedule
           timeZone
           key
+          repository
+          events
+          branches
           instructions
           enabled
           url

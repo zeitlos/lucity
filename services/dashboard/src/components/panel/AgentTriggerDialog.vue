@@ -5,6 +5,7 @@ import { Clock, Webhook, Zap } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { AgentTriggerSource } from '@/gql/graphql';
 import type { Agent, AgentTrigger } from '@/lib/agents';
+import { brandIcon } from '@/lib/brandMarks';
 import { mobileSheetClass } from '@/lib/dialog';
 import { formatDateTime } from '@/lib/format';
 import { defaultSchedule, describeCron, fromCron, nextRuns, repeatOptions, toCron, weekdays, type Schedule } from '@/lib/schedule';
@@ -13,6 +14,7 @@ import CredentialField from '@/components/CredentialField.vue';
 import DialogIcon from '@/components/DialogIcon.vue';
 import SegmentedControl from '@/components/SegmentedControl.vue';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,6 +32,9 @@ const CreateAgentTriggerDocument = graphql(`
         schedule
         timeZone
         key
+        repository
+        events
+        branches
         instructions
         enabled
         url
@@ -47,6 +52,9 @@ const UpdateAgentTriggerDocument = graphql(`
       schedule
       timeZone
       key
+      repository
+      events
+      branches
       instructions
       enabled
       url
@@ -77,6 +85,12 @@ const props = defineProps<{
 const sources = [
   { value: AgentTriggerSource.Schedule, label: 'On a schedule', icon: Clock },
   { value: AgentTriggerSource.Webhook, label: 'From a webhook', icon: Webhook },
+  { value: AgentTriggerSource.Github, label: 'From GitHub', icon: brandIcon('github') ?? Webhook },
+];
+
+const gitHubEvents = [
+  { value: 'pullRequest', label: 'A pull request is opened or updated', events: ['pull_request.opened', 'pull_request.reopened', 'pull_request.synchronize'] },
+  { value: 'ciRun', label: 'A CI run finishes', events: ['workflow_run.completed'] },
 ];
 
 const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -85,12 +99,17 @@ const name = ref('');
 const source = ref<AgentTriggerSource>(AgentTriggerSource.Schedule);
 const schedule = ref<Schedule>(defaultSchedule());
 const key = ref('');
+const repository = ref('');
+const eventGroups = ref<string[]>([]);
+const branches = ref('');
 const instructions = ref('');
 const created = ref<{ url: string; token: string } | null>(null);
 
 const editing = computed(() => !!props.trigger);
 const timeZone = computed(() => props.trigger?.timeZone || browserTimeZone);
 const isSchedule = computed(() => source.value === AgentTriggerSource.Schedule);
+const isWebhook = computed(() => source.value === AgentTriggerSource.Webhook);
+const isGitHub = computed(() => source.value === AgentTriggerSource.Github);
 
 watch(open, (value) => {
   if (!value) return;
@@ -100,8 +119,21 @@ watch(open, (value) => {
   source.value = props.trigger?.source ?? AgentTriggerSource.Schedule;
   schedule.value = props.trigger?.schedule ? fromCron(props.trigger.schedule) : defaultSchedule();
   key.value = props.trigger?.key ?? '';
+  repository.value = props.trigger?.repository ?? '';
+  eventGroups.value = gitHubEvents
+    .filter(group => group.events.some(event => props.trigger?.events?.includes(event)))
+    .map(group => group.value);
+  branches.value = (props.trigger?.branches ?? []).join(', ');
   instructions.value = props.trigger?.instructions ?? '';
 });
+
+function toggleEventGroup(group: string, checked: boolean | 'indeterminate') {
+  eventGroups.value = checked === true
+    ? [...eventGroups.value, group]
+    : eventGroups.value.filter(existing => existing !== group);
+}
+
+const repositoryValid = computed(() => /^[\w.-]+\/[\w.-]+$/.test(repository.value.trim()));
 
 const { mutate: createTrigger, loading: creating } = useMutation(CreateAgentTriggerDocument, { refetchQueries: ['EnvironmentAgents'] });
 const { mutate: updateTrigger, loading: updating } = useMutation(UpdateAgentTriggerDocument);
@@ -129,7 +161,8 @@ const pending = computed(() => creating.value || updating.value || replacing.val
 const canSave = computed(() => !pending.value
   && name.value.trim() !== ''
   && instructions.value.trim() !== ''
-  && (!isSchedule.value || !scheduleProblem.value));
+  && (!isSchedule.value || !scheduleProblem.value)
+  && (!isGitHub.value || (repositoryValid.value && eventGroups.value.length > 0)));
 
 const examples = [
   { value: 'alertmanager', label: 'Alertmanager' },
@@ -161,7 +194,10 @@ function input() {
     source: source.value,
     schedule: isSchedule.value ? cron.value : null,
     timeZone: isSchedule.value ? timeZone.value : null,
-    key: isSchedule.value ? null : key.value.trim() || null,
+    key: isWebhook.value ? key.value.trim() || null : null,
+    repository: isGitHub.value ? repository.value.trim() : null,
+    events: isGitHub.value ? gitHubEvents.filter(group => eventGroups.value.includes(group.value)).flatMap(group => group.events) : null,
+    branches: isGitHub.value ? branches.value.split(',').map(branch => branch.trim()).filter(branch => branch !== '') : null,
     instructions: instructions.value,
   };
 }
@@ -303,19 +339,42 @@ async function newToken() {
             <p v-else-if="runs.length > 0" class="text-xs text-muted-foreground tabular-nums">{{ timeZone }} time. Next: {{ runs.map(run => formatDateTime(run)).join(' · ') }}</p>
           </template>
 
+          <template v-if="isGitHub">
+            <div class="space-y-2">
+              <Label for="trigger-repository">Repository</Label>
+              <Input id="trigger-repository" v-model="repository" class="font-mono text-sm" placeholder="acme/app" autocomplete="off" spellcheck="false" maxlength="200" />
+              <p class="text-xs text-muted-foreground">An <span class="font-mono">owner/repo</span> your GitHub account can read through the Lucity GitHub App.</p>
+            </div>
+
+            <div class="space-y-2">
+              <p class="text-sm font-medium text-foreground">Starts when</p>
+              <label v-for="group in gitHubEvents" :key="group.value" class="flex items-center gap-2 text-sm text-foreground">
+                <Checkbox :model-value="eventGroups.includes(group.value)" @update:model-value="toggleEventGroup(group.value, $event)" />
+                {{ group.label }}
+              </label>
+              <p class="text-xs text-muted-foreground">Events of one pull request continue one session.</p>
+            </div>
+
+            <div class="space-y-2">
+              <Label for="trigger-branches">Branches</Label>
+              <Input id="trigger-branches" v-model="branches" class="font-mono text-sm" placeholder="feature/renovate/*" autocomplete="off" spellcheck="false" />
+              <p class="text-xs text-muted-foreground">Patterns, separated by commas. Leave it empty for every branch. Pull requests from forks never start a session.</p>
+            </div>
+          </template>
+
           <div class="space-y-2">
             <Label for="trigger-instructions">What {{ agent.name }} does</Label>
             <Textarea id="trigger-instructions" v-model="instructions" rows="3" maxlength="65536" placeholder="Post a short status of production: failed deploys, restarts and open alerts." />
             <p class="text-xs text-muted-foreground">The first message of every session it starts. The event follows as data.</p>
           </div>
 
-          <div v-if="!isSchedule" class="space-y-2">
+          <div v-if="isWebhook" class="space-y-2">
             <Label for="trigger-key">Group events by</Label>
             <Input id="trigger-key" v-model="key" class="font-mono text-sm" placeholder="groupKey" autocomplete="off" spellcheck="false" maxlength="128" />
             <p class="text-xs text-muted-foreground">A top-level field of the JSON body. Events with the same value continue one session. Leave it empty to start a session for every event.</p>
           </div>
 
-          <div v-if="editing && !isSchedule && trigger?.url" class="space-y-2">
+          <div v-if="editing && isWebhook && trigger?.url" class="space-y-2">
             <CredentialField label="Address" :value="trigger.url" />
             <div class="flex items-center justify-between gap-4">
               <p class="text-xs text-muted-foreground">A new token replaces the current one, which stops working.</p>

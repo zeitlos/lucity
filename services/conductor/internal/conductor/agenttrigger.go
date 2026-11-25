@@ -8,8 +8,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
+	"path"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -24,8 +27,8 @@ import (
 
 type AgentTriggerID = platform.AgentTriggerID
 
-// AgentTrigger starts sessions of an agent on its own, on a schedule or when
-// its webhook is called.
+// AgentTrigger starts sessions of an agent on its own, on a schedule, when
+// its webhook is called or on an event in a GitHub repository.
 type AgentTrigger struct {
 	ID           AgentTriggerID
 	Name         string
@@ -33,20 +36,56 @@ type AgentTrigger struct {
 	Schedule     string
 	TimeZone     string
 	Key          string
+	Repository   string
+	Events       []string
+	Branches     []string
 	Instructions string
 	Enabled      bool
 }
 
 // AgentTriggerSpec is what a member sets on a trigger. Schedule and TimeZone
-// are for a schedule, Key for a webhook.
+// are for a schedule, Key for a webhook, Repository, Events and Branches for
+// GitHub.
 type AgentTriggerSpec struct {
 	Name         string
 	Source       values.TriggerSource
 	Schedule     string
 	TimeZone     string
 	Key          string
+	Repository   string
+	Events       []string
+	Branches     []string
 	Instructions string
 }
+
+// GitHubTriggerEvent is an event from a GitHub repository, as the GitHub App
+// webhook delivered it.
+type GitHubTriggerEvent struct {
+	Type           string
+	Action         string
+	Repository     string
+	InstallationID int64
+	HeadRepository string
+	Branch         string
+	Commit         string
+	PullRequest    int
+	Title          string
+	Workflow       string
+	Conclusion     string
+	URL            string
+	Sender         string
+}
+
+// GitHubTriggerEvents are the events a GitHub trigger can start on.
+var GitHubTriggerEvents = []string{
+	"pull_request.opened",
+	"pull_request.reopened",
+	"pull_request.synchronize",
+	"pull_request.closed",
+	"workflow_run.completed",
+}
+
+const maxTriggerBranches = 16
 
 var (
 	// ErrTriggerNotFound means no enabled webhook trigger has the id.
@@ -79,6 +118,9 @@ func toAgentTrigger(id AgentTriggerID, trigger values.AgentTrigger) AgentTrigger
 		Schedule:     trigger.Schedule,
 		TimeZone:     trigger.TimeZone,
 		Key:          trigger.Key,
+		Repository:   trigger.Repository,
+		Events:       trigger.Events,
+		Branches:     trigger.Branches,
 		Instructions: trigger.Instructions,
 		Enabled:      trigger.Enabled,
 	}
@@ -101,6 +143,10 @@ func (c *Client) CreateAgentTrigger(ctx context.Context, agent AgentID, spec Age
 
 	if trigger.Source == values.TriggerWebhook {
 		token, trigger.TokenHash = newTriggerToken()
+	}
+
+	if err := c.authorizeTriggerRepository(ctx, &trigger); err != nil {
+		return nil, "", err
 	}
 
 	trigger.Enabled = true
@@ -133,6 +179,10 @@ func (c *Client) UpdateAgentTrigger(ctx context.Context, id AgentTriggerID, spec
 
 	trigger.TokenHash = current.TokenHash
 	trigger.Enabled = current.Enabled
+
+	if err := c.authorizeTriggerRepository(ctx, &trigger); err != nil {
+		return nil, err
+	}
 
 	return c.setAgentTrigger(ctx, id, trigger)
 }
@@ -321,6 +371,28 @@ func triggerValues(spec AgentTriggerSpec) (values.AgentTrigger, error) {
 		trigger.TimeZone = spec.TimeZone
 	case values.TriggerWebhook:
 		trigger.Key = strings.TrimSpace(spec.Key)
+	case values.TriggerGitHub:
+		repository := strings.TrimSpace(spec.Repository)
+
+		if _, _, err := validateRepository(repository); err != nil {
+			return values.AgentTrigger{}, err
+		}
+
+		events, err := triggerEvents(spec.Events)
+
+		if err != nil {
+			return values.AgentTrigger{}, err
+		}
+
+		branches, err := triggerBranches(spec.Branches)
+
+		if err != nil {
+			return values.AgentTrigger{}, err
+		}
+
+		trigger.Repository = repository
+		trigger.Events = events
+		trigger.Branches = branches
 	default:
 		return values.AgentTrigger{}, usererror.Errorf("unsupported source %q", spec.Source)
 	}
@@ -333,4 +405,199 @@ func newTriggerToken() (string, string) {
 	sum := sha256.Sum256([]byte(token))
 
 	return token, fmt.Sprintf("sha256:%s", hex.EncodeToString(sum[:]))
+}
+
+func triggerEvents(events []string) ([]string, error) {
+	result := make([]string, 0, len(events))
+
+	for _, event := range events {
+		if !slices.Contains(GitHubTriggerEvents, event) {
+			return nil, usererror.Errorf("unsupported event %q", event)
+		}
+
+		if !slices.Contains(result, event) {
+			result = append(result, event)
+		}
+	}
+
+	if len(result) == 0 {
+		return nil, usererror.New("pick at least one event")
+	}
+
+	return result, nil
+}
+
+func triggerBranches(branches []string) ([]string, error) {
+	result := make([]string, 0, len(branches))
+
+	for _, branch := range branches {
+		branch = strings.TrimSpace(branch)
+
+		if branch == "" || slices.Contains(result, branch) {
+			continue
+		}
+
+		if _, err := path.Match(branch, ""); err != nil {
+			return nil, usererror.Errorf("invalid branch pattern %q", branch)
+		}
+
+		result = append(result, branch)
+	}
+
+	if len(result) > maxTriggerBranches {
+		return nil, usererror.Errorf("at most %d branch patterns", maxTriggerBranches)
+	}
+
+	return result, nil
+}
+
+// authorizeTriggerRepository checks that the member can read a GitHub
+// trigger's repository and records the App installation that covers it,
+// which every event must then come from.
+func (c *Client) authorizeTriggerRepository(ctx context.Context, trigger *values.AgentTrigger) error {
+	if trigger.Source != values.TriggerGitHub {
+		return nil
+	}
+
+	installationID, err := c.authorizeRepository(ctx, trigger.Repository)
+
+	if err != nil {
+		return err
+	}
+
+	trigger.InstallationID = strconv.FormatInt(installationID, 10)
+
+	return nil
+}
+
+// FireGitHub hands a GitHub event to every enabled GitHub trigger it matches:
+// same repository and installation, a listed event and a matching branch.
+// Events from forks never fire. Events of one pull request continue one
+// session. It returns how many triggers took the event.
+func (c *Client) FireGitHub(ctx context.Context, event GitHubTriggerEvent) (int, error) {
+	if !strings.EqualFold(event.HeadRepository, event.Repository) {
+		return 0, nil
+	}
+
+	triggers, err := c.agentTriggers.Triggers(ctx)
+
+	if err != nil {
+		return 0, err
+	}
+
+	name := event.Type + "." + event.Action
+	installationID := strconv.FormatInt(event.InstallationID, 10)
+	body, err := gitHubTriggerBody(name, event)
+
+	if err != nil {
+		return 0, err
+	}
+
+	key := ""
+
+	if event.PullRequest > 0 {
+		key = "pr:" + strconv.Itoa(event.PullRequest)
+	}
+
+	fired := 0
+	suspended := map[string]bool{}
+
+	for _, trigger := range triggers {
+		if trigger.Source != values.TriggerGitHub || !trigger.Enabled {
+			continue
+		}
+
+		if !strings.EqualFold(trigger.Repository, event.Repository) || trigger.InstallationID != installationID {
+			continue
+		}
+
+		if !slices.Contains(trigger.Events, name) || !matchesBranch(trigger.Branches, event.Branch) {
+			continue
+		}
+
+		workspace := trigger.ID.Agent.Workspace
+		workspaceSuspended, checked := suspended[workspace]
+
+		if !checked {
+			workspaceSuspended = c.workspaceSuspended(ctx, workspace)
+			suspended[workspace] = workspaceSuspended
+		}
+
+		if workspaceSuspended {
+			continue
+		}
+
+		err := c.agentTriggers.Fire(ctx, trigger, key, body)
+
+		if errors.Is(err, agentrunner.ErrConflict) {
+			slog.InfoContext(ctx, "github trigger skipped, the session is busy", "trigger", trigger.ID, "key", key)
+			continue
+		}
+
+		if err != nil {
+			slog.WarnContext(ctx, "github trigger failed", "trigger", trigger.ID, "error", err)
+			continue
+		}
+
+		fired++
+	}
+
+	return fired, nil
+}
+
+func (c *Client) workspaceSuspended(ctx context.Context, workspace string) bool {
+	details, err := c.Workspace(ctx, workspace)
+
+	if err != nil {
+		slog.WarnContext(ctx, "github trigger: failed to read workspace, firing anyway", "workspace", workspace, "error", err)
+		return false
+	}
+
+	return details.Suspended
+}
+
+func matchesBranch(patterns []string, branch string) bool {
+	if len(patterns) == 0 {
+		return true
+	}
+
+	for _, pattern := range patterns {
+		if ok, _ := path.Match(pattern, branch); ok {
+			return true
+		}
+	}
+
+	return false
+}
+
+func gitHubTriggerBody(name string, event GitHubTriggerEvent) (string, error) {
+	body, err := json.MarshalIndent(struct {
+		Event       string `json:"event"`
+		Repository  string `json:"repository"`
+		PullRequest int    `json:"pullRequest,omitempty"`
+		Title       string `json:"title,omitempty"`
+		Branch      string `json:"branch,omitempty"`
+		Commit      string `json:"commit,omitempty"`
+		Workflow    string `json:"workflow,omitempty"`
+		Conclusion  string `json:"conclusion,omitempty"`
+		URL         string `json:"url,omitempty"`
+		Sender      string `json:"sender,omitempty"`
+	}{
+		Event:       name,
+		Repository:  event.Repository,
+		PullRequest: event.PullRequest,
+		Title:       event.Title,
+		Branch:      event.Branch,
+		Commit:      event.Commit,
+		Workflow:    event.Workflow,
+		Conclusion:  event.Conclusion,
+		URL:         event.URL,
+		Sender:      event.Sender,
+	}, "", "  ")
+
+	if err != nil {
+		return "", err
+	}
+
+	return string(body), nil
 }

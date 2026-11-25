@@ -155,12 +155,15 @@ type ComplexityRoot struct {
 	}
 
 	AgentTrigger struct {
+		Branches     func(childComplexity int) int
 		Enabled      func(childComplexity int) int
+		Events       func(childComplexity int) int
 		ID           func(childComplexity int) int
 		Instructions func(childComplexity int) int
 		Key          func(childComplexity int) int
 		LastRunAt    func(childComplexity int) int
 		Name         func(childComplexity int) int
+		Repository   func(childComplexity int) int
 		Schedule     func(childComplexity int) int
 		Source       func(childComplexity int) int
 		TimeZone     func(childComplexity int) int
@@ -1769,12 +1772,24 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.AgentToolCall.Tool(childComplexity), true
 
+	case "AgentTrigger.branches":
+		if e.ComplexityRoot.AgentTrigger.Branches == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentTrigger.Branches(childComplexity), true
 	case "AgentTrigger.enabled":
 		if e.ComplexityRoot.AgentTrigger.Enabled == nil {
 			break
 		}
 
 		return e.ComplexityRoot.AgentTrigger.Enabled(childComplexity), true
+	case "AgentTrigger.events":
+		if e.ComplexityRoot.AgentTrigger.Events == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentTrigger.Events(childComplexity), true
 	case "AgentTrigger.id":
 		if e.ComplexityRoot.AgentTrigger.ID == nil {
 			break
@@ -1805,6 +1820,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.AgentTrigger.Name(childComplexity), true
+	case "AgentTrigger.repository":
+		if e.ComplexityRoot.AgentTrigger.Repository == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AgentTrigger.Repository(childComplexity), true
 	case "AgentTrigger.schedule":
 		if e.ComplexityRoot.AgentTrigger.Schedule == nil {
 			break
@@ -6877,6 +6898,12 @@ func (ec *executionContext) childFields_AgentTrigger(ctx context.Context, field 
 		return ec.fieldContext_AgentTrigger_timeZone(ctx, field)
 	case "key":
 		return ec.fieldContext_AgentTrigger_key(ctx, field)
+	case "repository":
+		return ec.fieldContext_AgentTrigger_repository(ctx, field)
+	case "events":
+		return ec.fieldContext_AgentTrigger_events(ctx, field)
+	case "branches":
+		return ec.fieldContext_AgentTrigger_branches(ctx, field)
 	case "instructions":
 		return ec.fieldContext_AgentTrigger_instructions(ctx, field)
 	case "enabled":
@@ -15497,6 +15524,75 @@ func (ec *executionContext) _AgentTrigger_key(ctx context.Context, field graphql
 	)
 }
 func (ec *executionContext) fieldContext_AgentTrigger_key(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentTrigger", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AgentTrigger_repository(ctx context.Context, field graphql.CollectedField, obj *model.AgentTrigger) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentTrigger_repository(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Repository, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_AgentTrigger_repository(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentTrigger", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AgentTrigger_events(ctx context.Context, field graphql.CollectedField, obj *model.AgentTrigger) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentTrigger_events(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Events, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
+			return ec.marshalOString2ᚕstringᚄ(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_AgentTrigger_events(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AgentTrigger", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AgentTrigger_branches(ctx context.Context, field graphql.CollectedField, obj *model.AgentTrigger) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AgentTrigger_branches(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Branches, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
+			return ec.marshalOString2ᚕstringᚄ(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_AgentTrigger_branches(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("AgentTrigger", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
@@ -38938,7 +39034,7 @@ func (ec *executionContext) unmarshalInputAgentTriggerInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "source", "schedule", "timeZone", "key", "instructions"}
+	fieldsInOrder := [...]string{"name", "source", "schedule", "timeZone", "key", "repository", "events", "branches", "instructions"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -39064,6 +39160,93 @@ func (ec *executionContext) unmarshalInputAgentTriggerInput(ctx context.Context,
 				it.Key = nil
 			} else {
 				err := fmt.Errorf(`unexpected type %T from directive, should be *string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+		case "repository":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("repository"))
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalOString2ᚖstring(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "max=200")
+				if err != nil {
+					var zeroVal *string
+					return zeroVal, err
+				}
+				if ec.Directives.Constraint == nil {
+					var zeroVal *string
+					return zeroVal, errors.New("directive constraint is not implemented")
+				}
+				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
+			}
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(*string); ok {
+				it.Repository = data
+			} else if tmp == nil {
+				it.Repository = nil
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be *string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+		case "events":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("events"))
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalOString2ᚕstringᚄ(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "max=8,dive,min=1,max=64")
+				if err != nil {
+					var zeroVal []string
+					return zeroVal, err
+				}
+				if ec.Directives.Constraint == nil {
+					var zeroVal []string
+					return zeroVal, errors.New("directive constraint is not implemented")
+				}
+				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
+			}
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.([]string); ok {
+				it.Events = data
+			} else if tmp == nil {
+				it.Events = nil
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be []string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+		case "branches":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("branches"))
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalOString2ᚕstringᚄ(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "max=16,dive,min=1,max=255")
+				if err != nil {
+					var zeroVal []string
+					return zeroVal, err
+				}
+				if ec.Directives.Constraint == nil {
+					var zeroVal []string
+					return zeroVal, errors.New("directive constraint is not implemented")
+				}
+				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
+			}
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.([]string); ok {
+				it.Branches = data
+			} else if tmp == nil {
+				it.Branches = nil
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be []string`, tmp)
 				return it, graphql.ErrorOnPath(ctx, err)
 			}
 		case "instructions":
@@ -41642,6 +41825,21 @@ func (ec *executionContext) _AgentTrigger(ctx context.Context, sel ast.Selection
 			}
 		case "key":
 			out.Values[i] = ec._AgentTrigger_key(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "repository":
+			out.Values[i] = ec._AgentTrigger_repository(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "events":
+			out.Values[i] = ec._AgentTrigger_events(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "branches":
+			out.Values[i] = ec._AgentTrigger_branches(ctx, field, obj)
 			if out.Values[i] == graphql.RequiredNull {
 				atomic.AddUint32(&out.Invalids, 1)
 			}

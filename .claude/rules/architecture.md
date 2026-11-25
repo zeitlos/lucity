@@ -14,9 +14,9 @@ Every feature must survive ejection as standard Kubernetes and Helm config with 
 
 Truth lives in Kubernetes, queried via `lucity.dev/*` labels and annotations. Don't invent CRDs or mapping tables when a label selector answers the question. Don't duplicate state that Helm, an operator, or the registry already owns.
 
-## The user's repo is sacred
+## The user owns their repo
 
-The platform reads source repos and writes to them never: not a commit, not a file, not a hook. All platform-managed config lives outside the user's repo, as the Helm values the control plane computes and applies.
+The platform writes to a source repo only through access the user granted for it: an agent they linked with write access, or the webhook a git connection needs. It never commits platform config there. All platform-managed config lives outside the user's repo, as the Helm values the control plane computes and applies.
 
 ## Zero-trust
 

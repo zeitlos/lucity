@@ -1692,6 +1692,26 @@
         "isOneOf": null,
         "fields": [
           {
+            "name": "branches",
+            "description": "Branch patterns a GitHub trigger is limited to, like `feature/*`. Empty means every branch.",
+            "args": [],
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "name": null,
+                "kind": "NON_NULL",
+                "ofType": {
+                  "name": "String",
+                  "kind": "SCALAR",
+                  "ofType": null
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "enabled",
             "description": "A trigger that is off doesn't start sessions.",
             "args": [],
@@ -1702,6 +1722,26 @@
                 "name": "Boolean",
                 "kind": "SCALAR",
                 "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "events",
+            "description": "The events a GitHub trigger starts on, like `pull_request.opened` or `workflow_run.completed`. Events of one pull request continue one session.",
+            "args": [],
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "name": null,
+                "kind": "NON_NULL",
+                "ofType": {
+                  "name": "String",
+                  "kind": "SCALAR",
+                  "ofType": null
+                }
               }
             },
             "isDeprecated": false,
@@ -1775,6 +1815,18 @@
                 "kind": "SCALAR",
                 "ofType": null
               }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "repository",
+            "description": "The `owner/repo` a GitHub trigger listens to.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -1856,6 +1908,46 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "branches",
+            "description": "Branch patterns, for a GitHub trigger. Pull requests from forks never start a session.",
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "name": null,
+                "kind": "NON_NULL",
+                "ofType": {
+                  "name": "String",
+                  "kind": "SCALAR",
+                  "ofType": null
+                }
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "events",
+            "description": "At least one of `pull_request.opened`, `pull_request.reopened`, `pull_request.synchronize`, `pull_request.closed` and `workflow_run.completed`, for a GitHub trigger.",
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "name": null,
+                "kind": "NON_NULL",
+                "ofType": {
+                  "name": "String",
+                  "kind": "SCALAR",
+                  "ofType": null
+                }
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "instructions",
             "description": null,
             "type": {
@@ -1894,6 +1986,18 @@
                 "kind": "SCALAR",
                 "ofType": null
               }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "repository",
+            "description": "An `owner/repo` your GitHub account can read, for a GitHub trigger.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
             },
             "defaultValue": null,
             "isDeprecated": false,
@@ -1953,6 +2057,12 @@
         "inputFields": null,
         "interfaces": null,
         "enumValues": [
+          {
+            "name": "GITHUB",
+            "description": "An event in a GitHub repository the Lucity GitHub App can read.",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
           {
             "name": "SCHEDULE",
             "description": "A cron schedule, in a time zone.",

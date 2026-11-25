@@ -40,17 +40,22 @@ type Agent struct {
 }
 
 // AgentTrigger starts sessions of an agent on its own: on a cron schedule in a
-// time zone, or when a webhook with its token is called. Events with the same
-// value in the body's Key field continue one session.
+// time zone, when a webhook with its token is called, or on an event in a
+// GitHub repository the installation can read. Events with the same value in
+// the body's Key field continue one session.
 type AgentTrigger struct {
-	Name         string        `yaml:"name" json:"name"`
-	Source       TriggerSource `yaml:"source" json:"source"`
-	Schedule     string        `yaml:"schedule,omitempty" json:"schedule,omitempty"`
-	TimeZone     string        `yaml:"timeZone,omitempty" json:"timeZone,omitempty"`
-	TokenHash    string        `yaml:"tokenHash,omitempty" json:"tokenHash,omitempty"`
-	Key          string        `yaml:"key,omitempty" json:"key,omitempty"`
-	Instructions string        `yaml:"instructions" json:"instructions"`
-	Enabled      bool          `yaml:"enabled" json:"enabled"`
+	Name           string        `yaml:"name" json:"name"`
+	Source         TriggerSource `yaml:"source" json:"source"`
+	Schedule       string        `yaml:"schedule,omitempty" json:"schedule,omitempty"`
+	TimeZone       string        `yaml:"timeZone,omitempty" json:"timeZone,omitempty"`
+	TokenHash      string        `yaml:"tokenHash,omitempty" json:"tokenHash,omitempty"`
+	Key            string        `yaml:"key,omitempty" json:"key,omitempty"`
+	Repository     string        `yaml:"repository,omitempty" json:"repository,omitempty"`
+	InstallationID string        `yaml:"installationId,omitempty" json:"installationId,omitempty"`
+	Events         []string      `yaml:"events,omitempty" json:"events,omitempty"`
+	Branches       []string      `yaml:"branches,omitempty" json:"branches,omitempty"`
+	Instructions   string        `yaml:"instructions" json:"instructions"`
+	Enabled        bool          `yaml:"enabled" json:"enabled"`
 }
 
 type TriggerSource string
@@ -58,6 +63,7 @@ type TriggerSource string
 const (
 	TriggerSchedule TriggerSource = "schedule"
 	TriggerWebhook  TriggerSource = "webhook"
+	TriggerGitHub   TriggerSource = "github"
 )
 
 type Harness string

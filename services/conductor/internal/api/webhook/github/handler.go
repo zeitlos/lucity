@@ -20,6 +20,11 @@ type Event struct {
 	CommitMessage  string // first line of the head commit message (push only)
 	InstallationID int64  // GitHub App installation ID
 	DefaultBranch  string // repo's default branch (e.g., "main")
+	HeadRepo       string // full name of the repository the head commit lives in
+	Title          string // pull request title
+	HTMLURL        string // pull request or workflow run page
+	WorkflowName   string
+	Conclusion     string // workflow run conclusion, e.g. "success", "failure"
 }
 
 // ValidateAndParse validates the webhook HMAC signature and parses
@@ -59,6 +64,26 @@ func ValidateAndParse(secret []byte, r *http.Request) (*Event, error) {
 		event.CommitSHA = e.GetPullRequest().GetHead().GetSHA()
 		event.Sender = e.GetSender().GetLogin()
 		event.PRNumber = e.GetNumber()
+		event.InstallationID = e.GetInstallation().GetID()
+		event.HeadRepo = e.GetPullRequest().GetHead().GetRepo().GetFullName()
+		event.Title = e.GetPullRequest().GetTitle()
+		event.HTMLURL = e.GetPullRequest().GetHTMLURL()
+
+	case *gh.WorkflowRunEvent:
+		run := e.GetWorkflowRun()
+		event.Action = e.GetAction()
+		event.RepoFullName = e.GetRepo().GetFullName()
+		event.Ref = run.GetHeadBranch()
+		event.CommitSHA = run.GetHeadSHA()
+		event.Sender = e.GetSender().GetLogin()
+		event.InstallationID = e.GetInstallation().GetID()
+		event.HeadRepo = run.GetHeadRepository().GetFullName()
+		event.HTMLURL = run.GetHTMLURL()
+		event.WorkflowName = run.GetName()
+		event.Conclusion = run.GetConclusion()
+		if len(run.PullRequests) > 0 {
+			event.PRNumber = run.PullRequests[0].GetNumber()
+		}
 
 	case *gh.InstallationEvent:
 		// Placeholder for future installation lifecycle management (app installed/uninstalled).
