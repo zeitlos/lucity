@@ -261,10 +261,12 @@ export const connectorPresets: ConnectorPreset[] = [
   { id: 'mcp', label: 'Any MCP server', name: '', url: '', urlPlaceholder: 'https://mcp.example.com/mcp', keyLabel: 'Token', keyOptional: true },
 ];
 
-export function connectorBrand(connector: { url?: string | null }): string | null {
+export function connectorBrand(connector: { name: string; url?: string | null }): string | null {
   const host = connector.url ? hostname(connector.url) : null;
-  if (!host) return null;
-  return connectorPresets.find(preset => preset.domain && (host === preset.domain || host.endsWith(`.${preset.domain}`)))?.name ?? null;
+  const preset = host ? connectorPresets.find(candidate => candidate.domain && (host === candidate.domain || host.endsWith(`.${candidate.domain}`))) : undefined;
+  if (preset) return preset.name;
+  if (`${connector.name} ${connector.url ?? ''}`.toLowerCase().includes('kubernetes')) return 'kubernetes';
+  return null;
 }
 
 export const chatAppKinds: { value: ChatAppKind; label: string }[] = [
