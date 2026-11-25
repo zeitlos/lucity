@@ -14,12 +14,13 @@
     "@nuxt/ui": "^4.11.3",
     "@nuxtjs/sitemap": "^8.6.1",
     "better-sqlite3": "^12.5.0",
-    "docus": "latest",
+    "docus": "^5.15.0",
     "flo-mat": "^4.1.4",
     "nuxt": "^4.5.2"
   },
   "devDependencies": {
     "@iconify-json/devicon": "^1.2.68",
+    "esbuild": "^0.28.2",
     "opentype.js": "^2.0.0",
     "playwright": "^1.63.0"
   },

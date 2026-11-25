@@ -102,8 +102,14 @@ const formattedDate = computed(() => {
   });
 });
 
-// Add the page path to the prerender list
-addPrerenderPath(`/raw${route.path}.md`);
+const requestEvent = useRequestEvent();
+if (requestEvent) {
+  const response = requestEvent.node.res;
+  response.setHeader(
+    'x-nitro-prerender',
+    [response.getHeader('x-nitro-prerender'), `/raw${route.path}.md`].filter(Boolean).join(','),
+  );
+}
 </script>
 
 <template>
