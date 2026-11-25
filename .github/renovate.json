@@ -9,6 +9,10 @@
   "prConcurrentLimit": 20,
   "configMigration": true,
   "osvVulnerabilityAlerts": true,
+  "vulnerabilityAlerts": {
+    "groupName": "security fixes",
+    "additionalBranchPrefix": "{{manager}}-"
+  },
   "postUpdateOptions": ["gomodTidyAll", "gomodUpdateImportPaths", "helmUpdateSubChartArchives"],
   "lockFileMaintenance": {
     "enabled": true
@@ -196,6 +200,12 @@
       "enabled": false
     },
     {
+      "description": "Everything in the infra chart ships in one infra release; the risky ones are split out below",
+      "matchFileNames": ["charts/lucity-infra/**"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "infra chart non-major"
+    },
+    {
       "description": "Operator and backup plugin release together; a plugin bump rolls every Postgres pod",
       "matchManagers": ["helmv3"],
       "matchDepNames": ["cloudnative-pg", "plugin-barman-cloud"],
@@ -213,16 +223,14 @@
       "description": "traefik keeps its CRDs in crds/, which upgrades skip; zot is a single-replica registry, so every bump is a registry outage",
       "matchManagers": ["helmv3"],
       "matchDepNames": ["traefik", "zot"],
+      "groupName": null,
       "dependencyDashboardApproval": true,
       "addLabels": ["planned"]
     },
     {
-      "matchPackageNames": ["ghcr.io/rybbit-io/rybbit-backend", "ghcr.io/rybbit-io/rybbit-client"],
-      "groupName": "rybbit"
-    },
-    {
       "description": "Logto runs schema migrations on rollout; ClickHouse has no backup",
       "matchPackageNames": ["ghcr.io/logto-io/logto", "clickhouse/clickhouse-server"],
+      "groupName": null,
       "dependencyDashboardApproval": true,
       "addLabels": ["planned"]
     },
