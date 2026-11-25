@@ -29,6 +29,8 @@
     "anser": "^2.3.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cron-parser": "^5.10.3",
+    "cronstrue": "^3.39.0",
     "embla-carousel-vue": "^8.6.0",
     "graphql": "^16.13.2",
     "graphql-ws": "^6.3.0",

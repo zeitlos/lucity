@@ -5,6 +5,7 @@ import { Clock, Plus, Trash2, Webhook, Zap } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { AgentTriggerSource } from '@/gql/graphql';
 import type { Agent, AgentTrigger } from '@/lib/agents';
+import { describeCron } from '@/lib/schedule';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import IconButton from '@/components/IconButton.vue';
@@ -58,7 +59,7 @@ function openEdit(trigger: AgentTrigger) {
 
 function when(trigger: AgentTrigger) {
   if (trigger.source === AgentTriggerSource.Webhook) return 'Webhook';
-  return `${trigger.schedule} · ${trigger.timeZone}`;
+  return `${describeCron(trigger.schedule ?? '') ?? trigger.schedule} · ${trigger.timeZone}`;
 }
 
 async function toggle(trigger: AgentTrigger, enabled: boolean) {

@@ -6,6 +6,8 @@ import { graphql } from '@/gql';
 import { AgentTriggerSource } from '@/gql/graphql';
 import type { Agent, AgentTrigger } from '@/lib/agents';
 import { mobileSheetClass } from '@/lib/dialog';
+import { formatDateTime } from '@/lib/format';
+import { defaultSchedule, describeCron, fromCron, nextRuns, repeatOptions, toCron, weekdays, type Schedule } from '@/lib/schedule';
 import CodeBlock from '@/components/CodeBlock.vue';
 import CredentialField from '@/components/CredentialField.vue';
 import DialogIcon from '@/components/DialogIcon.vue';
@@ -83,7 +85,7 @@ const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 const name = ref('');
 const source = ref<AgentTriggerSource>(AgentTriggerSource.Schedule);
-const schedule = ref('');
+const schedule = ref<Schedule>(defaultSchedule());
 const key = ref('');
 const instructions = ref('');
 const created = ref<{ url: string; token: string } | null>(null);
@@ -97,7 +99,7 @@ watch(open, (value) => {
   created.value = null;
   name.value = props.trigger?.name ?? '';
   source.value = props.trigger?.source ?? AgentTriggerSource.Schedule;
-  schedule.value = props.trigger?.schedule ?? '';
+  schedule.value = props.trigger?.schedule ? fromCron(props.trigger.schedule) : defaultSchedule();
   key.value = props.trigger?.key ?? '';
   instructions.value = props.trigger?.instructions ?? '';
 });
@@ -106,11 +108,29 @@ const { mutate: createTrigger, loading: creating } = useMutation(CreateAgentTrig
 const { mutate: updateTrigger, loading: updating } = useMutation(UpdateAgentTriggerDocument);
 const { mutate: replaceToken, loading: replacing } = useMutation(ReplaceAgentTriggerTokenDocument);
 
+const cron = computed(() => toCron(schedule.value));
+const runs = computed(() => nextRuns(cron.value, timeZone.value, 3));
+const customReading = computed(() => (schedule.value.repeats === 'custom' && cron.value ? describeCron(cron.value) : null));
+
+const scheduleProblem = computed(() => {
+  const current = schedule.value;
+  if (current.repeats === 'weekly' && current.days.length === 0) return 'Pick at least one day.';
+  if (current.repeats === 'hourly' && !(current.minute >= 0 && current.minute <= 59)) return 'The minute is 0 to 59.';
+  if (current.repeats === 'monthly' && !(current.dayOfMonth >= 1 && current.dayOfMonth <= 31)) return 'The day is 1 to 31.';
+  if (current.repeats === 'custom' && runs.value.length === 0) return 'This isn\'t a cron expression.';
+  return null;
+});
+
+function toggleDay(day: number) {
+  const days = schedule.value.days;
+  schedule.value.days = days.includes(day) ? days.filter(existing => existing !== day) : [...days, day];
+}
+
 const pending = computed(() => creating.value || updating.value || replacing.value);
 const canSave = computed(() => !pending.value
   && name.value.trim() !== ''
   && instructions.value.trim() !== ''
-  && (!isSchedule.value || schedule.value.trim() !== ''));
+  && (!isSchedule.value || !scheduleProblem.value));
 
 const snippet = computed(() => created.value
   ? `receivers:
@@ -127,7 +147,7 @@ function input() {
   return {
     name: name.value.trim(),
     source: source.value,
-    schedule: isSchedule.value ? schedule.value.trim() : null,
+    schedule: isSchedule.value ? cron.value : null,
     timeZone: isSchedule.value ? timeZone.value : null,
     key: isSchedule.value ? null : key.value.trim() || null,
     instructions: instructions.value,
@@ -214,11 +234,60 @@ async function newToken() {
             <SegmentedControl v-model="source" label="Starts" :options="sources" class="flex w-full" item-class="h-7 flex-1 text-sm" />
           </div>
 
-          <div v-if="isSchedule" class="space-y-2">
-            <Label for="trigger-schedule">Schedule</Label>
-            <Input id="trigger-schedule" v-model="schedule" class="font-mono text-sm" placeholder="0 12 * * 1-5" autocomplete="off" spellcheck="false" maxlength="128" />
-            <p class="text-xs text-muted-foreground">A cron expression, in {{ timeZone }}.</p>
-          </div>
+          <template v-if="isSchedule">
+            <div class="space-y-2">
+              <p class="text-sm font-medium text-foreground">Repeats</p>
+              <SegmentedControl v-model="schedule.repeats" label="Repeats" :options="repeatOptions" class="flex w-full" item-class="h-7 flex-1 text-sm" />
+            </div>
+
+            <div v-if="schedule.repeats === 'hourly'" class="space-y-2">
+              <Label for="trigger-minute">Minute past the hour</Label>
+              <Input id="trigger-minute" v-model.number="schedule.minute" type="number" min="0" max="59" class="w-28 tabular-nums" />
+            </div>
+
+            <div v-if="schedule.repeats === 'weekly'" class="space-y-2">
+              <p class="text-sm font-medium text-foreground">On</p>
+              <div class="flex flex-wrap gap-1.5" role="group" aria-label="Days">
+                <Button
+                  v-for="day in weekdays"
+                  :key="day.value"
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  class="w-10 aria-pressed:border-primary aria-pressed:bg-accent aria-pressed:text-foreground"
+                  :class="schedule.days.includes(day.value) ? '' : 'text-muted-foreground'"
+                  :aria-pressed="schedule.days.includes(day.value)"
+                  :aria-label="day.name"
+                  @click="toggleDay(day.value)"
+                >
+                  {{ day.label }}
+                </Button>
+              </div>
+            </div>
+
+            <div v-if="schedule.repeats === 'monthly'" class="space-y-2">
+              <Label for="trigger-day">Day of the month</Label>
+              <Input id="trigger-day" v-model.number="schedule.dayOfMonth" type="number" min="1" max="31" class="w-28 tabular-nums" />
+            </div>
+
+            <div v-if="schedule.repeats === 'daily' || schedule.repeats === 'weekly' || schedule.repeats === 'monthly'" class="space-y-2">
+              <Label for="trigger-time">At</Label>
+              <Input id="trigger-time" v-model="schedule.time" type="time" class="w-32 tabular-nums" />
+              <p class="text-xs text-muted-foreground">In {{ timeZone }}.</p>
+            </div>
+
+            <div v-if="schedule.repeats === 'custom'" class="space-y-2">
+              <Label for="trigger-cron">Cron expression</Label>
+              <Input id="trigger-cron" v-model="schedule.cron" class="font-mono text-sm" placeholder="0 8,17 * * 1-5" autocomplete="off" spellcheck="false" maxlength="128" />
+              <p v-if="customReading" class="text-xs text-muted-foreground">{{ customReading }}.</p>
+            </div>
+
+            <p v-if="scheduleProblem && (schedule.repeats !== 'custom' || schedule.cron.trim() !== '')" class="text-xs text-destructive">{{ scheduleProblem }}</p>
+            <div v-else-if="runs.length > 0" class="space-y-1 rounded-md bg-muted/40 px-3 py-2">
+              <p class="text-xs text-muted-foreground">Next runs</p>
+              <p class="text-xs text-foreground tabular-nums">{{ runs.map(run => formatDateTime(run)).join(' · ') }}</p>
+            </div>
+          </template>
 
           <div v-else class="space-y-2">
             <Label for="trigger-key">Same session for</Label>
