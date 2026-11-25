@@ -367,6 +367,30 @@ victoria-metrics-alert:
       enabled: true
       size: 10Gi          # Hetzner Cloud Volumes have a 10Gi minimum
       storageClassName: hcloud-volumes
+    extraVolumes:
+      - name: telegram-token
+        secret:
+          secretName: lucity-infra-alertmanager-telegram
+      - name: ops-agent-trigger
+        secret:
+          secretName: ops-agent-trigger
+    extraVolumeMounts:
+      - name: telegram-token
+        mountPath: /etc/alertmanager/secrets
+        readOnly: true
+      - name: ops-agent-trigger
+        mountPath: /etc/alertmanager/ops-agent
+        readOnly: true
+    config:
+      route:
+        routes:
+          - receiver: ops-agent
+            continue: true
+            repeat_interval: 12h
+          - receiver: telegram
+            matchers: [severity="critical"]
+            repeat_interval: 1h
+          - receiver: telegram
     # The full receivers[] list (with the real Telegram chat_id) is set in
     # infra-secrets.yaml so the bot_token + chat_id live together.
 
