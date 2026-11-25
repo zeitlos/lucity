@@ -17,7 +17,7 @@ const props = defineProps<{
     name: string;
     harness: Harness;
     status: AgentStatus;
-    connectors: string[];
+    connectors: { name: string; brand: string | null }[];
     chat: { kind: ChatAppKind; channel: string } | null;
     triggers: string[];
     allowedHosts: number;
@@ -122,13 +122,13 @@ const network = computed(() => {
       <div class="mt-1 flex items-center justify-between gap-3 border-t border-border/50 pt-4">
         <Status :tone="status.tone" :glyph="status.glyph" size="sm">{{ status.label }}</Status>
         <div v-if="data.connectors.length" class="flex min-w-0 items-center -space-x-1">
-          <Tooltip v-for="connector in data.connectors" :key="connector">
+          <Tooltip v-for="connector in data.connectors" :key="connector.name">
             <TooltipTrigger as-child>
               <span class="rounded-sm ring-2 ring-card">
-                <BrandTile :name="connector" size="sm" />
+                <BrandTile :name="connector.name" :brand="connector.brand" size="sm" />
               </span>
             </TooltipTrigger>
-            <TooltipContent side="top" :class="darkTooltipClass">{{ connector }}</TooltipContent>
+            <TooltipContent side="top" :class="darkTooltipClass">{{ connector.name }}</TooltipContent>
           </Tooltip>
         </div>
       </div>

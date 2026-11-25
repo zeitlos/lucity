@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import { ChevronRight, Wrench } from '@lucide/vue';
 import { AgentToolCallStatus } from '@/gql/graphql';
 import { prettyJson, type ToolCallEvent } from '@/lib/agentSession';
+import { useConnectorBrands } from '@/composables/useConnectorBrands';
 import BrandTile from '@/components/BrandTile.vue';
 import CodeBlock from '@/components/CodeBlock.vue';
 import Spinner from '@/components/LoadingSpinner.vue';
@@ -12,6 +13,7 @@ defineProps<{
   calls: ToolCallEvent[];
 }>();
 
+const connectorBrandFor = useConnectorBrands();
 const expanded = ref(new Set<string>());
 
 function toggle(callId: string) {
@@ -31,7 +33,7 @@ function toggle(callId: string) {
         :aria-expanded="expanded.has(call.callId)"
         @click="toggle(call.callId)"
       >
-        <BrandTile v-if="call.connector" :name="call.connector" size="sm" />
+        <BrandTile v-if="call.connector" :name="call.connector" :brand="connectorBrandFor(call.connector)" size="sm" />
         <span v-else class="flex size-5 shrink-0 items-center justify-center text-muted-foreground">
           <Wrench :size="14" />
         </span>

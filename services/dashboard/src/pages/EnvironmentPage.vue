@@ -277,6 +277,7 @@ const EnvironmentAgentsDocument = graphql(`
           connector {
             id
             name
+            url
           }
         }
         chat {

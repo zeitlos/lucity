@@ -7,14 +7,19 @@ import { fallbackColorIndex, workspaceColorStyle } from '@/lib/workspaceColor';
 
 const props = withDefaults(defineProps<{
   name: string;
+  brand?: string | null;
   icon?: Component;
   size?: 'sm' | 'md';
 }>(), {
+  brand: undefined,
   icon: undefined,
   size: 'md',
 });
 
-const mark = computed(() => (props.icon ? null : brandMark(props.name)));
+const mark = computed(() => {
+  if (props.icon) return null;
+  return (props.brand ? brandMark(props.brand) : null) ?? brandMark(props.name);
+});
 const letter = computed(() => props.name.trim().charAt(0).toUpperCase() || '?');
 const style = computed(() => {
   if (props.icon) return undefined;

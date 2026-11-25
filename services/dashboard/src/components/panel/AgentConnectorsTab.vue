@@ -4,7 +4,7 @@ import { useMutation, useQuery } from '@vue/apollo-composable';
 import { ChevronDown, ChevronRight, Plug, Search } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { Approval, CredentialStatus, type AgentConnectorInput } from '@/gql/graphql';
-import { approvals, type Agent } from '@/lib/agents';
+import { approvals, connectorBrand, type Agent } from '@/lib/agents';
 import { credentialStatus } from '@/lib/status';
 import BrandTile from '@/components/BrandTile.vue';
 import EmptyState from '@/components/EmptyState.vue';
@@ -24,6 +24,7 @@ const WorkspaceConnectorsDocument = graphql(`
     connectors {
       id
       name
+      url
       status
       tools {
         name
@@ -43,6 +44,7 @@ const SetAgentConnectorsDocument = graphql(`
         connector {
           id
           name
+          url
         }
       }
     }
@@ -183,7 +185,7 @@ async function toggleTool(connectorId: string, tool: string, shown: boolean) {
     <div v-else class="-mx-4 divide-y border-y">
       <template v-for="connector in connectors" :key="connector.id">
         <div class="flex items-center gap-3 py-2.5 pr-3 pl-4">
-          <BrandTile :name="connector.name" />
+          <BrandTile :name="connector.name" :brand="connectorBrand(connector)" />
           <div class="min-w-0 flex-1">
             <p class="truncate text-sm font-medium text-foreground">{{ connector.name }}</p>
             <Status
