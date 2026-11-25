@@ -1,0 +1,81 @@
+# Read-only access to lucity-prod for the ops agent on lucity-dev. Bound to the
+# built-in view role (no Secrets) plus cluster-scoped reads view leaves out.
+#
+# kubectl --context lucity-prod apply -f deployments/lucity-prod/ops-agent-access.yaml
+# kubectl --context lucity-prod -n ops-agent get secret ops-agent-token -o jsonpath='{.data.token}' | base64 -d
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ops-agent
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ops-agent
+  namespace: ops-agent
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ops-agent-token
+  namespace: ops-agent
+  annotations:
+    kubernetes.io/service-account.name: ops-agent
+type: kubernetes.io/service-account-token
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ops-agent
+rules:
+  - apiGroups: [""]
+    resources: [nodes, persistentvolumes]
+    verbs: [get, list, watch]
+  - apiGroups: [storage.k8s.io]
+    resources: [storageclasses, volumeattachments, csinodes]
+    verbs: [get, list, watch]
+  - apiGroups: [metrics.k8s.io]
+    resources: [nodes, pods]
+    verbs: [get, list]
+  - apiGroups: [gateway.networking.k8s.io]
+    resources: [gateways, gatewayclasses, httproutes, grpcroutes, tlsroutes, tcproutes, referencegrants, listenersets]
+    verbs: [get, list, watch]
+  - apiGroups: [apiextensions.k8s.io]
+    resources: [customresourcedefinitions]
+    verbs: [get, list, watch]
+  - apiGroups: [scheduling.k8s.io]
+    resources: [priorityclasses]
+    verbs: [get, list, watch]
+  - apiGroups: [postgresql.cnpg.io]
+    resources: [clusters, backups, scheduledbackups, poolers]
+    verbs: [get, list, watch]
+  - apiGroups: [autoscaling.k8s.io]
+    resources: [verticalpodautoscalers]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ops-agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ops-agent
+subjects:
+  - kind: ServiceAccount
+    name: ops-agent
+    namespace: ops-agent
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ops-agent-view
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+subjects:
+  - kind: ServiceAccount
+    name: ops-agent
+    namespace: ops-agent

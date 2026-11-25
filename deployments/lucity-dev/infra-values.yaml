@@ -77,6 +77,10 @@ zot:
 
 gateway:
   className: cilium
+  allowedListeners:
+    namespaces:
+      from: All
+      selector: null
   infrastructure:
     annotations:
       flexplane.io/provider: hetzner

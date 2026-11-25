@@ -1,0 +1,68 @@
+# Kubernetes MCP server for the ops agent, reading lucity-prod.
+# It holds no credentials: each request's bearer token (the agent connector's
+# credential, a token of the ops-agent ServiceAccount on prod) goes to the prod
+# API, and requests without one are refused.
+#
+# kubectl --context lucity-dev apply -f deployments/lucity-dev/kubernetes-mcp.yaml
+# helm upgrade --install kubernetes-mcp oci://ghcr.io/containers/charts/kubernetes-mcp-server \
+#   --version 0.1.3 --kube-context lucity-dev -n kubernetes-mcp \
+#   -f deployments/lucity-dev/kubernetes-mcp-values.yaml
+
+image:
+  version: v0.1.3
+
+serviceAccount:
+  automountToken: false
+
+rbac:
+  create: false
+
+ingress:
+  enabled: false
+
+httpRoute:
+  enabled: true
+  annotations:
+    external-dns.kubernetes.io/hostname: kubernetes-mcp.lucity.dev
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: ListenerSet
+      name: kubernetes-mcp
+      sectionName: https
+  hostnames:
+    - kubernetes-mcp.lucity.dev
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /mcp
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 64Mi
+  limits:
+    memory: 256Mi
+
+extraVolumes:
+  - name: kubeconfig
+    configMap:
+      name: kubernetes-mcp-kubeconfig
+
+extraVolumeMounts:
+  - name: kubeconfig
+    mountPath: /etc/kubernetes-mcp-kubeconfig
+    readOnly: true
+
+config:
+  stateless: true
+  read_only: true
+  toolsets: [core]
+  kubeconfig: /etc/kubernetes-mcp-kubeconfig/kubeconfig
+  require_oauth: true
+  skip_jwt_verification: true
+  cluster_auth_mode: passthrough
+  denied_resources:
+    - group: ""
+      version: v1
+      kind: Secret

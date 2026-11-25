@@ -1,0 +1,67 @@
+# Namespace, prod kubeconfig (API address and CA, no user credentials) and the
+# kubernetes-mcp.lucity.dev listener on the shared gateway for the Kubernetes MCP server.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubernetes-mcp
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kubernetes-mcp-kubeconfig
+  namespace: kubernetes-mcp
+data:
+  kubeconfig: |
+    apiVersion: v1
+    kind: Config
+    clusters:
+      - name: lucity-prod
+        cluster:
+          server: https://46.225.44.172:443
+          certificate-authority-data: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURRakNDQWlxZ0F3SUJBZ0lVUEZuYnltUERLU0YxM1V5c1ZNdUg1Y3FTZTNVd0RRWUpLb1pJaHZjTkFRRUwKQlFBd09URWZNQjBHQTFVRUNoTVdiSFZqYVhSNUxYQnliMlF0YTNWaVpYSnVaWFJsY3pFV01CUUdBMVVFQXhNTgphM1ZpWlhKdVpYUmxjeTFqWVRBZUZ3MHlOakF6TURVeE1qQTBNalphRncwek5qQXpNREl4TWpBME1qWmFNRGt4Ckh6QWRCZ05WQkFvVEZteDFZMmwwZVMxd2NtOWtMV3QxWW1WeWJtVjBaWE14RmpBVUJnTlZCQU1URFd0MVltVnkKYm1WMFpYTXRZMkV3Z2dFaU1BMEdDU3FHU0liM0RRRUJBUVVBQTRJQkR3QXdnZ0VLQW9JQkFRQzA3SFdmcXBPZAoxL3BETVREdjdBU1ltbVdyRnZINXJhTXRxdUJJUXNMVElGT2oxVkxoUG1HWkI4dC85RG9hWENsaCtQOVB0eFRhCi9HNU9TbW5sdVFxUjgyMnJTNTYxL3lsKy9RZ0N4RXV1NStLVCtpS21XYVFRcjg0Y3dNK0d6NVFGRm5pWGRKVS8KblJ4Tlp4YVcyWStnQ3VvT0xYNjVMbHRnbUdNRXBqYTJaMzJONXdrdDBPdU04VTFMNVhaVXFpVEJpT3dqZnliVApJL0M4VEZoSlNBRXFTSzlCUTY2WWdhUHdOTUpOam9EcElTdUcvNXFGVlg2SkdLWld0NXFobnlsM0NwK1RqK2JGClVwUHBxTEllay9TeTRIZjRYemEvOHluRFBRSmtxK1ZOYy9mZ0lyUTNMOVlOQzVIQ0dENkFLOVV3aFEzK2d6WDMKSHhCdWxqczJIMFp6QWdNQkFBR2pRakJBTUE0R0ExVWREd0VCL3dRRUF3SUNwREFQQmdOVkhSTUJBZjhFQlRBRApBUUgvTUIwR0ExVWREZ1FXQkJRQUpSRTlYeFl0R3ZKZDk3azl3N3NpckM2ZEtqQU5CZ2txaGtpRzl3MEJBUXNGCkFBT0NBUUVBbnM2b0lYRzg1cGdNbFlvb3R3SytJT1VJSDVyNk5GVHpaakM5c3NKdVBxODRnbmRUdlJSL1FlUTcKQVlDQ1VPY2s3SEVPeVNHb3hIbHVCWWJIUm1tMGVVaFVxcFhJdmVIdEF0SkJOYmtobkRUeWVGTVJDdDNzNytoegoxWXdKTUFtRU9jN1Y0ZVo2bEUyaXVzNkRXazY2TzZNMitnYTd5c1JEZlVjZStxMUJ2R0w3OTRsZUZHanJlOC9mCnJRNkJGQ3RLOTVpWVVTcjZUSEdnSUNuaG83VXpMcFdmZ0k2cVF5SnJQVTBGKzRvZ2lBYVJnUGNvUFRvSlFYbVgKbTVJOE9va1lPbDBsMjY4c0dlWGNjSkpXYXVpR1pxeHZrb1U2ZmlCSWFKbGJ2OGJsU0M1UnFjRDNIRWVrNmtFbApYRExCUGdNRmFWSHc5clExUmEwb2h2Q3AzaDFURmc9PQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+    contexts:
+      - name: lucity-prod
+        context:
+          cluster: lucity-prod
+          user: passthrough
+    users:
+      - name: passthrough
+        user: {}
+    current-context: lucity-prod
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kubernetes-mcp-tls
+  namespace: kubernetes-mcp
+spec:
+  secretName: kubernetes-mcp-tls
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt-dns01
+  dnsNames:
+    - kubernetes-mcp.lucity.dev
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: ListenerSet
+metadata:
+  name: kubernetes-mcp
+  namespace: kubernetes-mcp
+spec:
+  parentRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    name: lucity-gateway
+    namespace: lucity-system
+  listeners:
+    - name: https
+      hostname: kubernetes-mcp.lucity.dev
+      protocol: HTTPS
+      port: 443
+      allowedRoutes:
+        namespaces:
+          from: Same
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: kubernetes-mcp-tls
