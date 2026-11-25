@@ -28,6 +28,7 @@ const props = withDefaults(defineProps<{
   <Tooltip>
     <TooltipTrigger as-child>
       <Button
+        type="button"
         v-bind="$attrs"
         :variant="variant"
         :size="size"
