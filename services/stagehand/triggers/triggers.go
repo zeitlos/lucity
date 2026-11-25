@@ -89,7 +89,8 @@ func (w *Worker) fire(ctx context.Context, now time.Time) error {
 	return nil
 }
 
-// due returns the trigger's latest tick within the last two intervals.
+// due returns the trigger's latest tick that has passed, if it falls within
+// the last two intervals.
 func (w *Worker) due(trigger agenttrigger.Trigger, now time.Time) (time.Time, bool, error) {
 	location, err := time.LoadLocation(trigger.TimeZone)
 
@@ -105,5 +106,13 @@ func (w *Worker) due(trigger agenttrigger.Trigger, now time.Time) (time.Time, bo
 
 	tick := schedule.Next(now.Add(-2 * w.interval).In(location))
 
-	return tick, !tick.After(now), nil
+	if tick.After(now) {
+		return time.Time{}, false, nil
+	}
+
+	for next := schedule.Next(tick); !next.After(now); next = schedule.Next(next) {
+		tick = next
+	}
+
+	return tick, true, nil
 }
