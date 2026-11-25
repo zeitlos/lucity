@@ -59,6 +59,10 @@ func (b *Bridge) relay(id platform.AgentSessionID, at thread, after string) {
 				return
 			}
 
+			if event.Type == agentrunner.EventMessageDraft {
+				continue
+			}
+
 			if err := r.handle(ctx, event); err != nil {
 				slog.Error("bridge: stopped following a session", "session", id, "error", err)
 				return

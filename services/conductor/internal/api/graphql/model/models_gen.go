@@ -26,6 +26,11 @@ type AgentSessionEvent interface {
 	IsAgentSessionEvent()
 }
 
+// What `agentSessionEvents` sends: an event of the session, or a draft of the message the agent is writing.
+type AgentSessionUpdate interface {
+	IsAgentSessionUpdate()
+}
+
 // Something a workspace may use, and what unlocks it when it can't yet.
 type Capability interface {
 	IsCapability()
@@ -90,6 +95,8 @@ type AgentApproval struct {
 
 func (AgentApproval) IsAgentSessionEvent() {}
 
+func (AgentApproval) IsAgentSessionUpdate() {}
+
 // One call an agent made to a model provider or a connector.
 type AgentAuditEntry struct {
 	Time time.Time      `json:"time"`
@@ -143,6 +150,15 @@ type AgentMessage struct {
 
 func (AgentMessage) IsAgentSessionEvent() {}
 
+func (AgentMessage) IsAgentSessionUpdate() {}
+
+// The message the agent is still writing, as far as it got. It is never stored, so it has no `id`: each draft replaces the one before, and the `AgentMessage` with the final text replaces the last one.
+type AgentMessageDraft struct {
+	Text string `json:"text"`
+}
+
+func (AgentMessageDraft) IsAgentSessionUpdate() {}
+
 // A model an agent can use, from one of the workspace's model providers.
 type AgentModel struct {
 	Provider *ModelProvider `json:"provider"`
@@ -164,6 +180,8 @@ type AgentNotice struct {
 }
 
 func (AgentNotice) IsAgentSessionEvent() {}
+
+func (AgentNotice) IsAgentSessionUpdate() {}
 
 // One conversation with an agent. Every member of the workspace can see it and take part.
 type AgentSession struct {
@@ -198,6 +216,8 @@ type AgentToolCall struct {
 }
 
 func (AgentToolCall) IsAgentSessionEvent() {}
+
+func (AgentToolCall) IsAgentSessionUpdate() {}
 
 // Starts sessions of an agent on its own. Its instructions, followed by the event, are the first message. The sessions are mirrored to the agent's chat when it has one.
 type AgentTrigger struct {
@@ -265,6 +285,8 @@ type AgentTurnEnd struct {
 
 func (AgentTurnEnd) IsAgentSessionEvent() {}
 
+func (AgentTurnEnd) IsAgentSessionUpdate() {}
+
 // A message someone in the workspace, or one of the agent's triggers, sent to the agent.
 type AgentUserMessage struct {
 	// The event's position in the session. Pass it as `after` to continue from here.
@@ -278,6 +300,8 @@ type AgentUserMessage struct {
 }
 
 func (AgentUserMessage) IsAgentSessionEvent() {}
+
+func (AgentUserMessage) IsAgentSessionUpdate() {}
 
 type APIToken struct {
 	ID        string        `json:"id"`

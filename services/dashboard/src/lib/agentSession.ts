@@ -137,7 +137,7 @@ export function sessionActivity(events: SessionEvent[]): AgentSessionStatus {
   return AgentSessionStatus.Working;
 }
 
-export function buildTranscript(events: SessionEvent[]): TranscriptBlock[] {
+export function buildTranscript(events: SessionEvent[], draft: string | null = null): TranscriptBlock[] {
   const collapsed = collapseEvents(events);
   const calls = new Map<string, ToolCallEvent>();
   const awaiting = new Set<string>();
@@ -185,6 +185,11 @@ export function buildTranscript(events: SessionEvent[]): TranscriptBlock[] {
         if (event.reason !== AgentTurnEndReason.Completed) agentItems(event).push({ kind: 'end', key, event });
         break;
     }
+  }
+
+  if (draft) {
+    const event: MessageEvent = { __typename: 'AgentMessage', id: 'draft', time: new Date().toISOString(), text: draft };
+    agentItems(event).push({ kind: 'message', key: 'draft', event });
   }
 
   return blocks;

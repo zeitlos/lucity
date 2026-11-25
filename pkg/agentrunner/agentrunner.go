@@ -282,7 +282,8 @@ func (c *Client) session(ctx context.Context, agent platform.AgentID, method str
 }
 
 // Events streams the events of a session after the event after, or from the
-// start when it is empty. The channel closes when the stream ends or ctx is
+// start when it is empty, with an EventMessageDraft between them while the
+// agent writes a message. The channel closes when the stream ends or ctx is
 // done.
 func (c *Client) Events(ctx context.Context, id platform.AgentSessionID, after string) (<-chan Event, error) {
 	query := url.Values{}

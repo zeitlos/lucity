@@ -97,6 +97,14 @@ type AgentMessage {
   text: String!
 }
 
+"""The message the agent is still writing, as far as it got. It is never stored, so it has no `id`: each draft replaces the one before, and the `AgentMessage` with the final text replaces the last one."""
+type AgentMessageDraft {
+  text: String!
+}
+
+"""What `agentSessionEvents` sends: an event of the session, or a draft of the message the agent is writing."""
+union AgentSessionUpdate = AgentUserMessage | AgentMessage | AgentToolCall | AgentApproval | AgentNotice | AgentTurnEnd | AgentMessageDraft
+
 """A tool the agent called."""
 type AgentToolCall {
   id: ID!
@@ -153,6 +161,6 @@ extend type Mutation {
 }
 
 extend type Subscription {
-  """The events of a session, starting after the event `after`, or from the beginning without it, and following new ones."""
-  agentSessionEvents(session: AgentSessionID!, after: ID @constraint(constraint: "max=64")): AgentSessionEvent! @hasRole(role: WORKSPACE_MEMBER)
+  """The events of a session, starting after the event `after`, or from the beginning without it, and following new ones. While the agent writes a message, drafts of it come in between."""
+  agentSessionEvents(session: AgentSessionID!, after: ID @constraint(constraint: "max=64")): AgentSessionUpdate! @hasRole(role: WORKSPACE_MEMBER)
 }

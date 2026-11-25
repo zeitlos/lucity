@@ -109,7 +109,7 @@ func (r *queryResolver) AgentSession(ctx context.Context, id platform.AgentSessi
 }
 
 // AgentSessionEvents is the resolver for the agentSessionEvents field.
-func (r *subscriptionResolver) AgentSessionEvents(ctx context.Context, session platform.AgentSessionID, after *string) (<-chan model.AgentSessionEvent, error) {
+func (r *subscriptionResolver) AgentSessionEvents(ctx context.Context, session platform.AgentSessionID, after *string) (<-chan model.AgentSessionUpdate, error) {
 	cursor := ""
 
 	if after != nil {
@@ -122,14 +122,14 @@ func (r *subscriptionResolver) AgentSessionEvents(ctx context.Context, session p
 		return nil, err
 	}
 
-	out := make(chan model.AgentSessionEvent, 64)
+	out := make(chan model.AgentSessionUpdate, 64)
 
 	go func() {
 		defer close(out)
 
 		for event := range events {
 			select {
-			case out <- convertAgentSessionEvent(event):
+			case out <- convertAgentSessionUpdate(event):
 			case <-ctx.Done():
 				return
 			}

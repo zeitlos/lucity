@@ -13,7 +13,10 @@ import (
 	"github.com/zeitlos/lucity/services/agent/internal/runner"
 )
 
-const maxBody = 1 << 20
+const (
+	maxBody       = 1 << 20
+	draftInterval = 150 * time.Millisecond
+)
 
 type Server struct {
 	runner *runner.Runner
@@ -183,6 +186,7 @@ func (s *Server) events(w http.ResponseWriter, r *http.Request) {
 
 	keepalive := time.NewTicker(20 * time.Second)
 	defer keepalive.Stop()
+	sent := ""
 	for {
 		events, err := s.runner.Events(id, after)
 		if err != nil {
@@ -197,9 +201,35 @@ func (s *Server) events(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			after = event.ID
+			sent = ""
+		}
+		draft, err := s.runner.Draft(id)
+		if err != nil {
+			return
+		}
+		drafted := draft != "" && draft != sent
+		if drafted {
+			payload, err := json.Marshal(runner.Draft{Type: runner.EventMessageDraft, Text: draft})
+			if err != nil {
+				return
+			}
+			if _, err := fmt.Fprintf(w, "data: %s\n\n", payload); err != nil {
+				return
+			}
+			sent = draft
 		}
 		if err := controller.Flush(); err != nil {
 			return
+		}
+
+		if drafted {
+			select {
+			case <-time.After(draftInterval):
+			case <-r.Context().Done():
+				return
+			case <-s.ctx.Done():
+				return
+			}
 		}
 
 		select {

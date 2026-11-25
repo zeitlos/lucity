@@ -440,6 +440,16 @@ func (r *Runner) Events(id string, after int64) ([]Event, error) {
 	return s.eventsAfter(after), nil
 }
 
+// Draft is the text so far of the message the agent is still writing in the
+// session, empty when it writes none.
+func (r *Runner) Draft(id string) (string, error) {
+	s, err := r.session(id)
+	if err != nil {
+		return "", err
+	}
+	return s.draft(), nil
+}
+
 func (r *Runner) Subscribe(id string) (<-chan struct{}, func(), error) {
 	s, err := r.session(id)
 	if err != nil {
@@ -462,6 +472,7 @@ func (r *Runner) Update(harnessSessionID string, update acp.Update) {
 	switch update.Kind {
 	case "agent_message_chunk":
 		s.appendMessage(update.Text())
+		s.notify()
 	case "notice":
 		severity := update.Severity
 		if severity != NoticeWarning && severity != NoticeError {
@@ -737,12 +748,7 @@ func (r *Runner) record(s *session, event Event) {
 	if err := r.store.append(s.record.ID, event); err != nil {
 		slog.Error("failed to write event", "session", s.record.ID, "error", err)
 	}
-	for waiter := range s.waiters {
-		select {
-		case waiter <- struct{}{}:
-		default:
-		}
-	}
+	s.notify()
 }
 
 func (r *Runner) session(id string) (*session, error) {

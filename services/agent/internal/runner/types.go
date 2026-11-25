@@ -43,6 +43,15 @@ const (
 	EventTurnEnd     = "turnEnd"
 )
 
+// EventMessageDraft is sent live only and never stored, so it has no ID: the
+// text so far of the message the agent is still writing.
+const EventMessageDraft = "messageDraft"
+
+type Draft struct {
+	Type string `json:"type"`
+	Text string `json:"text"`
+}
+
 const (
 	NoticeInfo    = "info"
 	NoticeWarning = "warning"

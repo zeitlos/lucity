@@ -118,6 +118,21 @@ func (s *session) subscribe() (<-chan struct{}, func()) {
 	}
 }
 
+func (s *session) notify() {
+	for waiter := range s.waiters {
+		select {
+		case waiter <- struct{}{}:
+		default:
+		}
+	}
+}
+
+func (s *session) draft() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.message.String()
+}
+
 func (s *session) appendMessage(text string) {
 	if s.message.Len()+len(text) > maxMessage {
 		text = truncate(text, maxMessage-s.message.Len())

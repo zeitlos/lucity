@@ -101,6 +101,11 @@ const (
 	EventApproval    = "approval"
 	EventNotice      = "notice"
 	EventTurnEnd     = "turnEnd"
+
+	// EventMessageDraft comes only from Events and has no ID: the text so far
+	// of the message the agent is still writing. The EventMessage with the
+	// final text replaces it.
+	EventMessageDraft = "messageDraft"
 )
 
 const (
@@ -256,6 +261,12 @@ func sanitizeSession(session *Session) bool {
 }
 
 func sanitizeEvent(event *Event) bool {
+	if event.Type == EventMessageDraft {
+		*event = Event{Type: EventMessageDraft, Text: cut(event.Text, maxTextLen)}
+
+		return event.Text != ""
+	}
+
 	if !platform.IsValidSessionName(event.ID) {
 		return false
 	}

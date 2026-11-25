@@ -1020,6 +1020,34 @@
       },
       {
         "kind": "OBJECT",
+        "name": "AgentMessageDraft",
+        "description": "The message the agent is still writing, as far as it got. It is never stored, so it has no `id`: each draft replaces the one before, and the `AgentMessage` with the final text replaces the last one.",
+        "isOneOf": null,
+        "fields": [
+          {
+            "name": "text",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "String",
+                "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
         "name": "AgentModel",
         "description": "A model an agent can use, from one of the workspace's model providers.",
         "isOneOf": null,
@@ -1462,6 +1490,53 @@
           }
         ],
         "possibleTypes": null
+      },
+      {
+        "kind": "UNION",
+        "name": "AgentSessionUpdate",
+        "description": "What `agentSessionEvents` sends: an event of the session, or a draft of the message the agent is writing.",
+        "isOneOf": null,
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": [
+          {
+            "kind": "OBJECT",
+            "name": "AgentApproval",
+            "ofType": null
+          },
+          {
+            "kind": "OBJECT",
+            "name": "AgentMessage",
+            "ofType": null
+          },
+          {
+            "kind": "OBJECT",
+            "name": "AgentMessageDraft",
+            "ofType": null
+          },
+          {
+            "kind": "OBJECT",
+            "name": "AgentNotice",
+            "ofType": null
+          },
+          {
+            "kind": "OBJECT",
+            "name": "AgentToolCall",
+            "ofType": null
+          },
+          {
+            "kind": "OBJECT",
+            "name": "AgentTurnEnd",
+            "ofType": null
+          },
+          {
+            "kind": "OBJECT",
+            "name": "AgentUserMessage",
+            "ofType": null
+          }
+        ]
       },
       {
         "kind": "ENUM",
@@ -19656,7 +19731,7 @@
         "fields": [
           {
             "name": "agentSessionEvents",
-            "description": "The events of a session, starting after the event `after`, or from the beginning without it, and following new ones.",
+            "description": "The events of a session, starting after the event `after`, or from the beginning without it, and following new ones. While the agent writes a message, drafts of it come in between.",
             "args": [
               {
                 "name": "after",
@@ -19691,7 +19766,7 @@
               "kind": "NON_NULL",
               "name": null,
               "ofType": {
-                "name": "AgentSessionEvent",
+                "name": "AgentSessionUpdate",
                 "kind": "UNION",
                 "ofType": null
               }

@@ -342,7 +342,9 @@ func triggerKey(body []byte, field string) (string, error) {
 		return "", fmt.Errorf("%w with a string field %q", ErrTriggerInvalid, field)
 	}
 
-	return key, nil
+	sum := sha256.Sum256([]byte(key))
+
+	return "sha256:" + hex.EncodeToString(sum[:]), nil
 }
 
 func (c *Client) loadAgentTrigger(ctx context.Context, id AgentTriggerID) (values.AgentTrigger, error) {

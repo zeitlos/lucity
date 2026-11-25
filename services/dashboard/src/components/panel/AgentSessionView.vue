@@ -43,6 +43,7 @@ const AgentSessionEventsDocument = graphql(`
       ... on AgentApproval { id time approval toolCallId: callId title approvalStatus: status decidedBy { id name email } }
       ... on AgentNotice { id time severity title description }
       ... on AgentTurnEnd { id time reason error }
+      ... on AgentMessageDraft { text }
     }
   }
 `);
@@ -114,6 +115,7 @@ const emit = defineEmits<{
 }>();
 
 const events = ref<SessionEvent[]>([]);
+const draft = ref<string | null>(null);
 const after = ref<string | null>(null);
 const live = ref(false);
 const liveFailed = ref(false);
@@ -148,15 +150,26 @@ const { onResult: onEvent, onError: onLiveError } = useSubscription(
 
 onEvent(({ data }) => {
   const event = data?.agentSessionEvents;
-  if (!event || events.value.some(existing => existing.id === event.id)) return;
+  if (!event) return;
+  if (event.__typename === 'AgentMessageDraft') {
+    draft.value = event.text;
+    return;
+  }
+  if (event.__typename === 'AgentMessage' || event.__typename === 'AgentTurnEnd') draft.value = null;
+  if (events.value.some(existing => existing.id === event.id)) return;
   events.value = [...events.value, event];
 });
 
 onLiveError(() => {
   liveFailed.value = true;
+  draft.value = null;
 });
 
-const transcript = computed(() => buildTranscript(events.value));
+watch(() => props.sessionId, () => {
+  draft.value = null;
+});
+
+const transcript = computed(() => buildTranscript(events.value, draft.value));
 const activity = computed(() => sessionActivity(events.value));
 const working = computed(() => activity.value !== AgentSessionStatus.Idle);
 
@@ -177,7 +190,7 @@ function onScroll() {
 }
 
 watch(
-  () => [events.value.length, events.value.at(-1)?.id],
+  () => [events.value.length, events.value.at(-1)?.id, draft.value?.length],
   () => {
     if (!stickToBottom.value) return;
     nextTick(() => {
@@ -274,7 +287,7 @@ function retryLive() {
 </script>
 
 <template>
-  <div class="flex min-h-0 flex-1 flex-col">
+  <div class="flex min-h-0 min-w-0 flex-1 flex-col">
     <div ref="scroller" class="min-h-0 flex-1 overflow-y-auto px-4 py-4" @scroll="onScroll">
       <EmptyState
         v-if="!sessionId"
@@ -317,9 +330,10 @@ function retryLive() {
             <span class="text-xs text-muted-foreground">
               {{ actorName(block.event.author) }}<template v-if="block.event.via"> in {{ chatAppKindLabel(block.event.via.chatApp.kind) }}</template> · {{ formatTime(block.event.time) }}
             </span>
-            <div class="max-w-[85%] rounded-lg bg-muted px-3 py-2 text-sm whitespace-pre-wrap break-words text-foreground">
-              {{ block.event.text }}
-            </div>
+            <MarkdownText
+              :source="block.event.text"
+              class="max-w-[85%] min-w-0 rounded-lg bg-muted px-3 py-2 text-sm text-foreground"
+            />
           </div>
 
           <div v-else class="space-y-2.5">

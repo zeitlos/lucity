@@ -426,6 +426,16 @@ func convertWorkspaceMemberOrNil(member *conductor.WorkspaceMember) *model.Works
 	return convertWorkspaceMember(member)
 }
 
+func convertAgentSessionUpdate(event conductor.AgentSessionEvent) model.AgentSessionUpdate {
+	if event.Type == agentrunner.EventMessageDraft {
+		return model.AgentMessageDraft{Text: event.Text}
+	}
+
+	update, _ := convertAgentSessionEvent(event).(model.AgentSessionUpdate)
+
+	return update
+}
+
 func convertAgentSessionEvent(event conductor.AgentSessionEvent) model.AgentSessionEvent {
 	switch event.Type {
 	case agentrunner.EventUserMessage:
