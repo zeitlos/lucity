@@ -26,7 +26,7 @@ const AgentSessionsDocument = graphql(`
         status
         effort
         startedBy { __typename ... on WorkspaceMember { id name email } ... on AgentTrigger { triggerId: id triggerName: name } }
-        model { name provider { id name } }
+        model { name provider { id name api url } }
         chat { chatApp { id kind } channel { id name } url }
       }
     }
@@ -37,7 +37,7 @@ const AgentModelsDocument = graphql(`
   query AgentModels($agent: AgentID!) {
     agentModels(agent: $agent) {
       name
-      provider { id name }
+      provider { id name api url }
     }
   }
 `);

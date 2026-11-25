@@ -56,7 +56,7 @@ const StartAgentSessionDocument = graphql(`
       status
       effort
       startedBy { __typename ... on WorkspaceMember { id name email } ... on AgentTrigger { triggerId: id triggerName: name } }
-      model { name provider { id name } }
+      model { name provider { id name api url } }
     }
   }
 `);
@@ -75,7 +75,7 @@ const SetAgentSessionModelDocument = graphql(`
     setAgentSessionModel(session: $session, model: $model, effort: $effort) {
       id
       effort
-      model { name provider { id name } }
+      model { name provider { id name api url } }
     }
   }
 `);

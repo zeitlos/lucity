@@ -75,25 +75,141 @@ export function modelApiLabel(api: ModelApi): string {
   }
 }
 
+export type ModelProviderBrand = 'anthropic' | 'openai' | 'mistral' | 'infomaniak' | 'scaleway' | 'hetzner' | 'opencode' | 'generic';
+
 export interface ModelProviderPreset {
   id: string;
   label: string;
   name: string;
+  brand: ModelProviderBrand;
   api: ModelApi;
   url: string;
+  domain?: string;
   urlPlaceholder?: string;
+  urlHint?: string;
   keyLabel: string;
+  keyUrl?: string;
+  keyPlaceholder?: string;
+  keyHint?: string;
 }
 
 export const modelProviderPresets: ModelProviderPreset[] = [
-  { id: 'anthropic', label: 'Anthropic', name: 'anthropic', api: ModelApi.Anthropic, url: '', keyLabel: 'API key' },
-  { id: 'openai', label: 'OpenAI', name: 'openai', api: ModelApi.Openai, url: '', keyLabel: 'API key' },
-  { id: 'mistral', label: 'Mistral', name: 'mistral', api: ModelApi.OpenaiCompatible, url: 'https://api.mistral.ai/v1', keyLabel: 'API key' },
-  { id: 'infomaniak', label: 'Infomaniak', name: 'infomaniak', api: ModelApi.OpenaiCompatible, url: '', urlPlaceholder: 'https://api.infomaniak.com/2/ai/<product id>/openai/v1', keyLabel: 'API token' },
-  { id: 'scaleway', label: 'Scaleway', name: 'scaleway', api: ModelApi.OpenaiCompatible, url: 'https://api.scaleway.ai/v1', keyLabel: 'Secret key' },
-  { id: 'hetzner', label: 'Hetzner', name: 'hetzner', api: ModelApi.OpenaiCompatible, url: 'https://inference.hetzner.com/api/v1', keyLabel: 'API token' },
-  { id: 'openai-compatible', label: 'OpenAI-compatible', name: '', api: ModelApi.OpenaiCompatible, url: '', urlPlaceholder: 'https://models.example.com/v1', keyLabel: 'API key' },
+  {
+    id: 'anthropic',
+    label: 'Anthropic',
+    name: 'anthropic',
+    brand: 'anthropic',
+    api: ModelApi.Anthropic,
+    url: '',
+    keyLabel: 'API key',
+    keyUrl: 'https://console.anthropic.com/settings/keys',
+    keyPlaceholder: 'sk-ant-…',
+  },
+  {
+    id: 'openai',
+    label: 'OpenAI',
+    name: 'openai',
+    brand: 'openai',
+    api: ModelApi.Openai,
+    url: '',
+    keyLabel: 'API key',
+    keyUrl: 'https://platform.openai.com/api-keys',
+    keyPlaceholder: 'sk-…',
+  },
+  {
+    id: 'mistral',
+    label: 'Mistral',
+    name: 'mistral',
+    brand: 'mistral',
+    api: ModelApi.OpenaiCompatible,
+    url: 'https://api.mistral.ai/v1',
+    domain: 'mistral.ai',
+    keyLabel: 'API key',
+    keyUrl: 'https://console.mistral.ai/home?profile_dialog=api-keys',
+  },
+  {
+    id: 'infomaniak',
+    label: 'Infomaniak',
+    name: 'infomaniak',
+    brand: 'infomaniak',
+    api: ModelApi.OpenaiCompatible,
+    url: '',
+    domain: 'infomaniak.com',
+    urlPlaceholder: 'https://api.infomaniak.com/2/ai/<product id>/openai/v1',
+    keyLabel: 'API token',
+  },
+  {
+    id: 'scaleway',
+    label: 'Scaleway',
+    name: 'scaleway',
+    brand: 'scaleway',
+    api: ModelApi.OpenaiCompatible,
+    url: 'https://api.scaleway.ai/v1',
+    domain: 'scaleway.ai',
+    keyLabel: 'Secret key',
+    keyUrl: 'https://console.scaleway.com/iam/api-keys',
+  },
+  {
+    id: 'hetzner',
+    label: 'Hetzner',
+    name: 'hetzner',
+    brand: 'hetzner',
+    api: ModelApi.OpenaiCompatible,
+    url: 'https://inference.hetzner.com/api/v1',
+    domain: 'hetzner.com',
+    keyLabel: 'API token',
+    keyUrl: 'https://experiments.hetzner.com/inference',
+  },
+  {
+    id: 'opencode-go',
+    label: 'OpenCode Go',
+    name: 'opencode-go',
+    brand: 'opencode',
+    api: ModelApi.OpenaiCompatible,
+    url: 'https://opencode.ai/zen/go/v1',
+    domain: 'opencode.ai',
+    keyLabel: 'API key',
+    keyUrl: 'https://opencode.ai/auth',
+    keyHint: 'From the OpenCode console, once you subscribe to Go. OpenCode lists its models without a key, so a wrong key is not caught here.',
+  },
+  {
+    id: 'custom',
+    label: 'Custom',
+    name: '',
+    brand: 'generic',
+    api: ModelApi.OpenaiCompatible,
+    url: '',
+    urlPlaceholder: 'https://models.example.com/v1',
+    urlHint: 'The base URL of any OpenAI-compatible API, the one that serves /models and /chat/completions.',
+    keyLabel: 'API key',
+  },
 ];
+
+export interface ModelProviderIdentity {
+  name: string;
+  api?: ModelApi | null;
+  url?: string | null;
+}
+
+function hostname(url: string): string | null {
+  try {
+    return new URL(url).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+export function modelProviderBrand(provider: ModelProviderIdentity): ModelProviderBrand {
+  if (provider.api === ModelApi.Anthropic) return 'anthropic';
+  if (provider.api === ModelApi.Openai) return 'openai';
+  const host = provider.url ? hostname(provider.url) : null;
+  if (host) {
+    const preset = modelProviderPresets.find(candidate => candidate.domain && (host === candidate.domain || host.endsWith(`.${candidate.domain}`)));
+    return preset?.brand ?? 'generic';
+  }
+  if (provider.api) return 'generic';
+  return modelProviderPresets.find(candidate => candidate.name && candidate.name === provider.name.trim().toLowerCase())?.brand ?? 'generic';
+}
 
 export interface ConnectorPreset {
   id: string;
@@ -118,7 +234,7 @@ export function chatAppKindLabel(kind: ChatAppKind): string {
 }
 
 export interface AgentModelOption {
-  provider: { id: string; name: string };
+  provider: { id: string; name: string; api?: ModelApi | null; url?: string | null };
   name: string;
 }
 

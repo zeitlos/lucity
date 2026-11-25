@@ -3,7 +3,7 @@ import { computed, ref } from 'vue';
 import { ArrowUp, Square } from '@lucide/vue';
 import type { Effort } from '@/gql/graphql';
 import { efforts, modelKey, type AgentModelOption } from '@/lib/agents';
-import BrandTile from '@/components/BrandTile.vue';
+import ModelProviderIcon from '@/components/ModelProviderIcon.vue';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -35,9 +35,9 @@ const emit = defineEmits<{
 const draft = ref('');
 
 const providers = computed(() => {
-  const groups = new Map<string, { id: string; name: string; models: AgentModelOption[] }>();
+  const groups = new Map<string, AgentModelOption['provider'] & { models: AgentModelOption[] }>();
   for (const model of props.models) {
-    const group = groups.get(model.provider.id) ?? { id: model.provider.id, name: model.provider.name, models: [] };
+    const group = groups.get(model.provider.id) ?? { ...model.provider, models: [] };
     group.models.push(model);
     groups.set(model.provider.id, group);
   }
@@ -91,7 +91,7 @@ defineExpose({ clear });
       <Select :model-value="selectedKey" :disabled="disabled || models.length === 0" @update:model-value="changeModel">
         <SelectTrigger class="h-7 w-auto max-w-56 gap-2 border-0 bg-muted/60 px-2 text-xs shadow-none" aria-label="Model">
           <span v-if="model" class="flex min-w-0 items-center gap-1.5">
-            <BrandTile :name="model.provider.name" size="sm" />
+            <ModelProviderIcon :provider="model.provider" size="sm" />
             <span class="truncate font-mono">{{ model.name }}</span>
           </span>
           <span v-else class="text-muted-foreground">No model</span>
@@ -99,7 +99,7 @@ defineExpose({ clear });
         <SelectContent>
           <SelectGroup v-for="provider in providers" :key="provider.id">
             <SelectLabel class="flex items-center gap-2">
-              <BrandTile :name="provider.name" size="sm" />
+              <ModelProviderIcon :provider="provider" size="sm" />
               {{ provider.name }}
             </SelectLabel>
             <SelectItem

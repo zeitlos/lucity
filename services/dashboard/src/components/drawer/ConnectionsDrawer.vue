@@ -7,6 +7,7 @@ import { CredentialStatus } from '@/gql/graphql';
 import { chatAppKindLabel, modelApiLabel, resourceName } from '@/lib/agents';
 import { credentialStatus } from '@/lib/status';
 import BrandTile from '@/components/BrandTile.vue';
+import ModelProviderIcon from '@/components/ModelProviderIcon.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import NewChatAppDialog from '@/components/NewChatAppDialog.vue';
 import NewConnectorDialog from '@/components/NewConnectorDialog.vue';
@@ -23,6 +24,7 @@ const ConnectionsDocument = graphql(`
       id
       name
       api
+      url
       status
       models
     }
@@ -167,7 +169,7 @@ function attention(status: CredentialStatus, credential: string) {
               :to="{ name: 'connection', params: { kind: 'model-providers', name: resourceName(provider.id) } }"
               class="flex items-center gap-3 py-2.5 pr-3 pl-4 transition-colors hover:bg-muted/50"
             >
-              <BrandTile :name="provider.name" />
+              <ModelProviderIcon :provider="provider" />
               <div class="min-w-0 flex-1">
                 <p class="truncate text-sm font-medium text-foreground">{{ provider.name }}</p>
                 <p class="truncate text-xs text-muted-foreground">

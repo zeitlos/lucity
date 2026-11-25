@@ -7,6 +7,7 @@ import { AgentAuditKind } from '@/gql/graphql';
 import { auditResultStatus } from '@/lib/status';
 import { formatCompact, formatDateTime, formatTime } from '@/lib/format';
 import BrandTile from '@/components/BrandTile.vue';
+import ModelProviderIcon from '@/components/ModelProviderIcon.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import QueryError from '@/components/QueryError.vue';
 import SegmentedControl from '@/components/SegmentedControl.vue';
@@ -130,7 +131,8 @@ function tokens(entry: { inputTokens?: number | null; outputTokens?: number | nu
             <TableCell>{{ entry.kind === AgentAuditKind.Model ? 'Model' : 'Tool' }}</TableCell>
             <TableCell>
               <span class="flex items-center gap-2">
-                <BrandTile :name="entry.modelProvider ?? entry.connector ?? '?'" size="sm" />
+                <ModelProviderIcon v-if="entry.modelProvider" :provider="{ name: entry.modelProvider }" size="sm" />
+                <BrandTile v-else :name="entry.connector ?? '?'" size="sm" />
                 <span class="truncate">{{ entry.modelProvider ?? entry.connector }}</span>
               </span>
             </TableCell>

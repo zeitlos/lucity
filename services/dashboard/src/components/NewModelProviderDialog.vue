@@ -1,19 +1,21 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useMutation } from '@vue/apollo-composable';
-import { Sparkles } from '@lucide/vue';
+import { RadioGroupIndicator, RadioGroupItem } from 'reka-ui';
+import { Check, ExternalLink, Sparkles } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { ModelApi } from '@/gql/graphql';
 import { modelProviderPresets, resourceName, type ModelProviderPreset } from '@/lib/agents';
 import { mobileSheetClass } from '@/lib/dialog';
-import BrandTile from '@/components/BrandTile.vue';
 import DialogIcon from '@/components/DialogIcon.vue';
+import ModelProviderIcon from '@/components/ModelProviderIcon.vue';
 import SecretInput from '@/components/SecretInput.vue';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RadioGroup } from '@/components/ui/radio-group';
 import { failureToast } from '@/components/ui/sonner';
 
 const CreateModelProviderDocument = graphql(`
@@ -45,17 +47,33 @@ const url = ref('');
 const key = ref('');
 
 watch(open, (value) => {
-  if (value) pick(modelProviderPresets[0]!);
+  if (!value) return;
+  preset.value = modelProviderPresets[0]!;
+  name.value = preset.value.name;
+  url.value = '';
+  key.value = '';
 });
 
-function pick(next: ModelProviderPreset) {
+function pick(id: string) {
+  const next = modelProviderPresets.find(candidate => candidate.id === id);
+  const previous = preset.value;
+  if (!next || next === previous) return;
   preset.value = next;
-  name.value = next.name;
-  url.value = next.url;
-  key.value = '';
+  if (!name.value.trim() || name.value === previous.name) name.value = next.name;
+  if (next.url || previous.url) url.value = next.url;
 }
 
 const needsUrl = computed(() => preset.value.api === ModelApi.OpenaiCompatible);
+const asksUrl = computed(() => needsUrl.value && !preset.value.url);
+const keyHint = computed(() => (preset.value.keyHint ? `${preset.value.keyHint} Agents never see it.` : 'Agents never see it.'));
+
+async function pickByPointer(event: MouseEvent, id: string) {
+  if (!event.detail) return;
+  pick(id);
+  await nextTick();
+  const field = asksUrl.value && !url.value.trim() ? 'model-provider-url' : 'model-provider-key';
+  document.getElementById(field)?.focus();
+}
 
 const { mutate: createModelProvider, loading: pending } = useMutation(CreateModelProviderDocument);
 
@@ -87,49 +105,69 @@ async function create() {
         <DialogHeader>
           <DialogIcon :icon="Sparkles" />
           <DialogTitle>New model provider</DialogTitle>
-          <DialogDescription>Its models show up wherever someone picks a model for a session.</DialogDescription>
+          <DialogDescription>A provider's models show up wherever someone picks a model for a session.</DialogDescription>
         </DialogHeader>
 
         <fieldset :disabled="pending" class="min-w-0 space-y-4">
           <div class="space-y-2">
-            <p class="text-sm font-medium text-foreground">Provider</p>
-            <div class="grid grid-cols-2 gap-1">
-              <button
+            <p id="model-provider-preset" class="text-sm font-medium text-foreground">Provider</p>
+            <RadioGroup
+              :model-value="preset.id"
+              aria-labelledby="model-provider-preset"
+              class="grid-cols-2 gap-1"
+              @update:model-value="pick($event as string)"
+            >
+              <RadioGroupItem
                 v-for="option in modelProviderPresets"
                 :key="option.id"
-                type="button"
-                :aria-pressed="option.id === preset.id"
-                class="flex items-center gap-2 rounded-md px-2 py-2 text-left text-sm text-foreground transition-colors hover:bg-accent aria-pressed:bg-accent"
-                @click="pick(option)"
+                :value="option.id"
+                class="flex items-center gap-2.5 rounded-md border border-transparent p-1 text-left text-sm text-foreground transition-colors hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none data-[state=checked]:border-border data-[state=checked]:bg-accent data-[state=checked]:font-medium"
+                @click="pickByPointer($event, option.id)"
               >
-                <BrandTile :name="option.label" size="sm" />
-                <span class="truncate">{{ option.label }}</span>
-              </button>
-            </div>
+                <ModelProviderIcon :brand="option.brand" />
+                <span class="min-w-0 flex-1 truncate">{{ option.label }}</span>
+                <RadioGroupIndicator class="mr-1 shrink-0">
+                  <Check :size="16" />
+                </RadioGroupIndicator>
+              </RadioGroupItem>
+            </RadioGroup>
           </div>
 
-          <div class="space-y-2">
-            <Label for="model-provider-name">Name</Label>
-            <Input id="model-provider-name" v-model="name" placeholder="anthropic" autocomplete="off" spellcheck="false" />
-          </div>
-
-          <div v-if="needsUrl" class="space-y-2">
+          <div v-if="asksUrl" class="space-y-2">
             <Label for="model-provider-url">URL</Label>
             <Input
               id="model-provider-url"
               v-model="url"
               class="font-mono text-sm"
-              :placeholder="preset.urlPlaceholder ?? 'https://models.example.com/v1'"
+              :placeholder="preset.urlPlaceholder"
               autocomplete="off"
               spellcheck="false"
             />
-            <p class="text-xs text-muted-foreground">The base URL that serves /models and /chat/completions.</p>
+            <p class="text-xs text-muted-foreground">{{ preset.urlHint ?? 'The base URL that serves /models and /chat/completions.' }}</p>
           </div>
 
           <div class="space-y-2">
-            <Label for="model-provider-key">{{ preset.keyLabel }}</Label>
-            <SecretInput id="model-provider-key" v-model="key" />
-            <p class="text-xs text-muted-foreground">Checked by listing the models. Agents never see it.</p>
+            <div class="flex items-center justify-between gap-2">
+              <Label for="model-provider-key">{{ preset.keyLabel }}</Label>
+              <a
+                v-if="preset.keyUrl"
+                :href="preset.keyUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="flex items-center gap-1 rounded-sm text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              >
+                Get one
+                <ExternalLink :size="12" />
+              </a>
+            </div>
+            <SecretInput id="model-provider-key" v-model="key" :placeholder="preset.keyPlaceholder" />
+            <p class="text-xs text-muted-foreground">{{ keyHint }}</p>
+          </div>
+
+          <div class="space-y-2">
+            <Label for="model-provider-name">Name</Label>
+            <Input id="model-provider-name" v-model="name" :placeholder="preset.name || 'my-provider'" autocomplete="off" spellcheck="false" />
+            <p class="text-xs text-muted-foreground">Its models are listed under this name.</p>
           </div>
         </fieldset>
 
