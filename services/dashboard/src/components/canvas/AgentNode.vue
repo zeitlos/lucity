@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, useTemplateRef } from 'vue';
 import { Handle, Position } from '@vue-flow/core';
-import { Bot, CircleAlert } from '@lucide/vue';
-import { AgentStatus, type Harness } from '@/gql/graphql';
+import { Bot, CircleAlert, Shield, Zap } from '@lucide/vue';
+import { AgentStatus, type ChatAppKind, type Harness } from '@/gql/graphql';
 import { agentStatus } from '@/lib/status';
-import { harnessLabel } from '@/lib/agents';
+import { chatAppKindLabel, harnessLabel } from '@/lib/agents';
+import { brandMark } from '@/lib/brandMarks';
 import { darkTooltipClass } from '@/lib/tooltip';
 import BrandTile from '@/components/BrandTile.vue';
 import { Status } from '@/components/ui/status';
@@ -17,6 +18,10 @@ const props = defineProps<{
     harness: Harness;
     status: AgentStatus;
     connectors: string[];
+    chat: { kind: ChatAppKind; channel: string } | null;
+    triggers: string[];
+    allowedHosts: number;
+    privateNetwork: boolean;
   };
   selected?: boolean;
 }>();
@@ -29,6 +34,15 @@ useGridHeight(useTemplateRef<HTMLElement>('card'));
 
 const status = computed(() => agentStatus(props.data.status));
 const waiting = computed(() => props.data.status === AgentStatus.WaitingForApproval);
+const harnessMark = computed(() => brandMark(harnessLabel(props.data.harness)));
+const chatMark = computed(() => (props.data.chat ? brandMark(chatAppKindLabel(props.data.chat.kind)) : null));
+
+const network = computed(() => {
+  const hosts = props.data.allowedHosts;
+  if (hosts === 0) return props.data.privateNetwork ? 'Private network' : null;
+  const allowed = `${hosts} allowed ${hosts === 1 ? 'host' : 'hosts'}`;
+  return props.data.privateNetwork ? `${allowed}, private network` : allowed;
+});
 </script>
 
 <template>
@@ -62,12 +76,46 @@ const waiting = computed(() => props.data.status === AgentStatus.WaitingForAppro
       </div>
 
       <div class="flex items-center gap-3">
-        <Bot :size="28" class="shrink-0 text-foreground" />
+        <svg
+          v-if="harnessMark"
+          :viewBox="harnessMark.viewBox ?? '0 0 24 24'"
+          class="size-7 shrink-0"
+          :style="{ color: harnessMark.background }"
+          fill="currentColor"
+          role="img"
+          :aria-label="harnessLabel(data.harness)"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path :d="harnessMark.path" />
+        </svg>
+        <Bot v-else :size="28" class="shrink-0 text-foreground" />
         <span class="truncate font-semibold text-foreground">{{ data.name }}</span>
       </div>
 
-      <div class="mt-3 text-xs text-muted-foreground">
-        {{ harnessLabel(data.harness) }}
+      <div v-if="data.chat || data.triggers.length || network" class="mt-3 space-y-1 text-xs text-muted-foreground">
+        <div v-if="data.chat" class="flex items-center gap-1.5">
+          <svg
+            v-if="chatMark"
+            :viewBox="chatMark.viewBox ?? '0 0 24 24'"
+            class="size-3 shrink-0"
+            fill="currentColor"
+            role="img"
+            :aria-label="chatAppKindLabel(data.chat.kind)"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path :d="chatMark.path" />
+          </svg>
+          <span class="truncate">{{ data.chat.channel }}</span>
+        </div>
+        <div v-if="data.triggers.length" class="flex items-center gap-1.5">
+          <Zap :size="12" class="shrink-0" />
+          <span class="truncate">{{ data.triggers[0] }}</span>
+          <span v-if="data.triggers.length > 1" class="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-xs leading-none text-muted-foreground">+{{ data.triggers.length - 1 }}</span>
+        </div>
+        <div v-if="network" class="flex items-center gap-1.5">
+          <Shield :size="12" class="shrink-0" />
+          <span class="truncate">{{ network }}</span>
+        </div>
       </div>
 
       <div class="grow basis-3" />

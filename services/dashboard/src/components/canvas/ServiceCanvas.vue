@@ -188,6 +188,10 @@ const nodes = computed(() => {
         harness: agent.harness,
         status: agent.status,
         connectors: agent.connectors.map(grant => grant.connector.name),
+        chat: agent.chat ? { kind: agent.chat.chatApp.kind, channel: agent.chat.channel.name } : null,
+        triggers: agent.triggers.filter(trigger => trigger.enabled).map(trigger => trigger.name),
+        allowedHosts: agent.allowedHosts.length,
+        privateNetwork: agent.privateNetwork,
       },
     };
   });
