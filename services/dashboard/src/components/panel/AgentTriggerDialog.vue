@@ -286,7 +286,7 @@ async function newToken() {
 
 <template>
   <Dialog v-model:open="open">
-    <DialogContent :class="[mobileSheetClass, 'sm:max-w-lg']">
+    <DialogContent :class="[mobileSheetClass, 'max-h-[calc(100dvh-4rem)] overflow-y-auto sm:max-w-lg']">
       <div v-if="created" class="min-w-0 space-y-4">
         <DialogHeader>
           <DialogIcon :icon="Webhook" />
