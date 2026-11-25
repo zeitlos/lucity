@@ -34,7 +34,6 @@ export interface AgentTrigger {
   instructions: string;
   enabled: boolean;
   url?: string | null;
-  lastRunAt?: string | null;
 }
 
 export interface HarnessOption {

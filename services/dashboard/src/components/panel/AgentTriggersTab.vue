@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useMutation } from '@vue/apollo-composable';
+import { computed, ref } from 'vue';
+import { useMutation, useQuery } from '@vue/apollo-composable';
 import { Clock, Plus, Trash2, Webhook, Zap } from '@lucide/vue';
 import { graphql } from '@/gql';
-import { AgentTriggerSource } from '@/gql/graphql';
+import { AgentStatus, AgentTriggerSource } from '@/gql/graphql';
 import type { Agent, AgentTrigger } from '@/lib/agents';
 import { describeCron } from '@/lib/schedule';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import IconButton from '@/components/IconButton.vue';
+import QueryError from '@/components/QueryError.vue';
 import RelativeTime from '@/components/RelativeTime.vue';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -35,9 +36,31 @@ const DeleteAgentTriggerDocument = graphql(`
   }
 `);
 
-defineProps<{
+const AgentTriggerRunsDocument = graphql(`
+  query AgentTriggerRuns($agent: AgentID!) {
+    agent(id: $agent) {
+      id
+      triggers {
+        id
+        lastRunAt
+      }
+    }
+  }
+`);
+
+const props = defineProps<{
   agent: Agent;
 }>();
+
+const starting = computed(() => props.agent.status === AgentStatus.Starting);
+
+const { result: runsResult, error: runsError, refetch: refetchRuns } = useQuery(
+  AgentTriggerRunsDocument,
+  () => ({ agent: props.agent.id }),
+  () => ({ enabled: !starting.value && props.agent.triggers.length > 0, pollInterval: 30000 }),
+);
+
+const lastRuns = computed(() => new Map((runsResult.value?.agent.triggers ?? []).map(trigger => [trigger.id, trigger.lastRunAt])));
 
 const dialogOpen = ref(false);
 const editing = ref<AgentTrigger | null>(null);
@@ -104,7 +127,9 @@ async function remove(trigger: AgentTrigger) {
       title="No triggers yet"
       description="Start sessions on a schedule, or when a webhook is called."
     />
-    <div v-else class="-mx-4 divide-y border-y">
+    <QueryError v-if="runsError && !runsResult && agent.triggers.length > 0" title="Couldn't load when the triggers last ran" :error="runsError" @retry="refetchRuns()" />
+
+    <div v-if="agent.triggers.length > 0" class="-mx-4 divide-y border-y">
       <div v-for="trigger in agent.triggers" :key="trigger.id" class="flex items-center gap-3 py-2.5 pr-3 pl-4">
         <span class="inline-flex size-8 shrink-0 items-center justify-center rounded-md border bg-muted text-foreground">
           <Webhook v-if="trigger.source === AgentTriggerSource.Webhook" :size="16" />
@@ -113,9 +138,10 @@ async function remove(trigger: AgentTrigger) {
         <button type="button" class="min-w-0 flex-1 text-left" @click="openEdit(trigger)">
           <p class="truncate text-sm font-medium text-foreground">{{ trigger.name }}</p>
           <p class="truncate text-xs text-muted-foreground">
-            {{ when(trigger) }} ·
-            <template v-if="trigger.lastRunAt">last run <RelativeTime :value="trigger.lastRunAt" /></template>
-            <template v-else>not run yet</template>
+            {{ when(trigger) }}<template v-if="lastRuns.has(trigger.id)"> ·
+              <template v-if="lastRuns.get(trigger.id)">last run <RelativeTime :value="lastRuns.get(trigger.id)!" /></template>
+              <template v-else>not run yet</template>
+            </template>
           </p>
         </button>
         <Switch

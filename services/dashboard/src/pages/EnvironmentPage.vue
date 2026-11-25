@@ -302,7 +302,6 @@ const EnvironmentAgentsDocument = graphql(`
           instructions
           enabled
           url
-          lastRunAt
         }
       }
     }

@@ -22,7 +22,7 @@ type AgentTrigger {
   enabled: Boolean!
   """Where a webhook trigger is called, with its token as a bearer token."""
   url: String @goField(forceResolver: true)
-  """When the trigger last started a session."""
+  """When the trigger last started a session. Asks the agent, so it fails while the agent can't be reached."""
   lastRunAt: Time @goField(forceResolver: true)
 }
 

@@ -33,7 +33,6 @@ const CreateAgentTriggerDocument = graphql(`
         instructions
         enabled
         url
-        lastRunAt
       }
     }
   }
@@ -51,7 +50,6 @@ const UpdateAgentTriggerDocument = graphql(`
       instructions
       enabled
       url
-      lastRunAt
     }
   }
 `);

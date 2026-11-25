@@ -1753,7 +1753,7 @@
           },
           {
             "name": "lastRunAt",
-            "description": "When the trigger last started a session.",
+            "description": "When the trigger last started a session. Asks the agent, so it fails while the agent can't be reached.",
             "args": [],
             "type": {
               "kind": "SCALAR",

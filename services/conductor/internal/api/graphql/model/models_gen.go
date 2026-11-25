@@ -215,7 +215,7 @@ type AgentTrigger struct {
 	Enabled bool `json:"enabled"`
 	// Where a webhook trigger is called, with its token as a bearer token.
 	URL *string `json:"url,omitempty"`
-	// When the trigger last started a session.
+	// When the trigger last started a session. Asks the agent, so it fails while the agent can't be reached.
 	LastRunAt *time.Time `json:"lastRunAt,omitempty"`
 }
 
