@@ -10,6 +10,9 @@ export default defineAppConfig({
   seo: {
     titleTemplate: '%s | Lucity'
   },
+  search: {
+    fts: true
+  },
   github: {
     url: 'https://github.com/zeitlos/lucity',
     branch: 'main'
