@@ -199,8 +199,10 @@ func (c *Client) defaults(ctx context.Context, agent platform.AgentID, ws *value
 	return &agentrunner.Model{Provider: name, API: string(provider.API), Name: provider.Models[0]}, effort, nil
 }
 
-// Message is what an agent reads when a trigger fires: the trigger's
-// instructions, then the event as fenced data.
+const opening = "Start with a message of one or two lines saying what this event is, before any tool call."
+
+// Message is what an agent reads when a trigger fires: how to open, the
+// trigger's instructions, then the event as fenced data.
 func Message(instructions, event string) string {
 	fence := "```"
 
@@ -208,7 +210,7 @@ func Message(instructions, event string) string {
 		fence += "`"
 	}
 
-	return strings.TrimSpace(instructions) + "\n\nThe event, as data:\n" + fence + "\n" + event + "\n" + fence
+	return opening + "\n\n" + strings.TrimSpace(instructions) + "\n\nThe event, as data:\n" + fence + "\n" + event + "\n" + fence
 }
 
 // LastRun is when the trigger last started a session, or the zero time.
