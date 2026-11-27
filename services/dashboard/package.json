@@ -34,7 +34,7 @@
     "embla-carousel-vue": "^8.6.0",
     "graphql": "^16.13.2",
     "graphql-ws": "^6.3.0",
-    "markdown-it": "^14.1.0",
+    "markdown-it": "^15.0.0",
     "reka-ui": "^2.10.5",
     "tailwind-merge": "^3.7.0",
     "tailwindcss": "^4.3.3",
